@@ -84,7 +84,7 @@ class _ScientificCalculatorAppState extends State<ScientificCalculatorApp> {
   }
 }
 
-enum CalculatorMode { basic, scientific, statistics, electrician }
+enum CalculatorMode { basic, scientific, statistics, electrician, unitConversion }
 enum AccessibilityType { none, blind, visuallyImpaired }
 enum DisplayFormat { standard, fix, sci, eng }
 
@@ -133,11 +133,44 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   bool _isElectricianExpanded = true;
   bool _isStatsExpanded = true;
   bool _isVariablesExpanded = false;
+  bool _isUnitConvExpanded = true;
 
   final Map<String, double> _memory = {
     'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0, 'F': 0,
     'X': 0, 'Y': 0, 'M': 0,
   };
+
+  final Map<String, Map<String, double>> _unitCategories = {
+    'Délka': {
+      'm': 1.0,
+      'km': 1000.0,
+      'cm': 0.01,
+      'mm': 0.001,
+      'mi': 1609.344,
+      'yd': 0.9144,
+      'ft': 0.3048,
+      'in': 0.0254,
+    },
+    'Hmotnost': {
+      'kg': 1.0,
+      'g': 0.001,
+      'mg': 0.000001,
+      't': 1000.0,
+      'lb': 0.45359237,
+      'oz': 0.028349523125,
+    },
+    'Plocha': {
+      'm²': 1.0,
+      'km²': 1000000.0,
+      'ha': 10000.0,
+      'cm²': 0.0001,
+      'akr': 4046.856,
+    },
+  };
+
+  String _selectedUnitCategory = 'Délka';
+  String _unitFrom = 'm';
+  String _unitTo = 'km';
 
   List<String> _history = [];
 
@@ -209,8 +242,123 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       case CalculatorMode.scientific: modeName = 'Vědecký režim'; break;
       case CalculatorMode.statistics: modeName = 'Statistický režim'; break;
       case CalculatorMode.electrician: modeName = 'Elektrotechnický režim'; break;
+      case CalculatorMode.unitConversion: modeName = 'Režim převodu jednotek'; break;
     }
     speak(modeName);
+  }
+
+  void _convertUnits() {
+    try {
+      // Získáme číselnou hodnotu z posledního výsledku
+      double value = double.parse(_lastResult.replaceAll(',', '.'));
+      double fromFactor = _unitCategories[_selectedUnitCategory]![_unitFrom]!;
+      double toFactor = _unitCategories[_selectedUnitCategory]![_unitTo]!;
+      double result = value * (fromFactor / toFactor);
+      
+      String resStr = _formatNumber(result);
+      setState(() {
+        _lastResult = resStr;
+        _hasResult = true;
+      });
+      speak('Převedeno z $_unitFrom na $_unitTo. Výsledek je ${resStr.replaceAll('.', ',')}');
+      _addToHistory('Převod $value $_unitFrom na $_unitTo', resStr);
+    } catch (e) {
+      speak('Chyba při převodu. Ujistěte se, že na displeji je číslo.');
+    }
+  }
+
+  Widget _buildScientificTripleDisplay(String text) {
+    // Rozdělíme 1.23E+05 na "1.23" a "+05"
+    List<String> parts = text.split('E');
+    String mantissa = parts[0];
+    String exponent = parts[1];
+    
+    // Formátování exponentu na 3 místa (např. +05 -> 005, -3 -> -03)
+    // Pokud je kladný, odstraníme plus. Pokud záporný, necháme mínus.
+    String formattedExp = exponent.replaceAll('+', '');
+    if (!formattedExp.startsWith('-')) {
+      formattedExp = formattedExp.padLeft(3, '0');
+    } else {
+      // Pro záporná čísla jako -3 chceme -03 nebo -003
+      String digits = formattedExp.substring(1).padLeft(2, '0');
+      formattedExp = '-$digits';
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _useSixteenSegment 
+          ? SixteenSegmentDisplay(
+              value: _normalizeForSegmentDisplay(mantissa),
+              size: 16 * _fontSizeMultiplier,
+              characterSpacing: 4,
+              characterCount: 8,
+              segmentStyle: DefaultSegmentStyle(
+                enabledColor: Colors.redAccent,
+                disabledColor: Colors.red.withOpacity(0.05),
+              ),
+            )
+          : SevenSegmentDisplay(
+              value: _normalizeForSegmentDisplay(mantissa),
+              size: 16 * _fontSizeMultiplier,
+              characterSpacing: 4,
+              characterCount: 8,
+              segmentStyle: DefaultSegmentStyle(
+                enabledColor: Colors.redAccent,
+                disabledColor: Colors.red.withOpacity(0.05),
+              ),
+            ),
+        const SizedBox(width: 8),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            const Text('x10', style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+            SevenSegmentDisplay(
+              value: formattedExp,
+              size: 8 * _fontSizeMultiplier,
+              characterSpacing: 2,
+              characterCount: 3,
+              segmentStyle: DefaultSegmentStyle(
+                enabledColor: Colors.redAccent,
+                disabledColor: Colors.red.withOpacity(0.05),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainResultDisplay() {
+    String res = _lastResult.isEmpty ? '0.' : _lastResult;
+    
+    // Pokud je zapnutý vědecký formát a výsledek obsahuje exponent
+    if (_displayFormat == DisplayFormat.sci && res.contains('E') && res.toLowerCase() != 'error') {
+      return _buildScientificTripleDisplay(res);
+    }
+
+    return _useSixteenSegment 
+      ? SixteenSegmentDisplay(
+          value: _normalizeForSegmentDisplay(res),
+          size: 16 * _fontSizeMultiplier,
+          characterSpacing: 8,
+          characterCount: 12,
+          segmentStyle: DefaultSegmentStyle(
+            enabledColor: Colors.redAccent,
+            disabledColor: Colors.red.withOpacity(0.05),
+          ),
+        )
+      : SevenSegmentDisplay(
+          value: _normalizeForSegmentDisplay(res),
+          size: 16 * _fontSizeMultiplier,
+          characterSpacing: 8,
+          characterCount: 12,
+          segmentStyle: DefaultSegmentStyle(
+            enabledColor: Colors.redAccent,
+            disabledColor: Colors.red.withOpacity(0.05),
+          ),
+        );
   }
 
   void _loadSettings() async {
@@ -264,7 +412,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   String _formatForSpeech(String text) {
-    return text.replaceAll('.', ',');
+    String processed = text.replaceAll('.', ',');
+    
+    // Převede vědecký zápis (např. 1,23E+05 nebo 1,23E-03) na srozumitelnou češtinu
+    processed = processed.replaceAllMapped(RegExp(r'(\d+(?:,\d+)?)E([+-])(\d+)'), (m) {
+      String mantissa = m[1]!;
+      String sign = m[2] == '-' ? 'mínus ' : '';
+      int exponent = int.parse(m[3]!); // Odstraní úvodní nuly pro řeč
+      return '$mantissa krát deset na $sign$exponent';
+    });
+    
+    return processed;
   }
 
   void _showInitialAccessibilityDialog() {
@@ -302,7 +460,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Nápověda'),
-        content: const Text('Kalkulačka podporuje vědecké a elektro výpočty. Používejte horní menu pro přepínání režimů.'),
+        content: const Text('Kalkulačka podporuje vědecké, elektro a statistické výpočty. Nově můžete využít režim PŘEVODY pro převod aktuálního výsledku. Ve vědeckém režimu (SCI) uvidíte výsledek s odděleným exponentem (např. x10 005).'),
         actions: [
           TextButton(
             autofocus: true,
@@ -788,13 +946,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       body: Column(
         children: [
           Expanded(
-            // Používáme větší základ pro flex (1000), aby bylo zvětšování plynulé
             flex: (1000 * _displaySizeFactor).toInt(),
             child: Container(
               margin: const EdgeInsets.all(8),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFF121212), // Černé pozadí pro LED efekt
+                color: const Color(0xFF121212), 
                 border: const Border(
                   top: BorderSide(color: Colors.black, width: 3),
                   left: BorderSide(color: Colors.black, width: 3),
@@ -822,7 +979,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        // Horní řádek - Výraz (Dot-matrix)
                         Flexible(
                           flex: 1,
                           child: FittedBox(
@@ -832,33 +988,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        // Dolní řádek - Hlavní číslo/Výsledek
                         Flexible(
                           flex: 1,
                           child: FittedBox(
                             fit: BoxFit.contain,
                             alignment: Alignment.centerRight,
-                            child: _useSixteenSegment 
-                              ? SixteenSegmentDisplay(
-                                  value: _normalizeForSegmentDisplay(_lastResult.isEmpty ? '0.' : _lastResult),
-                                  size: 16 * _fontSizeMultiplier,
-                                  characterSpacing: 8,
-                                  characterCount: 12,
-                                  segmentStyle: DefaultSegmentStyle(
-                                    enabledColor: Colors.redAccent,
-                                    disabledColor: Colors.red.withOpacity(0.05),
-                                  ),
-                                )
-                              : SevenSegmentDisplay(
-                                  value: _normalizeForSegmentDisplay(_lastResult.isEmpty ? '0.' : _lastResult),
-                                  size: 16 * _fontSizeMultiplier,
-                                  characterSpacing: 8,
-                                  characterCount: 12,
-                                  segmentStyle: DefaultSegmentStyle(
-                                    enabledColor: Colors.redAccent,
-                                    disabledColor: Colors.red.withOpacity(0.05),
-                                  ),
-                                ),
+                            child: _buildMainResultDisplay(),
                           ),
                         ),
                       ],
@@ -897,9 +1032,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     ],
                   );
                 } else {
-                  // Na výšku: Rozdělíme prostor mezi funkce (pokud jsou rozbalené) a klávesnici
-                  // Spočítáme optimální výšku pro klávesnici tak, aby se vešla celá
-                  // Standardní poměr pro klávesnici 4x5, aby byla čitelná
                   double keyboardHeight = availableHeight * 0.65; 
                   if (_fontSizeMultiplier > 1.5) keyboardHeight = availableHeight * 0.75;
 
@@ -926,6 +1058,63 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUnitConversionSection() {
+    return Column(
+      children: [
+        DropdownButtonFormField<String>(
+          value: _selectedUnitCategory,
+          decoration: const InputDecoration(labelText: 'Kategorie'),
+          items: _unitCategories.keys.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+          onChanged: (val) {
+            setState(() {
+              _selectedUnitCategory = val!;
+              _unitFrom = _unitCategories[val]!.keys.first;
+              _unitTo = _unitCategories[val]!.keys.elementAt(1);
+            });
+            speak('Kategorie $val');
+          },
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _unitFrom,
+                decoration: const InputDecoration(labelText: 'Z jednotky'),
+                items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                onChanged: (val) {
+                  setState(() => _unitFrom = val!);
+                  speak('Z jednotky $val');
+                },
+              ),
+            ),
+            const Icon(Icons.arrow_forward),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _unitTo,
+                decoration: const InputDecoration(labelText: 'Na jednotku'),
+                items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                onChanged: (val) {
+                  setState(() => _unitTo = val!);
+                  speak('Na jednotku $val');
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _convertUnits,
+            icon: const Icon(Icons.sync),
+            label: const Text('PŘEVÉST AKTUÁLNÍ VÝSLEDEK'),
+            style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -974,6 +1163,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             case CalculatorMode.scientific: label = 'Vědecká'; break;
             case CalculatorMode.statistics: label = 'Statistika'; break;
             case CalculatorMode.electrician: label = 'Elektro'; break;
+            case CalculatorMode.unitConversion: label = 'Převody'; break;
           }
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -992,6 +1182,18 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   List<Widget> _buildFunctionSections() {
     List<Widget> sections = [];
+
+    if (_currentMode == CalculatorMode.unitConversion) {
+      sections.add(Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: _buildUnitConversionSection(),
+          ),
+        ),
+      ));
+    }
 
     // Základní funkce (Matematické) jsou dostupné ve všech režimech kromě úplně základního, 
     // kde mohou být také, nebo je omezíme.
