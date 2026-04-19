@@ -759,7 +759,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         double val = 0; try { val = double.parse(_lastResult.replaceAll(',', '.')); } catch (_) {}
         setState(() { _memory[label] = val; _isStoreMode = false; }); speak('Uloženo do $label');
       } else append(label);
+    else if (label == 'EXP') {
+      append('E');
     } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', '∛', 'ABS', '1/x'].contains(label)) {
+
       String insertText = label == '1/x' ? '1/()' : '$label()';
       _insertAtCursor(insertText, cursorOffset: -1); speak(_buttonNames[label] ?? label);
     } else if (['°→\'', '\'→°', 'DMS', 'π', 'e'].contains(label)) {
@@ -902,6 +905,14 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
             SwitchListTile(title: const Text('Hlas'), value: widget.parent.ttsEnabled, onChanged: (v) => setState(() { widget.parent.setState(() => widget.parent.ttsEnabled = v); widget.parent._saveSettings(); })),
             ListTile(title: const Text('Písmo'), subtitle: Slider(value: widget.parent._fontSizeMultiplier, min: 0.8, max: 3.0, onChanged: (v) => setState(() { widget.parent.setState(() => widget.parent._fontSizeMultiplier = v); widget.parent._saveSettings(); }))),
             SwitchListTile(title: const Text('16 seg'), value: widget.parent._useSixteenSegment, onChanged: (v) => setState(() { widget.parent.setState(() => widget.parent._useSixteenSegment = v); widget.parent._saveSettings(); })),
+          ],
+        ),
+      ),
+      actions: [ TextButton(onPressed: () => Navigator.pop(context), child: const Text('HOTOVO')) ],
+    );
+  }
+}
+_useSixteenSegment = v); widget.parent._saveSettings(); })),
           ],
         ),
       ),
