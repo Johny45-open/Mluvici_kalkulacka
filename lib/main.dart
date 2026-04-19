@@ -891,5 +891,3 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
     );
   }
 }
-  }
-}
