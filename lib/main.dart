@@ -168,6 +168,28 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     },
   };
 
+  final Map<String, Map<String, dynamic>> _unitSpeechData = {
+    'm': {'base': 'metr', 'z': 'metrů', 'na': 'metry', 'forms': ['metr', 'metry', 'metrů', 'metru']},
+    'km': {'base': 'kilometr', 'z': 'kilometrů', 'na': 'kilometry', 'forms': ['kilometr', 'kilometry', 'kilometrů', 'kilometru']},
+    'cm': {'base': 'centimetr', 'z': 'centimetrů', 'na': 'centimetry', 'forms': ['centimetr', 'centimetry', 'centimetrů', 'centimetru']},
+    'mm': {'base': 'milimetr', 'z': 'milimetrů', 'na': 'milimetry', 'forms': ['milimetr', 'milimetry', 'milimetrů', 'milimetru']},
+    'mi': {'base': 'míle', 'z': 'mil', 'na': 'míle', 'forms': ['míle', 'míle', 'mil', 'míle']},
+    'yd': {'base': 'yard', 'z': 'yardů', 'na': 'yardy', 'forms': ['yard', 'yardy', 'yardů', 'yardu']},
+    'ft': {'base': 'stopa', 'z': 'stop', 'na': 'stopy', 'forms': ['stopa', 'stopy', 'stop', 'stopy']},
+    'in': {'base': 'palec', 'z': 'palců', 'na': 'palce', 'forms': ['palec', 'palce', 'palců', 'palce']},
+    'kg': {'base': 'kilogram', 'z': 'kilogramů', 'na': 'kilogramy', 'forms': ['kilogram', 'kilogramy', 'kilogramů', 'kilogramu']},
+    'g': {'base': 'gram', 'z': 'gramů', 'na': 'gramy', 'forms': ['gram', 'gramy', 'gramů', 'gramu']},
+    'mg': {'base': 'miligram', 'z': 'miligramů', 'na': 'miligramy', 'forms': ['miligram', 'miligramy', 'miligramů', 'miligramu']},
+    't': {'base': 'tuna', 'z': 'tun', 'na': 'tuny', 'forms': ['tuna', 'tuny', 'tun', 'tuny']},
+    'lb': {'base': 'libra', 'z': 'liber', 'na': 'libry', 'forms': ['libra', 'libry', 'liber', 'libry']},
+    'oz': {'base': 'unce', 'z': 'uncí', 'na': 'unce', 'forms': ['unce', 'unce', 'uncí', 'unce']},
+    'm²': {'base': 'metr čtvereční', 'z': 'metrů čtverečních', 'na': 'metry čtvereční', 'forms': ['metr čtvereční', 'metry čtvereční', 'metrů čtverečních', 'metru čtverečního']},
+    'km²': {'base': 'kilometr čtvereční', 'z': 'kilometrů čtverečních', 'na': 'kilometry čtvereční', 'forms': ['kilometr čtvereční', 'kilometry čtvereční', 'kilometrů čtverečních', 'kilometru čtverečního']},
+    'ha': {'base': 'hektar', 'z': 'hektarů', 'na': 'hektary', 'forms': ['hektar', 'hektary', 'hektarů', 'hektaru']},
+    'cm²': {'base': 'centimetr čtvereční', 'z': 'centimetrů čtverečních', 'na': 'centimetry čtvereční', 'forms': ['centimetr čtvereční', 'centimetry čtvereční', 'centimetrů čtverečních', 'centimetru čtverečního']},
+    'akr': {'base': 'akr', 'z': 'akrů', 'na': 'akry', 'forms': ['akr', 'akry', 'akrů', 'akru']},
+  };
+
   String _selectedUnitCategory = 'Délka';
   String _unitFrom = 'm';
   String _unitTo = 'km';
@@ -247,9 +269,23 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     speak(modeName);
   }
 
+  String _getUnitSpeech(String unitCode, {double? value, String context = 'base'}) {
+    final data = _unitSpeechData[unitCode];
+    if (data == null) return unitCode;
+    
+    if (value != null) {
+      double absVal = value.abs();
+      if (absVal % 1 != 0) return data['forms'][3]; 
+      if (absVal == 1) return data['forms'][0];
+      if (absVal >= 2 && absVal <= 4) return data['forms'][1];
+      return data['forms'][2];
+    }
+    
+    return data[context] ?? data['base'];
+  }
+
   void _convertUnits() {
     try {
-      // Získáme číselnou hodnotu z posledního výsledku
       double value = double.parse(_lastResult.replaceAll(',', '.'));
       double fromFactor = _unitCategories[_selectedUnitCategory]![_unitFrom]!;
       double toFactor = _unitCategories[_selectedUnitCategory]![_unitTo]!;
@@ -260,7 +296,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _lastResult = resStr;
         _hasResult = true;
       });
-      speak('Převedeno z $_unitFrom na $_unitTo. Výsledek je ${resStr.replaceAll('.', ',')}');
+
+      String unitFromName = _getUnitSpeech(_unitFrom, context: 'z');
+      String unitToName = _getUnitSpeech(_unitTo, context: 'na');
+      String resultUnitName = _getUnitSpeech(_unitTo, value: result);
+
+      speak('Převedeno z $unitFromName na $unitToName. Výsledek je ${resStr.replaceAll('.', ',')} $resultUnitName');
       _addToHistory('Převod $value $_unitFrom na $_unitTo', resStr);
     } catch (e) {
       speak('Chyba při převodu. Ujistěte se, že na displeji je číslo.');
@@ -268,18 +309,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget _buildScientificTripleDisplay(String text) {
-    // Rozdělíme 1.23E+05 na "1.23" a "+05"
     List<String> parts = text.split('E');
     String mantissa = parts[0];
     String exponent = parts[1];
     
-    // Formátování exponentu na 3 místa (např. +05 -> 005, -3 -> -03)
-    // Pokud je kladný, odstraníme plus. Pokud záporný, necháme mínus.
     String formattedExp = exponent.replaceAll('+', '');
     if (!formattedExp.startsWith('-')) {
       formattedExp = formattedExp.padLeft(3, '0');
     } else {
-      // Pro záporná čísla jako -3 chceme -03 nebo -003
       String digits = formattedExp.substring(1).padLeft(2, '0');
       formattedExp = '-$digits';
     }
@@ -332,8 +369,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   Widget _buildMainResultDisplay() {
     String res = _lastResult.isEmpty ? '0.' : _lastResult;
-    
-    // Pokud je zapnutý vědecký formát a výsledek obsahuje exponent
     if (_displayFormat == DisplayFormat.sci && res.contains('E') && res.toLowerCase() != 'error') {
       return _buildScientificTripleDisplay(res);
     }
@@ -396,7 +431,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void speak(String text) async {
     if (text.isEmpty || !ttsEnabled || !mounted) return;
-    
     final now = DateTime.now();
     if (_lastSpeakTime != null && now.difference(_lastSpeakTime!) < _speakThrottle) return;
     _lastSpeakTime = now;
@@ -413,15 +447,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   String _formatForSpeech(String text) {
     String processed = text.replaceAll('.', ',');
-    
-    // Převede vědecký zápis (např. 1,23E+05 nebo 1,23E-03) na srozumitelnou češtinu
     processed = processed.replaceAllMapped(RegExp(r'(\d+(?:,\d+)?)E([+-])(\d+)'), (m) {
       String mantissa = m[1]!;
       String sign = m[2] == '-' ? 'mínus ' : '';
-      int exponent = int.parse(m[3]!); // Odstraní úvodní nuly pro řeč
+      int exponent = int.parse(m[3]!);
       return '$mantissa krát deset na $sign$exponent';
     });
-    
     return processed;
   }
 
@@ -497,9 +528,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   void _insertAtCursor(String text, {int cursorOffset = 0}) {
-    // Zabezpečení pozice kurzoru proti přetečení/podtečení
     _cursorPosition = _cursorPosition.clamp(0, display.length);
-    
     setState(() {
       display = display.substring(0, _cursorPosition) + text + display.substring(_cursorPosition);
       _cursorPosition = (_cursorPosition + text.length + cursorOffset).clamp(0, display.length);
@@ -527,7 +556,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     double mVal = (absVal - d) * 60;
     int mm = mVal.floor();
     double sVal = (mVal - mm) * 60;
-    // Zaokrouhlíme vteřiny na 2 desetinná místa
     String sStr = sVal.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
     return "${value < 0 ? '-' : ''}$d°$mm'$sStr\"";
   }
@@ -535,26 +563,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void calculateResult() {
     try {
       if (display.isEmpty) return;
-      
       bool wantsDMS = display.contains('°→\'');
       double result = _evaluateExpression(display);
-      
       if (result.isNaN || result.isInfinite || (display.contains('TAN') && result.abs() > 1e15)) {
-        setState(() {
-          _lastResult = 'Error';
-          _hasResult = true;
-        });
+        setState(() { _lastResult = 'Error'; _hasResult = true; });
         speak('Výsledek není definován');
         return;
       }
-
       String resStr = wantsDMS ? _formatAsDMS(result) : _formatNumber(result);
-      
-      setState(() { 
-        _lastResult = resStr;
-        _hasResult = true;
-      });
-      
+      setState(() { _lastResult = resStr; _hasResult = true; });
       if (wantsDMS) {
         speak('Výsledek je ${resStr.replaceAll('°', ' stupňů, ').replaceAll('\'', ' minut a ').replaceAll('"', ' vteřin')}');
       } else {
@@ -562,28 +579,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       }
       _addToHistory(display, resStr);
     } catch (e) { 
-      setState(() {
-        _lastResult = 'Error';
-        _hasResult = true;
-      });
+      setState(() { _lastResult = 'Error'; _hasResult = true; });
       speak('Chyba ve výrazu'); 
     }
   }
 
   double _evaluateExpression(String expr) {
-    // 1. Předzpracování: nahradíme problematické znaky bezpečnými značkami
     String processed = expr.replaceAll(',', '.');
-    
-    // Detekce speciálního požadavku na převod do DMS pro ohlášení
     bool isDmsConversion = processed.contains('°→\'');
-
     processed = processed.replaceAll('°→\'', '');
     processed = processed.replaceAll('\'→°', '_DMS_TO_DEG_');
     processed = processed.replaceAll('°', '_D_');
     processed = processed.replaceAll('\'', '_M_');
     processed = processed.replaceAll('"', '_S_');
 
-    // Zpracování DMS -> Desetinné stupně
     processed = processed.replaceAllMapped(RegExp(r'(\d+)_D_(\d+)_M_(\d+(?:\.\d+)?)_S__DMS_TO_DEG_'), (m) {
       double d = double.parse(m[1]!);
       double mm = double.parse(m[2]!);
@@ -591,7 +600,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       return (d + mm / 60 + s / 3600).toString();
     });
 
-    // Zpracování samotného DMS zápisu pro výpočty
     processed = processed.replaceAllMapped(RegExp(r'(\d+)_D_(\d+)_M_(\d+(?:\.\d+)?)_S_'), (m) {
       double d = double.parse(m[1]!);
       double mm = double.parse(m[2]!);
@@ -602,7 +610,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     processed = processed.replaceAll('x²', '^2');
     processed = processed.replaceAll('x³', '^3');
     processed = processed.replaceAll('(-)', '-');
-    
     processed = processed.replaceAll('μ', '*10^-6');
     processed = processed.replaceAll('n', '*10^-9');
     processed = processed.replaceAll('p', '*10^-12');
@@ -659,7 +666,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     processed = processed.replaceAll(RegExp(r'\be\b'), '${math.e}');
 
     _memory.forEach((key, value) => processed = processed.replaceAll(RegExp('\\b$key\\b'), '($value)'));
-    
     String ansValue = _lastResult.toLowerCase() == 'error' ? '0' : _lastResult;
     processed = processed.replaceAll(RegExp(r'\bANS\b'), '($ansValue)');
     processed = processed.replaceAll(' ', '');
@@ -671,40 +677,25 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     math_expr.Parser p = math_expr.Parser();
     try {
       math_expr.Expression exp = p.parse(processed);
-      double result = exp.evaluate(math_expr.EvaluationType.REAL, math_expr.ContextModel());
-      
-      if (isDmsConversion) {
-        // Pokud byl požadován převod na DMS, "zneužijeme" návratovou hodnotu pro speciální formátování
-        // Ve skutečnosti bychom měli vrátit double, ale my to ošetříme v calculateResult
-      }
-      return result;
-    } catch (e, st) {
-      debugPrint('Expression parse/eval error: $e');
-      debugPrint('Processed expression: $processed');
-      debugPrint('$st');
+      return exp.evaluate(math_expr.EvaluationType.REAL, math_expr.ContextModel());
+    } catch (e) {
       rethrow;
     }
   }
 
   String _formatNumber(double value) {
     if (value.isNaN || value.isInfinite) return value.toString();
-    
     switch (_displayFormat) {
-      case DisplayFormat.fix:
-        return value.toStringAsFixed(_precision);
-      case DisplayFormat.sci:
-        return value.toStringAsExponential(_precision).toUpperCase();
+      case DisplayFormat.fix: return value.toStringAsFixed(_precision);
+      case DisplayFormat.sci: return value.toStringAsExponential(_precision).toUpperCase();
       case DisplayFormat.eng:
         if (value == 0) return "0.00E+00";
-        double sign = value < 0 ? -1 : 1;
         double absVal = value.abs();
         int exp = (math.log(absVal) / math.ln10).floor();
         int engExp = (exp / 3).floor() * 3;
         double mantissa = absVal / math.pow(10, engExp);
-        String mStr = mantissa.toStringAsFixed(_precision);
         String eStr = engExp >= 0 ? "+${engExp.toString().padLeft(2, '0')}" : engExp.toString().padLeft(3, '0');
-        return "${sign < 0 ? '-' : ''}${mStr}E$eStr";
-      case DisplayFormat.standard:
+        return "${value < 0 ? '-' : ''}${mantissa.toStringAsFixed(_precision)}E$eStr";
       default:
         if (value == value.toInt().toDouble()) return value.toInt().toString();
         return value.toStringAsFixed(6).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
@@ -717,17 +708,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       builder: (context) => AlertDialog(
         title: Text('Nastavit přesnost pro ${format.name.toUpperCase()}'),
         content: Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 8, runSpacing: 8,
           children: List.generate(10, (i) => ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _displayFormat = format;
-                _precision = i;
-              });
-              speak('Nastaveno na $i míst');
-              Navigator.pop(context);
-            },
+            onPressed: () { setState(() { _displayFormat = format; _precision = i; }); speak('Nastaveno na $i míst'); Navigator.pop(context); },
             child: Text(i.toString()),
           )),
         ),
@@ -736,108 +719,43 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   String _normalizeForSegmentDisplay(String text) {
-    if (text.toLowerCase() == 'error') {
-      return _useSixteenSegment ? 'CHYBA' : 'Err';
-    }
-    
-    // Specifické mapování pro 7-segmentový displej (pro 16-seg ponecháme originály)
-    if (!_useSixteenSegment) {
-      if (text == 'Err') return 'Err';
-      
-      // Mapování symbolů na dostupné znaky 7-segmentové sady, které vypadají podobně
-      // ° -> použijeme symbol, který knihovna interpretuje jako horní kroužek
-      // ' -> horní segment
-      // " -> dva horní segmenty
-      text = text.replaceAll('°', 'o'); // 'o' na 7-segmentu vypadá jako horní kroužek/čtvereček
-      text = text.replaceAll('\'', 'I'); // 'I' jako svislá čárka
-      text = text.replaceAll('"', 'H'); // 'H' (vypadá jako dva svislé segmenty, pokud jsou jen nahoře)
-      // Alternativně, pokud knihovna nepodporuje tyto mapování, zkusíme standardní ASCII:
-    }
-
-    // Mapa pro převod českých znaků na jejich základní tvary
+    if (text.toLowerCase() == 'error') return _useSixteenSegment ? 'CHYBA' : 'Err';
     const map = {
       'á': 'A', 'č': 'C', 'ď': 'D', 'é': 'E', 'ě': 'E', 'í': 'I', 'ň': 'N',
       'ó': 'O', 'ř': 'R', 'š': 'S', 'ť': 'T', 'ú': 'U', 'ů': 'U', 'ý': 'Y', 'ž': 'Z',
-      'Á': 'A', 'Č': 'C', 'Ď': 'D', 'É': 'E', 'Ě': 'E', 'Í': 'I', 'Ň': 'N',
-      'Ó': 'O', 'Ř': 'R', 'Š': 'S', 'Ť': 'T', 'Ú': 'U', 'Ů': 'U', 'Ý': 'Y', 'Ž': 'Z',
     };
-    
     String result = text;
-    map.forEach((key, value) {
-      result = result.replaceAll(key, value);
-    });
-    
-    // Pro 7-segment nepoužíváme toUpperCase plošně, abychom nezničili 'Err'
+    map.forEach((key, value) => result = result.replaceAll(key, value).replaceAll(key.toUpperCase(), value));
     return _useSixteenSegment ? result.toUpperCase() : result;
   }
 
   void _handleButtonPressed(String label) {
     if (_hasResult) {
       if (['+', '-', '*', '/', '^', '%', 'x²', 'x³'].contains(label)) {
-        setState(() {
-          display = 'ANS';
-          _hasResult = false;
-        });
+        setState(() { display = 'ANS'; _hasResult = false; });
       } else if (RegExp(r'^[0-9.]$').hasMatch(label) || ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', '∛', 'ABS', '('].contains(label)) {
-        setState(() {
-          display = '';
-          _hasResult = false;
-        });
+        setState(() { display = ''; _hasResult = false; });
       } else {
         setState(() => _hasResult = false);
       }
     }
-
-    if (label == 'C') {
-      clear();
-    } else if (label == 'DEL') {
-      backspace();
-    } else if (label == '=') {
-      calculateResult();
-    } else if (label == 'STO') {
-      setState(() => _isStoreMode = true);
-      speak('Vyberte paměť pro uložení');
-    } else if (label == 'RCL') {
-      speak('Vyberte paměť pro vyvolání');
-    } else if (label == 'CLR') {
-      setState(() {
-        _memory.updateAll((key, value) => 0);
-      });
-      speak('Paměť vymazána');
-    } else if (_memory.containsKey(label)) {
+    if (label == 'C') clear();
+    else if (label == 'DEL') backspace();
+    else if (label == '=') calculateResult();
+    else if (label == 'STO') { setState(() => _isStoreMode = true); speak('Vyberte paměť'); }
+    else if (label == 'RCL') speak('Vyberte paměť');
+    else if (label == 'CLR') { setState(() => _memory.updateAll((k, v) => 0)); speak('Paměť vymazána'); }
+    else if (_memory.containsKey(label)) {
       if (_isStoreMode) {
-        setState(() {
-          double val = 0;
-          try {
-            val = double.parse(_lastResult.replaceAll(',', '.'));
-          } catch (_) {}
-          _memory[label] = val;
-          _isStoreMode = false;
-        });
-        speak('Uloženo do paměti $label');
-      } else {
-        append(label);
-      }
+        double val = 0; try { val = double.parse(_lastResult.replaceAll(',', '.')); } catch (_) {}
+        setState(() { _memory[label] = val; _isStoreMode = false; }); speak('Uloženo do $label');
+      } else append(label);
     } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', '∛', 'ABS', '1/x'].contains(label)) {
-      String insertText = '';
-      int offset = 0;
-      if (label == '1/x') {
-        insertText = '1/()';
-        offset = -1;
-      } else {
-        insertText = '$label()';
-        offset = -1;
-      }
-      _insertAtCursor(insertText, cursorOffset: offset);
-      speak(_buttonNames[label] ?? label);
+      String insertText = label == '1/x' ? '1/()' : '$label()';
+      _insertAtCursor(insertText, cursorOffset: -1); speak(_buttonNames[label] ?? label);
     } else if (['°→\'', '\'→°', 'DMS', 'π', 'e'].contains(label)) {
-       String text = label;
-       if (label == 'DMS') text = '°\'"'; // Vloží šablonu pro stupně
-       _insertAtCursor(text);
-       speak(_buttonNames[label] ?? label);
-    } else {
-      append(label);
-    }
+       _insertAtCursor(label == 'DMS' ? '°\'"' : label); speak(_buttonNames[label] ?? label);
+    } else append(label);
   }
 
   Widget _buildDotMatrixDisplay() {
@@ -845,219 +763,28 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     if (_cursorPosition >= 0 && _cursorPosition <= display.length) {
       textWithCursor = display.substring(0, _cursorPosition) + "_" + display.substring(_cursorPosition);
     }
-    return DotMatrixText(
-      text: textWithCursor.isEmpty ? "_" : textWithCursor,
-      textStyle: const TextStyle(
-        fontSize: 48,
-        color: Colors.redAccent,
-        fontWeight: FontWeight.bold,
-      ),
-      ledSize: 3.0,
-      ledSpacing: 0.8,
-    );
+    return DotMatrixText(text: textWithCursor.isEmpty ? "_" : textWithCursor, textStyle: const TextStyle(fontSize: 48, color: Colors.redAccent, fontWeight: FontWeight.bold), ledSize: 3.0, ledSpacing: 0.8);
   }
 
   Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallback? onPressed}) {
     String effectiveSemanticLabel = semanticLabel ?? (_buttonNames[label] ?? label);
-    
-    // Pro čísla a operátory přidáme kontext, aby NVDA vědělo, o co jde
-    if (RegExp(r'^[0-9]$').hasMatch(label)) {
-      effectiveSemanticLabel = 'Číslo $label';
-    } else if (['+', '-', '*', '/', '='].contains(label)) {
-      effectiveSemanticLabel = 'Tlačítko ${_buttonNames[label] ?? label}';
-    }
-
+    if (RegExp(r'^[0-9]$').hasMatch(label)) effectiveSemanticLabel = 'Číslo $label';
     return Padding(
       padding: const EdgeInsets.all(2),
       child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: color != null ? Colors.white : null,
-          padding: EdgeInsets.zero,
-          elevation: 2,
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        ),
+        style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: color != null ? Colors.white : null, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
         onPressed: onPressed ?? () => _handleButtonPressed(label),
-        child: Semantics(
-          button: true,
-          label: effectiveSemanticLabel,
-          child: ExcludeSemantics(
-            child: Text(
-              label, 
-              style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)
-            ),
-          ),
-        ),
+        child: Semantics(button: true, label: effectiveSemanticLabel, child: ExcludeSemantics(child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)))),
       ),
     );
   }
 
-  Widget _buildExpandableSection({
-    required String title,
-    required List<String> buttons,
-    required bool isExpanded,
-    required ValueChanged<bool> onExpansionChanged,
-    List<Widget>? extraButtons,
-    double aspectRatio = 1.3,
-  }) {
+  Widget _buildExpandableSection({required String title, required List<String> buttons, required bool isExpanded, required ValueChanged<bool> onExpansionChanged, List<Widget>? extraButtons}) {
     return ExpansionTile(
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       initiallyExpanded: isExpanded,
-      onExpansionChanged: (expanded) {
-        onExpansionChanged(expanded);
-        speak(expanded ? '$title rozbaleno' : '$title zabaleno');
-      },
-      children: [
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 4,
-          childAspectRatio: aspectRatio,
-          children: [
-            ...buttons.map((b) => buildButton(b)).toList(),
-            ...?(extraButtons),
-          ],
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final bool isWideScreen = size.width > 600;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mluvící kalkulačka'), 
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline), 
-            onPressed: _showTutorialDialog,
-            tooltip: 'Nápověda',
-          ),
-          IconButton(
-            icon: const Icon(Icons.accessibility_new), 
-            onPressed: _showAccessibilityDialog,
-            tooltip: 'Nastavení usnadnění',
-          ),
-        ]
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            flex: (1000 * _displaySizeFactor).toInt(),
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF121212), 
-                border: const Border(
-                  top: BorderSide(color: Colors.black, width: 3),
-                  left: BorderSide(color: Colors.black, width: 3),
-                  bottom: BorderSide(color: Colors.white10, width: 2),
-                  right: BorderSide(color: Colors.white10, width: 2),
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black54,
-                    offset: Offset(0, 2),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              alignment: Alignment.bottomRight,
-              child: Focus(
-                child: Semantics(
-                  container: true,
-                  focusable: true,
-                  liveRegion: true,
-                  label: 'Displej kalkulačky',
-                  value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','),
-                  child: ExcludeSemantics(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Flexible(
-                          flex: 1,
-                          child: FittedBox(
-                            fit: BoxFit.contain,
-                            alignment: Alignment.centerRight,
-                            child: _buildDotMatrixDisplay(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Flexible(
-                          flex: 1,
-                          child: FittedBox(
-                            fit: BoxFit.contain,
-                            alignment: Alignment.centerRight,
-                            child: _buildMainResultDisplay(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          _buildModeSelector(),
-          Expanded(
-            flex: 1000,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final double availableHeight = constraints.maxHeight;
-                final double availableWidth = constraints.maxWidth;
-                
-                if (isWideScreen) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: ListView(
-                          padding: EdgeInsets.zero,
-                          children: _buildFunctionSections(),
-                        ),
-                      ),
-                      const VerticalDivider(width: 1),
-                      Expanded(
-                        flex: 1,
-                        child: _buildMainKeyboard(
-                          aspectRatio: (availableWidth / 2 / 4) / (availableHeight / 5),
-                        ),
-                      ),
-                    ],
-                  );
-                } else {
-                  double keyboardHeight = availableHeight * 0.65; 
-                  if (_fontSizeMultiplier > 1.5) keyboardHeight = availableHeight * 0.75;
-
-                  return Column(
-                    children: [
-                      Expanded(
-                        child: ListView(
-                          padding: EdgeInsets.zero,
-                          children: _buildFunctionSections(),
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      SizedBox(
-                        height: keyboardHeight,
-                        child: _buildMainKeyboard(
-                          aspectRatio: (availableWidth / 4) / (keyboardHeight / 5),
-                        ),
-                      ),
-                    ],
-                  );
-                }
-              },
-            ),
-          ),
-        ],
-      ),
+      onExpansionChanged: (expanded) { onExpansionChanged(expanded); speak(expanded ? '$title rozbaleno' : '$title zabaleno'); },
+      children: [ GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 4, childAspectRatio: 1.3, children: [...buttons.map((b) => buildButton(b)).toList(), ...?(extraButtons)]) ],
     );
   }
 
@@ -1068,440 +795,108 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           value: _selectedUnitCategory,
           decoration: const InputDecoration(labelText: 'Kategorie'),
           items: _unitCategories.keys.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
-          onChanged: (val) {
-            setState(() {
-              _selectedUnitCategory = val!;
-              _unitFrom = _unitCategories[val]!.keys.first;
-              _unitTo = _unitCategories[val]!.keys.elementAt(1);
-            });
-            speak('Kategorie $val');
-          },
+          onChanged: (val) { setState(() { _selectedUnitCategory = val!; _unitFrom = _unitCategories[val]!.keys.first; _unitTo = _unitCategories[val]!.keys.elementAt(1); }); speak('Kategorie $val'); },
         ),
         Row(
           children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _unitFrom,
-                decoration: const InputDecoration(labelText: 'Z jednotky'),
-                items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
-                onChanged: (val) {
-                  setState(() => _unitFrom = val!);
-                  speak('Z jednotky ${_getUnitSpeech(val!)}');
-                },
-              ),
-            ),
+            Expanded(child: DropdownButtonFormField<String>(value: _unitFrom, decoration: const InputDecoration(labelText: 'Z'), items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(), onChanged: (val) { setState(() => _unitFrom = val!); speak('Z jednotky ${_getUnitSpeech(val!)}'); })),
             const Icon(Icons.arrow_forward),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _unitTo,
-                decoration: const InputDecoration(labelText: 'Na jednotku'),
-                items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
-                onChanged: (val) {
-                  setState(() => _unitTo = val!);
-                  speak('Na jednotku ${_getUnitSpeech(val!)}');
-                },
-              ),
-            ),
+            Expanded(child: DropdownButtonFormField<String>(value: _unitTo, decoration: const InputDecoration(labelText: 'Na'), items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(), onChanged: (val) { setState(() => _unitTo = val!); speak('Na jednotku ${_getUnitSpeech(val!)}'); })),
           ],
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _convertUnits,
-            icon: const Icon(Icons.sync),
-            label: const Text('PŘEVÉST AKTUÁLNÍ VÝSLEDEK'),
-            style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
-          ),
-        ),
+        SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: _convertUnits, icon: const Icon(Icons.sync), label: const Text('PŘEVÉST'), style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)))),
       ],
     );
   }
 
-  // Sjednocená klávesnice 4x5 obsahující všechna důležitá tlačítka
   Widget _buildMainKeyboard({double aspectRatio = 1.0}) {
-    List<String> btns = [
-      'C', '(', ')', '/', 
-      '7', '8', '9', '*', 
-      '4', '5', '6', '-', 
-      '1', '2', '3', '+', 
-      'DEL', '0', '.', '='
-    ];
+    List<String> btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'DEL', '0', '.', '='];
     return GridView.count(
-      shrinkWrap: true, 
-      physics: const NeverScrollableScrollPhysics(), 
-      crossAxisCount: 4, 
-      childAspectRatio: aspectRatio,
+      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 4, childAspectRatio: aspectRatio,
       children: btns.map((b) {
-        if (b == 'C') {
-          return buildButton('C', color: Colors.orange, semanticLabel: 'Vymazat displej', onPressed: () => clear());
-        }
-        if (b == 'DEL') {
-          return buildButton('DEL', color: Colors.redAccent, semanticLabel: 'Smazat poslední znak', onPressed: () => backspace());
-        }
-        if (b == '=') {
-          return buildButton('=', color: Colors.green, semanticLabel: 'Vypočítat výsledek', onPressed: () => calculateResult());
-        }
-        Color? color;
-        if (['/', '*', '-', '+'].contains(b)) color = Colors.blue;
-        return buildButton(b, color: color);
+        if (b == 'C') return buildButton('C', color: Colors.orange, semanticLabel: 'Vymazat displej', onPressed: () => clear());
+        if (b == 'DEL') return buildButton('DEL', color: Colors.redAccent, semanticLabel: 'Smazat poslední', onPressed: () => backspace());
+        if (b == '=') return buildButton('=', color: Colors.green, semanticLabel: 'Rovná se', onPressed: () => calculateResult());
+        return buildButton(b, color: ['/', '*', '-', '+'].contains(b) ? Colors.blue : null);
       }).toList(),
     );
   }
 
   Widget _buildModeSelector() {
     return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: CalculatorMode.values.map((mode) {
-          final isSelected = _currentMode == mode;
-          String label = '';
-          switch (mode) {
-            case CalculatorMode.basic: label = 'Základní'; break;
-            case CalculatorMode.scientific: label = 'Vědecká'; break;
-            case CalculatorMode.statistics: label = 'Statistika'; break;
-            case CalculatorMode.electrician: label = 'Elektro'; break;
-            case CalculatorMode.unitConversion: label = 'Převody'; break;
-          }
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: ChoiceChip(
-              label: Text(label),
-              selected: isSelected,
-              onSelected: (selected) {
-                if (selected) _changeMode(mode);
-              },
-            ),
-          );
-        }).toList(),
-      ),
+      scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: CalculatorMode.values.map((mode) {
+        String label = '';
+        switch (mode) {
+          case CalculatorMode.basic: label = 'Základní'; break;
+          case CalculatorMode.scientific: label = 'Vědecká'; break;
+          case CalculatorMode.statistics: label = 'Statistika'; break;
+          case CalculatorMode.electrician: label = 'Elektro'; break;
+          case CalculatorMode.unitConversion: label = 'Převody'; break;
+        }
+        return Padding(padding: const EdgeInsets.symmetric(horizontal: 4.0), child: ChoiceChip(label: Text(label), selected: _currentMode == mode, onSelected: (s) { if (s) _changeMode(mode); }));
+      }).toList()),
     );
   }
 
   List<Widget> _buildFunctionSections() {
     List<Widget> sections = [];
-
-    if (_currentMode == CalculatorMode.unitConversion) {
-      sections.add(Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: _buildUnitConversionSection(),
-          ),
-        ),
-      ));
-    }
-
-    // Základní funkce (Matematické) jsou dostupné ve všech režimech kromě úplně základního, 
-    // kde mohou být také, nebo je omezíme.
-    
+    if (_currentMode == CalculatorMode.unitConversion) sections.add(Padding(padding: const EdgeInsets.all(12.0), child: Card(child: Padding(padding: const EdgeInsets.all(12.0), child: _buildUnitConversionSection()))));
     if (_currentMode == CalculatorMode.scientific || _currentMode == CalculatorMode.electrician) {
-      sections.add(_buildExpandableSection(
-        title: 'Goniometrické funkce',
-        buttons: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'],
-        isExpanded: _isGonioExpanded,
-        onExpansionChanged: (v) => setState(() => _isGonioExpanded = v),
-        extraButtons: [
-           buildButton(_isDegreeMode ? 'DEG' : 'RAD', color: Colors.indigo, onPressed: () {
-             setState(() => _isDegreeMode = !_isDegreeMode);
-             speak(_isDegreeMode ? 'Stupně' : 'Radiány');
-             _saveSettings();
-           }),
-        ]
-      ));
+      sections.add(_buildExpandableSection(title: 'Gonio', buttons: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'], isExpanded: _isGonioExpanded, onExpansionChanged: (v) => setState(() => _isGonioExpanded = v), extraButtons: [ buildButton(_isDegreeMode ? 'DEG' : 'RAD', color: Colors.indigo, onPressed: _toggleAngleMode) ]));
     }
-
-    if (_currentMode != CalculatorMode.basic) {
-      sections.add(_buildExpandableSection(
-        title: 'Matematické funkce',
-        buttons: ['^', '√', 'ⁿ√', 'x²', 'x³', '∛', '1/x', 'ABS', '%', 'EXP', '(-)', '°→\'', '\'→°', 'DMS', 'π', 'e'],
-        isExpanded: _isFunctionsExpanded,
-        onExpansionChanged: (v) => setState(() => _isFunctionsExpanded = v),
-      ));
-    }
-
-    if (_currentMode == CalculatorMode.statistics) {
-      sections.add(_buildExpandableSection(
-        title: 'Statistika',
-        buttons: ['SD', 'VAR', 'MEAN', 'STATS', 'CV', ';'],
-        isExpanded: _isStatsExpanded,
-        onExpansionChanged: (v) => setState(() => _isStatsExpanded = v),
-      ));
-    }
-
-    if (_currentMode == CalculatorMode.electrician) {
-      sections.add(_buildExpandableSection(
-        title: 'Elektrotechnika',
-        buttons: ['OHM_V', 'OHM_I', 'OHM_R', 'PWR_P', 'PAR', 'SER', 'XL', 'XC', 'Hz', 'μ', 'n', 'p'],
-        isExpanded: _isElectricianExpanded,
-        onExpansionChanged: (v) => setState(() => _isElectricianExpanded = v),
-      ));
-    }
-
-    sections.add(_buildExpandableSection(
-      title: 'Navigace a úpravy',
-      buttons: [],
-      isExpanded: true,
-      onExpansionChanged: (v) {},
-      extraButtons: [
-        buildButton('←', semanticLabel: 'Posunout kurzor doleva', onPressed: () {
-          if (_cursorPosition > 0) setState(() => _cursorPosition--);
-        }),
-        buildButton('→', semanticLabel: 'Posunout kurzor doprava', onPressed: () {
-          if (_cursorPosition < display.length) setState(() => _cursorPosition++);
-        }),
-      ],
-    ));
-
-    sections.add(_buildExpandableSection(
-      title: 'Zobrazení výsledku',
-      buttons: [],
-      isExpanded: true,
-      onExpansionChanged: (v) {},
-      extraButtons: [
-        buildButton('NORM', semanticLabel: 'Standardní zobrazení', onPressed: () {
-          setState(() => _displayFormat = DisplayFormat.standard);
-          speak('Standardní zobrazení');
-        }),
-        buildButton('FIX', semanticLabel: 'Pevný počet míst', onPressed: () => _showPrecisionDialog(DisplayFormat.fix)),
-        buildButton('SCI', semanticLabel: 'Vědecký zápis', onPressed: () => _showPrecisionDialog(DisplayFormat.sci)),
-        buildButton('ENG', semanticLabel: 'Technický zápis', onPressed: () => _showPrecisionDialog(DisplayFormat.eng)),
-      ],
-    ));
-
-    sections.add(_buildExpandableSection(
-      title: 'Proměnné a paměti',
-      buttons: ['A', 'B', 'D', 'E', 'F', 'X', 'Y', 'M'],
-      isExpanded: _isVariablesExpanded,
-      onExpansionChanged: (v) => setState(() => _isVariablesExpanded = v),
-      extraButtons: [
-        buildButton('Var C', semanticLabel: 'Proměnná C', onPressed: () => _handleButtonPressed('C')),
-      ],
-    ));
-
-    sections.add(_buildExpandableSection(
-      title: 'Paměť a historie',
-      buttons: ['STO', 'RCL', 'CLR', 'ANS'],
-      isExpanded: _isMemoryExpanded,
-      onExpansionChanged: (v) => setState(() => _isMemoryExpanded = v),
-    ));
-
+    if (_currentMode != CalculatorMode.basic) sections.add(_buildExpandableSection(title: 'Funkce', buttons: ['^', '√', 'ⁿ√', 'x²', 'x³', '∛', '1/x', 'ABS', '%', 'EXP', '(-)', '°→\'', '\'→°', 'DMS', 'π', 'e'], isExpanded: _isFunctionsExpanded, onExpansionChanged: (v) => setState(() => _isFunctionsExpanded = v)));
+    if (_currentMode == CalculatorMode.statistics) sections.add(_buildExpandableSection(title: 'Statistika', buttons: ['SD', 'VAR', 'MEAN', 'STATS', 'CV', ';'], isExpanded: _isStatsExpanded, onExpansionChanged: (v) => setState(() => _isStatsExpanded = v)));
+    if (_currentMode == CalculatorMode.electrician) sections.add(_buildExpandableSection(title: 'Elektro', buttons: ['OHM_V', 'OHM_I', 'OHM_R', 'PWR_P', 'PAR', 'SER', 'XL', 'XC', 'Hz', 'μ', 'n', 'p'], isExpanded: _isElectricianExpanded, onExpansionChanged: (v) => setState(() => _isElectricianExpanded = v)));
+    sections.add(_buildExpandableSection(title: 'Navigace', buttons: [], isExpanded: true, onExpansionChanged: (v) {}, extraButtons: [ buildButton('←', onPressed: () { if (_cursorPosition > 0) setState(() => _cursorPosition--); }), buildButton('→', onPressed: () { if (_cursorPosition < display.length) setState(() => _cursorPosition++); }) ]));
+    sections.add(_buildExpandableSection(title: 'Zobrazení', buttons: [], isExpanded: true, onExpansionChanged: (v) {}, extraButtons: [ buildButton('NORM', onPressed: () { setState(() => _displayFormat = DisplayFormat.standard); speak('Standardní'); }), buildButton('FIX', onPressed: () => _showPrecisionDialog(DisplayFormat.fix)), buildButton('SCI', onPressed: () => _showPrecisionDialog(DisplayFormat.sci)), buildButton('ENG', onPressed: () => _showPrecisionDialog(DisplayFormat.eng)) ]));
+    sections.add(_buildExpandableSection(title: 'Paměť', buttons: ['STO', 'RCL', 'CLR', 'ANS'], isExpanded: _isMemoryExpanded, onExpansionChanged: (v) => setState(() => _isMemoryExpanded = v)));
     return sections;
   }
 
-  // Odstraněna redundantní metoda _buildBottomActions, vše je nyní v hlavní mřížce
-
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final bool isWideScreen = size.width > 600;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Mluvící kalkulačka'), actions: [ IconButton(icon: const Icon(Icons.help_outline), onPressed: _showTutorialDialog), IconButton(icon: const Icon(Icons.accessibility_new), onPressed: _showAccessibilityDialog) ]),
+      body: Column(
+        children: [
+          Expanded(flex: (1000 * _displaySizeFactor).toInt(), child: Container(margin: const EdgeInsets.all(8), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)), alignment: Alignment.bottomRight, child: Semantics(liveRegion: true, label: 'Displej', value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','), child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.end, children: [ Flexible(child: FittedBox(child: _buildDotMatrixDisplay())), const SizedBox(height: 12), Flexible(child: FittedBox(child: _buildMainResultDisplay())) ])))),
+          _buildModeSelector(),
+          Expanded(flex: 1000, child: LayoutBuilder(builder: (context, constraints) {
+            if (isWideScreen) return Row(children: [ Expanded(child: ListView(children: _buildFunctionSections())), const VerticalDivider(), Expanded(child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 2 / 4) / (constraints.maxHeight / 5))) ]);
+            return Column(children: [ Expanded(child: ListView(children: _buildFunctionSections())), const Divider(), SizedBox(height: constraints.maxHeight * 0.65, child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 4) / (constraints.maxHeight * 0.65 / 5))) ]);
+          })),
+        ],
+      ),
+    );
+  }
 }
 
 class _AccessibilityDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
   const _AccessibilityDialog({required this.parent});
-
   @override
   State<_AccessibilityDialog> createState() => _AccessibilityDialogState();
 }
 
 class _AccessibilityDialogState extends State<_AccessibilityDialog> {
-  late FocusNode _focusSlider;
-  late FocusNode _focusSwitch;
-  late FocusNode _focusDone;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusSlider = FocusNode();
-    _focusSwitch = FocusNode();
-    _focusDone = FocusNode();
-  }
-
-  @override
-  void dispose() {
-    _focusSlider.dispose();
-    _focusSwitch.dispose();
-    _focusDone.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Nastavení usnadnění'),
+      title: const Text('Nastavení'),
       content: SingleChildScrollView(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            RadioListTile<AccessibilityType>(
-              autofocus: true,
-              title: const Text('Standardní režim'),
-              value: AccessibilityType.none,
-              groupValue: widget.parent._accessibilityType,
-              onChanged: (v) => setState(() {
-                widget.parent.setState(() => widget.parent._accessibilityType = v!);
-                widget.parent._saveSettings();
-              }),
-            ),
-            RadioListTile<AccessibilityType>(
-              title: const Text('Režim pro nevidomé'),
-              value: AccessibilityType.blind,
-              groupValue: widget.parent._accessibilityType,
-              onChanged: (v) => setState(() {
-                widget.parent.setState(() {
-                  widget.parent._accessibilityType = v!;
-                  widget.parent.ttsEnabled = true;
-                  widget.parent._fontSizeMultiplier = 1.0;
-                });
-                widget.parent._saveSettings();
-              }),
-            ),
-            const Divider(),
-            ListTile(
-              title: const Text('Velikost písma'),
-              subtitle: Slider(
-                focusNode: _focusSlider,
-                value: widget.parent._fontSizeMultiplier,
-                min: 0.8,
-                max: 3.0,
-                divisions: 22,
-                label: '${(widget.parent._fontSizeMultiplier * 100).toInt()}%',
-                onChanged: (v) => setState(() => widget.parent.setState(() => widget.parent._fontSizeMultiplier = v)),
-                onChangeEnd: (v) => widget.parent._saveSettings(),
-              ),
-            ),
-            const Divider(),
-            ListTile(
-              title: const Text('Velikost oblasti displeje'),
-              subtitle: Slider(
-                value: widget.parent._displaySizeFactor,
-                min: 1.0,
-                max: 5.0,
-                divisions: 20,
-                label: '${(widget.parent._displaySizeFactor * 100).toInt()}%',
-                onChanged: (v) => setState(() => widget.parent.setState(() => widget.parent._displaySizeFactor = v)),
-                onChangeEnd: (v) => widget.parent._saveSettings(),
-              ),
-            ),
-            SwitchListTile(
-              title: const Text('Vícesegmentový displej (16 seg)'),
-              subtitle: const Text('Lepší čitelnost písmen a textu'),
-              value: widget.parent._useSixteenSegment,
-              onChanged: (v) => setState(() {
-                widget.parent.setState(() => widget.parent._useSixteenSegment = v);
-                widget.parent._saveSettings();
-              }),
-            ),
-            SwitchListTile(
-              title: const Text('Uvítací zpráva při startu'),
-              value: widget.parent._sayWelcome,
-              onChanged: (v) => setState(() {
-                widget.parent.setState(() => widget.parent._sayWelcome = v);
-                widget.parent._saveSettings();
-              }),
-            ),
-            const Divider(),
-            SwitchListTile(
-              focusNode: _focusSwitch,
-              title: const Text('Hlas kalkulačky'),
-              value: widget.parent.ttsEnabled,
-              onChanged: (v) => setState(() {
-                widget.parent.setState(() => widget.parent.ttsEnabled = v);
-                widget.parent._saveSettings();
-              }),
-            ),
+            SwitchListTile(title: const Text('Hlas'), value: widget.parent.ttsEnabled, onChanged: (v) => setState(() { widget.parent.setState(() => widget.parent.ttsEnabled = v); widget.parent._saveSettings(); })),
+            ListTile(title: const Text('Písmo'), subtitle: Slider(value: widget.parent._fontSizeMultiplier, min: 0.8, max: 3.0, onChanged: (v) => setState(() { widget.parent.setState(() => widget.parent._fontSizeMultiplier = v); widget.parent._saveSettings(); }))),
+            SwitchListTile(title: const Text('16 seg'), value: widget.parent._useSixteenSegment, onChanged: (v) => setState(() { widget.parent.setState(() => widget.parent._useSixteenSegment = v); widget.parent._saveSettings(); })),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          focusNode: _focusDone,
-          onPressed: () => Navigator.pop(context),
-          child: const Text('HOTOVO'),
-        ),
-      ],
-    );
-  }
-}
-           }),
-            ),
-            RadioListTile<AccessibilityType>(
-              title: const Text('Režim pro nevidomé'),
-              value: AccessibilityType.blind,
-              groupValue: widget.parent._accessibilityType,
-              onChanged: (v) => setState(() {
-                widget.parent.setState(() {
-                  widget.parent._accessibilityType = v!;
-                  widget.parent.ttsEnabled = true;
-                  widget.parent._fontSizeMultiplier = 1.0;
-                });
-                widget.parent._saveSettings();
-              }),
-            ),
-            const Divider(),
-            ListTile(
-              title: const Text('Velikost písma'),
-              subtitle: Slider(
-                focusNode: _focusSlider,
-                value: widget.parent._fontSizeMultiplier,
-                min: 0.8,
-                max: 3.0,
-                divisions: 22,
-                label: '${(widget.parent._fontSizeMultiplier * 100).toInt()}%',
-                onChanged: (v) => setState(() => widget.parent.setState(() => widget.parent._fontSizeMultiplier = v)),
-                onChangeEnd: (v) => widget.parent._saveSettings(),
-              ),
-            ),
-            const Divider(),
-            ListTile(
-              title: const Text('Velikost oblasti displeje'),
-              subtitle: Slider(
-                value: widget.parent._displaySizeFactor,
-                min: 1.0,
-                max: 5.0,
-                divisions: 20,
-                label: '${(widget.parent._displaySizeFactor * 100).toInt()}%',
-                onChanged: (v) => setState(() => widget.parent.setState(() => widget.parent._displaySizeFactor = v)),
-                onChangeEnd: (v) => widget.parent._saveSettings(),
-              ),
-            ),
-            SwitchListTile(
-              title: const Text('Vícesegmentový displej (16 seg)'),
-              subtitle: const Text('Lepší čitelnost písmen a textu'),
-              value: widget.parent._useSixteenSegment,
-              onChanged: (v) => setState(() {
-                widget.parent.setState(() => widget.parent._useSixteenSegment = v);
-                widget.parent._saveSettings();
-              }),
-            ),
-            SwitchListTile(
-              title: const Text('Uvítací zpráva při startu'),
-              value: widget.parent._sayWelcome,
-              onChanged: (v) => setState(() {
-                widget.parent.setState(() => widget.parent._sayWelcome = v);
-                widget.parent._saveSettings();
-              }),
-            ),
-            const Divider(),
-            SwitchListTile(
-              focusNode: _focusSwitch,
-              title: const Text('Hlas kalkulačky'),
-              value: widget.parent.ttsEnabled,
-              onChanged: (v) => setState(() {
-                widget.parent.setState(() => widget.parent.ttsEnabled = v);
-                widget.parent._saveSettings();
-              }),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          focusNode: _focusDone,
-          onPressed: () => Navigator.pop(context),
-          child: const Text('HOTOVO'),
-        ),
-      ],
+      actions: [ TextButton(onPressed: () => Navigator.pop(context), child: const Text('HOTOVO')) ],
     );
   }
 }
