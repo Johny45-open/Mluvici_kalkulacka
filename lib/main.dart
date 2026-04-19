@@ -286,7 +286,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _convertUnits() {
     try {
-      double value = double.parse(_lastResult.replaceAll(',', '.'));
+      double value;
+      // Pokud je na displeji napsané číslo nebo příklad, nejdříve ho vypočítáme
+      if (display.isNotEmpty) {
+        value = _evaluateExpression(display);
+      } else {
+        // Jinak vezmeme poslední výsledek
+        value = double.parse(_lastResult.replaceAll(',', '.'));
+      }
+
       double fromFactor = _unitCategories[_selectedUnitCategory]![_unitFrom]!;
       double toFactor = _unitCategories[_selectedUnitCategory]![_unitTo]!;
       double result = value * (fromFactor / toFactor);
@@ -294,6 +302,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       String resStr = _formatNumber(result);
       setState(() {
         _lastResult = resStr;
+        display = ''; // Vyčistíme displej pro zobrazení výsledku
         _hasResult = true;
       });
 
@@ -302,9 +311,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       String resultUnitName = _getUnitSpeech(_unitTo, value: result);
 
       speak('Převedeno z $unitFromName na $unitToName. Výsledek je ${resStr.replaceAll('.', ',')} $resultUnitName');
-      _addToHistory('Převod $value $_unitFrom na $_unitTo', resStr);
+      _addToHistory('Převod ${value.toString().replaceAll('.', ',')} $_unitFrom na $_unitTo', resStr);
     } catch (e) {
-      speak('Chyba při převodu. Ujistěte se, že na displeji je číslo.');
+      speak('Chyba při převodu. Ujistěte se, že na displeji je platné číslo.');
     }
   }
 
