@@ -227,6 +227,36 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     _initTts();
     _loadSettings();
     _loadHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _mainFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _mainFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _handleKeyboardInput(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      final logicalKey = event.logicalKey;
+      final char = event.character;
+
+      if (logicalKey == LogicalKeyboardKey.enter || logicalKey == LogicalKeyboardKey.numpadEnter) {
+        calculateResult();
+      } else if (logicalKey == LogicalKeyboardKey.backspace) {
+        backspace();
+      } else if (logicalKey == LogicalKeyboardKey.escape || logicalKey == LogicalKeyboardKey.delete) {
+        clear();
+      } else if (char != null) {
+        String toAppend = char;
+        if (char == ',') toAppend = '.';
+        if (RegExp(r'[0-9.+\-*/^%()eEa-zA-Z]').hasMatch(toAppend)) {
+          append(toAppend.toUpperCase(), silent: true);
+        }
+      }
+    }
   }
 
   void _initTts() async {
@@ -799,17 +829,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final bool isWideScreen = size.width > 600;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mluvící kalkulačka'), actions: [ IconButton(icon: const Icon(Icons.help_outline), onPressed: _showTutorialDialog), IconButton(icon: const Icon(Icons.accessibility_new), onPressed: _showAccessibilityDialog) ]),
-      body: Column(
-        children: [
-          Expanded(flex: (1000 * _displaySizeFactor).toInt(), child: Container(margin: const EdgeInsets.all(8), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)), alignment: Alignment.bottomRight, child: Semantics(liveRegion: true, label: 'Displej', value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','), child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.end, children: [ Flexible(child: FittedBox(child: _buildDotMatrixDisplay())), const SizedBox(height: 12), Flexible(child: FittedBox(child: _buildMainResultDisplay())) ])))),
-          _buildModeSelector(),
-          Expanded(flex: 1000, child: LayoutBuilder(builder: (context, constraints) {
-            if (isWideScreen) return Row(children: [ Expanded(child: ListView(children: _buildFunctionSections())), const VerticalDivider(), Expanded(child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 2 / 4) / (constraints.maxHeight / 5))) ]);
-            return Column(children: [ Expanded(child: ListView(children: _buildFunctionSections())), const Divider(), SizedBox(height: constraints.maxHeight * 0.65, child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 4) / (constraints.maxHeight * 0.65 / 5))) ]);
-          })),
-        ],
+    return KeyboardListener(
+      focusNode: _mainFocusNode,
+      onKeyEvent: _handleKeyboardInput,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Mluvící kalkulačka'), actions: [ IconButton(icon: const Icon(Icons.help_outline), onPressed: _showTutorialDialog), IconButton(icon: const Icon(Icons.accessibility_new), onPressed: _showAccessibilityDialog) ]),
+        body: Column(
+          children: [
+            Expanded(flex: (1000 * _displaySizeFactor).toInt(), child: GestureDetector(
+              onTap: () => _mainFocusNode.requestFocus(),
+              child: Container(margin: const EdgeInsets.all(8), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)), alignment: Alignment.bottomRight, child: Semantics(liveRegion: true, label: 'Displej', value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','), child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.end, children: [ Flexible(child: FittedBox(child: _buildDotMatrixDisplay())), const SizedBox(height: 12), Flexible(child: FittedBox(child: _buildMainResultDisplay())) ]))),
+            )),
+            _buildModeSelector(),
+            Expanded(flex: 1000, child: LayoutBuilder(builder: (context, constraints) {
+              if (isWideScreen) return Row(children: [ Expanded(child: ListView(children: _buildFunctionSections())), const VerticalDivider(), Expanded(child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 2 / 4) / (constraints.maxHeight / 5))) ]);
+              return Column(children: [ Expanded(child: ListView(children: _buildFunctionSections())), const Divider(), SizedBox(height: constraints.maxHeight * 0.65, child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 4) / (constraints.maxHeight * 0.65 / 5))) ]);
+            })),
+          ],
+        ),
       ),
     );
   }
