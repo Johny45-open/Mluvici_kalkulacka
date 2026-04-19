@@ -556,7 +556,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void backspace() { _deleteAtCursor(); }
   void clear() { setState(() { display = ''; _cursorPosition = 0; _lastResult = '0.'; _isStoreMode = false; _hasResult = false; }); speak('Vymazat'); }
-  void append(String value) { _insertAtCursor(value); speak(_buttonNames[value] ?? value); }
+  void append(String value, {bool silent = false}) { 
+    _insertAtCursor(value); 
+    if (!silent) speak(_buttonNames[value] ?? value); 
+  }
 
   String _formatAsDMS(double value) {
     double absVal = value.abs();
