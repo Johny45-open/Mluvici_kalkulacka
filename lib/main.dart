@@ -312,9 +312,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget _buildScientificTripleDisplay(String text) {
-    List<String> parts = text.split('E');
-    String mantissa = parts[0];
-    String exponent = parts[1];
+    String mantissa;
+    String exponent;
+
+    if (text.contains('E')) {
+      List<String> parts = text.split('E');
+      mantissa = parts[0];
+      exponent = parts[1];
+    } else {
+      // Pokud text nemá E (např. v režimu FIX), mantisa je celé číslo a exponent je 0
+      mantissa = text;
+      exponent = '00';
+    }
+    
     String formattedExp = exponent.replaceAll('+', '');
     if (!formattedExp.startsWith('-')) {
       formattedExp = formattedExp.padLeft(3, '0');
@@ -362,9 +372,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   Widget _buildMainResultDisplay() {
     String res = _lastResult.isEmpty ? '0.' : _lastResult;
-    if (_displayFormat == DisplayFormat.sci && res.contains('E') && res.toLowerCase() != 'error') {
+    
+    // Pokud je zapnutý jakýkoliv profi formát (FIX, SCI, ENG), použijeme Triple-Display
+    if ((_displayFormat == DisplayFormat.sci || 
+         _displayFormat == DisplayFormat.eng || 
+         _displayFormat == DisplayFormat.fix) && 
+        res.toLowerCase() != 'error') {
       return _buildScientificTripleDisplay(res);
     }
+
     return _useSixteenSegment 
       ? SixteenSegmentDisplay(
           value: _normalizeForSegmentDisplay(res),
