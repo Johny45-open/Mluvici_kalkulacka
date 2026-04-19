@@ -1083,10 +1083,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               child: DropdownButtonFormField<String>(
                 value: _unitFrom,
                 decoration: const InputDecoration(labelText: 'Z jednotky'),
-                items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
                 onChanged: (val) {
                   setState(() => _unitFrom = val!);
-                  speak('Z jednotky $val');
+                  speak('Z jednotky ${_getUnitSpeech(val!)}');
                 },
               ),
             ),
@@ -1095,10 +1095,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               child: DropdownButtonFormField<String>(
                 value: _unitTo,
                 decoration: const InputDecoration(labelText: 'Na jednotku'),
-                items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
                 onChanged: (val) {
                   setState(() => _unitTo = val!);
-                  speak('Na jednotku $val');
+                  speak('Na jednotku ${_getUnitSpeech(val!)}');
                 },
               ),
             ),
@@ -1342,6 +1342,88 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 widget.parent.setState(() => widget.parent._accessibilityType = v!);
                 widget.parent._saveSettings();
               }),
+            ),
+            RadioListTile<AccessibilityType>(
+              title: const Text('Režim pro nevidomé'),
+              value: AccessibilityType.blind,
+              groupValue: widget.parent._accessibilityType,
+              onChanged: (v) => setState(() {
+                widget.parent.setState(() {
+                  widget.parent._accessibilityType = v!;
+                  widget.parent.ttsEnabled = true;
+                  widget.parent._fontSizeMultiplier = 1.0;
+                });
+                widget.parent._saveSettings();
+              }),
+            ),
+            const Divider(),
+            ListTile(
+              title: const Text('Velikost písma'),
+              subtitle: Slider(
+                focusNode: _focusSlider,
+                value: widget.parent._fontSizeMultiplier,
+                min: 0.8,
+                max: 3.0,
+                divisions: 22,
+                label: '${(widget.parent._fontSizeMultiplier * 100).toInt()}%',
+                onChanged: (v) => setState(() => widget.parent.setState(() => widget.parent._fontSizeMultiplier = v)),
+                onChangeEnd: (v) => widget.parent._saveSettings(),
+              ),
+            ),
+            const Divider(),
+            ListTile(
+              title: const Text('Velikost oblasti displeje'),
+              subtitle: Slider(
+                value: widget.parent._displaySizeFactor,
+                min: 1.0,
+                max: 5.0,
+                divisions: 20,
+                label: '${(widget.parent._displaySizeFactor * 100).toInt()}%',
+                onChanged: (v) => setState(() => widget.parent.setState(() => widget.parent._displaySizeFactor = v)),
+                onChangeEnd: (v) => widget.parent._saveSettings(),
+              ),
+            ),
+            SwitchListTile(
+              title: const Text('Vícesegmentový displej (16 seg)'),
+              subtitle: const Text('Lepší čitelnost písmen a textu'),
+              value: widget.parent._useSixteenSegment,
+              onChanged: (v) => setState(() {
+                widget.parent.setState(() => widget.parent._useSixteenSegment = v);
+                widget.parent._saveSettings();
+              }),
+            ),
+            SwitchListTile(
+              title: const Text('Uvítací zpráva při startu'),
+              value: widget.parent._sayWelcome,
+              onChanged: (v) => setState(() {
+                widget.parent.setState(() => widget.parent._sayWelcome = v);
+                widget.parent._saveSettings();
+              }),
+            ),
+            const Divider(),
+            SwitchListTile(
+              focusNode: _focusSwitch,
+              title: const Text('Hlas kalkulačky'),
+              value: widget.parent.ttsEnabled,
+              onChanged: (v) => setState(() {
+                widget.parent.setState(() => widget.parent.ttsEnabled = v);
+                widget.parent._saveSettings();
+              }),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          focusNode: _focusDone,
+          onPressed: () => Navigator.pop(context),
+          child: const Text('HOTOVO'),
+        ),
+      ],
+    );
+  }
+}
+           }),
             ),
             RadioListTile<AccessibilityType>(
               title: const Text('Režim pro nevidomé'),
