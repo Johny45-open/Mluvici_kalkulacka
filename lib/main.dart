@@ -418,6 +418,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           size: 16 * _fontSizeMultiplier,
           characterSpacing: 8,
           characterCount: 12,
+          characterMap: _custom16SegMap,
           segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withOpacity(0.05)),
         )
       : SevenSegmentDisplay(
@@ -425,6 +426,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           size: 16 * _fontSizeMultiplier,
           characterSpacing: 8,
           characterCount: 12,
+          characterMap: _custom7SegMap,
           segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withOpacity(0.05)),
         );
   }
@@ -889,5 +891,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       ),
       actions: [ TextButton(onPressed: () => Navigator.pop(context), child: const Text('HOTOVO')) ],
     );
+  }
+}
   }
 }
