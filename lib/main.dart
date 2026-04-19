@@ -104,6 +104,7 @@ class CalculatorScreen extends StatefulWidget {
 
 class _CalculatorScreenState extends State<CalculatorScreen> {
   final FlutterTts tts = FlutterTts();
+  final FocusNode _mainFocusNode = FocusNode();
   String display = '';
   int _cursorPosition = 0;
   String _lastResult = '0.';
@@ -691,11 +692,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   String _normalizeForSegmentDisplay(String text) {
     if (text.toLowerCase() == 'error') return _useSixteenSegment ? 'CHYBA' : 'Err';
+    
+    // Mapování speciálních symbolů pro segmentový displej
+    String result = text;
+    if (!_useSixteenSegment) {
+      result = result.replaceAll('°', 'o'); // Stupeň jako malý kroužek
+      result = result.replaceAll('\'', 'i'); // Minuta jako horní čárka
+      result = result.replaceAll('"', 'u'); // Vteřina (improvizace)
+    }
+
     const map = {
       'á': 'A', 'č': 'C', 'ď': 'D', 'é': 'E', 'ě': 'E', 'í': 'I', 'ň': 'N',
       'ó': 'O', 'ř': 'R', 'š': 'S', 'ť': 'T', 'ú': 'U', 'ů': 'U', 'ý': 'Y', 'ž': 'Z',
     };
-    String result = text;
+    
     map.forEach((key, value) => result = result.replaceAll(key, value).replaceAll(key.toUpperCase(), value));
     return _useSixteenSegment ? result.toUpperCase() : result;
   }
