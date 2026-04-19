@@ -133,7 +133,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   bool _isElectricianExpanded = true;
   bool _isStatsExpanded = true;
   bool _isVariablesExpanded = false;
-  bool _isUnitConvExpanded = true;
 
   final Map<String, double> _memory = {
     'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0, 'F': 0,
@@ -206,7 +205,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     '^': 'Mocnina', '√': 'Odmocnina', 'ⁿ√': 'Odmocnina en',
     'x²': 'Na druhou', 'x³': 'Na třetí', '∛': 'Třetí odmocnina', '1/x': 'Převrácená hodnota',
     'ANS': 'Poslední výsledek', 'STO': 'Uložit do paměti', 'DEL': 'Smazat poslední',
-    'RCL': 'Vyvolat z paměti', 'CLR': 'Smazat celou paměť', 'C': 'Proměnná C',
+    'RCL': 'Vyvolat z paměti', 'CLR': 'Smazat celou paměť', 'C': 'Smazat displej',
     'DEG': 'Stupně', 'RAD': 'Radiány', '%': 'Procenta',
     'SD': 'Směrodatná odchylka', 'VAR': 'Rozptyl', 'MEAN': 'Průměr', 'STATS': 'Statistický souhrn',
     'CV': 'Variační koeficient',
@@ -236,7 +235,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
       await tts.awaitSpeakCompletion(false);
-      
       if (_sayWelcome) {
         speak('Kalkulačka připravena k práci');
       }
@@ -272,7 +270,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String _getUnitSpeech(String unitCode, {double? value, String context = 'base'}) {
     final data = _unitSpeechData[unitCode];
     if (data == null) return unitCode;
-    
     if (value != null) {
       double absVal = value.abs();
       if (absVal % 1 != 0) return data['forms'][3]; 
@@ -280,18 +277,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       if (absVal >= 2 && absVal <= 4) return data['forms'][1];
       return data['forms'][2];
     }
-    
     return data[context] ?? data['base'];
   }
 
   void _convertUnits() {
     try {
       double value;
-      // Pokud je na displeji napsané číslo nebo příklad, nejdříve ho vypočítáme
       if (display.isNotEmpty) {
         value = _evaluateExpression(display);
       } else {
-        // Jinak vezmeme poslední výsledek
         value = double.parse(_lastResult.replaceAll(',', '.'));
       }
 
@@ -302,7 +296,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       String resStr = _formatNumber(result);
       setState(() {
         _lastResult = resStr;
-        display = ''; // Vyčistíme displej pro zobrazení výsledku
+        display = '';
         _hasResult = true;
       });
 
@@ -321,7 +315,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     List<String> parts = text.split('E');
     String mantissa = parts[0];
     String exponent = parts[1];
-    
     String formattedExp = exponent.replaceAll('+', '');
     if (!formattedExp.startsWith('-')) {
       formattedExp = formattedExp.padLeft(3, '0');
@@ -340,20 +333,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               size: 16 * _fontSizeMultiplier,
               characterSpacing: 4,
               characterCount: 8,
-              segmentStyle: DefaultSegmentStyle(
-                enabledColor: Colors.redAccent,
-                disabledColor: Colors.red.withOpacity(0.05),
-              ),
+              segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withOpacity(0.05)),
             )
           : SevenSegmentDisplay(
               value: _normalizeForSegmentDisplay(mantissa),
               size: 16 * _fontSizeMultiplier,
               characterSpacing: 4,
               characterCount: 8,
-              segmentStyle: DefaultSegmentStyle(
-                enabledColor: Colors.redAccent,
-                disabledColor: Colors.red.withOpacity(0.05),
-              ),
+              segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withOpacity(0.05)),
             ),
         const SizedBox(width: 8),
         Column(
@@ -365,10 +352,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               size: 8 * _fontSizeMultiplier,
               characterSpacing: 2,
               characterCount: 3,
-              segmentStyle: DefaultSegmentStyle(
-                enabledColor: Colors.redAccent,
-                disabledColor: Colors.red.withOpacity(0.05),
-              ),
+              segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withOpacity(0.05)),
             ),
           ],
         ),
@@ -381,27 +365,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     if (_displayFormat == DisplayFormat.sci && res.contains('E') && res.toLowerCase() != 'error') {
       return _buildScientificTripleDisplay(res);
     }
-
     return _useSixteenSegment 
       ? SixteenSegmentDisplay(
           value: _normalizeForSegmentDisplay(res),
           size: 16 * _fontSizeMultiplier,
           characterSpacing: 8,
           characterCount: 12,
-          segmentStyle: DefaultSegmentStyle(
-            enabledColor: Colors.redAccent,
-            disabledColor: Colors.red.withOpacity(0.05),
-          ),
+          segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withOpacity(0.05)),
         )
       : SevenSegmentDisplay(
           value: _normalizeForSegmentDisplay(res),
           size: 16 * _fontSizeMultiplier,
           characterSpacing: 8,
           characterCount: 12,
-          segmentStyle: DefaultSegmentStyle(
-            enabledColor: Colors.redAccent,
-            disabledColor: Colors.red.withOpacity(0.05),
-          ),
+          segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withOpacity(0.05)),
         );
   }
 
@@ -419,7 +396,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _sayWelcome = prefs.getBool('sayWelcome') ?? true;
       final accTypeIndex = prefs.getInt('accessibilityType') ?? AccessibilityType.none.index;
       _accessibilityType = AccessibilityType.values[accTypeIndex];
-      _preferDMSForInverse = prefs.getBool('preferDMSForInverse');
     });
   }
 
@@ -435,7 +411,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     await prefs.setBool('useSixteenSegment', _useSixteenSegment);
     await prefs.setBool('sayWelcome', _sayWelcome);
     await prefs.setInt('accessibilityType', _accessibilityType.index);
-    if (_preferDMSForInverse != null) await prefs.setBool('preferDMSForInverse', _preferDMSForInverse!);
   }
 
   void speak(String text) async {
@@ -443,15 +418,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final now = DateTime.now();
     if (_lastSpeakTime != null && now.difference(_lastSpeakTime!) < _speakThrottle) return;
     _lastSpeakTime = now;
-
     try {
       await tts.stop();
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
       await tts.speak(_formatForSpeech(text));
-    } catch (e) {
-      debugPrint('TTS Error: $e');
-    }
+    } catch (e) { debugPrint('TTS Error: $e'); }
   }
 
   String _formatForSpeech(String text) {
@@ -467,32 +439,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _showInitialAccessibilityDialog() {
     showDialog(
-      context: context,
-      barrierDismissible: false,
+      context: context, barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Vítejte'),
-        content: const Text('Vyberte prosím režim usnadnění.'),
+        title: const Text('Vítejte'), content: const Text('Vyberte režim usnadnění.'),
         actions: [
-          TextButton(
-            autofocus: true,
-            onPressed: () { setState(() => _accessibilityType = AccessibilityType.none); _saveSettings(); Navigator.pop(context); }, 
-            child: const Text('STANDARDNÍ')
-          ),
-          TextButton(
-            onPressed: () { setState(() { _accessibilityType = AccessibilityType.blind; ttsEnabled = true; }); _saveSettings(); Navigator.pop(context); }, 
-            child: const Text('PRO NEVIDOMÉ')
-          ),
+          TextButton(onPressed: () { setState(() => _accessibilityType = AccessibilityType.none); _saveSettings(); Navigator.pop(context); }, child: const Text('STANDARDNÍ')),
+          TextButton(onPressed: () { setState(() { _accessibilityType = AccessibilityType.blind; ttsEnabled = true; }); _saveSettings(); Navigator.pop(context); }, child: const Text('PRO NEVIDOMÉ')),
         ],
       ),
     );
   }
 
   void _showAccessibilityDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => _AccessibilityDialog(parent: this),
-    );
+    showDialog(context: context, builder: (context) => _AccessibilityDialog(parent: this));
   }
 
   void _showTutorialDialog() {
@@ -500,14 +459,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Nápověda'),
-        content: const Text('Kalkulačka podporuje vědecké, elektro a statistické výpočty. Nově můžete využít režim PŘEVODY pro převod aktuálního výsledku. Ve vědeckém režimu (SCI) uvidíte výsledek s odděleným exponentem (např. x10 005).'),
-        actions: [
-          TextButton(
-            autofocus: true,
-            onPressed: () => Navigator.pop(context), 
-            child: const Text('ROZUMÍM')
-          )
-        ],
+        content: const Text('Kalkulačka podporuje vědecké, elektro a statistické výpočty. Nově můžete využít režim PŘEVODY. Ve vědeckém režimu (SCI) uvidíte výsledek s odděleným exponentem (např. x10 005).'),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('ROZUMÍM'))],
       ),
     );
   }
@@ -601,34 +554,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     processed = processed.replaceAll('°', '_D_');
     processed = processed.replaceAll('\'', '_M_');
     processed = processed.replaceAll('"', '_S_');
-
     processed = processed.replaceAllMapped(RegExp(r'(\d+)_D_(\d+)_M_(\d+(?:\.\d+)?)_S__DMS_TO_DEG_'), (m) {
-      double d = double.parse(m[1]!);
-      double mm = double.parse(m[2]!);
-      double s = double.parse(m[3]!);
+      double d = double.parse(m[1]!); double mm = double.parse(m[2]!); double s = double.parse(m[3]!);
       return (d + mm / 60 + s / 3600).toString();
     });
-
     processed = processed.replaceAllMapped(RegExp(r'(\d+)_D_(\d+)_M_(\d+(?:\.\d+)?)_S_'), (m) {
-      double d = double.parse(m[1]!);
-      double mm = double.parse(m[2]!);
-      double s = double.parse(m[3]!);
+      double d = double.parse(m[1]!); double mm = double.parse(m[2]!); double s = double.parse(m[3]!);
       return (d + mm / 60 + s / 3600).toString();
     });
-
-    processed = processed.replaceAll('x²', '^2');
-    processed = processed.replaceAll('x³', '^3');
-    processed = processed.replaceAll('(-)', '-');
-    processed = processed.replaceAll('μ', '*10^-6');
-    processed = processed.replaceAll('n', '*10^-9');
-    processed = processed.replaceAll('p', '*10^-12');
-    processed = processed.replaceAll('Hz', '');
-
+    processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
+    processed = processed.replaceAll('μ', '*10^-6').replaceAll('n', '*10^-9').replaceAll('p', '*10^-12');
     processed = processed.replaceAllMapped(RegExp(r'([^;]+);([^;]+)OHM_R'), (m) => '((${m[1]})/(${m[2]}))');
     processed = processed.replaceAllMapped(RegExp(r'([^;]+);([^;]+)OHM_V'), (m) => '((${m[1]})*(${m[2]}))');
     processed = processed.replaceAllMapped(RegExp(r'([^;]+);([^;]+)OHM_I'), (m) => '((${m[1]})/(${m[2]}))');
     processed = processed.replaceAllMapped(RegExp(r'([^;]+);([^;]+)PWR_P'), (m) => '((${m[1]})*(${m[2]}))');
-
     processed = processed.replaceAllMapped(RegExp(r'([^;]+(?:;[^;]+)+)PAR'), (m) {
       List<String> parts = m[1]!.split(';');
       return '1/(${parts.map((p) => "1/($p)").join("+")})';
@@ -637,59 +576,33 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       List<String> parts = m[1]!.split(';');
       return '(${parts.join("+")})';
     });
-
     processed = processed.replaceAllMapped(RegExp(r'(\d+(\.\d+)?)ⁿ√(\d+(\.\d+)?)'), (m) => '(${m[3]}^(1/${m[1]}))');
-    processed = processed.replaceAll('√(', 'sqrt(');
-    processed = processed.replaceAllMapped(RegExp(r'∛\(([^)]+)\)'), (m) => '((${m[1]})^(1/3))');
-    processed = processed.replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?)[eE]([+-]?\d+)'), (m) => '(${m[1]}*10^${m[2]})');
+    processed = processed.replaceAll('√(', 'sqrt(').replaceAllMapped(RegExp(r'∛\(([^)]+)\)'), (m) => '((${m[1]})^(1/3))');
+    processed = processed.replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?)[eE]([+-]?\d+)'), (m) => '(${m[1]}*10^(${m[2]}))');
+    processed = processed.replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?)[eE](\d+)'), (m) => '(${m[1]}*10^(${m[2]}))');
     processed = processed.replaceAll('ABS(', 'abs(');
-    
     double degToRad = _isDegreeMode ? math.pi / 180.0 : 1.0;
     double radToDeg = _isDegreeMode ? 180.0 / math.pi : 1.0;
-
-    processed = processed.replaceAll('ASIN(', 'ARC_S(');
-    processed = processed.replaceAll('ACOS(', 'ARC_C(');
-    processed = processed.replaceAll('ATAN(', 'ARC_T(');
-
+    processed = processed.replaceAll('ASIN(', 'ARC_S(').replaceAll('ACOS(', 'ARC_C(').replaceAll('ATAN(', 'ARC_T(');
     if (_isDegreeMode) {
-      processed = processed.replaceAll('SIN(', 'sin($degToRad*');
-      processed = processed.replaceAll('COS(', 'cos($degToRad*');
-      processed = processed.replaceAll('TAN(', 'tan($degToRad*');
+      processed = processed.replaceAll('SIN(', 'sin($degToRad*').replaceAll('COS(', 'cos($degToRad*').replaceAll('TAN(', 'tan($degToRad*');
+      processed = processed.replaceAll('ARC_S(', '($radToDeg*arcsin(').replaceAll('ARC_C(', '($radToDeg*arccos(').replaceAll('ARC_T(', '($radToDeg*arctan(');
     } else {
-      processed = processed.replaceAll('SIN(', 'sin(');
-      processed = processed.replaceAll('COS(', 'cos(');
-      processed = processed.replaceAll('TAN(', 'tan(');
+      processed = processed.replaceAll('SIN(', 'sin(').replaceAll('COS(', 'cos(').replaceAll('TAN(', 'tan(');
+      processed = processed.replaceAll('ARC_S(', 'arcsin(').replaceAll('ARC_C(', 'arccos(').replaceAll('ARC_T(', 'arctan(');
     }
-
-    if (_isDegreeMode) {
-      processed = processed.replaceAll('ARC_S(', '($radToDeg*arcsin(');
-      processed = processed.replaceAll('ARC_C(', '($radToDeg*arccos(');
-      processed = processed.replaceAll('ARC_T(', '($radToDeg*arctan(');
-    } else {
-      processed = processed.replaceAll('ARC_S(', 'arcsin(');
-      processed = processed.replaceAll('ARC_C(', 'arccos(');
-      processed = processed.replaceAll('ARC_T(', 'arctan(');
-    }
-
-    processed = processed.replaceAll('π', '${math.pi}');
-    processed = processed.replaceAll(RegExp(r'\be\b'), '${math.e}');
-
+    processed = processed.replaceAll('π', '${math.pi}').replaceAll(RegExp(r'\be\b'), '${math.e}');
     _memory.forEach((key, value) => processed = processed.replaceAll(RegExp('\\b$key\\b'), '($value)'));
     String ansValue = _lastResult.toLowerCase() == 'error' ? '0' : _lastResult;
-    processed = processed.replaceAll(RegExp(r'\bANS\b'), '($ansValue)');
-    processed = processed.replaceAll(' ', '');
-
+    processed = processed.replaceAll(RegExp(r'\bANS\b'), '($ansValue)').replaceAll(' ', '');
     int openParentheses = '('.allMatches(processed).length;
     int closeParentheses = ')'.allMatches(processed).length;
     if (openParentheses > closeParentheses) processed += ')' * (openParentheses - closeParentheses);
-
-    math_expr.Parser p = math_expr.Parser();
     try {
+      math_expr.Parser p = math_expr.Parser();
       math_expr.Expression exp = p.parse(processed);
       return exp.evaluate(math_expr.EvaluationType.REAL, math_expr.ContextModel());
-    } catch (e) {
-      rethrow;
-    }
+    } catch (e) { rethrow; }
   }
 
   String _formatNumber(double value) {
@@ -759,10 +672,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         double val = 0; try { val = double.parse(_lastResult.replaceAll(',', '.')); } catch (_) {}
         setState(() { _memory[label] = val; _isStoreMode = false; }); speak('Uloženo do $label');
       } else append(label);
-    else if (label == 'EXP') {
+    } else if (label == 'EXP') {
       append('E');
     } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', '∛', 'ABS', '1/x'].contains(label)) {
-
       String insertText = label == '1/x' ? '1/()' : '$label()';
       _insertAtCursor(insertText, cursorOffset: -1); speak(_buttonNames[label] ?? label);
     } else if (['°→\'', '\'→°', 'DMS', 'π', 'e'].contains(label)) {
@@ -889,7 +801,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
 class _AccessibilityDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
-  const _AccessibilityDialog({required this.parent});
+  const _AccessibilityDialog({required this.parent, super.key});
   @override
   State<_AccessibilityDialog> createState() => _AccessibilityDialogState();
 }
@@ -901,18 +813,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       title: const Text('Nastavení'),
       content: SingleChildScrollView(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             SwitchListTile(title: const Text('Hlas'), value: widget.parent.ttsEnabled, onChanged: (v) => setState(() { widget.parent.setState(() => widget.parent.ttsEnabled = v); widget.parent._saveSettings(); })),
             ListTile(title: const Text('Písmo'), subtitle: Slider(value: widget.parent._fontSizeMultiplier, min: 0.8, max: 3.0, onChanged: (v) => setState(() { widget.parent.setState(() => widget.parent._fontSizeMultiplier = v); widget.parent._saveSettings(); }))),
             SwitchListTile(title: const Text('16 seg'), value: widget.parent._useSixteenSegment, onChanged: (v) => setState(() { widget.parent.setState(() => widget.parent._useSixteenSegment = v); widget.parent._saveSettings(); })),
-          ],
-        ),
-      ),
-      actions: [ TextButton(onPressed: () => Navigator.pop(context), child: const Text('HOTOVO')) ],
-    );
-  }
-}
-_useSixteenSegment = v); widget.parent._saveSettings(); })),
           ],
         ),
       ),
