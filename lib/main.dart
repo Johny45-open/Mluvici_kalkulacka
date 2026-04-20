@@ -268,13 +268,38 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void calculateResult() {
     try {
-      if (display.isEmpty) return;
+      if (display.isEmpty) {
+        return;
+      }
       double result = _evaluateExpression(display);
-      String resStr = display.contains('°→\'') ? _formatAsDMS(result) : _formatNumber(result);
-      setState(() { _lastResult = resStr; _hasResult = true; display = ''; _cursorPosition = 0; });
-      speak('Výsledek je ${resStr.replaceAll('.', ',')}');
+      bool isDms = display.contains('°→\'');
+      String resStr = isDms ? _formatAsDMS(result) : _formatNumber(result);
+      
+      setState(() {
+        _lastResult = resStr;
+        _hasResult = true;
+        display = '';
+        _cursorPosition = 0;
+      });
+
+      if (isDms) {
+        String spoken = resStr
+            .replaceAll('°', ' stupňů, ')
+            .replaceAll('\'', ' minut a ')
+            .replaceAll('"', ' sekund')
+            .replaceAll('.', ',');
+        speak('Výsledek je $spoken');
+      } else {
+        speak('Výsledek je ${resStr.replaceAll('.', ',')}');
+      }
       _addToHistory(display, resStr);
-    } catch (e) { setState(() { _lastResult = 'Error'; _hasResult = true; }); speak('Chyba'); }
+    } catch (e) {
+      setState(() {
+        _lastResult = 'Error';
+        _hasResult = true;
+      });
+      speak('Chyba');
+    }
   }
 
   double _evaluateExpression(String expr) {
@@ -287,7 +312,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     try {
       final p = math_expr.ShuntingYardParser();
       return p.parse(processed).evaluate(math_expr.EvaluationType.REAL, math_expr.ContextModel());
-    } catch (e) { rethrow; }
+    } catch (e) {
+      rethrow;
+    }
   }
 
   String _formatNumber(double value) {
@@ -325,27 +352,43 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       double toFactor = _unitCategories[_selectedUnitCategory]![_unitTo]!;
       double result = value * (fromFactor / toFactor);
       String resStr = _formatNumber(result);
-      setState(() { _lastResult = resStr; display = ''; _hasResult = true; });
+      setState(() {
+        _lastResult = resStr;
+        display = '';
+        _hasResult = true;
+      });
       speak('Převedeno z ${_getUnitSpeech(_unitFrom, context: 'z')} na ${_getUnitSpeech(_unitTo, context: 'na')}. Výsledek je $resStr ${_getUnitSpeech(_unitTo, value: result)}');
-    } catch (e) { speak('Chyba převodu'); }
+    } catch (e) {
+      speak('Chyba převodu');
+    }
   }
 
   String _getUnitSpeech(String unitCode, {double? value, String context = 'base'}) {
     final data = _unitSpeechData[unitCode];
-    if (data == null) return unitCode;
+    if (data == null) {
+      return unitCode;
+    }
     if (value != null) {
       double absVal = value.abs();
-      if (absVal % 1 != 0) return data['forms'][3];
-      if (absVal == 1) return data['forms'][0];
-      if (absVal >= 2 && absVal <= 4) return data['forms'][1];
+      if (absVal % 1 != 0) {
+        return data['forms'][3];
+      }
+      if (absVal == 1) {
+        return data['forms'][0];
+      }
+      if (absVal >= 2 && absVal <= 4) {
+        return data['forms'][1];
+      }
       return data['forms'][2];
     }
     return data[context] ?? data['base'];
   }
 
   String _normalizeForSegmentDisplay(String text) {
-    if (text.toLowerCase() == 'error') return _useSixteenSegment ? 'CHYBA' : 'Err';
-    const map = { 'á': 'A', 'č': 'C', 'ď': 'D', 'é': 'E', 'ě': 'E', 'í': 'I', 'ň': 'N', 'ó': 'O', 'ř': 'R', 'š': 'S', 'ť': 'T', 'ú': 'U', 'ů': 'U', 'ý': 'Y', 'ž': 'Z' };
+    if (text.toLowerCase() == 'error') {
+      return _useSixteenSegment ? 'CHYBA' : 'Err';
+    }
+    const map = {'á': 'A', 'č': 'C', 'ď': 'D', 'é': 'E', 'ě': 'E', 'í': 'I', 'ň': 'N', 'ó': 'O', 'ř': 'R', 'š': 'S', 'ť': 'T', 'ú': 'U', 'ů': 'U', 'ý': 'Y', 'ž': 'Z'};
     String result = text;
     map.forEach((key, value) => result = result.replaceAll(key, value).replaceAll(key.toUpperCase(), value));
     return result;
@@ -353,15 +396,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   Widget _buildMainResultDisplay() {
     String res = _lastResult.isEmpty ? '0.' : _lastResult;
-    if (res.contains('°')) return _buildDmsDisplay(res);
-    if ((_displayFormat != DisplayFormat.standard) && res.toLowerCase() != 'error') return _buildScientificTripleDisplay(res);
+    if (res.contains('°')) {
+      return _buildDmsDisplay(res);
+    }
+    if ((_displayFormat != DisplayFormat.standard) && res.toLowerCase() != 'error') {
+      return _buildScientificTripleDisplay(res);
+    }
     return _buildStandardDisplay(res);
   }
 
   Widget _buildStandardDisplay(String res) {
-    return _useSixteenSegment 
-      ? SixteenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 12, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)))
-      : SevenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 12, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)));
+    return _useSixteenSegment
+        ? SixteenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 12, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)))
+        : SevenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 12, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)));
   }
 
   Widget _buildScientificTripleDisplay(String text) {
@@ -383,10 +430,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     List<Widget> children = [];
     RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)([°'"])''');
     Iterable<RegExpMatch> matches = dmsRegex.allMatches(text);
-    if (matches.isEmpty) return _buildStandardDisplay(text);
+    if (matches.isEmpty) {
+      return _buildStandardDisplay(text);
+    }
     for (var m in matches) {
       children.add(SevenSegmentDisplay(value: m.group(1)!, size: 16 * _fontSizeMultiplier, characterSpacing: 4, characterCount: m.group(1)!.length, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05))));
       String sym = m.group(2)!;
+      // ° -> horní čtvereček (segmenty 0,1,5,6), ' -> horní čárka (segment 5), " -> horní dvě čárky (segmenty 1 a 5)
       List<bool> segs = sym == '°' ? [true, true, false, false, false, true, true] : (sym == '\'' ? [false, false, false, false, false, true, false] : [false, true, false, false, false, true, false]);
       children.add(Container(margin: const EdgeInsets.symmetric(horizontal: 2), width: 12 * _fontSizeMultiplier, height: 24 * _fontSizeMultiplier, child: CustomPaint(painter: _SegmentPainter(segs, Colors.redAccent))));
     }
