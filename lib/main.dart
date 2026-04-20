@@ -407,8 +407,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   Widget _buildStandardDisplay(String res) {
     return _useSixteenSegment
-        ? SixteenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 12, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)))
-        : SevenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 12, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)));
+        ? SixteenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 16, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)))
+        : SevenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 16, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)));
   }
 
   Widget _buildScientificTripleDisplay(String text) {
@@ -434,13 +434,22 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       return _buildStandardDisplay(text);
     }
     for (var m in matches) {
-      children.add(SevenSegmentDisplay(value: m.group(1)!, size: 16 * _fontSizeMultiplier, characterSpacing: 4, characterCount: m.group(1)!.length, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05))));
+      children.add(SevenSegmentDisplay(
+          value: m.group(1)!,
+          size: 16 * _fontSizeMultiplier,
+          characterSpacing: 4,
+          characterCount: m.group(1)!.length,
+          segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05))));
       String sym = m.group(2)!;
-      // ° -> horní čtvereček (segmenty 0,1,5,6), ' -> horní čárka (segment 5), " -> horní dvě čárky (segmenty 1 a 5)
+      // ° -> horní čtvereček, ' -> horní čárka vlevo, " -> dvě horní čárky
       List<bool> segs = sym == '°' ? [true, true, false, false, false, true, true] : (sym == '\'' ? [false, false, false, false, false, true, false] : [false, true, false, false, false, true, false]);
-      children.add(Container(margin: const EdgeInsets.symmetric(horizontal: 2), width: 12 * _fontSizeMultiplier, height: 24 * _fontSizeMultiplier, child: CustomPaint(painter: _SegmentPainter(segs, Colors.redAccent))));
+      children.add(Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: 10 * _fontSizeMultiplier,
+          height: 16 * _fontSizeMultiplier,
+          child: CustomPaint(painter: _SegmentPainter(segs, Colors.redAccent))));
     }
-    return Row(mainAxisSize: MainAxisSize.min, children: children);
+    return Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: children);
   }
 
   void _changeMode(CalculatorMode mode) {
@@ -454,29 +463,74 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _isDegreeMode = prefs.getBool('isDegreeMode') ?? true; _fontSizeMultiplier = prefs.getDouble('fontSizeMultiplier') ?? 1.0;
-      ttsEnabled = prefs.getBool('ttsEnabled') ?? true; _useSixteenSegment = prefs.getBool('useSixteenSegment') ?? false;
+      _isDegreeMode = prefs.getBool('isDegreeMode') ?? true;
+      _fontSizeMultiplier = prefs.getDouble('fontSizeMultiplier') ?? 1.0;
+      ttsEnabled = prefs.getBool('ttsEnabled') ?? true;
+      _useSixteenSegment = prefs.getBool('useSixteenSegment') ?? false;
       _accessibilityType = AccessibilityType.values[prefs.getInt('accessibilityType') ?? 0];
     });
   }
+
   void _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDegreeMode', _isDegreeMode); await prefs.setDouble('fontSizeMultiplier', _fontSizeMultiplier);
-    await prefs.setBool('ttsEnabled', ttsEnabled); await prefs.setBool('useSixteenSegment', _useSixteenSegment);
+    await prefs.setBool('isDegreeMode', _isDegreeMode);
+    await prefs.setDouble('fontSizeMultiplier', _fontSizeMultiplier);
+    await prefs.setBool('ttsEnabled', ttsEnabled);
+    await prefs.setBool('useSixteenSegment', _useSixteenSegment);
     await prefs.setInt('accessibilityType', _accessibilityType.index);
   }
-  void _loadHistory() async { final prefs = await SharedPreferences.getInstance(); setState(() => _history = prefs.getStringList('history') ?? []); }
-  void _saveHistory() async { final prefs = await SharedPreferences.getInstance(); await prefs.setStringList('history', _history); }
-  void _addToHistory(String exp, String res) { setState(() { _history.insert(0, '$exp = $res'); if (_history.length > 20) _history.removeLast(); }); _saveHistory(); }
+
+  void _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _history = prefs.getStringList('history') ?? []);
+  }
+
+  void _saveHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('history', _history);
+  }
+
+  void _addToHistory(String exp, String res) {
+    setState(() {
+      _history.insert(0, '$exp = $res');
+      if (_history.length > 20) _history.removeLast();
+    });
+    _saveHistory();
+  }
 
   void _showInitialAccessibilityDialog() {
-    showDialog(context: context, barrierDismissible: false, builder: (context) => AlertDialog(title: const Text('Vítejte'), content: const Text('Vyberte usnadnění'), actions: [
-      TextButton(onPressed: () { setState(() => _accessibilityType = AccessibilityType.none); _saveSettings(); Navigator.pop(context); }, child: const Text('STANDARD')),
-      TextButton(onPressed: () { setState(() { _accessibilityType = AccessibilityType.blind; ttsEnabled = true; }); _saveSettings(); Navigator.pop(context); }, child: const Text('NEVIDOMÍ')),
-    ]));
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(title: const Text('Vítejte'), content: const Text('Vyberte usnadnění'), actions: [
+              TextButton(
+                  onPressed: () {
+                    setState(() => _accessibilityType = AccessibilityType.none);
+                    _saveSettings();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('STANDARD')),
+              TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _accessibilityType = AccessibilityType.blind;
+                      ttsEnabled = true;
+                    });
+                    _saveSettings();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('NEVIDOMÍ')),
+            ]));
   }
-  void _showAccessibilityDialog() { showDialog(context: context, builder: (context) => _AccessibilityDialog(parent: this)); }
-  void _showTutorialDialog() { showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Nápověda'), content: const Text('Kalkulačka s převody a vědeckým displejem.'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))])); }
+
+  void _showAccessibilityDialog() {
+    showDialog(context: context, builder: (context) => _AccessibilityDialog(parent: this));
+  }
+
+  void _showTutorialDialog() {
+    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Nápověda'), content: const Text('Kalkulačka s převody a vědeckým displejem.'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))]));
+  }
+
   void _showPrecisionDialog(DisplayFormat format) {
     showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Přesnost'), content: Wrap(spacing: 8, children: List.generate(10, (i) => ElevatedButton(onPressed: () { setState(() { _displayFormat = format; _precision = i; }); speak('Nastaveno $i'); Navigator.pop(context); }, child: Text('$i'))))));
   }
@@ -487,11 +541,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallback? onPressed}) {
-    return Padding(padding: const EdgeInsets.all(2), child: ElevatedButton(
-      style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: color != null ? Colors.white : null, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
-      onPressed: onPressed ?? () { speak(_buttonNames[label] ?? label); _handleButtonPressed(label); },
-      child: Semantics(button: true, label: semanticLabel ?? (_buttonNames[label] ?? label), child: ExcludeSemantics(child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)))),
-    ));
+    return Padding(
+        padding: const EdgeInsets.all(2),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: color != null ? Colors.white : null, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
+          onPressed: onPressed ??
+              () {
+                speak(_buttonNames[label] ?? label);
+                _handleButtonPressed(label);
+              },
+          child: Semantics(button: true, label: semanticLabel ?? (_buttonNames[label] ?? label), child: ExcludeSemantics(child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)))),
+        ));
   }
 
   void _handleButtonPressed(String label) {
@@ -678,7 +738,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 flex: (1000 * _displaySizeFactor).toInt(),
                 child: GestureDetector(
                   onTap: () => _mainFocusNode.requestFocus(),
-                  child: Container(margin: const EdgeInsets.all(8), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)), alignment: Alignment.bottomRight, child: Semantics(liveRegion: true, label: 'Displej', value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','), child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.end, children: [ Flexible(child: FittedBox(child: _buildDotMatrixDisplay())), const SizedBox(height: 12), Flexible(child: FittedBox(child: _buildMainResultDisplay())) ]))),
+                  child: Container(margin: const EdgeInsets.all(8), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)), alignment: Alignment.bottomRight, child: Semantics(liveRegion: true, label: 'Displej', value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','), child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.end, children: [ Flexible(child: FittedBox(child: _buildDotMatrixDisplay())), const SizedBox(height: 12), Flexible(child: FittedBox(child: _buildMainResultDisplay())) ]))),
                 )),
             _buildModeSelector(),
             Expanded(flex: 1000, child: LayoutBuilder(builder: (context, constraints) {
@@ -703,34 +763,36 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 }
 
 class _SegmentPainter extends CustomPainter {
-  final List<bool> segments; final Color color;
+  final List<bool> segments;
+  final Color color;
   _SegmentPainter(this.segments, this.color);
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color..strokeWidth = size.width / 6..strokeCap = StrokeCap.round;
-    final w = size.width; final h = size.height;
-    if (segments[0]) {
-      canvas.drawLine(Offset(w * 0.2, 0), Offset(w * 0.8, 0), paint);
+    final activePaint = Paint()
+      ..color = color
+      ..strokeWidth = size.width / 5
+      ..strokeCap = StrokeCap.round;
+    final inactivePaint = Paint()
+      ..color = color.withValues(alpha: 0.05)
+      ..strokeWidth = size.width / 5
+      ..strokeCap = StrokeCap.round;
+
+    final w = size.width;
+    final h = size.height;
+
+    void draw(int index, Offset p1, Offset p2) {
+      canvas.drawLine(p1, p2, segments[index] ? activePaint : inactivePaint);
     }
-    if (segments[1]) {
-      canvas.drawLine(Offset(w, h * 0.1), Offset(w, h * 0.4), paint);
-    }
-    if (segments[2]) {
-      canvas.drawLine(Offset(w, h * 0.6), Offset(w, h * 0.9), paint);
-    }
-    if (segments[3]) {
-      canvas.drawLine(Offset(w * 0.2, h), Offset(w * 0.8, h), paint);
-    }
-    if (segments[4]) {
-      canvas.drawLine(Offset(0, h * 0.6), Offset(0, h * 0.9), paint);
-    }
-    if (segments[5]) {
-      canvas.drawLine(Offset(0, h * 0.1), Offset(0, h * 0.4), paint);
-    }
-    if (segments[6]) {
-      canvas.drawLine(Offset(w * 0.2, h * 0.5), Offset(w * 0.8, h * 0.5), paint);
-    }
+
+    draw(0, Offset(w * 0.2, 0), Offset(w * 0.8, 0)); // a
+    draw(1, Offset(w, h * 0.05), Offset(w, h * 0.45)); // b
+    draw(2, Offset(w, h * 0.55), Offset(w, h * 0.95)); // c
+    draw(3, Offset(w * 0.2, h), Offset(w * 0.8, h)); // d
+    draw(4, Offset(0, h * 0.55), Offset(0, h * 0.95)); // e
+    draw(5, Offset(0, h * 0.05), Offset(0, h * 0.45)); // f
+    draw(6, Offset(w * 0.2, h * 0.5), Offset(w * 0.8, h * 0.5)); // g
   }
+
   @override
   bool shouldRepaint(CustomPainter old) => true;
 }
