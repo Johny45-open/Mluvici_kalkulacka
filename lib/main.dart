@@ -490,68 +490,165 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     }
   }
 
+  Widget _buildMainKeyboard({double aspectRatio = 1.0}) {
+    List<String> btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'DEL', '0', '.', '='];
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 4,
+      childAspectRatio: aspectRatio,
+      children: btns.map((b) {
+        if (b == 'C') {
+          return buildButton('C', color: Colors.orange, semanticLabel: 'Vymazat displej', onPressed: () => clear());
+        }
+        if (b == 'DEL') {
+          return buildButton('DEL', color: Colors.redAccent, semanticLabel: 'Smazat poslední', onPressed: () => backspace());
+        }
+        if (b == '=') {
+          return buildButton('=', color: Colors.green, semanticLabel: 'Rovná se', onPressed: () => calculateResult());
+        }
+        return buildButton(b, color: ['/', '*', '-', '+'].contains(b) ? Colors.blue : null);
+      }).toList(),
+    );
+  }
+
   Widget _buildModeSelector() {
     return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-            children: CalculatorMode.values
-                .map((m) => Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ChoiceChip(label: Text(m.name), selected: _currentMode == m, onSelected: (s) => _changeMode(m))))
-                .toList()));
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+          children: CalculatorMode.values.map((mode) {
+        String label = '';
+        switch (mode) {
+          case CalculatorMode.basic:
+            label = 'Základní';
+            break;
+          case CalculatorMode.scientific:
+            label = 'Vědecká';
+            break;
+          case CalculatorMode.statistics:
+            label = 'Statistika';
+            break;
+          case CalculatorMode.electrician:
+            label = 'Elektro';
+            break;
+          case CalculatorMode.unitConversion:
+            label = 'Převody';
+            break;
+        }
+        return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: ChoiceChip(
+                label: Text(label),
+                selected: _currentMode == mode,
+                onSelected: (s) {
+                  if (s) {
+                    _changeMode(mode);
+                  }
+                }));
+      }).toList()),
+    );
   }
 
   List<Widget> _buildFunctionSections() {
-    List<Widget> s = [];
+    List<Widget> sections = [];
     if (_currentMode == CalculatorMode.unitConversion) {
-      s.add(Card(
-          child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(children: [
-                DropdownButton<String>(
-                    value: _selectedUnitCategory,
-                    items: _unitCategories.keys.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (v) => setState(() => _selectedUnitCategory = v!)),
-                Row(children: [
-                  Expanded(
-                      child: DropdownButton<String>(
-                          value: _unitFrom,
-                          items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
-                          onChanged: (v) => setState(() => _unitFrom = v!))),
-                  const Icon(Icons.arrow_forward),
-                  Expanded(
-                      child: DropdownButton<String>(
-                          value: _unitTo,
-                          items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
-                          onChanged: (v) => setState(() => _unitTo = v!))),
-                ]),
-                ElevatedButton(onPressed: _convertUnits, child: const Text('PŘEVÉST'))
-              ]))));
+      sections.add(Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Card(
+              child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(children: [
+                    DropdownButtonFormField<String>(
+                        value: _selectedUnitCategory,
+                        decoration: const InputDecoration(labelText: 'Kategorie'),
+                        items: _unitCategories.keys.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedUnitCategory = val!;
+                            _unitFrom = _unitCategories[val]!.keys.first;
+                            _unitTo = _unitCategories[val]!.keys.elementAt(1);
+                          });
+                          speak('Kategorie $val');
+                        }),
+                    Row(children: [
+                      Expanded(
+                          child: DropdownButtonFormField<String>(
+                              value: _unitFrom,
+                              decoration: const InputDecoration(labelText: 'Z'),
+                              items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
+                              onChanged: (val) {
+                                setState(() => _unitFrom = val!);
+                                speak('Z jednotky ${_getUnitSpeech(val!)}');
+                              })),
+                      const Icon(Icons.arrow_forward),
+                      Expanded(
+                          child: DropdownButtonFormField<String>(
+                              value: _unitTo,
+                              decoration: const InputDecoration(labelText: 'Na'),
+                              items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
+                              onChanged: (val) {
+                                setState(() => _unitTo = val!);
+                                speak('Na jednotku ${_getUnitSpeech(val!)}');
+                              })),
+                    ]),
+                    const SizedBox(height: 8),
+                    SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: _convertUnits, icon: const Icon(Icons.sync), label: const Text('PŘEVÉST'), style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)))),
+                  ])))));
     }
-    s.add(ExpansionTile(title: const Text('Funkce'), children: [
-      GridView.count(shrinkWrap: true, crossAxisCount: 4, children: ['SIN', 'COS', 'TAN', '√', 'EXP', 'π', '°→\'', 'DMS', 'STO', 'RCL', 'ANS'].map((b) => buildButton(b)).toList())
-    ]));
-    s.add(ExpansionTile(title: const Text('Zobrazení'), children: [
+    sections.add(ExpansionTile(
+        title: const Text('Funkce', style: TextStyle(fontWeight: FontWeight.bold)),
+        children: [GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 4, childAspectRatio: 1.3, children: ['SIN', 'COS', 'TAN', '√', 'EXP', 'π', '°→\'', 'DMS', 'STO', 'RCL', 'ANS'].map((b) => buildButton(b)).toList())]));
+    sections.add(ExpansionTile(title: const Text('Zobrazení', style: TextStyle(fontWeight: FontWeight.bold)), children: [
       Row(children: [
-        buildButton('NORM', onPressed: () => setState(() => _displayFormat = DisplayFormat.standard)),
+        buildButton('NORM', onPressed: () {
+          setState(() => _displayFormat = DisplayFormat.standard);
+          speak('Standardní');
+        }),
         buildButton('FIX', onPressed: () => _showPrecisionDialog(DisplayFormat.fix)),
         buildButton('SCI', onPressed: () => _showPrecisionDialog(DisplayFormat.sci)),
         buildButton('ENG', onPressed: () => _showPrecisionDialog(DisplayFormat.eng))
       ])
     ]));
-    return s;
+    return sections;
   }
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardListener(focusNode: _mainFocusNode, onKeyEvent: _handleKeyboardInput, child: Scaffold(
-      appBar: AppBar(title: const Text('Mluvící kalkulačka'), actions: [ IconButton(icon: const Icon(Icons.help), onPressed: _showTutorialDialog), IconButton(icon: const Icon(Icons.settings), onPressed: _showAccessibilityDialog) ]),
-      body: Column(children: [
-        Expanded(flex: (1000 * _displaySizeFactor).toInt(), child: GestureDetector(onTap: () => _mainFocusNode.requestFocus(), child: Container(color: const Color(0xFF121212), padding: const EdgeInsets.all(16), alignment: Alignment.bottomRight, child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.end, children: [ FittedBox(child: _buildDotMatrixDisplay()), const SizedBox(height: 12), FittedBox(child: _buildMainResultDisplay()) ])))),
-        _buildModeSelector(),
-        Expanded(flex: 1000, child: ListView(children: [ ..._buildFunctionSections(), GridView.count(shrinkWrap: true, crossAxisCount: 4, children: ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'DEL', '0', '.', '='].map((b) => buildButton(b, color: b == '=' ? Colors.green : (['/', '*', '-', '+'].contains(b) ? Colors.blue : (b == 'C' ? Colors.orange : null)))).toList()) ]))
-      ]),
-    ));
+    final size = MediaQuery.of(context).size;
+    final bool isWideScreen = size.width > 600;
+    return KeyboardListener(
+      focusNode: _mainFocusNode,
+      onKeyEvent: _handleKeyboardInput,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Mluvící kalkulačka'), actions: [IconButton(icon: const Icon(Icons.help_outline), onPressed: _showTutorialDialog), IconButton(icon: const Icon(Icons.settings), onPressed: _showAccessibilityDialog)]),
+        body: Column(
+          children: [
+            Expanded(
+                flex: (1000 * _displaySizeFactor).toInt(),
+                child: GestureDetector(
+                  onTap: () => _mainFocusNode.requestFocus(),
+                  child: Container(margin: const EdgeInsets.all(8), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)), alignment: Alignment.bottomRight, child: Semantics(liveRegion: true, label: 'Displej', value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','), child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.end, children: [ Flexible(child: FittedBox(child: _buildDotMatrixDisplay())), const SizedBox(height: 12), Flexible(child: FittedBox(child: _buildMainResultDisplay())) ]))),
+                )),
+            _buildModeSelector(),
+            Expanded(flex: 1000, child: LayoutBuilder(builder: (context, constraints) {
+              if (isWideScreen) {
+                return Row(children: [
+                  Expanded(child: ListView(children: _buildFunctionSections())),
+                  const VerticalDivider(),
+                  Expanded(child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 2 / 4) / (constraints.maxHeight / 5)))
+                ]);
+              }
+              return Column(children: [
+                Expanded(child: ListView(children: _buildFunctionSections())),
+                const Divider(),
+                SizedBox(height: constraints.maxHeight * 0.65, child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 4) / (constraints.maxHeight * 0.65 / 5)))
+              ]);
+            })),
+          ],
+        ),
+      ),
+    );
   }
 }
 
