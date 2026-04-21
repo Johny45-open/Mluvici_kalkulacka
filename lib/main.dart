@@ -129,6 +129,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     'Délka': { 'm': 1.0, 'km': 1000.0, 'cm': 0.01, 'mm': 0.001, 'mi': 1609.344, 'yd': 0.9144, 'ft': 0.3048, 'in': 0.0254 },
     'Hmotnost': { 'kg': 1.0, 'g': 0.001, 'mg': 0.000001, 't': 1000.0, 'lb': 0.45359237, 'oz': 0.028349523125 },
     'Plocha': { 'm²': 1.0, 'km²': 1000000.0, 'ha': 10000.0, 'cm²': 0.0001, 'akr': 4046.856 },
+    'Objem': { 'l': 1.0, 'ml': 0.001, 'm³': 1000.0, 'gal': 3.78541, 'pt': 0.473176 },
+    'Tlak': { 'Pa': 1.0, 'hPa': 100.0, 'kPa': 1000.0, 'bar': 100000.0, 'atm': 101325.0, 'psi': 6894.76 },
   };
 
   final Map<String, Map<String, dynamic>> _unitSpeechData = {
@@ -151,6 +153,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     'ha': {'base': 'hektar', 'z': 'hektarů', 'na': 'hektary', 'forms': ['hektar', 'hektary', 'hektarů', 'hektaru']},
     'cm²': {'base': 'centimetr čtvereční', 'z': 'centimetrů čtverečních', 'na': 'centimetry čtvereční', 'forms': ['centimetr čtvereční', 'centimetry čtvereční', 'centimetrů čtverečních', 'centimetru čtverečního']},
     'akr': {'base': 'akr', 'z': 'akrů', 'na': 'akry', 'forms': ['akr', 'akry', 'akrů', 'akru']},
+    'l': {'base': 'litr', 'z': 'litrů', 'na': 'litry', 'forms': ['litr', 'litry', 'litrů', 'litru']},
+    'ml': {'base': 'mililitr', 'z': 'mililitrů', 'na': 'mililitry', 'forms': ['mililitr', 'mililitry', 'mililitrů', 'mililitru']},
+    'm³': {'base': 'metr krychlový', 'z': 'metrů krychlových', 'na': 'metry krychlové', 'forms': ['metr krychlový', 'metry krychlové', 'metrů krychlových', 'metru krychlového']},
+    'gal': {'base': 'galon', 'z': 'galonů', 'na': 'galony', 'forms': ['galon', 'galony', 'galonů', 'galonu']},
+    'pt': {'base': 'pinta', 'z': 'pint', 'na': 'pinty', 'forms': ['pinta', 'pinty', 'pint', 'pinty']},
+    'Pa': {'base': 'pascal', 'z': 'pascalů', 'na': 'pascaly', 'forms': ['pascal', 'pascaly', 'pascalů', 'pascalu']},
+    'hPa': {'base': 'hektopascal', 'z': 'hektopascalů', 'na': 'hektopascaly', 'forms': ['hektopascal', 'hektopascaly', 'hektopascalů', 'hektopascalu']},
+    'kPa': {'base': 'kilopascal', 'z': 'kilopascalů', 'na': 'kilopascaly', 'forms': ['kilopascal', 'kilopascaly', 'kilopascalů', 'kilopascalu']},
+    'bar': {'base': 'bar', 'z': 'barů', 'na': 'bary', 'forms': ['bar', 'bary', 'barů', 'baru']},
+    'atm': {'base': 'atmosféra', 'z': 'atmosfér', 'na': 'atmosféry', 'forms': ['atmosféra', 'atmosféry', 'atmosfér', 'atmosféry']},
+    'psi': {'base': 'libra na čtvereční palec', 'z': 'liber na čtvereční palec', 'na': 'libry na čtvereční palec', 'forms': ['libra na čtvereční palec', 'libry na čtvereční palec', 'liber na čtvereční palec', 'libry na čtvereční palec']},
   };
 
   String _selectedUnitCategory = 'Délka';
@@ -193,12 +206,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       await tts.setLanguage("cs-CZ");
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
-      if (_sayWelcome) speak('Kalkulačka připravena k práci');
+      if (_sayWelcome) {
+        speak('Vítejte v mluvící kalkulačce, aktivní je ${_getModeName(_currentMode)}');
+      }
     } catch (e) { debugPrint('TTS Error: $e'); }
     Future.delayed(const Duration(milliseconds: 1000), () async {
       final prefs = await SharedPreferences.getInstance();
       if (!prefs.containsKey('accessibilityType')) _showInitialAccessibilityDialog();
     });
+  }
+
+  String _getModeName(CalculatorMode mode) {
+    switch (mode) {
+      case CalculatorMode.basic: return 'Základní';
+      case CalculatorMode.scientific: return 'Vědecká';
+      case CalculatorMode.statistics: return 'Statistika';
+      case CalculatorMode.electrician: return 'Elektro';
+      case CalculatorMode.unitConversion: return 'Převody jednotek';
+    }
   }
 
   void speak(String text) async {
@@ -428,24 +453,53 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   Widget _buildDmsDisplay(String text) {
     List<Widget> children = [];
+    bool hasMinus = text.startsWith('-');
+    String cleanText = hasMinus ? text.substring(1) : text;
+
     RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)([°'"])''');
-    Iterable<RegExpMatch> matches = dmsRegex.allMatches(text);
+    Iterable<RegExpMatch> matches = dmsRegex.allMatches(cleanText);
     if (matches.isEmpty) {
       return _buildStandardDisplay(text);
     }
+
+    int slotsUsed = hasMinus ? 1 : 0;
     for (var m in matches) {
-      children.add(SevenSegmentDisplay(
-          value: m.group(1)!,
-          size: 16 * _fontSizeMultiplier,
-          characterSpacing: 4,
-          characterCount: m.group(1)!.length,
-          segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05))));
-      String sym = m.group(2)!;
-      // ° -> horní čtvereček, ' -> horní čárka vlevo, " -> dvě horní čárky
-      List<bool> segs = sym == '°' ? [true, true, false, false, false, true, true] : (sym == '\'' ? [false, false, false, false, false, true, false] : [false, true, false, false, false, true, false]);
+      slotsUsed += m.group(1)!.length + 1;
+    }
+
+    int padding = (16 - slotsUsed).clamp(0, 16);
+    for (int i = 0; i < padding; i++) {
       children.add(Container(
           margin: const EdgeInsets.symmetric(horizontal: 2),
-          width: 10 * _fontSizeMultiplier,
+          width: 12 * _fontSizeMultiplier,
+          height: 16 * _fontSizeMultiplier,
+          child: CustomPaint(painter: _SegmentPainter(List.filled(7, false), Colors.redAccent))));
+    }
+
+    if (hasMinus) {
+      children.add(SevenSegmentDisplay(
+          value: '-',
+          size: 16 * _fontSizeMultiplier,
+          characterSpacing: 4,
+          characterCount: 1,
+          segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05))));
+    }
+
+    for (var m in matches) {
+      String val = m.group(1)!;
+      children.add(SevenSegmentDisplay(
+          value: val,
+          size: 16 * _fontSizeMultiplier,
+          characterSpacing: 4,
+          characterCount: val.length,
+          segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05))));
+
+      String sym = m.group(2)!;
+      List<bool> segs = sym == '°' ? [true, true, false, false, false, true, true] : (sym == '\'' ? [false, false, false, false, false, true, false] : [false, true, false, false, false, true, false]);
+
+      children.add(Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: 12 * _fontSizeMultiplier,
           height: 16 * _fontSizeMultiplier,
           child: CustomPaint(painter: _SegmentPainter(segs, Colors.redAccent))));
     }
@@ -457,7 +511,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _currentMode = mode;
       display = '';
     });
-    speak(_buttonNames[mode.name] ?? mode.name);
+    speak('Aktivní režim ${_getModeName(mode)}');
   }
 
   void _loadSettings() async {
@@ -628,24 +682,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
           children: CalculatorMode.values.map((mode) {
-        String label = '';
-        switch (mode) {
-          case CalculatorMode.basic:
-            label = 'Základní';
-            break;
-          case CalculatorMode.scientific:
-            label = 'Vědecká';
-            break;
-          case CalculatorMode.statistics:
-            label = 'Statistika';
-            break;
-          case CalculatorMode.electrician:
-            label = 'Elektro';
-            break;
-          case CalculatorMode.unitConversion:
-            label = 'Převody';
-            break;
-        }
+        String label = _getModeName(mode);
         return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: ChoiceChip(
@@ -710,15 +747,18 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         title: const Text('Funkce', style: TextStyle(fontWeight: FontWeight.bold)),
         children: [GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 4, childAspectRatio: 1.3, children: ['SIN', 'COS', 'TAN', '√', 'EXP', 'π', '°→\'', 'DMS', 'STO', 'RCL', 'ANS'].map((b) => buildButton(b)).toList())]));
     sections.add(ExpansionTile(title: const Text('Zobrazení', style: TextStyle(fontWeight: FontWeight.bold)), children: [
-      Row(children: [
-        buildButton('NORM', onPressed: () {
-          setState(() => _displayFormat = DisplayFormat.standard);
-          speak('Standardní');
-        }),
-        buildButton('FIX', onPressed: () => _showPrecisionDialog(DisplayFormat.fix)),
-        buildButton('SCI', onPressed: () => _showPrecisionDialog(DisplayFormat.sci)),
-        buildButton('ENG', onPressed: () => _showPrecisionDialog(DisplayFormat.eng))
-      ])
+      Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: Wrap(alignment: WrapAlignment.start, spacing: 4, runSpacing: 4, children: [
+          buildButton('NORM', onPressed: () {
+            setState(() => _displayFormat = DisplayFormat.standard);
+            speak('Standardní');
+          }),
+          buildButton('FIX', onPressed: () => _showPrecisionDialog(DisplayFormat.fix)),
+          buildButton('SCI', onPressed: () => _showPrecisionDialog(DisplayFormat.sci)),
+          buildButton('ENG', onPressed: () => _showPrecisionDialog(DisplayFormat.eng))
+        ]),
+      )
     ]));
     return sections;
   }
@@ -738,7 +778,25 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 flex: (1000 * _displaySizeFactor).toInt(),
                 child: GestureDetector(
                   onTap: () => _mainFocusNode.requestFocus(),
-                  child: Container(margin: const EdgeInsets.all(8), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)), alignment: Alignment.bottomRight, child: Semantics(liveRegion: true, label: 'Displej', value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','), child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.end, children: [ Flexible(child: FittedBox(child: _buildDotMatrixDisplay())), const SizedBox(height: 12), Flexible(child: FittedBox(child: _buildMainResultDisplay())) ]))),
+                  child: Container(
+                      margin: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)),
+                      alignment: Alignment.bottomRight,
+                      child: Semantics(
+                          liveRegion: true,
+                          label: 'Displej',
+                          value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','),
+                          child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(_getModeName(_currentMode).toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                Flexible(child: FittedBox(child: _buildDotMatrixDisplay())),
+                                const SizedBox(height: 12),
+                                Flexible(child: FittedBox(child: _buildMainResultDisplay()))
+                              ]))),
                 )),
             _buildModeSelector(),
             Expanded(flex: 1000, child: LayoutBuilder(builder: (context, constraints) {
