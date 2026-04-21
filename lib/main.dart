@@ -207,7 +207,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
       if (_sayWelcome) {
-        speak('Vítejte v mluvící kalkulačce, aktivní je ${_getModeName(_currentMode)}');
+        speak('Vítejte v mluvící kalkulačce, aktivní je ${_getModeSpeechName(_currentMode)}');
       }
     } catch (e) { debugPrint('TTS Error: $e'); }
     Future.delayed(const Duration(milliseconds: 1000), () async {
@@ -223,6 +223,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       case CalculatorMode.statistics: return 'Statistika';
       case CalculatorMode.electrician: return 'Elektro';
       case CalculatorMode.unitConversion: return 'Převody jednotek';
+    }
+  }
+
+  String _getModeSpeechName(CalculatorMode mode) {
+    switch (mode) {
+      case CalculatorMode.basic: return 'základní režim';
+      case CalculatorMode.scientific: return 'vědecký režim';
+      case CalculatorMode.statistics: return 'statistický režim';
+      case CalculatorMode.electrician: return 'elektrotechnický režim';
+      case CalculatorMode.unitConversion: return 'režim převodů jednotek';
     }
   }
 
