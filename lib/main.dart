@@ -832,7 +832,25 @@ class CustomSegmentDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String displayValue = value.padRight(characterCount).substring(0, characterCount);
+    // Rozklad na znaky a informaci o tečce
+    List<_SegmentCharData> chars = [];
+    int valIdx = 0;
+    while (chars.length < characterCount && valIdx < value.length) {
+      String char = value[valIdx];
+      bool hasDot = false;
+      if (valIdx + 1 < value.length && value[valIdx + 1] == '.') {
+        hasDot = true;
+        valIdx++;
+      }
+      chars.add(_SegmentCharData(char, hasDot));
+      valIdx++;
+    }
+
+    // Doplnění mezerami
+    while (chars.length < characterCount) {
+      chars.add(_SegmentCharData(' ', false));
+    }
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(characterCount, (index) {
@@ -843,8 +861,8 @@ class CustomSegmentDisplay extends StatelessWidget {
             height: size * 1.8,
             child: CustomPaint(
               painter: isSixteenSegment
-                  ? _CustomSixteenSegmentPainter(displayValue[index], enabledColor, disabledColor)
-                  : _CustomSevenSegmentPainter(displayValue[index], enabledColor, disabledColor),
+                  ? _CustomSixteenSegmentPainter(chars[index].char, chars[index].hasDot, enabledColor, disabledColor)
+                  : _CustomSevenSegmentPainter(chars[index].char, chars[index].hasDot, enabledColor, disabledColor),
             ),
           ),
         );
@@ -853,12 +871,19 @@ class CustomSegmentDisplay extends StatelessWidget {
   }
 }
 
+class _SegmentCharData {
+  final String char;
+  final bool hasDot;
+  _SegmentCharData(this.char, this.hasDot);
+}
+
 class _CustomSevenSegmentPainter extends CustomPainter {
   final String char;
+  final bool showDot;
   final Color enabledColor;
   final Color disabledColor;
 
-  _CustomSevenSegmentPainter(this.char, this.enabledColor, this.disabledColor);
+  _CustomSevenSegmentPainter(this.char, this.showDot, this.enabledColor, this.disabledColor);
 
   static const Map<String, List<bool>> _map = {
     '0': [true, true, true, true, true, true, false],
@@ -882,8 +907,9 @@ class _CustomSevenSegmentPainter extends CustomPainter {
     '°': [true, true, false, false, false, true, true],
     "'": [false, false, false, false, false, true, false],
     '"': [false, true, false, false, false, true, false],
-    '.': [false, false, false, false, false, false, false], // Tečka se obvykle řeší extra, zde jako mezera
+    '.': [false, false, false, false, false, false, false],
     '_': [false, false, false, true, false, false, false],
+    ' ': [false, false, false, false, false, false, false],
   };
 
   @override
@@ -908,6 +934,10 @@ class _CustomSevenSegmentPainter extends CustomPainter {
     draw(4, Offset(0, h / 2 + thickness / 2), Offset(0, h - thickness)); // e
     draw(5, Offset(0, thickness), Offset(0, h / 2 - thickness / 2)); // f
     draw(6, Offset(thickness, h / 2), Offset(w - thickness, h / 2)); // g
+
+    // Decimální tečka (DP)
+    final dotPaint = Paint()..color = showDot ? enabledColor : disabledColor;
+    canvas.drawCircle(Offset(w + thickness * 1.5, h), thickness * 0.8, dotPaint);
   }
 
   @override
@@ -916,10 +946,11 @@ class _CustomSevenSegmentPainter extends CustomPainter {
 
 class _CustomSixteenSegmentPainter extends CustomPainter {
   final String char;
+  final bool showDot;
   final Color enabledColor;
   final Color disabledColor;
 
-  _CustomSixteenSegmentPainter(this.char, this.enabledColor, this.disabledColor);
+  _CustomSixteenSegmentPainter(this.char, this.showDot, this.enabledColor, this.disabledColor);
 
   // A1, A2, B, C, D2, D1, E, F, G2, G1, H, I, J, K, L, M
   static const Map<String, List<bool>> _map = {
@@ -963,6 +994,7 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
     "'": [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
     '"': [false, false, false, false, false, false, false, false, false, false, true, false, true, false, false, false],
     '_': [false, false, false, false, true, true, false, false, false, false, false, false, false, false, false, false],
+    ' ': [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
   };
 
   @override
@@ -997,6 +1029,10 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
     draw(13, Offset(thickness, h - thickness), Offset(w / 2 - thickness / 2, h / 2 + thickness / 2)); // K
     draw(14, Offset(w / 2, h - thickness), Offset(w / 2, h / 2 + thickness / 2)); // L
     draw(15, Offset(w - thickness, h - thickness), Offset(w / 2 + thickness / 2, h / 2 + thickness / 2)); // M
+
+    // Decimální tečka (DP)
+    final dotPaint = Paint()..color = showDot ? enabledColor : disabledColor;
+    canvas.drawCircle(Offset(w + thickness * 1.5, h), thickness * 0.8, dotPaint);
   }
 
   @override
