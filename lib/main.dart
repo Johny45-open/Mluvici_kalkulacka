@@ -400,7 +400,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     int d = absVal.floor();
     int m = ((absVal - d) * 60).floor();
     double s = ((absVal - d - m / 60) * 3600);
-    return "${value < 0 ? '-' : ''}$d°$m'${s.toStringAsFixed(1)}\"";
+    String sStr = s.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+    return "${value < 0 ? '-' : ''}$d°$m'$sStr\"";
   }
 
   void _convertUnits() {
