@@ -263,15 +263,26 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void _handleKeyboardInput(KeyEvent event) {
     if (event is KeyDownEvent) {
       final char = event.character;
+      final isControl = HardwareKeyboard.instance.isControlPressed;
+      final isShift = HardwareKeyboard.instance.isShiftPressed;
+
       if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
         calculateResult();
       } else if (event.logicalKey == LogicalKeyboardKey.backspace) {
         backspace();
       } else if (event.logicalKey == LogicalKeyboardKey.escape || event.logicalKey == LogicalKeyboardKey.delete) {
         clear();
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.keyD) {
+        if (isShift) {
+          _handleButtonPressed("'→°");
+        } else {
+          _handleButtonPressed("°→'");
+        }
+      } else if (event.logicalKey == LogicalKeyboardKey.keyD || event.logicalKey == LogicalKeyboardKey.keyM) {
+        _handleButtonPressed("DMS");
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
-        if (RegExp(r'[0-9.+\-*/^%()eEa-zA-Z]').hasMatch(toAppend)) {
+        if (RegExp(r'[0-9.+\-*/^%()eE]').hasMatch(toAppend)) {
           append(toAppend.toUpperCase(), silent: true);
         }
       }
@@ -639,8 +650,30 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       append('E');
     } else if (['SIN', 'COS', 'TAN', '√', 'ABS'].contains(label)) {
       _insertAtCursor('$label(', cursorOffset: 0);
-    } else if (['°→\'', 'DMS', 'π'].contains(label)) {
-      append(label == 'DMS' ? '°\'"' : label);
+    } else if (label == 'DMS') {
+      if (display.isEmpty) {
+        append('°');
+      } else {
+        // Hledáme poslední číslo na displeji (od konce)
+        RegExp dmsRegex = RegExp(r'(\d+(?:\.\d+)?)(°|\'|")?$');
+        Match? match = dmsRegex.firstMatch(display);
+        if (match != null) {
+          String? suffix = match.group(2);
+          if (suffix == '°') {
+            append("'");
+          } else if (suffix == "'") {
+            append('"');
+          } else if (suffix == '"') {
+            append('°');
+          } else {
+            append('°');
+          }
+        } else {
+          append('°');
+        }
+      }
+    } else if (['°→\'', '\'→°', 'π'].contains(label)) {
+      append(label);
     } else {
       append(label);
     }
@@ -899,7 +932,7 @@ class _CustomSevenSegmentPainter extends CustomPainter {
     '9': [true, true, true, true, false, true, true],
     '-': [false, false, false, false, false, false, true],
     'E': [true, false, false, true, true, true, true],
-    'R': [true, true, false, false, true, true, true],
+    'R': [false, false, false, false, true, false, true],
     'H': [false, true, true, false, true, true, true],
     'A': [true, true, true, false, true, true, true],
     'C': [true, false, false, true, true, true, false],
