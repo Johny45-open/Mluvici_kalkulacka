@@ -858,7 +858,7 @@ class CustomSegmentDisplay extends StatelessWidget {
         return Padding(
           padding: EdgeInsets.only(right: index == characterCount - 1 ? 0 : characterSpacing),
           child: SizedBox(
-            width: size,
+            width: size * 1.3,
             height: size * 1.8,
             child: CustomPaint(
               painter: isSixteenSegment
