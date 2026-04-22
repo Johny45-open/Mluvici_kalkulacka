@@ -278,6 +278,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         } else {
           _handleButtonPressed("°→'");
         }
+      } else if (!isControl && event.logicalKey == LogicalKeyboardKey.keyS) {
+        _handleButtonPressed(isShift ? "ASIN" : "SIN");
+      } else if (!isControl && event.logicalKey == LogicalKeyboardKey.keyC) {
+        _handleButtonPressed(isShift ? "ACOS" : "COS");
+      } else if (!isControl && event.logicalKey == LogicalKeyboardKey.keyT) {
+        _handleButtonPressed(isShift ? "ATAN" : "TAN");
+      } else if (event.logicalKey == LogicalKeyboardKey.keyQ) {
+        _handleButtonPressed("√");
+      } else if (event.logicalKey == LogicalKeyboardKey.keyA) {
+        _handleButtonPressed("ABS");
+      } else if (event.logicalKey == LogicalKeyboardKey.keyP) {
+        _handleButtonPressed("π");
+      } else if (event.logicalKey == LogicalKeyboardKey.keyR) {
+        _handleButtonPressed("ANS");
       } else if (event.logicalKey == LogicalKeyboardKey.keyD || event.logicalKey == LogicalKeyboardKey.keyM) {
         _handleButtonPressed("DMS");
       } else if (char != null) {
@@ -354,6 +368,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     processed = processed.replaceAll(',', '.').replaceAll('π', '3.141592653589793');
     processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
     
+    if (processed.isEmpty) return 0.0;
+
     processed = processed.replaceAllMapped(RegExp(r'''(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
       double d = double.parse(m[1]!);
       double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
