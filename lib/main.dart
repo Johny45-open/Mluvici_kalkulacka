@@ -858,7 +858,7 @@ class CustomSegmentDisplay extends StatelessWidget {
         return Padding(
           padding: EdgeInsets.only(right: index == characterCount - 1 ? 0 : characterSpacing),
           child: SizedBox(
-            width: size * 1.3,
+            width: size * 1.5,
             height: size * 1.8,
             child: CustomPaint(
               painter: isSixteenSegment
@@ -916,7 +916,7 @@ class _CustomSevenSegmentPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final segments = _map[char.toUpperCase()] ?? List.filled(7, false);
-    final w = size.width;
+    final w = size.width / 1.5; // Číslice zabírá 2/3 šířky
     final h = size.height;
     final thickness = w * 0.15;
 
@@ -936,7 +936,7 @@ class _CustomSevenSegmentPainter extends CustomPainter {
     draw(5, Offset(0, thickness), Offset(0, h / 2 - thickness / 2)); // f
     draw(6, Offset(thickness, h / 2), Offset(w - thickness, h / 2)); // g
 
-    // Decimální tečka (DP)
+    // Decimální tečka (DP) - odsazená od číslice
     final dotPaint = Paint()..color = showDot ? enabledColor : disabledColor;
     canvas.drawCircle(Offset(w + thickness * 1.5, h), thickness * 0.8, dotPaint);
   }
@@ -1001,7 +1001,7 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final segments = _map[char.toUpperCase()] ?? List.filled(16, false);
-    final w = size.width;
+    final w = size.width / 1.5; // Číslice zabírá 2/3 šířky
     final h = size.height;
     final thickness = w * 0.12;
 
@@ -1031,7 +1031,7 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
     draw(14, Offset(w / 2, h - thickness), Offset(w / 2, h / 2 + thickness / 2)); // L
     draw(15, Offset(w - thickness, h - thickness), Offset(w / 2 + thickness / 2, h / 2 + thickness / 2)); // M
 
-    // Decimální tečka (DP)
+    // Decimální tečka (DP) - odsazená od číslice
     final dotPaint = Paint()..color = showDot ? enabledColor : disabledColor;
     canvas.drawCircle(Offset(w + thickness * 1.5, h), thickness * 0.8, dotPaint);
   }
