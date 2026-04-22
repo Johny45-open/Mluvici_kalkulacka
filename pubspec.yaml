@@ -42,8 +42,6 @@ dependencies:
   path_provider: ^2.1.5
   file_picker: ^10.3.10
   share_plus: ^12.0.1
-  segment_display: ^0.6.0
-  dot_matrix_text: ^0.0.1
 
 dev_dependencies:
   flutter_test:

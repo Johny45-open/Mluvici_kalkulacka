@@ -5,8 +5,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import 'package:flutter/services.dart';
-import 'package:segment_display/segment_display.dart';
-import 'package:dot_matrix_text/dot_matrix_text.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -255,7 +253,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   String _formatForSpeech(String text) {
     String processed = text.replaceAll('.', ',');
-    processed = processed.replaceAllMapped(RegExp(r'(\d+(?:,\d+)?)E([+-])(\d+)'), (m) {
+    processed = processed.replaceAllMapped(RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"), (m) {
       int exp = int.parse(m[3]!);
       return '${m[1]} krát deset na ${m[2] == '-' ? 'mínus ' : ''}$exp';
     });
@@ -306,8 +304,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       if (display.isEmpty) {
         return;
       }
+      
+      bool isDms = display.contains('°→\'') || display.contains('°') || display.contains('\'') || display.contains('"');
+      
       double result = _evaluateExpression(display);
-      bool isDms = display.contains('°→\'');
       String resStr = isDms ? _formatAsDMS(result) : _formatNumber(result);
       
       setState(() {
@@ -338,12 +338,35 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   double _evaluateExpression(String expr) {
-    String processed = expr.replaceAll(',', '.').replaceAll('°→\'', '').replaceAll('\'→°', '').replaceAll('°', '').replaceAll('\'', '').replaceAll('"', '');
-    processed = processed.replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?)[eE]([+-]?\d+)'), (m) => '(${m[1]}*10^(${m[2]}))');
-    processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
-    _memory.forEach((key, value) => processed = processed.replaceAll(RegExp('\\b$key\\b'), '($value)'));
     String ansValue = _lastResult.toLowerCase() == 'error' ? '0' : _lastResult;
-    processed = processed.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
+    String processed = expr.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
+    processed = processed.replaceAll(',', '.').replaceAll('π', '3.141592653589793');
+    processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
+    
+    processed = processed.replaceAllMapped(RegExp(r'''(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
+      double d = double.parse(m[1]!);
+      double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
+      double sc = m[3] != null ? double.parse(m[3]!) : 0.0;
+      double sign = d < 0 ? -1.0 : 1.0;
+      return '(${sign * (d.abs() + mn / 60.0 + sc / 3600.0)})';
+    });
+
+    processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?)[eE]([+-]?\d+)"), (m) => '(${m[1]}*10^(${m[2]}))');
+    processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
+    
+    if (_isDegreeMode) {
+      processed = processed.replaceAll('SIN(', 'sin((3.141592653589793/180)*');
+      processed = processed.replaceAll('COS(', 'cos((3.141592653589793/180)*');
+      processed = processed.replaceAll('TAN(', 'tan((3.141592653589793/180)*');
+      processed = processed.replaceAll('ASIN(', '(180/3.141592653589793)*asin(');
+      processed = processed.replaceAll('ACOS(', '(180/3.141592653589793)*acos(');
+      processed = processed.replaceAll('ATAN(', '(180/3.141592653589793)*atan(');
+    } else {
+      processed = processed.replaceAll('SIN(', 'sin(').replaceAll('COS(', 'cos(').replaceAll('TAN(', 'tan(');
+      processed = processed.replaceAll('ASIN(', 'asin(').replaceAll('ACOS(', 'acos(').replaceAll('ATAN(', 'atan(');
+    }
+    processed = processed.replaceAll('ABS(', 'abs(').replaceAll('√(', 'sqrt(');
+
     try {
       final p = math_expr.ShuntingYardParser();
       return p.parse(processed).evaluate(math_expr.EvaluationType.REAL, math_expr.ContextModel());
@@ -441,9 +464,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget _buildStandardDisplay(String res) {
-    return _useSixteenSegment
-        ? SixteenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 16, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)))
-        : SevenSegmentDisplay(value: _normalizeForSegmentDisplay(res), size: 16 * _fontSizeMultiplier, characterSpacing: 8, characterCount: 16, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05)));
+    return CustomSegmentDisplay(
+      value: _normalizeForSegmentDisplay(res),
+      size: 16 * _fontSizeMultiplier,
+      characterCount: 16,
+      isSixteenSegment: _useSixteenSegment,
+    );
   }
 
   Widget _buildScientificTripleDisplay(String text) {
@@ -456,64 +482,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       const SizedBox(width: 8),
       Column(mainAxisAlignment: MainAxisAlignment.end, children: [
         const Text('x10', style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-        SevenSegmentDisplay(value: formattedExp, size: 8 * _fontSizeMultiplier, characterSpacing: 2, characterCount: 3, segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05))),
+        CustomSegmentDisplay(
+          value: formattedExp,
+          size: 8 * _fontSizeMultiplier,
+          characterCount: 3,
+          isSixteenSegment: false,
+        ),
       ]),
     ]);
   }
 
   Widget _buildDmsDisplay(String text) {
-    List<Widget> children = [];
-    bool hasMinus = text.startsWith('-');
-    String cleanText = hasMinus ? text.substring(1) : text;
-
-    RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)([°'"])''');
-    Iterable<RegExpMatch> matches = dmsRegex.allMatches(cleanText);
-    if (matches.isEmpty) {
-      return _buildStandardDisplay(text);
-    }
-
-    int slotsUsed = hasMinus ? 1 : 0;
-    for (var m in matches) {
-      slotsUsed += m.group(1)!.length + 1;
-    }
-
-    int padding = (16 - slotsUsed).clamp(0, 16);
-    for (int i = 0; i < padding; i++) {
-      children.add(Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          width: 12 * _fontSizeMultiplier,
-          height: 16 * _fontSizeMultiplier,
-          child: CustomPaint(painter: _SegmentPainter(List.filled(7, false), Colors.redAccent))));
-    }
-
-    if (hasMinus) {
-      children.add(SevenSegmentDisplay(
-          value: '-',
-          size: 16 * _fontSizeMultiplier,
-          characterSpacing: 4,
-          characterCount: 1,
-          segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05))));
-    }
-
-    for (var m in matches) {
-      String val = m.group(1)!;
-      children.add(SevenSegmentDisplay(
-          value: val,
-          size: 16 * _fontSizeMultiplier,
-          characterSpacing: 4,
-          characterCount: val.length,
-          segmentStyle: DefaultSegmentStyle(enabledColor: Colors.redAccent, disabledColor: Colors.red.withValues(alpha: 0.05))));
-
-      String sym = m.group(2)!;
-      List<bool> segs = sym == '°' ? [true, true, false, false, false, true, true] : (sym == '\'' ? [false, false, false, false, false, true, false] : [false, true, false, false, false, true, false]);
-
-      children.add(Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          width: 12 * _fontSizeMultiplier,
-          height: 16 * _fontSizeMultiplier,
-          child: CustomPaint(painter: _SegmentPainter(segs, Colors.redAccent))));
-    }
-    return Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: children);
+    // DMS už zobrazujeme na jednom řádku přímo pomocí CustomSegmentDisplay
+    return _buildStandardDisplay(text);
   }
 
   void _changeMode(CalculatorMode mode) {
@@ -521,7 +502,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _currentMode = mode;
       display = '';
     });
-    speak('Aktivní režim ${_getModeName(mode)}');
+    speak('Aktivní je ${_getModeSpeechName(mode)}');
   }
 
   void _loadSettings() async {
@@ -601,7 +582,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   Widget _buildDotMatrixDisplay() {
     String txt = display.isEmpty ? "_" : "${display.substring(0, _cursorPosition)}_${display.substring(_cursorPosition)}";
-    return DotMatrixText(text: txt, textStyle: const TextStyle(fontSize: 48, color: Colors.redAccent, fontWeight: FontWeight.bold), ledSize: 3.0, ledSpacing: 0.8);
+    return CustomDotMatrixDisplay(text: txt, ledSize: 3.0, ledSpacing: 0.8);
   }
 
   Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallback? onPressed}) {
@@ -775,8 +756,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final bool isWideScreen = size.width > 600;
     return KeyboardListener(
       focusNode: _mainFocusNode,
       onKeyEvent: _handleKeyboardInput,
@@ -810,6 +789,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 )),
             _buildModeSelector(),
             Expanded(flex: 1000, child: LayoutBuilder(builder: (context, constraints) {
+              final bool isWideScreen = constraints.maxWidth > 600;
               if (isWideScreen) {
                 return Row(children: [
                   Expanded(child: ListView(children: _buildFunctionSections())),
@@ -830,39 +810,315 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 }
 
-class _SegmentPainter extends CustomPainter {
-  final List<bool> segments;
-  final Color color;
-  _SegmentPainter(this.segments, this.color);
+class CustomSegmentDisplay extends StatelessWidget {
+  final String value;
+  final double size;
+  final int characterCount;
+  final double characterSpacing;
+  final bool isSixteenSegment;
+  final Color enabledColor;
+  final Color disabledColor;
+
+  const CustomSegmentDisplay({
+    super.key,
+    required this.value,
+    this.size = 24,
+    this.characterCount = 16,
+    this.characterSpacing = 8,
+    this.isSixteenSegment = false,
+    this.enabledColor = Colors.redAccent,
+    this.disabledColor = const Color(0x0DFF5252),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    String displayValue = value.padRight(characterCount).substring(0, characterCount);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(characterCount, (index) {
+        return Padding(
+          padding: EdgeInsets.only(right: index == characterCount - 1 ? 0 : characterSpacing),
+          child: SizedBox(
+            width: size,
+            height: size * 1.8,
+            child: CustomPaint(
+              painter: isSixteenSegment
+                  ? _CustomSixteenSegmentPainter(displayValue[index], enabledColor, disabledColor)
+                  : _CustomSevenSegmentPainter(displayValue[index], enabledColor, disabledColor),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _CustomSevenSegmentPainter extends CustomPainter {
+  final String char;
+  final Color enabledColor;
+  final Color disabledColor;
+
+  _CustomSevenSegmentPainter(this.char, this.enabledColor, this.disabledColor);
+
+  static const Map<String, List<bool>> _map = {
+    '0': [true, true, true, true, true, true, false],
+    '1': [false, true, true, false, false, false, false],
+    '2': [true, true, false, true, true, false, true],
+    '3': [true, true, true, true, false, false, true],
+    '4': [false, true, true, false, false, true, true],
+    '5': [true, false, true, true, false, true, true],
+    '6': [true, false, true, true, true, true, true],
+    '7': [true, true, true, false, false, false, false],
+    '8': [true, true, true, true, true, true, true],
+    '9': [true, true, true, true, false, true, true],
+    '-': [false, false, false, false, false, false, true],
+    'E': [true, false, false, true, true, true, true],
+    'R': [true, true, false, false, true, true, true],
+    'H': [false, true, true, false, true, true, true],
+    'A': [true, true, true, false, true, true, true],
+    'C': [true, false, false, true, true, true, false],
+    'B': [false, false, true, true, true, true, true],
+    'Y': [false, true, true, true, false, true, true],
+    '°': [true, true, false, false, false, true, true],
+    "'": [false, false, false, false, false, true, false],
+    '"': [false, true, false, false, false, true, false],
+    '.': [false, false, false, false, false, false, false], // Tečka se obvykle řeší extra, zde jako mezera
+    '_': [false, false, false, true, false, false, false],
+  };
+
   @override
   void paint(Canvas canvas, Size size) {
-    final activePaint = Paint()
-      ..color = color
-      ..strokeWidth = size.width / 5
-      ..strokeCap = StrokeCap.round;
-    final inactivePaint = Paint()
-      ..color = color.withValues(alpha: 0.05)
-      ..strokeWidth = size.width / 5
-      ..strokeCap = StrokeCap.round;
-
+    final segments = _map[char.toUpperCase()] ?? List.filled(7, false);
     final w = size.width;
     final h = size.height;
+    final thickness = w * 0.15;
 
     void draw(int index, Offset p1, Offset p2) {
-      canvas.drawLine(p1, p2, segments[index] ? activePaint : inactivePaint);
+      final paint = Paint()
+        ..color = segments[index] ? enabledColor : disabledColor
+        ..strokeWidth = thickness
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(p1, p2, paint);
     }
 
-    draw(0, Offset(w * 0.2, 0), Offset(w * 0.8, 0)); // a
-    draw(1, Offset(w, h * 0.05), Offset(w, h * 0.45)); // b
-    draw(2, Offset(w, h * 0.55), Offset(w, h * 0.95)); // c
-    draw(3, Offset(w * 0.2, h), Offset(w * 0.8, h)); // d
-    draw(4, Offset(0, h * 0.55), Offset(0, h * 0.95)); // e
-    draw(5, Offset(0, h * 0.05), Offset(0, h * 0.45)); // f
-    draw(6, Offset(w * 0.2, h * 0.5), Offset(w * 0.8, h * 0.5)); // g
+    draw(0, Offset(thickness, 0), Offset(w - thickness, 0)); // a
+    draw(1, Offset(w, thickness), Offset(w, h / 2 - thickness / 2)); // b
+    draw(2, Offset(w, h / 2 + thickness / 2), Offset(w, h - thickness)); // c
+    draw(3, Offset(thickness, h), Offset(w - thickness, h)); // d
+    draw(4, Offset(0, h / 2 + thickness / 2), Offset(0, h - thickness)); // e
+    draw(5, Offset(0, thickness), Offset(0, h / 2 - thickness / 2)); // f
+    draw(6, Offset(thickness, h / 2), Offset(w - thickness, h / 2)); // g
   }
 
   @override
-  bool shouldRepaint(CustomPainter old) => true;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class _CustomSixteenSegmentPainter extends CustomPainter {
+  final String char;
+  final Color enabledColor;
+  final Color disabledColor;
+
+  _CustomSixteenSegmentPainter(this.char, this.enabledColor, this.disabledColor);
+
+  // A1, A2, B, C, D2, D1, E, F, G2, G1, H, I, J, K, L, M
+  static const Map<String, List<bool>> _map = {
+    '0': [true, true, true, true, true, true, true, true, false, false, false, false, true, true, false, false],
+    '1': [false, false, true, true, false, false, false, false, false, false, false, false, false, false, false, false],
+    '2': [true, true, true, false, true, true, true, false, true, true, false, false, false, false, false, false],
+    '3': [true, true, true, true, true, true, false, false, true, false, false, false, false, false, false, false],
+    '4': [false, false, true, true, false, false, false, true, true, true, false, false, false, false, false, false],
+    '5': [true, true, false, true, true, true, false, true, true, true, false, false, false, false, false, false],
+    '6': [true, true, false, true, true, true, true, true, true, true, false, false, false, false, false, false],
+    '7': [true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false],
+    '8': [true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false],
+    '9': [true, true, true, true, false, false, false, true, true, true, false, false, false, false, false, false],
+    'A': [true, true, true, true, false, false, true, true, true, true, false, false, false, false, false, false],
+    'B': [true, true, true, true, true, true, false, false, true, false, false, true, false, false, true, false],
+    'C': [true, true, false, false, true, true, true, true, false, false, false, false, false, false, false, false],
+    'D': [true, true, true, true, true, true, false, false, false, false, false, true, false, false, true, false],
+    'E': [true, true, false, false, true, true, true, true, true, true, false, false, false, false, false, false],
+    'F': [true, true, false, false, false, false, true, true, true, true, false, false, false, false, false, false],
+    'H': [false, false, true, true, false, false, true, true, true, true, false, false, false, false, false, false],
+    'I': [true, true, false, false, true, true, false, false, false, false, false, true, false, false, true, false],
+    'J': [false, false, true, true, true, true, true, false, false, false, false, false, false, false, false, false],
+    'K': [false, false, false, false, false, false, true, true, false, true, false, false, true, true, false, false],
+    'L': [false, false, false, false, true, true, true, true, false, false, false, false, false, false, false, false],
+    'M': [false, false, true, true, false, false, true, true, false, false, true, false, true, false, false, false],
+    'N': [false, false, true, true, false, false, true, true, false, false, true, false, false, false, false, true],
+    'O': [true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false],
+    'P': [true, true, true, false, false, false, true, true, true, true, false, false, false, false, false, false],
+    'Q': [true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, true],
+    'R': [true, true, true, false, false, false, true, true, true, true, false, false, false, false, false, true],
+    'S': [true, true, false, true, true, true, false, true, true, true, false, false, false, false, false, false],
+    'T': [true, true, false, false, false, false, false, false, false, false, false, true, false, false, true, false],
+    'U': [false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false],
+    'V': [false, false, false, false, false, false, true, true, false, false, false, false, true, true, false, false],
+    'W': [false, false, true, true, false, false, true, true, false, false, false, false, false, true, false, true],
+    'X': [false, false, false, false, false, false, false, false, false, false, true, false, true, true, false, true],
+    'Y': [false, false, false, false, false, false, false, false, false, false, true, false, true, false, true, false],
+    'Z': [true, true, false, false, true, true, false, false, false, false, false, false, true, true, false, false],
+    '-': [false, false, false, false, false, false, false, false, true, true, false, false, false, false, false, false],
+    '°': [true, true, true, false, false, false, false, true, true, true, false, false, false, false, false, false],
+    "'": [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
+    '"': [false, false, false, false, false, false, false, false, false, false, true, false, true, false, false, false],
+    '_': [false, false, false, false, true, true, false, false, false, false, false, false, false, false, false, false],
+  };
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final segments = _map[char.toUpperCase()] ?? List.filled(16, false);
+    final w = size.width;
+    final h = size.height;
+    final thickness = w * 0.12;
+
+    void draw(int index, Offset p1, Offset p2) {
+      final paint = Paint()
+        ..color = segments[index] ? enabledColor : disabledColor
+        ..strokeWidth = thickness
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(p1, p2, paint);
+    }
+
+    // A1, A2, B, C, D2, D1, E, F, G2, G1, H, I, J, K, L, M
+    draw(0, Offset(thickness, 0), Offset(w / 2 - thickness / 4, 0)); // A1
+    draw(1, Offset(w / 2 + thickness / 4, 0), Offset(w - thickness, 0)); // A2
+    draw(2, Offset(w, thickness), Offset(w, h / 2 - thickness / 2)); // B
+    draw(3, Offset(w, h / 2 + thickness / 2), Offset(w, h - thickness)); // C
+    draw(4, Offset(w / 2 + thickness / 4, h), Offset(w - thickness, h)); // D2
+    draw(5, Offset(thickness, h), Offset(w / 2 - thickness / 4, h)); // D1
+    draw(6, Offset(0, h / 2 + thickness / 2), Offset(0, h - thickness)); // E
+    draw(7, Offset(0, thickness), Offset(0, h / 2 - thickness / 2)); // F
+    draw(8, Offset(w / 2 + thickness / 4, h / 2), Offset(w - thickness, h / 2)); // G2
+    draw(9, Offset(thickness, h / 2), Offset(w / 2 - thickness / 4, h / 2)); // G1
+    draw(10, Offset(thickness, thickness), Offset(w / 2 - thickness / 2, h / 2 - thickness / 2)); // H
+    draw(11, Offset(w / 2, thickness), Offset(w / 2, h / 2 - thickness / 2)); // I
+    draw(12, Offset(w - thickness, thickness), Offset(w / 2 + thickness / 2, h / 2 - thickness / 2)); // J
+    draw(13, Offset(thickness, h - thickness), Offset(w / 2 - thickness / 2, h / 2 + thickness / 2)); // K
+    draw(14, Offset(w / 2, h - thickness), Offset(w / 2, h / 2 + thickness / 2)); // L
+    draw(15, Offset(w - thickness, h - thickness), Offset(w / 2 + thickness / 2, h / 2 + thickness / 2)); // M
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class CustomDotMatrixDisplay extends StatelessWidget {
+  final String text;
+  final double ledSize;
+  final double ledSpacing;
+  final Color enabledColor;
+  final Color disabledColor;
+
+  const CustomDotMatrixDisplay({
+    super.key,
+    required this.text,
+    this.ledSize = 3.0,
+    this.ledSpacing = 1.0,
+    this.enabledColor = Colors.redAccent,
+    this.disabledColor = const Color(0x0DFF5252),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: text.split('').map((char) {
+        return Container(
+          margin: EdgeInsets.only(right: ledSpacing * 2),
+          child: CustomPaint(
+            size: Size(ledSize * 5 + ledSpacing * 4, ledSize * 7 + ledSpacing * 6),
+            painter: _CustomDotMatrixPainter(char, ledSize, ledSpacing, enabledColor, disabledColor),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _CustomDotMatrixPainter extends CustomPainter {
+  final String char;
+  final double ledSize;
+  final double ledSpacing;
+  final Color enabledColor;
+  final Color disabledColor;
+
+  _CustomDotMatrixPainter(this.char, this.ledSize, this.ledSpacing, this.enabledColor, this.disabledColor);
+
+  static const Map<String, List<int>> _font = {
+    '0': [0x1F, 0x11, 0x11, 0x11, 0x1F],
+    '1': [0x00, 0x12, 0x1F, 0x10, 0x00],
+    '2': [0x19, 0x15, 0x15, 0x15, 0x13],
+    '3': [0x11, 0x15, 0x15, 0x15, 0x1F],
+    '4': [0x07, 0x04, 0x04, 0x04, 0x1F],
+    '5': [0x17, 0x15, 0x15, 0x15, 0x19],
+    '6': [0x1F, 0x15, 0x15, 0x15, 0x19],
+    '7': [0x01, 0x01, 0x01, 0x01, 0x1F],
+    '8': [0x1F, 0x15, 0x15, 0x15, 0x1F],
+    '9': [0x17, 0x15, 0x15, 0x15, 0x1F],
+    'A': [0x1E, 0x05, 0x05, 0x05, 0x1E],
+    'B': [0x1F, 0x15, 0x15, 0x15, 0x0A],
+    'C': [0x0E, 0x11, 0x11, 0x11, 0x11],
+    'D': [0x1F, 0x11, 0x11, 0x11, 0x0E],
+    'E': [0x1F, 0x15, 0x15, 0x15, 0x11],
+    'F': [0x1F, 0x05, 0x05, 0x05, 0x01],
+    'G': [0x0E, 0x11, 0x15, 0x15, 0x1D],
+    'H': [0x1F, 0x04, 0x04, 0x04, 0x1F],
+    'I': [0x11, 0x11, 0x1F, 0x11, 0x11],
+    'J': [0x10, 0x10, 0x10, 0x11, 0x0F],
+    'K': [0x1F, 0x04, 0x0A, 0x11, 0x00],
+    'L': [0x1F, 0x10, 0x10, 0x10, 0x10],
+    'M': [0x1F, 0x02, 0x04, 0x02, 0x1F],
+    'N': [0x1F, 0x02, 0x04, 0x08, 0x1F],
+    'O': [0x0E, 0x11, 0x11, 0x11, 0x0E],
+    'P': [0x1F, 0x05, 0x05, 0x05, 0x02],
+    'Q': [0x0E, 0x11, 0x19, 0x11, 0x2E],
+    'R': [0x1F, 0x05, 0x05, 0x0D, 0x12],
+    'S': [0x12, 0x15, 0x15, 0x15, 0x09],
+    'T': [0x01, 0x01, 0x1F, 0x01, 0x01],
+    'U': [0x0F, 0x10, 0x10, 0x10, 0x0F],
+    'V': [0x07, 0x08, 0x10, 0x08, 0x07],
+    'W': [0x1F, 0x08, 0x04, 0x08, 0x1F],
+    'X': [0x11, 0x0A, 0x04, 0x0A, 0x11],
+    'Y': [0x03, 0x04, 0x18, 0x04, 0x03],
+    'Z': [0x11, 0x19, 0x15, 0x13, 0x11],
+    '-': [0x04, 0x04, 0x04, 0x04, 0x04],
+    '°': [0x00, 0x03, 0x03, 0x00, 0x00],
+    "'": [0x00, 0x01, 0x02, 0x00, 0x00],
+    '"': [0x01, 0x02, 0x00, 0x01, 0x02],
+    '_': [0x10, 0x10, 0x10, 0x10, 0x10],
+    ' ': [0x00, 0x00, 0x00, 0x00, 0x00],
+    '.': [0x00, 0x00, 0x10, 0x00, 0x00],
+    '(': [0x00, 0x0E, 0x11, 0x00, 0x00],
+    ')': [0x00, 0x00, 0x11, 0x0E, 0x00],
+    '+': [0x04, 0x04, 0x1F, 0x04, 0x04],
+    '*': [0x00, 0x0A, 0x04, 0x0A, 0x00],
+    '/': [0x10, 0x08, 0x04, 0x02, 0x01],
+    '%': [0x19, 0x05, 0x02, 0x14, 0x13],
+    '^': [0x02, 0x01, 0x02, 0x00, 0x00],
+    ',': [0x00, 0x00, 0x18, 0x00, 0x00],
+  };
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final data = _font[char.toUpperCase()] ?? [0x1F, 0x1F, 0x1F, 0x1F, 0x1F];
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (int col = 0; col < 5; col++) {
+      for (int row = 0; row < 7; row++) {
+        bool enabled = (data[col] >> row) & 1 == 1;
+        paint.color = enabled ? enabledColor : disabledColor;
+        canvas.drawCircle(
+          Offset(col * (ledSize + ledSpacing) + ledSize / 2, row * (ledSize + ledSpacing) + ledSize / 2),
+          ledSize / 2,
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 class _AccessibilityDialog extends StatefulWidget {
