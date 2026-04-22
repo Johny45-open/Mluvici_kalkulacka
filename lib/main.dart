@@ -282,7 +282,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _handleButtonPressed("DMS");
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
-        if (RegExp(r'[0-9.+\-*/^%()eE]').hasMatch(toAppend)) {
+        if (RegExp(r'[0-9.+\-*/^%()eE°\'"]').hasMatch(toAppend)) {
           append(toAppend.toUpperCase(), silent: true);
         }
       }
@@ -354,7 +354,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     processed = processed.replaceAll(',', '.').replaceAll('π', '3.141592653589793');
     processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
     
-    processed = processed.replaceAllMapped(RegExp(r'''(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
+    processed = processed.replaceAllMapped(RegExp(r'''(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
       double d = double.parse(m[1]!);
       double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
       double sc = m[3] != null ? double.parse(m[3]!) : 0.0;
@@ -655,7 +655,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         append('°');
       } else {
         // Hledáme poslední číslo na displeji (od konce)
-        RegExp dmsRegex = RegExp(r'(\d+(?:\.\d+)?)(°|\'|")?$');
+        RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)(°|'|")?$''');
         Match? match = dmsRegex.firstMatch(display);
         if (match != null) {
           String? suffix = match.group(2);
@@ -672,7 +672,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           append('°');
         }
       }
-    } else if (['°→\'', '\'→°', 'π'].contains(label)) {
+    }
+ else if (['°→\'', '\'→°', 'π'].contains(label)) {
       append(label);
     } else {
       append(label);
