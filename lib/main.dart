@@ -282,7 +282,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _handleButtonPressed("DMS");
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
-        if (RegExp(r'[0-9.+\-*/^%()eE°\'"]').hasMatch(toAppend)) {
+        if (RegExp(r'''[0-9.+\-*/^%()eE°'"]''').hasMatch(toAppend)) {
           append(toAppend.toUpperCase(), silent: true);
         }
       }
