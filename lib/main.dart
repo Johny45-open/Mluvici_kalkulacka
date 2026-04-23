@@ -109,8 +109,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   AccessibilityType _accessibilityType = AccessibilityType.none;
   double _fontSizeMultiplier = 1.0;
   final double _displaySizeFactor = 1.0;
-  final double _speechRate = 0.5;
-  final double _speechVolume = 1.0;
+  double _speechRate = 0.5;
+  double _speechVolume = 1.0;
   
   DisplayFormat _displayFormat = DisplayFormat.standard;
   int _precision = 2;
@@ -558,7 +558,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       ttsEnabled = prefs.getBool('ttsEnabled') ?? true;
       _useSixteenSegment = prefs.getBool('useSixteenSegment') ?? false;
       _accessibilityType = AccessibilityType.values[prefs.getInt('accessibilityType') ?? 0];
+      _speechRate = prefs.getDouble('speechRate') ?? 0.5;
+      _speechVolume = prefs.getDouble('speechVolume') ?? 1.0;
     });
+    await tts.setSpeechRate(_speechRate);
+    await tts.setVolume(_speechVolume);
   }
 
   void _saveSettings() async {
@@ -568,6 +572,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     await prefs.setBool('ttsEnabled', ttsEnabled);
     await prefs.setBool('useSixteenSegment', _useSixteenSegment);
     await prefs.setInt('accessibilityType', _accessibilityType.index);
+    await prefs.setDouble('speechRate', _speechRate);
+    await prefs.setDouble('speechVolume', _speechVolume);
   }
 
   void _loadHistory() async {
@@ -631,9 +637,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     showDialog(
         context: context,
         builder: (context) => AlertDialog(
-                title: Semantics(header: true, child: Text('Nápověda')),
-                content: SingleChildScrollView(
-                  child: Text('Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek'),
+                title: Semantics(header: true, child: const Text('Nápověda')),
+                content: Semantics(
+                  container: true,
+                  child: const SingleChildScrollView(
+                    child: Text('Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek'),
+                  ),
                 ),
                 actions: [
                   TextButton(
@@ -644,7 +653,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           _mainFocusNode.requestFocus();
                         });
                       },
-                      child: Text('ROZUMÍM'))
+                      child: const Text('ROZUMÍM'))
                 ]));
   }
 
@@ -906,7 +915,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       focusNode: _mainFocusNode,
       onKeyEvent: _handleKeyboardInput,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Mluvící kalkulačka'), actions: [IconButton(icon: const Icon(Icons.help_outline), onPressed: _showTutorialDialog), IconButton(icon: const Icon(Icons.settings), onPressed: _showAccessibilityDialog)]),
+      appBar: AppBar(
+        title: const Text('Mluvící kalkulačka'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Nápověda k ovládání',
+            onPressed: _showTutorialDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Nastavení přístupnosti',
+            onPressed: _showAccessibilityDialog,
+          )
+        ],
+      ),
         body: Column(
           children: [
             Expanded(
@@ -1316,29 +1339,81 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-        title: Semantics(header: true, child: Text('Nastavení přístupnosti')),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          SwitchListTile(
-              title: Text('Hlasový výstup (TTS)'),
-              value: widget.parent.ttsEnabled,
-              onChanged: (v) {
-                setState(() {
-                  widget.parent.setState(() => widget.parent.ttsEnabled = v);
-                  widget.parent._saveSettings();
-                });
-                widget.parent.speak(v ? 'Hlas zapnut' : 'Hlas vypnut');
-              }),
-          SwitchListTile(
-              title: Text('16-segmentový displej'),
-              value: widget.parent._useSixteenSegment,
-              onChanged: (v) {
-                setState(() {
-                  widget.parent.setState(() => widget.parent._useSixteenSegment = v);
-                  widget.parent._saveSettings();
-                });
-                widget.parent.speak(v ? 'Zapnut šestnácti segmentový displej' : 'Zapnut sedmi segmentový displej');
-              }),
-        ]),
+        title: Semantics(header: true, child: const Text('Nastavení přístupnosti')),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Divider(),
+            const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('ZOBRAZENÍ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+            SwitchListTile(
+                title: const Text('16-segmentový displej'),
+                value: widget.parent._useSixteenSegment,
+                onChanged: (v) {
+                  setState(() {
+                    widget.parent.setState(() => widget.parent._useSixteenSegment = v);
+                    widget.parent._saveSettings();
+                  });
+                  widget.parent.speak(v ? 'Zapnut šestnácti segmentový displej' : 'Zapnut sedmi segmentový displej');
+                }),
+            const Divider(),
+            const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('HLAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+            SwitchListTile(
+                title: const Text('Hlasový výstup (TTS)'),
+                value: widget.parent.ttsEnabled,
+                onChanged: (v) {
+                  setState(() {
+                    widget.parent.setState(() => widget.parent.ttsEnabled = v);
+                    widget.parent._saveSettings();
+                  });
+                  widget.parent.speak(v ? 'Hlas zapnut' : 'Hlas vypnut');
+                }),
+            const SizedBox(height: 8),
+            Semantics(
+              label: 'Rychlost hlasu',
+              value: '${(widget.parent._speechRate * 100).toInt()} procent',
+              child: Column(children: [
+                const Text('Rychlost hlasu'),
+                Slider(
+                  value: widget.parent._speechRate,
+                  min: 0.1,
+                  max: 1.0,
+                  onChanged: (v) {
+                    setState(() {
+                      widget.parent.setState(() => widget.parent._speechRate = v);
+                      widget.parent.tts.setSpeechRate(v);
+                    });
+                  },
+                  onChangeEnd: (v) {
+                    widget.parent._saveSettings();
+                    widget.parent.speak('Rychlost nastavena');
+                  },
+                ),
+              ]),
+            ),
+            const SizedBox(height: 8),
+            Semantics(
+              label: 'Hlasitost hlasu',
+              value: '${(widget.parent._speechVolume * 100).toInt()} procent',
+              child: Column(children: [
+                const Text('Hlasitost'),
+                Slider(
+                  value: widget.parent._speechVolume,
+                  min: 0.0,
+                  max: 1.0,
+                  onChanged: (v) {
+                    setState(() {
+                      widget.parent.setState(() => widget.parent._speechVolume = v);
+                      widget.parent.tts.setVolume(v);
+                    });
+                  },
+                  onChangeEnd: (v) {
+                    widget.parent._saveSettings();
+                    widget.parent.speak('Hlasitost nastavena');
+                  },
+                ),
+              ]),
+            ),
+          ]),
+        ),
         actions: [
           TextButton(
               autofocus: true,
@@ -1348,7 +1423,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   widget.parent._mainFocusNode.requestFocus();
                 });
               },
-              child: Text('HOTOVO'))
+              child: const Text('HOTOVO'))
         ]);
   }
 }
