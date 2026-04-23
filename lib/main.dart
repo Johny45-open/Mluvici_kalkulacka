@@ -593,17 +593,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-                title: const Semantics(header: true, child: Text('Vítejte')),
-                content: const Text('Vyberte požadovanou úroveň usnadnění. Toto nastavení můžete kdykoliv změnit v nastavení.'),
+                title: Semantics(header: true, child: Text('Vítejte')),
+                content: Text('Vyberte požadovanou úroveň usnadnění. Toto nastavení můžete kdykoliv změnit v nastavení.'),
                 actions: [
                   TextButton(
                       onPressed: () {
                         setState(() => _accessibilityType = AccessibilityType.none);
                         _saveSettings();
                         Navigator.pop(context);
-                        _mainFocusNode.requestFocus();
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _mainFocusNode.requestFocus();
+                        });
                       },
-                      child: const Text('STANDARDNÍ')),
+                      child: Text('STANDARDNÍ')),
                   TextButton(
                       autofocus: true,
                       onPressed: () {
@@ -613,9 +615,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         });
                         _saveSettings();
                         Navigator.pop(context);
-                        _mainFocusNode.requestFocus();
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _mainFocusNode.requestFocus();
+                        });
                       },
-                      child: const Text('PRO NEVIDOMÉ')),
+                      child: Text('PRO NEVIDOMÉ')),
                 ]));
   }
 
@@ -627,8 +631,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     showDialog(
         context: context,
         builder: (context) => AlertDialog(
-                title: const Semantics(header: true, child: Text('Nápověda')),
-                content: const SingleChildScrollView(
+                title: Semantics(header: true, child: Text('Nápověda')),
+                content: SingleChildScrollView(
                   child: Text('Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek'),
                 ),
                 actions: [
@@ -636,9 +640,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       autofocus: true,
                       onPressed: () {
                         Navigator.pop(context);
-                        _mainFocusNode.requestFocus();
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _mainFocusNode.requestFocus();
+                        });
                       },
-                      child: const Text('ROZUMÍM'))
+                      child: Text('ROZUMÍM'))
                 ]));
   }
 
@@ -646,7 +652,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     showDialog(
         context: context,
         builder: (context) => AlertDialog(
-            title: const Semantics(header: true, child: Text('Nastavení přesnosti')),
+            title: Semantics(header: true, child: Text('Nastavení přesnosti')),
             content: Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -664,11 +670,18 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           });
                           speak('Nastaveno $i desetinných míst');
                           Navigator.pop(context);
-                          _mainFocusNode.requestFocus();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _mainFocusNode.requestFocus();
+                          });
                         },
                         child: Text('$i')))),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('ZRUŠIT'))
+              TextButton(onPressed: () {
+                Navigator.pop(context);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _mainFocusNode.requestFocus();
+                });
+              }, child: Text('ZRUŠIT'))
             ]));
   }
 
@@ -678,16 +691,26 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallback? onPressed}) {
+    final String descriptiveName = semanticLabel ?? (_buttonNames[label] ?? label);
     return Padding(
         padding: const EdgeInsets.all(2),
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: color != null ? Colors.white : null, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
+          onFocusChange: (hasFocus) {
+            if (hasFocus) speak(descriptiveName);
+          },
           onPressed: onPressed ??
               () {
-                speak(_buttonNames[label] ?? label);
+                speak(descriptiveName);
                 _handleButtonPressed(label);
               },
-          child: Semantics(button: true, label: semanticLabel ?? (_buttonNames[label] ?? label), child: ExcludeSemantics(child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)))),
+          child: Semantics(
+            button: true,
+            label: descriptiveName,
+            child: ExcludeSemantics(
+              child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)),
+            ),
+          ),
         ));
   }
 
@@ -1284,7 +1307,7 @@ class _CustomDotMatrixPainter extends CustomPainter {
 
 class _AccessibilityDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
-  const _AccessibilityDialog({required this.parent});
+  _AccessibilityDialog({required this.parent});
   @override
   State<_AccessibilityDialog> createState() => _AccessibilityDialogState();
 }
@@ -1293,10 +1316,10 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-        title: const Semantics(header: true, child: Text('Nastavení přístupnosti')),
+        title: Semantics(header: true, child: Text('Nastavení přístupnosti')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           SwitchListTile(
-              title: const Text('Hlasový výstup (TTS)'),
+              title: Text('Hlasový výstup (TTS)'),
               value: widget.parent.ttsEnabled,
               onChanged: (v) {
                 setState(() {
@@ -1306,7 +1329,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 widget.parent.speak(v ? 'Hlas zapnut' : 'Hlas vypnut');
               }),
           SwitchListTile(
-              title: const Text('16-segmentový displej'),
+              title: Text('16-segmentový displej'),
               value: widget.parent._useSixteenSegment,
               onChanged: (v) {
                 setState(() {
@@ -1325,7 +1348,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   widget.parent._mainFocusNode.requestFocus();
                 });
               },
-              child: const Text('HOTOVO'))
+              child: Text('HOTOVO'))
         ]);
   }
 }
