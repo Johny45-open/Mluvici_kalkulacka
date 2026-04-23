@@ -114,6 +114,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   
   DisplayFormat _displayFormat = DisplayFormat.standard;
   int _precision = 2;
+  double? _lastNumericValue;
 
   DateTime? _lastSpeakTime;
   final Duration _speakThrottle = const Duration(milliseconds: 300);
@@ -252,7 +253,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   String _formatForSpeech(String text) {
-    String processed = text.replaceAll('.', ',');
+    String processed = text.replaceAll('.', ',').replaceAll('\u03C0', 'pí');
     processed = processed.replaceAllMapped(RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"), (m) {
       int exp = int.parse(m[3]!);
       return '${m[1]} krát deset na ${m[2] == '-' ? 'mínus ' : ''}$exp';
@@ -289,14 +290,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       } else if (event.logicalKey == LogicalKeyboardKey.keyA) {
         _handleButtonPressed("ABS");
       } else if (event.logicalKey == LogicalKeyboardKey.keyP) {
-        _handleButtonPressed("π");
+        _handleButtonPressed("\u03C0");
       } else if (event.logicalKey == LogicalKeyboardKey.keyR) {
         _handleButtonPressed("ANS");
       } else if (event.logicalKey == LogicalKeyboardKey.keyD || event.logicalKey == LogicalKeyboardKey.keyM) {
         _handleButtonPressed("DMS");
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
-        if (RegExp(r'''[0-9.+\-*/^%()eE°'"]''').hasMatch(toAppend)) {
+        if (RegExp(r'''[0-9.+\-*/^%()eE°'"a-zA-Z]''').hasMatch(toAppend)) {
           append(toAppend.toUpperCase(), silent: true);
         }
       }
@@ -326,13 +327,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void calculateResult() {
     try {
-      if (display.isEmpty) {
-        return;
-      }
+      if (display.isEmpty) return;
       
       bool isDms = display.contains('°→\'') || display.contains('°') || display.contains('\'') || display.contains('"');
-      
       double result = _evaluateExpression(display);
+      _lastNumericValue = result;
       String resStr = isDms ? _formatAsDMS(result) : _formatNumber(result);
       
       setState(() {
@@ -343,29 +342,44 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       });
 
       if (isDms) {
-        String spoken = resStr
-            .replaceAll('°', ' stupňů, ')
-            .replaceAll('\'', ' minut a ')
-            .replaceAll('"', ' sekund')
-            .replaceAll('.', ',');
+        String spoken = resStr.replaceAll('°', ' stupňů, ').replaceAll('\'', ' minut a ').replaceAll('"', ' sekund').replaceAll('.', ',');
         speak('Výsledek je $spoken');
       } else {
-        speak('Výsledek je ${resStr.replaceAll('.', ',')}');
+        String spokenResult = resStr.replaceAll('.', ',');
+        // Kontrola zkrácení: pouze v režimu Standard a pokud má číslo po 10. místě stále nenulové číslice
+        String fullValue = result.toString();
+        bool wasTruncated = _displayFormat == DisplayFormat.standard &&
+                           fullValue.contains('.') && 
+                           fullValue.split('.')[1].length > 10 &&
+                           !resStr.contains('E');
+                           
+        if (wasTruncated) {
+          speak('Výsledek je $spokenResult. Výsledek byl zkrácen. Pro zobrazení více míst použijte tlačítko fix a zvolte vyšší přesnost.');
+        } else {
+          speak('Výsledek je $spokenResult');
+        }
       }
       _addToHistory(display, resStr);
     } catch (e) {
+      String msg = 'Výrazu nerozumím, zkuste zkontrolovat závorky nebo znaménka';
+      String errStr = e.toString().toLowerCase();
+      if (errStr.contains('division by zero') || errStr.contains('infinity')) msg = 'Nulou nelze dělit';
+      else if (errStr.contains('range') || errStr.contains('invalid argument')) msg = 'Hodnota je mimo povolený rozsah funkce';
+
       setState(() {
         _lastResult = 'Error';
         _hasResult = true;
       });
-      speak('Chyba');
+      speak(msg);
     }
   }
 
   double _evaluateExpression(String expr) {
     String ansValue = _lastResult.toLowerCase() == 'error' ? '0' : _lastResult;
     String processed = expr.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
-    processed = processed.replaceAll(',', '.').replaceAll('π', '3.141592653589793');
+    // Pí nahrazujeme jako první a s vysokou přesností
+    processed = processed.replaceAll('\u03C0', '3.14159265358979323846');
+    processed = processed.replaceAll(',', '.');
     processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
     
     if (processed.isEmpty) return 0.0;
@@ -381,16 +395,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?)[eE]([+-]?\d+)"), (m) => '(${m[1]}*10^(${m[2]}))');
     processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
     
+    const String PI = '3.14159265358979323846';
+    // Inverzní funkce MUSÍ být před základními
     if (_isDegreeMode) {
-      processed = processed.replaceAll('SIN(', 'sin((3.141592653589793/180)*');
-      processed = processed.replaceAll('COS(', 'cos((3.141592653589793/180)*');
-      processed = processed.replaceAll('TAN(', 'tan((3.141592653589793/180)*');
-      processed = processed.replaceAll('ASIN(', '(180/3.141592653589793)*asin(');
-      processed = processed.replaceAll('ACOS(', '(180/3.141592653589793)*acos(');
-      processed = processed.replaceAll('ATAN(', '(180/3.141592653589793)*atan(');
+      processed = processed.replaceAll('ASIN(', '(180/$PI)*asin(');
+      processed = processed.replaceAll('ACOS(', '(180/$PI)*acos(');
+      processed = processed.replaceAll('ATAN(', '(180/$PI)*atan(');
+      // U základních funkcí přidáme závorku pro argument, aby pi/180* nezpůsobilo chybu priority
+      processed = processed.replaceAll('SIN(', 'sin(($PI/180)*(');
+      processed = processed.replaceAll('COS(', 'cos(($PI/180)*(');
+      processed = processed.replaceAll('TAN(', 'tan(($PI/180)*(');
     } else {
-      processed = processed.replaceAll('SIN(', 'sin(').replaceAll('COS(', 'cos(').replaceAll('TAN(', 'tan(');
       processed = processed.replaceAll('ASIN(', 'asin(').replaceAll('ACOS(', 'acos(').replaceAll('ATAN(', 'atan(');
+      processed = processed.replaceAll('SIN(', 'sin(').replaceAll('COS(', 'cos(').replaceAll('TAN(', 'tan(');
     }
     processed = processed.replaceAll('ABS(', 'abs(').replaceAll('√(', 'sqrt(');
 
@@ -418,7 +435,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         int engExp = ((math.log(value.abs()) / math.ln10).floor() / 3).floor() * 3;
         return "${(value / math.pow(10, engExp)).toStringAsFixed(_precision)}E${engExp >= 0 ? '+' : ''}${engExp.toString().padLeft(2, '0')}";
       default:
-        return value.toString().contains('.') ? value.toStringAsFixed(6).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '') : value.toInt().toString();
+        return value.toString().contains('.') ? value.toStringAsFixed(10).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '') : value.toInt().toString();
     }
   }
 
@@ -575,25 +592,31 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => AlertDialog(title: const Text('Vítejte'), content: const Text('Vyberte usnadnění'), actions: [
-              TextButton(
-                  onPressed: () {
-                    setState(() => _accessibilityType = AccessibilityType.none);
-                    _saveSettings();
-                    Navigator.pop(context);
-                  },
-                  child: const Text('STANDARD')),
-              TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _accessibilityType = AccessibilityType.blind;
-                      ttsEnabled = true;
-                    });
-                    _saveSettings();
-                    Navigator.pop(context);
-                  },
-                  child: const Text('NEVIDOMÍ')),
-            ]));
+        builder: (context) => AlertDialog(
+                title: const Semantics(header: true, child: Text('Vítejte')),
+                content: const Text('Vyberte požadovanou úroveň usnadnění. Toto nastavení můžete kdykoliv změnit v nastavení.'),
+                actions: [
+                  TextButton(
+                      onPressed: () {
+                        setState(() => _accessibilityType = AccessibilityType.none);
+                        _saveSettings();
+                        Navigator.pop(context);
+                        _mainFocusNode.requestFocus();
+                      },
+                      child: const Text('STANDARDNÍ')),
+                  TextButton(
+                      autofocus: true,
+                      onPressed: () {
+                        setState(() {
+                          _accessibilityType = AccessibilityType.blind;
+                          ttsEnabled = true;
+                        });
+                        _saveSettings();
+                        Navigator.pop(context);
+                        _mainFocusNode.requestFocus();
+                      },
+                      child: const Text('PRO NEVIDOMÉ')),
+                ]));
   }
 
   void _showAccessibilityDialog() {
@@ -601,11 +624,52 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   void _showTutorialDialog() {
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Nápověda'), content: const Text('Kalkulačka s převody a vědeckým displejem.'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))]));
+    showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+                title: const Semantics(header: true, child: Text('Nápověda')),
+                content: const SingleChildScrollView(
+                  child: Text('Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek'),
+                ),
+                actions: [
+                  TextButton(
+                      autofocus: true,
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _mainFocusNode.requestFocus();
+                      },
+                      child: const Text('ROZUMÍM'))
+                ]));
   }
 
   void _showPrecisionDialog(DisplayFormat format) {
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Přesnost'), content: Wrap(spacing: 8, children: List.generate(10, (i) => ElevatedButton(onPressed: () { setState(() { _displayFormat = format; _precision = i; }); speak('Nastaveno $i'); Navigator.pop(context); }, child: Text('$i'))))));
+    showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+            title: const Semantics(header: true, child: Text('Nastavení přesnosti')),
+            content: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: List.generate(
+                    15,
+                    (i) => ElevatedButton(
+                        autofocus: i == _precision,
+                        onPressed: () {
+                          setState(() {
+                            _displayFormat = format;
+                            _precision = i;
+                            if (_lastNumericValue != null) {
+                              _lastResult = _formatNumber(_lastNumericValue!);
+                            }
+                          });
+                          speak('Nastaveno $i desetinných míst');
+                          Navigator.pop(context);
+                          _mainFocusNode.requestFocus();
+                        },
+                        child: Text('$i')))),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('ZRUŠIT'))
+            ]));
   }
 
   Widget _buildDotMatrixDisplay() {
@@ -632,8 +696,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       if (['+', '-', '*', '/', '^'].contains(label)) {
         display = 'ANS';
         _hasResult = false;
-      } else if (RegExp(r'[0-9.]').hasMatch(label) || ['SIN', 'COS', 'TAN', '('].contains(label)) {
-        display = '';
+      } else if (RegExp(r'[0-9.]').hasMatch(label) || ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS', '('].contains(label)) {
+        // Pokud stiskneme funkci nad výsledkem, chceme Funkce(ANS)
+        if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS'].contains(label)) {
+           display = 'ANS';
+        } else {
+           display = '';
+        }
+        _hasResult = false;
+      } else if (label == '°→\'' || label == '\'→°') {
+        display = 'ANS';
         _hasResult = false;
       } else {
         _hasResult = false;
@@ -664,7 +736,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       }
     } else if (label == 'EXP') {
       append('E');
-    } else if (['SIN', 'COS', 'TAN', '√', 'ABS'].contains(label)) {
+    } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS'].contains(label)) {
       _insertAtCursor('$label(', cursorOffset: 0);
     } else if (label == 'DMS') {
       if (display.isEmpty) {
@@ -689,7 +761,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         }
       }
     }
- else if (['°→\'', '\'→°', 'π'].contains(label)) {
+ else if (['°→\'', '\'→°', '\u03C0'].contains(label)) {
       append(label);
     } else {
       append(label);
@@ -787,7 +859,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     }
     sections.add(ExpansionTile(
         title: const Text('Funkce', style: TextStyle(fontWeight: FontWeight.bold)),
-        children: [GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 4, childAspectRatio: 1.3, children: ['SIN', 'COS', 'TAN', '√', 'EXP', 'π', '°→\'', 'DMS', 'STO', 'RCL', 'ANS'].map((b) => buildButton(b)).toList())]));
+        children: [GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 4, childAspectRatio: 1.3, children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'EXP', '\u03C0', '°→\'', '\'→°', 'DMS', 'STO', 'RCL', 'ANS'].map((b) => buildButton(b)).toList())]));
     sections.add(ExpansionTile(title: const Text('Zobrazení', style: TextStyle(fontWeight: FontWeight.bold)), children: [
       Padding(
         padding: const EdgeInsets.all(4.0),
@@ -1176,6 +1248,8 @@ class _CustomDotMatrixPainter extends CustomPainter {
     '_': [0x10, 0x10, 0x10, 0x10, 0x10],
     ' ': [0x00, 0x00, 0x00, 0x00, 0x00],
     '.': [0x00, 0x00, 0x10, 0x00, 0x00],
+    '\u03C0': [0x12, 0x1F, 0x12, 0x1F, 0x12],
+    '\u03A0': [0x12, 0x1F, 0x12, 0x1F, 0x12],
     '(': [0x00, 0x0E, 0x11, 0x00, 0x00],
     ')': [0x00, 0x00, 0x11, 0x0E, 0x00],
     '+': [0x04, 0x04, 0x1F, 0x04, 0x04],
@@ -1188,7 +1262,7 @@ class _CustomDotMatrixPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final data = _font[char.toUpperCase()] ?? [0x1F, 0x1F, 0x1F, 0x1F, 0x1F];
+    final data = _font[char] ?? _font[char.toUpperCase()] ?? [0x1F, 0x1F, 0x1F, 0x1F, 0x1F];
     final paint = Paint()..style = PaintingStyle.fill;
 
     for (int col = 0; col < 5; col++) {
@@ -1219,29 +1293,39 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-        title: const Text('Nastavení'),
+        title: const Semantics(header: true, child: Text('Nastavení přístupnosti')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           SwitchListTile(
-              title: const Text('Hlas'),
+              title: const Text('Hlasový výstup (TTS)'),
               value: widget.parent.ttsEnabled,
               onChanged: (v) {
                 setState(() {
                   widget.parent.setState(() => widget.parent.ttsEnabled = v);
                   widget.parent._saveSettings();
                 });
+                widget.parent.speak(v ? 'Hlas zapnut' : 'Hlas vypnut');
               }),
           SwitchListTile(
-              title: const Text('16 seg'),
+              title: const Text('16-segmentový displej'),
               value: widget.parent._useSixteenSegment,
               onChanged: (v) {
                 setState(() {
                   widget.parent.setState(() => widget.parent._useSixteenSegment = v);
                   widget.parent._saveSettings();
                 });
+                widget.parent.speak(v ? 'Zapnut šestnácti segmentový displej' : 'Zapnut sedmi segmentový displej');
               }),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('HOTOVO'))
+          TextButton(
+              autofocus: true,
+              onPressed: () {
+                Navigator.pop(context);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  widget.parent._mainFocusNode.requestFocus();
+                });
+              },
+              child: const Text('HOTOVO'))
         ]);
   }
 }
