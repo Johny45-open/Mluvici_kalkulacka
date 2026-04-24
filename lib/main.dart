@@ -856,7 +856,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           append('°');
         }
       }
-    }
     } else if (['°→\'', '\'→°'].contains(label)) {
       try {
         double val = display.isNotEmpty ? _evaluateExpression(display) : (_lastNumericValue ?? 0.0);
