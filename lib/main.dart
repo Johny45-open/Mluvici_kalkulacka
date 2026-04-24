@@ -294,9 +294,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       } else if (event.logicalKey == LogicalKeyboardKey.keyR) {
         _handleButtonPressed("ANS");
       } else if (event.logicalKey == LogicalKeyboardKey.keyD) {
-        _insertDmsChar();
+        _insertDegree();
       } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
-        _insertDmsChar();
+        _insertMinute();
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
         if (RegExp(r'''[0-9.+\-*/^%()eE°'"a-zA-Z]''').hasMatch(toAppend)) {
@@ -306,25 +306,42 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     }
   }
 
+  void _insertDegree() {
+    append('°', silent: true);
+    speak('stupňů');
+  }
+
+  void _insertMinute() {
+    // Pokud je kurzor na konci a poslední znak je číslo, doplníme '
+    RegExp lastDigit = RegExp(r'\d$');
+    if (display.isNotEmpty && lastDigit.hasMatch(display.substring(0, _cursorPosition))) {
+        append("'", silent: true);
+        speak('minut');
+        return;
+    }
+    append("'", silent: true);
+    speak('minut');
+  }
+
   void _insertDmsChar() {
+    if (display.isEmpty) return;
+    
+    // ... původní logika pro cyklování ...
+    RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)(°|'|")?$''');
+    Match? match = dmsRegex.firstMatch(display);
     String charToAppend = '°';
     String spoken = 'stupňů';
-    
-    if (display.isNotEmpty) {
-      RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)(°|'|")?$''');
-      Match? match = dmsRegex.firstMatch(display);
-      if (match != null) {
-        String? suffix = match.group(2);
-        if (suffix == '°') {
-          charToAppend = "'";
-          spoken = 'minut';
-        } else if (suffix == "'") {
-          charToAppend = '"';
-          spoken = 'sekund';
-        } else {
-          charToAppend = '°';
-          spoken = 'stupňů';
-        }
+    if (match != null) {
+      String? suffix = match.group(2);
+      if (suffix == '°') {
+        charToAppend = "'";
+        spoken = 'minut';
+      } else if (suffix == "'") {
+        charToAppend = '"';
+        spoken = 'sekund';
+      } else {
+        charToAppend = '°';
+        spoken = 'stupňů';
       }
     }
     
@@ -414,6 +431,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     
     if (processed.isEmpty) return 0.0;
 
+    // 1. PŘEVOD DMS ZÁPISU (Musí být před goniometrickými funkcemi)
     processed = processed.replaceAllMapped(RegExp(r'''(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
       double d = double.parse(m[1]!);
       double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
@@ -426,7 +444,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
     
     const String PI = '3.14159265358979323846';
-    // Nahrazujeme funkce bez otevírací závorky, abychom mohli dopočítat závorky později
+    // 2. NAHRAZENÍ GONIOMETRICKÝCH FUNKCÍ
     if (_isDegreeMode) {
       processed = processed.replaceAll('ASIN(', 'asin((180/$PI)*');
       processed = processed.replaceAll('ACOS(', 'acos((180/$PI)*');
@@ -839,7 +857,35 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         }
       }
     }
- else if (['°→\'', '\'→°', '\u03C0'].contains(label)) {
+    } else if (['°→\'', '\'→°'].contains(label)) {
+      try {
+        double val = display.isNotEmpty ? _evaluateExpression(display) : (_lastNumericValue ?? 0.0);
+        if (label == '°→\'') {
+          // Převod na DMS
+          String resStr = _formatAsDMS(val);
+          setState(() {
+            _lastResult = resStr;
+            _hasResult = true;
+            display = '';
+            _cursorPosition = 0;
+            _lastNumericValue = val;
+          });
+          speak('Výsledek je ${_formatAsDMS(val).replaceAll('°', ' stupňů, ').replaceAll('\'', ' minut a ').replaceAll('"', ' sekund').replaceAll('.', ',')}');
+        } else {
+          // Převod na desetinné stupně
+          setState(() {
+            _lastResult = val.toStringAsFixed(10);
+            _hasResult = true;
+            display = '';
+            _cursorPosition = 0;
+            _lastNumericValue = val;
+          });
+          speak('Výsledek je ${val.toStringAsFixed(2).replaceAll('.', ',')} stupňů');
+        }
+      } catch (e) {
+        speak('Chyba při převodu');
+      }
+    } else if (label == '\u03C0') {
       append(label);
     } else {
       append(label);
