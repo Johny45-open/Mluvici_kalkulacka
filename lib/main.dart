@@ -293,8 +293,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _handleButtonPressed("\u03C0");
       } else if (event.logicalKey == LogicalKeyboardKey.keyR) {
         _handleButtonPressed("ANS");
-      } else if (event.logicalKey == LogicalKeyboardKey.keyD || event.logicalKey == LogicalKeyboardKey.keyM) {
-        _handleButtonPressed("DMS");
+      } else if (event.logicalKey == LogicalKeyboardKey.keyD) {
+        _insertDmsChar();
+      } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
+        _insertDmsChar();
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
         if (RegExp(r'''[0-9.+\-*/^%()eE°'"a-zA-Z]''').hasMatch(toAppend)) {
@@ -302,6 +304,32 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         }
       }
     }
+  }
+
+  void _insertDmsChar() {
+    String charToAppend = '°';
+    String spoken = 'stupňů';
+    
+    if (display.isNotEmpty) {
+      RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)(°|'|")?$''');
+      Match? match = dmsRegex.firstMatch(display);
+      if (match != null) {
+        String? suffix = match.group(2);
+        if (suffix == '°') {
+          charToAppend = "'";
+          spoken = 'minut';
+        } else if (suffix == "'") {
+          charToAppend = '"';
+          spoken = 'sekund';
+        } else {
+          charToAppend = '°';
+          spoken = 'stupňů';
+        }
+      }
+    }
+    
+    append(charToAppend, silent: true);
+    speak(spoken);
   }
 
   void backspace() { _deleteAtCursor(); }
@@ -346,12 +374,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         speak('Výsledek je $spoken');
       } else {
         String spokenResult = resStr.replaceAll('.', ',');
-        // Kontrola zkrácení: pouze v režimu Standard a pokud má číslo po 10. místě stále nenulové číslice
-        String fullValue = result.toString();
-        bool wasTruncated = _displayFormat == DisplayFormat.standard &&
-                           fullValue.contains('.') && 
-                           fullValue.split('.')[1].length > 10 &&
-                           !resStr.contains('E');
+        // Kontrola zkrácení: pouze v režimu Standard
+        bool wasTruncated = false;
+        if (_displayFormat == DisplayFormat.standard) {
+          String full = result.toStringAsFixed(15).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+          if (full != resStr) {
+             wasTruncated = true;
+          }
+        }
                            
         if (wasTruncated) {
           speak('Výsledek je $spokenResult. Výsledek byl zkrácen. Pro zobrazení více míst použijte tlačítko fix a zvolte vyšší přesnost.');
@@ -396,20 +426,30 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
     
     const String PI = '3.14159265358979323846';
-    // Inverzní funkce MUSÍ být před základními
+    // Nahrazujeme funkce bez otevírací závorky, abychom mohli dopočítat závorky později
     if (_isDegreeMode) {
-      processed = processed.replaceAll('ASIN(', '(180/$PI)*asin(');
-      processed = processed.replaceAll('ACOS(', '(180/$PI)*acos(');
-      processed = processed.replaceAll('ATAN(', '(180/$PI)*atan(');
-      // U základních funkcí přidáme závorku pro argument, aby pi/180* nezpůsobilo chybu priority
-      processed = processed.replaceAll('SIN(', 'sin(($PI/180)*(');
-      processed = processed.replaceAll('COS(', 'cos(($PI/180)*(');
-      processed = processed.replaceAll('TAN(', 'tan(($PI/180)*(');
+      processed = processed.replaceAll('ASIN(', 'asin((180/$PI)*');
+      processed = processed.replaceAll('ACOS(', 'acos((180/$PI)*');
+      processed = processed.replaceAll('ATAN(', 'atan((180/$PI)*');
+      processed = processed.replaceAll('SIN(', 'sin(($PI/180)*');
+      processed = processed.replaceAll('COS(', 'cos(($PI/180)*');
+      processed = processed.replaceAll('TAN(', 'tan(($PI/180)*');
     } else {
-      processed = processed.replaceAll('ASIN(', 'asin(').replaceAll('ACOS(', 'acos(').replaceAll('ATAN(', 'atan(');
-      processed = processed.replaceAll('SIN(', 'sin(').replaceAll('COS(', 'cos(').replaceAll('TAN(', 'tan(');
+      processed = processed.replaceAll('ASIN(', 'asin(');
+      processed = processed.replaceAll('ACOS(', 'acos(');
+      processed = processed.replaceAll('ATAN(', 'atan(');
+      processed = processed.replaceAll('SIN(', 'sin(');
+      processed = processed.replaceAll('COS(', 'cos(');
+      processed = processed.replaceAll('TAN(', 'tan(');
     }
     processed = processed.replaceAll('ABS(', 'abs(').replaceAll('√(', 'sqrt(');
+
+    // Dopočítání chybějících uzavíracích závorek
+    int openCount = '('.allMatches(processed).length;
+    int closeCount = ')'.allMatches(processed).length;
+    if (openCount > closeCount) {
+      processed += ')' * (openCount - closeCount);
+    }
 
     try {
       final p = math_expr.ShuntingYardParser();
@@ -634,23 +674,29 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   void _showTutorialDialog() {
+    const String tutorialText = 'Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek';
     showDialog(
         context: context,
         builder: (context) => AlertDialog(
                 title: Semantics(header: true, child: const Text('Nápověda')),
-                content: Semantics(
-                  container: true,
-                  child: const SingleChildScrollView(
-                    child: Text('Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek'),
+                content: Focus(
+                  autofocus: true,
+                  onFocusChange: (hasFocus) {
+                    if (hasFocus) speak(tutorialText);
+                  },
+                  child: Semantics(
+                    container: true,
+                    child: SingleChildScrollView(
+                      child: Text(tutorialText),
+                    ),
                   ),
                 ),
                 actions: [
                   TextButton(
-                      autofocus: true,
                       onPressed: () {
                         Navigator.pop(context);
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          _mainFocusNode.requestFocus();
+                        Future.delayed(const Duration(milliseconds: 100), () {
+                          if (mounted) _mainFocusNode.requestFocus();
                         });
                       },
                       child: const Text('ROZUMÍM'))
@@ -1341,85 +1387,110 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
     return AlertDialog(
         title: Semantics(header: true, child: const Text('Nastavení přístupnosti')),
         content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Divider(),
-            const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('ZOBRAZENÍ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-            SwitchListTile(
-                title: const Text('16-segmentový displej'),
-                value: widget.parent._useSixteenSegment,
-                onChanged: (v) {
-                  setState(() {
-                    widget.parent.setState(() => widget.parent._useSixteenSegment = v);
-                    widget.parent._saveSettings();
-                  });
-                  widget.parent.speak(v ? 'Zapnut šestnácti segmentový displej' : 'Zapnut sedmi segmentový displej');
-                }),
-            const Divider(),
-            const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('HLAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-            SwitchListTile(
-                title: const Text('Hlasový výstup (TTS)'),
-                value: widget.parent.ttsEnabled,
-                onChanged: (v) {
-                  setState(() {
-                    widget.parent.setState(() => widget.parent.ttsEnabled = v);
-                    widget.parent._saveSettings();
-                  });
-                  widget.parent.speak(v ? 'Hlas zapnut' : 'Hlas vypnut');
-                }),
-            const SizedBox(height: 8),
-            Semantics(
-              label: 'Rychlost hlasu',
-              value: '${(widget.parent._speechRate * 100).toInt()} procent',
-              child: Column(children: [
-                const Text('Rychlost hlasu'),
-                Slider(
-                  value: widget.parent._speechRate,
-                  min: 0.1,
-                  max: 1.0,
-                  onChanged: (v) {
-                    setState(() {
-                      widget.parent.setState(() => widget.parent._speechRate = v);
-                      widget.parent.tts.setSpeechRate(v);
-                    });
-                  },
-                  onChangeEnd: (v) {
-                    widget.parent._saveSettings();
-                    widget.parent.speak('Rychlost nastavena');
-                  },
+          child: FocusTraversalGroup(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Divider(),
+              const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('ZOBRAZENÍ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+              Focus(
+                onFocusChange: (hasFocus) {
+                  if (hasFocus) widget.parent.speak('Zobrazení. Šestnácti segmentový displej');
+                },
+                child: SwitchListTile(
+                    autofocus: true,
+                    title: const Text('16-segmentový displej'),
+                    value: widget.parent._useSixteenSegment,
+                    onChanged: (v) {
+                      setState(() {
+                        widget.parent.setState(() => widget.parent._useSixteenSegment = v);
+                        widget.parent._saveSettings();
+                      });
+                      widget.parent.speak(v ? 'Zapnut šestnácti segmentový displej' : 'Zapnut sedmi segmentový displej');
+                    }),
+              ),
+              const Divider(),
+              const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('HLAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+              Focus(
+                onFocusChange: (hasFocus) {
+                  if (hasFocus) widget.parent.speak('Hlas. Hlasový výstup té té es');
+                },
+                child: SwitchListTile(
+                    title: const Text('Hlasový výstup (TTS)'),
+                    value: widget.parent.ttsEnabled,
+                    onChanged: (v) {
+                      setState(() {
+                        widget.parent.setState(() => widget.parent.ttsEnabled = v);
+                        widget.parent._saveSettings();
+                      });
+                      widget.parent.speak(v ? 'Hlas zapnut' : 'Hlas vypnut');
+                    }),
+              ),
+              const SizedBox(height: 8),
+              Focus(
+                onFocusChange: (hasFocus) {
+                  if (hasFocus) widget.parent.speak('Rychlost hlasu. Aktuálně ${(widget.parent._speechRate * 100).toInt()} procent');
+                },
+                child: Semantics(
+                  label: 'Rychlost hlasu',
+                  value: '${(widget.parent._speechRate * 100).toInt()} procent',
+                  child: Column(children: [
+                    const Text('Rychlost hlasu'),
+                    Slider(
+                      value: widget.parent._speechRate,
+                      min: 0.1,
+                      max: 1.0,
+                      onChanged: (v) {
+                        setState(() {
+                          widget.parent.setState(() => widget.parent._speechRate = v);
+                          widget.parent.tts.setSpeechRate(v);
+                        });
+                      },
+                      onChangeEnd: (v) {
+                        widget.parent._saveSettings();
+                        widget.parent.speak('Rychlost nastavena');
+                      },
+                    ),
+                  ]),
                 ),
-              ]),
-            ),
-            const SizedBox(height: 8),
-            Semantics(
-              label: 'Hlasitost hlasu',
-              value: '${(widget.parent._speechVolume * 100).toInt()} procent',
-              child: Column(children: [
-                const Text('Hlasitost'),
-                Slider(
-                  value: widget.parent._speechVolume,
-                  min: 0.0,
-                  max: 1.0,
-                  onChanged: (v) {
-                    setState(() {
-                      widget.parent.setState(() => widget.parent._speechVolume = v);
-                      widget.parent.tts.setVolume(v);
-                    });
-                  },
-                  onChangeEnd: (v) {
-                    widget.parent._saveSettings();
-                    widget.parent.speak('Hlasitost nastavena');
-                  },
+              ),
+              const SizedBox(height: 8),
+              Focus(
+                onFocusChange: (hasFocus) {
+                  if (hasFocus) widget.parent.speak('Hlasitost hlasu. Aktuálně ${(widget.parent._speechVolume * 100).toInt()} procent');
+                },
+                child: Semantics(
+                  label: 'Hlasitost hlasu',
+                  value: '${(widget.parent._speechVolume * 100).toInt()} procent',
+                  child: Column(children: [
+                    const Text('Hlasitost'),
+                    Slider(
+                      value: widget.parent._speechVolume,
+                      min: 0.0,
+                      max: 1.0,
+                      onChanged: (v) {
+                        setState(() {
+                          widget.parent.setState(() => widget.parent._speechVolume = v);
+                          widget.parent.tts.setVolume(v);
+                        });
+                      },
+                      onChangeEnd: (v) {
+                        widget.parent._saveSettings();
+                        widget.parent.speak('Hlasitost nastavena');
+                      },
+                    ),
+                  ]),
                 ),
-              ]),
-            ),
-          ]),
+              ),
+            ]),
+          ),
         ),
         actions: [
           TextButton(
-              autofocus: true,
+              onFocusChange: (hasFocus) {
+                if (hasFocus) widget.parent.speak('Hotovo. Zavřít nastavení');
+              },
               onPressed: () {
                 Navigator.pop(context);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
+                Future.delayed(const Duration(milliseconds: 100), () {
                   widget.parent._mainFocusNode.requestFocus();
                 });
               },
