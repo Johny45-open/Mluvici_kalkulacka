@@ -861,25 +861,32 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         double val = display.isNotEmpty ? _evaluateExpression(display) : (_lastNumericValue ?? 0.0);
         if (label == '°→\'') {
           // Převod na DMS
-          String resStr = _formatAsDMS(val);
+          String dmsStr = _formatAsDMS(val);
           setState(() {
-            _lastResult = resStr;
+            _lastResult = dmsStr;
             _hasResult = true;
             display = '';
             _cursorPosition = 0;
             _lastNumericValue = val;
           });
-          speak('Výsledek je ${_formatAsDMS(val).replaceAll('°', ' stupňů, ').replaceAll('\'', ' minut a ').replaceAll('"', ' sekund').replaceAll('.', ',')}');
+          // Formátování pro TTS: "12°34'5\"" -> "12 stupňů, 34 minut a 5 sekund"
+          String spokenDms = dmsStr
+              .replaceAll('°', ' stupňů, ')
+              .replaceAll("'", ' minut a ')
+              .replaceAll('"', ' sekund')
+              .replaceAll('.', ',');
+          speak('Výsledek je $spokenDms');
         } else {
           // Převod na desetinné stupně
+          String decimalStr = val.toStringAsFixed(4).replaceAll(RegExp(r'\.0+$'), '').replaceAll(RegExp(r'0+$'), '');
           setState(() {
-            _lastResult = val.toStringAsFixed(10);
+            _lastResult = decimalStr;
             _hasResult = true;
             display = '';
             _cursorPosition = 0;
             _lastNumericValue = val;
           });
-          speak('Výsledek je ${val.toStringAsFixed(2).replaceAll('.', ',')} stupňů');
+          speak('Výsledek je ${decimalStr.replaceAll('.', ',')} stupňů');
         }
       } catch (e) {
         speak('Chyba při převodu');
