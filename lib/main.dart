@@ -374,7 +374,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     try {
       if (display.isEmpty) return;
       
-      bool isDms = display.contains('°→\'') || display.contains('°') || display.contains('\'') || display.contains('"');
+      bool isDms = RegExp(r'''\d+(?:\.\d+)?[°'"]''').hasMatch(display);
       double result = _evaluateExpression(display);
       _lastNumericValue = result;
       String resStr = isDms ? _formatAsDMS(result) : _formatNumber(result);
@@ -444,23 +444,27 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
     
     const String PI = '3.14159265358979323846';
-    // 2. NAHRAZENÍ GONIOMETRICKÝCH FUNKCÍ
+    // 2. NAHRAZENÍ GONIOMETRICKÝCH FUNKCÍ (case-insensitive)
     if (_isDegreeMode) {
-      processed = processed.replaceAll('ASIN(', 'asin((180/$PI)*');
-      processed = processed.replaceAll('ACOS(', 'acos((180/$PI)*');
-      processed = processed.replaceAll('ATAN(', 'atan((180/$PI)*');
-      processed = processed.replaceAll('SIN(', 'sin(($PI/180)*');
-      processed = processed.replaceAll('COS(', 'cos(($PI/180)*');
-      processed = processed.replaceAll('TAN(', 'tan(($PI/180)*');
+      // Inverzní funkce: výsledek v radiánech -> převod na stupně (vynásobit 180/PI)
+      processed = processed.replaceAll(RegExp(r'ASIN\(', caseSensitive: false), '((180/$PI)*asin(');
+      processed = processed.replaceAll(RegExp(r'ACOS\(', caseSensitive: false), '((180/$PI)*acos(');
+      processed = processed.replaceAll(RegExp(r'ATAN\(', caseSensitive: false), '((180/$PI)*atan(');
+      
+      // Přímé funkce: vstup ve stupních -> převod na radiány (vynásobit PI/180)
+      processed = processed.replaceAll(RegExp(r'SIN\(', caseSensitive: false), 'sin(($PI/180)*(');
+      processed = processed.replaceAll(RegExp(r'COS\(', caseSensitive: false), 'cos(($PI/180)*(');
+      processed = processed.replaceAll(RegExp(r'TAN\(', caseSensitive: false), 'tan(($PI/180)*(');
     } else {
-      processed = processed.replaceAll('ASIN(', 'asin(');
-      processed = processed.replaceAll('ACOS(', 'acos(');
-      processed = processed.replaceAll('ATAN(', 'atan(');
-      processed = processed.replaceAll('SIN(', 'sin(');
-      processed = processed.replaceAll('COS(', 'cos(');
-      processed = processed.replaceAll('TAN(', 'tan(');
+      processed = processed.replaceAll(RegExp(r'ASIN\(', caseSensitive: false), 'asin(');
+      processed = processed.replaceAll(RegExp(r'ACOS\(', caseSensitive: false), 'acos(');
+      processed = processed.replaceAll(RegExp(r'ATAN\(', caseSensitive: false), 'atan(');
+      processed = processed.replaceAll(RegExp(r'SIN\(', caseSensitive: false), 'sin(');
+      processed = processed.replaceAll(RegExp(r'COS\(', caseSensitive: false), 'cos(');
+      processed = processed.replaceAll(RegExp(r'TAN\(', caseSensitive: false), 'tan(');
     }
-    processed = processed.replaceAll('ABS(', 'abs(').replaceAll('√(', 'sqrt(');
+    processed = processed.replaceAll(RegExp(r'ABS\(', caseSensitive: false), 'abs(').replaceAll('√(', 'sqrt(');
+    processed = processed.replaceAll(RegExp(r'LOG\(', caseSensitive: false), 'log10(').replaceAll(RegExp(r'LN\(', caseSensitive: false), 'ln(');
 
     // Dopočítání chybějících uzavíracích závorek
     int openCount = '('.allMatches(processed).length;
@@ -774,7 +778,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           },
           onPressed: onPressed ??
               () {
-                speak(descriptiveName);
+                if (!['°→\'', '\'→°'].contains(label)) {
+                  speak(descriptiveName);
+                }
                 _handleButtonPressed(label);
               },
           child: Semantics(
