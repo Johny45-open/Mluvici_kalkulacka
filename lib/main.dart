@@ -423,11 +423,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   double _evaluateExpression(String expr) {
     String ansValue = _lastResult.toLowerCase() == 'error' ? '0' : _lastResult;
-    // Odstraníme "°" z ANS, pokud tam je
+    // Odstraníme "°" z ANS, pokud tam je a připravíme číslo
     ansValue = ansValue.split('°')[0].replaceAll(',', '.');
 
     String processed = expr.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
-    // Pí nahrazujeme s vysokou přesností
+    
+    // 1. ZÁKLADNÍ PŘÍPRAVA
     const String PI_VAL = '3.14159265358979323846';
     processed = processed.replaceAll('\u03C0', '($PI_VAL)');
     processed = processed.replaceAll(',', '.');
@@ -435,122 +436,70 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     
     if (processed.isEmpty) return 0.0;
 
-    // 1. PŘEVOD DMS ZÁPISU (Musí být před goniometrickými funkcemi)
-    processed = processed.replaceAllMapped(RegExp(r'''(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
+    // 2. DMS A SPECIÁLNÍ ZNAKY
+    processed = processed.replaceAllMapped(RegExp(r'''(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
       double d = double.parse(m[1]!);
       double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
       double sc = m[3] != null ? double.parse(m[3]!) : 0.0;
       double sign = d < 0 ? -1.0 : 1.0;
       return '(${sign * (d.abs() + mn / 60.0 + sc / 3600.0)})';
     });
-
-    // Vědecký zápis a mocniny
     processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?)[eE]([+-]?\d+)"), (m) => '(${m[1]}*10^(${m[2]}))');
     processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
 
-    // 2. IMPLICITNÍ NÁSOBENÍ
-    // Číslo následované závorkou: 2( -> 2*(
-    processed = processed.replaceAllMapped(RegExp(r'(\d)\('), (m) => '${m[1]}*(');
-    // Uzavírací závorka následovaná číslem: )2 -> )*2
+    // 3. IMPLICITNÍ NÁSOBENÍ
+    // Číslo před závorkou nebo funkcí/znakem
+    processed = processed.replaceAllMapped(RegExp(r'(\d)(\(|[A-Z√])'), (m) => '${m[1]}*${m[2]}');
+    // Závorka před číslem
     processed = processed.replaceAllMapped(RegExp(r'\)(\d)'), (m) => ')*${m[1]}');
-    // Dvě závorky u sebe: )( -> )*(
+    // Dvě závorky u sebe
     processed = processed.replaceAll(')(', ')*(');
-    // Číslo následované funkcí: 2SIN -> 2*SIN
-    processed = processed.replaceAllMapped(RegExp(r'(\d)([A-Z√])'), (m) => '${m[1]}*${m[2]}');
 
-    // 3. NAHRAZENÍ FUNKCÍ POMOCÍ MARKERŮ (aby se nepřebíjely)
+    // 4. TOKENIZACE FUNKCÍ (prevence kolizí např. ASIN vs SIN)
     final Map<String, String> markers = {
-      'ASIN': '__FN_ASIN__',
-      'ACOS': '__FN_ACOS__',
-      'ATAN': '__FN_ATAN__',
-      'SIN': '__FN_SIN__',
-      'COS': '__FN_COS__',
-      'TAN': '__FN_TAN__',
-      'ABS': '__FN_ABS__',
-      'LOG': '__FN_LOG__',
-      'LN': '__FN_LN__',
-      '√': '__FN_SQRT__',
+      'ASIN': '#ASIN#',
+      'ACOS': '#ACOS#',
+      'ATAN': '#ATAN#',
+      'SIN': '#SIN#',
+      'COS': '#COS#',
+      'TAN': '#TAN#',
+      'ABS': '#ABS#',
+      'LOG': '#LOG#',
+      'LN': '#LN#',
+      '√': '#SQRT#',
     };
 
     markers.forEach((name, marker) {
-      processed = processed.replaceAll(RegExp('\\b$name', caseSensitive: false), marker);
+      // Použijeme hranici slova \b pro vše kromě odmocniny
+      String pattern = (name == '√') ? '√' : '\\b$name';
+      processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
     });
 
-    // 4. FINÁLNÍ NAHRAZENÍ MARKERŮ MATEMATICKÝMI VZORCI
+    // 5. EXPANZE MARKERŮ (Aplikace DEG/RAD a finální syntaxe)
     if (_isDegreeMode) {
-      processed = processed.replaceAll('__FN_ASIN__(', '(180/$PI_VAL)*asin(');
-      processed = processed.replaceAll('__FN_ACOS__(', '(180/$PI_VAL)*acos(');
-      processed = processed.replaceAll('__FN_ATAN__(', '(180/$PI_VAL)*atan(');
-      processed = processed.replaceAll('__FN_SIN__(', 'sin(($PI_VAL/180)*');
-      processed = processed.replaceAll('__FN_COS__(', 'cos(($PI_VAL/180)*');
-      processed = processed.replaceAll('__FN_TAN__(', 'tan(($PI_VAL/180)*');
+      // Vstup ve stupních -> převod na radiány pro sin/cos/tan
+      processed = processed.replaceAll('#SIN#(', 'sin(($PI_VAL/180)*(');
+      processed = processed.replaceAll('#COS#(', 'cos(($PI_VAL/180)*(');
+      processed = processed.replaceAll('#TAN#(', 'tan(($PI_VAL/180)*(');
+      // Výstup v radiánech -> převod na stupně pro asin/acos/atan
+      processed = processed.replaceAll('#ASIN#(', '(180/$PI_VAL)*asin(');
+      processed = processed.replaceAll('#ACOS#(', '(180/$PI_VAL)*acos(');
+      processed = processed.replaceAll('#ATAN#(', '(180/$PI_VAL)*atan(');
     } else {
-      processed = processed.replaceAll('__FN_ASIN__(', 'asin(');
-      processed = processed.replaceAll('__FN_ACOS__(', 'acos(');
-      processed = processed.replaceAll('__FN_ATAN__(', 'atan(');
-      processed = processed.replaceAll('__FN_SIN__(', 'sin(');
-      processed = processed.replaceAll('__FN_COS__(', 'cos(');
-      processed = processed.replaceAll('__FN_TAN__(', 'tan(');
-    }
-    processed = processed.replaceAll('__FN_ABS__(', 'abs(');
-    processed = processed.replaceAll('__FN_SQRT__(', 'sqrt(');
-    // log10(x) = ln(x) / ln(10)
-    processed = processed.replaceAll('__FN_LOG__(', '(ln('); // Bude pokračovat jako (ln(X)/ln(10))
-    processed = processed.replaceAll('__FN_LN__(', 'ln(');
-
-    // Speciální ošetření pro LOG, který jsme rozpracovali výše
-    if (processed.contains('(ln(')) {
-       // Pokud máme (ln(X), musíme najít konec a přidat /ln(10))
-       // Ale jednodušší je to udělat předem nebo pomocí RegExp, pokud je to jednoduché LOG(X)
-       // Pro jednoduchost změníme LOG( na (ln( a pak v závorkách dořešíme.
-       // Lepší přístup:
-       processed = processed.replaceAllMapped(RegExp(r'\(ln\(([^)]+)\)'), (m) => '((ln(${m[1]}))/ln(10))');
-       // Pokud by tam byly složitější výrazy, toto selže. 
-       // Bezpečnější verze pro math_expressions: použít log(10, x) pokud ho parser umí.
-       // Testoval jsem log(10, 100) a funguje v novějších verzích.
-       // Vracím se k log(10, ...
+      processed = processed.replaceAll('#SIN#', 'sin');
+      processed = processed.replaceAll('#COS#', 'cos');
+      processed = processed.replaceAll('#TAN#', 'tan');
+      processed = processed.replaceAll('#ASIN#', 'asin');
+      processed = processed.replaceAll('#ACOS#', 'acos');
+      processed = processed.replaceAll('#ATAN#', 'atan');
     }
     
-    // Resetujeme nahrazení LOG pro bezpečnější verzi
-    processed = expr.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
-    processed = processed.replaceAll('\u03C0', '($PI_VAL)').replaceAll(',', '.');
-    processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
-    
-    // Znovu implicitní násobení na čistém řetězci
-    processed = processed.replaceAllMapped(RegExp(r'(\d)\('), (m) => '${m[1]}*(');
-    processed = processed.replaceAllMapped(RegExp(r'\)(\d)'), (m) => ')*${m[1]}');
-    processed = processed.replaceAll(')(', ')*(');
-    processed = processed.replaceAllMapped(RegExp(r'(\d)([A-Z√])'), (m) => '${m[1]}*${m[2]}');
+    processed = processed.replaceAll('#ABS#', 'abs');
+    processed = processed.replaceAll('#SQRT#', 'sqrt');
+    processed = processed.replaceAll('#LN#', 'ln');
+    processed = processed.replaceAll('#LOG#(', 'log(10,'); // math_expressions: log(base, expr)
 
-    markers.forEach((name, marker) {
-      processed = processed.replaceAll(RegExp(name == '√' ? '√' : '\\b$name', caseSensitive: false), marker);
-    });
-
-    if (_isDegreeMode) {
-      processed = processed.replaceAll('__FN_ASIN__', '(180/$PI_VAL)*asin');
-      processed = processed.replaceAll('__FN_ACOS__', '(180/$PI_VAL)*acos');
-      processed = processed.replaceAll('__FN_ATAN__', '(180/$PI_VAL)*atan');
-      processed = processed.replaceAll('__FN_SIN__(', 'sin(($PI_VAL/180)*');
-      processed = processed.replaceAll('__FN_COS__(', 'cos(($PI_VAL/180)*');
-      processed = processed.replaceAll('__FN_TAN__(', 'tan(($PI_VAL/180)*');
-    } else {
-      processed = processed.replaceAll('__FN_ASIN__', 'asin');
-      processed = processed.replaceAll('__FN_ACOS__', 'acos');
-      processed = processed.replaceAll('__FN_ATAN__', 'atan');
-      processed = processed.replaceAll('__FN_SIN__', 'sin');
-      processed = processed.replaceAll('__FN_COS__', 'cos');
-      processed = processed.replaceAll('__FN_TAN__', 'tan');
-    }
-    processed = processed.replaceAll('__FN_ABS__', 'abs');
-    processed = processed.replaceAll('__FN_SQRT__', 'sqrt');
-    processed = processed.replaceAll('__FN_LOG__', 'log10_placeholder'); // Vyřešíme níže
-    processed = processed.replaceAll('__FN_LN__', 'ln');
-
-    // Oprava LOG10: math_expressions nemá log10, ale má log(base, expr)
-    // Nahradíme log10_placeholder(X) za log(10, X)
-    processed = processed.replaceAll('log10_placeholder(', 'log(10,');
-
-    // 5. BALANCOVÁNÍ ZÁVOREK
+    // 6. BALANCOVÁNÍ ZÁVOREK
     int openCount = '('.allMatches(processed).length;
     int closeCount = ')'.allMatches(processed).length;
     if (openCount > closeCount) {
