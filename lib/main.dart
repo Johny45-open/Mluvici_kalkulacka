@@ -170,6 +170,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String _unitTo = 'km';
   List<String> _history = [];
   bool _isStoreMode = false;
+  bool _isRecallMode = false;
   bool _hasResult = false;
 
   final Map<String, String> _buttonNames = {
@@ -177,6 +178,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     'ABS': 'Absolutní hodnota', '°→\'': 'Převod na DMS', '\'→°': 'Převod na stupně', 'DMS': 'Vložit DMS',
     '=': 'Rovná se', '/': 'Lomeno', '*': 'Krát', '-': 'Mínus', '+': 'Plus', '(': 'Závorka otevřená', ')': 'Závorka zavřená', '.': 'Tečka',
     '^': 'Mocnina', '√': 'Odmocnina', 'ⁿ√': 'Odmocnina en', 'x²': 'Na druhou', 'x³': 'Na třetí', '∛': 'Třetí odmocnina', '1/x': 'Převrácená hodnota',
+    'LOG': 'Logaritmus', 'LN': 'Přirozený logaritmus',
+    'A': 'Proměnná A', 'B': 'Proměnná B', 'C': 'Proměnná C', 'D': 'Proměnná D', 'E': 'Proměnná E', 'F': 'Proměnná F',
+    'X': 'Proměnná X', 'Y': 'Proměnná Y', 'M': 'Proměnná M',
     'ANS': 'Poslední výsledek', 'STO': 'Uložit do paměti', 'DEL': 'Smazat poslední', 'RCL': 'Vyvolat z paměti', 'CLR': 'Smazat celou paměť', 'C': 'Smazat displej',
     'DEG': 'Stupně', 'RAD': 'Radiány', '%': 'Procenta', 'SD': 'Směrodatná odchylka', 'VAR': 'Rozptyl', 'MEAN': 'Průměr', 'STATS': 'Statistický souhrn',
     'CV': 'Variační koeficient', ';': 'Oddělovač dat', '(-)': 'Záporné číslo se závorkou', 'EXP': 'krát deset na',
@@ -350,8 +354,29 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   void backspace() { _deleteAtCursor(); }
-  void clear() { setState(() { display = ''; _cursorPosition = 0; _lastResult = '0.'; _isStoreMode = false; _hasResult = false; }); speak('Vymazat'); }
+  void clear() { setState(() { display = ''; _cursorPosition = 0; _lastResult = '0.'; _isStoreMode = false; _isRecallMode = false; _hasResult = false; }); speak('Vymazat'); }
   void append(String value, {bool silent = false}) { _insertAtCursor(value); if (!silent) speak(_buttonNames[value] ?? value); }
+
+  void _handleMemoryVariable(String name) {
+    if (_isStoreMode) {
+      double val = 0;
+      try {
+        val = double.parse(_lastResult.replaceAll(',', '.'));
+      } catch (_) {}
+      setState(() {
+        _memory[name] = val;
+        _isStoreMode = false;
+      });
+      speak('Uloženo do proměnné $name');
+    } else if (_isRecallMode) {
+      String valStr = _formatNumber(_memory[name]!).replaceAll('.', ',');
+      append(_formatNumber(_memory[name]!), silent: true);
+      speak('Vyvoláno $valStr');
+      _isRecallMode = false;
+    } else {
+      append(name);
+    }
+  }
 
   void _insertAtCursor(String text, {int cursorOffset = 0}) {
     setState(() {
@@ -428,6 +453,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     String processed = expr.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
     
+    // 0. NAHRAZENÍ PROMĚNNÝCH
+    _memory.forEach((key, value) {
+      processed = processed.replaceAll(RegExp('\\b$key\\b'), '(${value.toString()})');
+    });
+
     // 1. ZÁKLADNÍ PŘÍPRAVA
     const String PI_VAL = '3.14159265358979323846';
     processed = processed.replaceAll('\u03C0', '($PI_VAL)');
@@ -857,23 +887,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'STO') {
       _isStoreMode = true;
       speak('Vyberte paměť');
+    } else if (label == 'RCL') {
+      _isRecallMode = true;
+      speak('Vyberte paměť pro vyvolání');
+    } else if (label == 'CLR') {
+      setState(() {
+        _memory.updateAll((key, value) => 0);
+      });
+      speak('Paměť smazána');
     } else if (_memory.containsKey(label)) {
-      if (_isStoreMode) {
-        double val = 0;
-        try {
-          val = double.parse(_lastResult.replaceAll(',', '.'));
-        } catch (_) {}
-        setState(() {
-          _memory[label] = val;
-          _isStoreMode = false;
-        });
-        speak('Uloženo');
-      } else {
-        append(label);
-      }
+      _handleMemoryVariable(label);
     } else if (label == 'EXP') {
       append('E');
-    } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS'].contains(label)) {
+    } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS', 'LOG', 'LN'].contains(label)) {
       _insertAtCursor('$label(', cursorOffset: 0);
     } else if (label == 'DMS') {
       if (display.isEmpty) {
@@ -1028,9 +1054,55 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: _convertUnits, icon: const Icon(Icons.sync), label: const Text('PŘEVÉST'), style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)))),
                   ])))));
     }
+
+    // 1. GONIOMETRIE
+    sections.add(ExpansionTile(
+        title: const Text('Goniometrie', style: TextStyle(fontWeight: FontWeight.bold)),
+        children: [
+          GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              childAspectRatio: 1.3,
+              children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((b) => buildButton(b)).toList())
+        ]));
+
+    // 2. FUNKCE
     sections.add(ExpansionTile(
         title: const Text('Funkce', style: TextStyle(fontWeight: FontWeight.bold)),
-        children: [GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 4, childAspectRatio: 1.3, children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'EXP', '\u03C0', '°→\'', '\'→°', 'DMS', 'STO', 'RCL', 'ANS'].map((b) => buildButton(b)).toList())]));
+        children: [
+          GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              childAspectRatio: 1.3,
+              children: ['√', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) => buildButton(b)).toList())
+        ]));
+
+    // 3. PAMĚŤ
+    sections.add(ExpansionTile(
+        title: const Text('Paměť', style: TextStyle(fontWeight: FontWeight.bold)),
+        children: [
+          GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              childAspectRatio: 1.3,
+              children: ['STO', 'RCL', 'CLR'].map((b) => buildButton(b)).toList()),
+          const Divider(),
+          GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              childAspectRatio: 1.3,
+              children: ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'].map((b) {
+                if (b == 'C') {
+                  return buildButton('C', semanticLabel: 'Proměnná C', onPressed: () => _handleMemoryVariable('C'));
+                }
+                return buildButton(b);
+              }).toList())
+        ]));
+
     sections.add(ExpansionTile(title: const Text('Zobrazení', style: TextStyle(fontWeight: FontWeight.bold)), children: [
       Padding(
         padding: const EdgeInsets.all(4.0),
