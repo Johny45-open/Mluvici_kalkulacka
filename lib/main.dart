@@ -447,24 +447,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     // 2. NAHRAZENÍ GONIOMETRICKÝCH FUNKCÍ (case-insensitive)
     if (_isDegreeMode) {
       // Inverzní funkce: výsledek v radiánech -> převod na stupně (vynásobit 180/PI)
-      processed = processed.replaceAll(RegExp(r'ASIN\(', caseSensitive: false), '((180/$PI)*asin(');
-      processed = processed.replaceAll(RegExp(r'ACOS\(', caseSensitive: false), '((180/$PI)*acos(');
-      processed = processed.replaceAll(RegExp(r'ATAN\(', caseSensitive: false), '((180/$PI)*atan(');
+      processed = processed.replaceAll(RegExp(r'\bASIN\(', caseSensitive: false), '(180/$PI)*asin(');
+      processed = processed.replaceAll(RegExp(r'\bACOS\(', caseSensitive: false), '(180/$PI)*acos(');
+      processed = processed.replaceAll(RegExp(r'\bATAN\(', caseSensitive: false), '(180/$PI)*atan(');
       
       // Přímé funkce: vstup ve stupních -> převod na radiány (vynásobit PI/180)
-      processed = processed.replaceAll(RegExp(r'SIN\(', caseSensitive: false), 'sin(($PI/180)*(');
-      processed = processed.replaceAll(RegExp(r'COS\(', caseSensitive: false), 'cos(($PI/180)*(');
-      processed = processed.replaceAll(RegExp(r'TAN\(', caseSensitive: false), 'tan(($PI/180)*(');
+      processed = processed.replaceAll(RegExp(r'\bSIN\(', caseSensitive: false), 'sin(($PI/180)*');
+      processed = processed.replaceAll(RegExp(r'\bCOS\(', caseSensitive: false), 'cos(($PI/180)*');
+      processed = processed.replaceAll(RegExp(r'\bTAN\(', caseSensitive: false), 'tan(($PI/180)*');
     } else {
-      processed = processed.replaceAll(RegExp(r'ASIN\(', caseSensitive: false), 'asin(');
-      processed = processed.replaceAll(RegExp(r'ACOS\(', caseSensitive: false), 'acos(');
-      processed = processed.replaceAll(RegExp(r'ATAN\(', caseSensitive: false), 'atan(');
-      processed = processed.replaceAll(RegExp(r'SIN\(', caseSensitive: false), 'sin(');
-      processed = processed.replaceAll(RegExp(r'COS\(', caseSensitive: false), 'cos(');
-      processed = processed.replaceAll(RegExp(r'TAN\(', caseSensitive: false), 'tan(');
+      processed = processed.replaceAll(RegExp(r'\bASIN\(', caseSensitive: false), 'asin(');
+      processed = processed.replaceAll(RegExp(r'\bACOS\(', caseSensitive: false), 'acos(');
+      processed = processed.replaceAll(RegExp(r'\bATAN\(', caseSensitive: false), 'atan(');
+      processed = processed.replaceAll(RegExp(r'\bSIN\(', caseSensitive: false), 'sin(');
+      processed = processed.replaceAll(RegExp(r'\bCOS\(', caseSensitive: false), 'cos(');
+      processed = processed.replaceAll(RegExp(r'\bTAN\(', caseSensitive: false), 'tan(');
     }
-    processed = processed.replaceAll(RegExp(r'ABS\(', caseSensitive: false), 'abs(').replaceAll('√(', 'sqrt(');
-    processed = processed.replaceAll(RegExp(r'LOG\(', caseSensitive: false), 'log10(').replaceAll(RegExp(r'LN\(', caseSensitive: false), 'ln(');
+    processed = processed.replaceAll(RegExp(r'\bABS\(', caseSensitive: false), 'abs(').replaceAll('√(', 'sqrt(');
+    processed = processed.replaceAll(RegExp(r'\bLOG\(', caseSensitive: false), 'log(10,').replaceAll(RegExp(r'\bLN\(', caseSensitive: false), 'ln(');
 
     // Dopočítání chybějících uzavíracích závorek
     int openCount = '('.allMatches(processed).length;
@@ -472,6 +472,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     if (openCount > closeCount) {
       processed += ')' * (openCount - closeCount);
     }
+
+    debugPrint('Parsed expression: $processed');
 
     try {
       final p = math_expr.ShuntingYardParser();
