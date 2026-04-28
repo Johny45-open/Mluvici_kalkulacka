@@ -475,23 +475,23 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
     });
 
-    // 5. EXPANZE MARKERŮ (Aplikace DEG/RAD a finální syntaxe)
+    // 5. EXPANZE MARKERŮ (Oprava pro math_expressions: arcsin, arccos, arctan)
     if (_isDegreeMode) {
       // Vstup ve stupních -> převod na radiány pro sin/cos/tan
-      processed = processed.replaceAll('#SIN#(', 'sin(($PI_VAL/180)*(');
-      processed = processed.replaceAll('#COS#(', 'cos(($PI_VAL/180)*(');
-      processed = processed.replaceAll('#TAN#(', 'tan(($PI_VAL/180)*(');
-      // Výstup v radiánech -> převod na stupně pro asin/acos/atan
-      processed = processed.replaceAll('#ASIN#(', '(180/$PI_VAL)*asin(');
-      processed = processed.replaceAll('#ACOS#(', '(180/$PI_VAL)*acos(');
-      processed = processed.replaceAll('#ATAN#(', '(180/$PI_VAL)*atan(');
+      processed = processed.replaceAll('#SIN#(', 'sin(($PI_VAL/180)*');
+      processed = processed.replaceAll('#COS#(', 'cos(($PI_VAL/180)*');
+      processed = processed.replaceAll('#TAN#(', 'tan(($PI_VAL/180)*');
+      // Výstup v radiánech -> převod na stupně pro arcsin/arccos/arctan
+      processed = processed.replaceAll('#ASIN#(', '(180/$PI_VAL)*arcsin(');
+      processed = processed.replaceAll('#ACOS#(', '(180/$PI_VAL)*arccos(');
+      processed = processed.replaceAll('#ATAN#(', '(180/$PI_VAL)*arctan(');
     } else {
       processed = processed.replaceAll('#SIN#', 'sin');
       processed = processed.replaceAll('#COS#', 'cos');
       processed = processed.replaceAll('#TAN#', 'tan');
-      processed = processed.replaceAll('#ASIN#', 'asin');
-      processed = processed.replaceAll('#ACOS#', 'acos');
-      processed = processed.replaceAll('#ATAN#', 'atan');
+      processed = processed.replaceAll('#ASIN#', 'arcsin');
+      processed = processed.replaceAll('#ACOS#', 'arccos');
+      processed = processed.replaceAll('#ATAN#', 'arctan');
     }
     
     processed = processed.replaceAll('#ABS#', 'abs');
