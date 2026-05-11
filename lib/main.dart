@@ -1008,116 +1008,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  List<Widget> _buildFunctionSections() {
-    List<Widget> sections = [];
-    if (_currentMode == CalculatorMode.unitConversion) {
-      sections.add(Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(children: [
-                    DropdownButtonFormField<String>(
-                        value: _selectedUnitCategory,
-                        decoration: const InputDecoration(labelText: 'Kategorie'),
-                        items: _unitCategories.keys.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedUnitCategory = val!;
-                            _unitFrom = _unitCategories[val]!.keys.first;
-                            _unitTo = _unitCategories[val]!.keys.elementAt(1);
-                          });
-                          speak('Kategorie $val');
-                        }),
-                    Row(children: [
-                      Expanded(
-                          child: DropdownButtonFormField<String>(
-                              value: _unitFrom,
-                              decoration: const InputDecoration(labelText: 'Z'),
-                              items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
-                              onChanged: (val) {
-                                setState(() => _unitFrom = val!);
-                                speak('Z jednotky ${_getUnitSpeech(val!)}');
-                              })),
-                      const Icon(Icons.arrow_forward),
-                      Expanded(
-                          child: DropdownButtonFormField<String>(
-                              value: _unitTo,
-                              decoration: const InputDecoration(labelText: 'Na'),
-                              items: _unitCategories[_selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(_getUnitSpeech(u)))).toList(),
-                              onChanged: (val) {
-                                setState(() => _unitTo = val!);
-                                speak('Na jednotku ${_getUnitSpeech(val!)}');
-                              })),
-                    ]),
-                    const SizedBox(height: 8),
-                    SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: _convertUnits, icon: const Icon(Icons.sync), label: const Text('PŘEVÉST'), style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)))),
-                  ])))));
-    }
-
-    // 1. GONIOMETRIE
-    sections.add(ExpansionTile(
-        title: const Text('Goniometrie', style: TextStyle(fontWeight: FontWeight.bold)),
-        children: [
-          GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 4,
-              childAspectRatio: 1.3,
-              children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((b) => buildButton(b)).toList())
-        ]));
-
-    // 2. FUNKCE
-    sections.add(ExpansionTile(
-        title: const Text('Funkce', style: TextStyle(fontWeight: FontWeight.bold)),
-        children: [
-          GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 4,
-              childAspectRatio: 1.3,
-              children: ['√', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) => buildButton(b)).toList())
-        ]));
-
-    // 3. PAMĚŤ
-    sections.add(ExpansionTile(
-        title: const Text('Paměť', style: TextStyle(fontWeight: FontWeight.bold)),
-        children: [
-          GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 4,
-              childAspectRatio: 1.3,
-              children: ['STO', 'RCL', 'CLR'].map((b) => buildButton(b)).toList()),
-          const Divider(),
-          GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 4,
-              childAspectRatio: 1.3,
-              children: ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'].map((b) {
-                if (b == 'C') {
-                  return buildButton('C', semanticLabel: 'Proměnná C', onPressed: () => _handleMemoryVariable('C'));
-                }
-                return buildButton(b);
-              }).toList())
-        ]));
-
-    sections.add(ExpansionTile(title: const Text('Zobrazení', style: TextStyle(fontWeight: FontWeight.bold)), children: [
-      Padding(
-        padding: const EdgeInsets.all(4.0),
-        child: Wrap(alignment: WrapAlignment.start, spacing: 4, runSpacing: 4, children: [
-          buildButton('NORM', onPressed: () {
-            setState(() => _displayFormat = DisplayFormat.standard);
-            speak('Standardní');
-          }),
-          buildButton('FIX', onPressed: () => _showPrecisionDialog(DisplayFormat.fix)),
-          buildButton('SCI', onPressed: () => _showPrecisionDialog(DisplayFormat.sci)),
-          buildButton('ENG', onPressed: () => _showPrecisionDialog(DisplayFormat.eng))
-        ]),
-      )
-    ]));
-    return sections;
+  void _showAdvancedFunctionsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => _AdvancedFunctionsDialog(parent: this),
+    );
   }
 
   @override
@@ -1129,6 +1024,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       appBar: AppBar(
         title: const Text('Mluvící kalkulačka'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.list),
+            tooltip: 'Pokročilé funkce',
+            onPressed: _showAdvancedFunctionsDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: 'Nápověda k ovládání',
@@ -1169,24 +1069,148 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 )),
             _buildModeSelector(),
             Expanded(flex: 1000, child: LayoutBuilder(builder: (context, constraints) {
-              final bool isWideScreen = constraints.maxWidth > 600;
-              if (isWideScreen) {
-                return Row(children: [
-                  Expanded(child: ListView(children: _buildFunctionSections())),
-                  const VerticalDivider(),
-                  Expanded(child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 2 / 4) / (constraints.maxHeight / 5)))
-                ]);
-              }
-              return Column(children: [
-                Expanded(child: ListView(children: _buildFunctionSections())),
-                const Divider(),
-                SizedBox(height: constraints.maxHeight * 0.65, child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 4) / (constraints.maxHeight * 0.65 / 5)))
-              ]);
+              return _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 4) / (constraints.maxHeight / 5));
             })),
           ],
         ),
       ),
     );
+  }
+}
+
+class _AdvancedFunctionsDialog extends StatelessWidget {
+  final _CalculatorScreenState parent;
+  const _AdvancedFunctionsDialog({required this.parent});
+
+  List<Widget> _buildSections() {
+    List<Widget> sections = [];
+    if (parent._currentMode == CalculatorMode.unitConversion) {
+      sections.add(Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Card(
+              child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(children: [
+                    DropdownButtonFormField<String>(
+                        value: parent._selectedUnitCategory,
+                        decoration: const InputDecoration(labelText: 'Kategorie'),
+                        items: parent._unitCategories.keys.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+                        onChanged: (val) {
+                          parent.setState(() {
+                            parent._selectedUnitCategory = val!;
+                            parent._unitFrom = parent._unitCategories[val]!.keys.first;
+                            parent._unitTo = parent._unitCategories[val]!.keys.elementAt(1);
+                          });
+                          parent.speak('Kategorie $val');
+                        }),
+                    Row(children: [
+                      Expanded(
+                          child: DropdownButtonFormField<String>(
+                              value: parent._unitFrom,
+                              decoration: const InputDecoration(labelText: 'Z'),
+                              items: parent._unitCategories[parent._selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(parent._getUnitSpeech(u)))).toList(),
+                              onChanged: (val) {
+                                parent.setState(() => parent._unitFrom = val!);
+                                parent.speak('Z jednotky ${parent._getUnitSpeech(val!)}');
+                              })),
+                      const Icon(Icons.arrow_forward),
+                      Expanded(
+                          child: DropdownButtonFormField<String>(
+                              value: parent._unitTo,
+                              decoration: const InputDecoration(labelText: 'Na'),
+                              items: parent._unitCategories[parent._selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(parent._getUnitSpeech(u)))).toList(),
+                              onChanged: (val) {
+                                parent.setState(() => parent._unitTo = val!);
+                                parent.speak('Na jednotku ${parent._getUnitSpeech(val!)}');
+                              })),
+                    ]),
+                    const SizedBox(height: 8),
+                    SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: parent._convertUnits, icon: const Icon(Icons.sync), label: const Text('PŘEVÉST'), style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)))),
+                  ])))));
+    }
+
+    sections.add(ExpansionTile(
+        title: const Text('Goniometrie', style: TextStyle(fontWeight: FontWeight.bold)),
+        children: [
+          GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              childAspectRatio: 1.3,
+              children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((b) => parent.buildButton(b)).toList())
+        ]));
+
+    sections.add(ExpansionTile(
+        title: const Text('Funkce', style: TextStyle(fontWeight: FontWeight.bold)),
+        children: [
+          GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              childAspectRatio: 1.3,
+              children: ['√', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) => parent.buildButton(b)).toList())
+        ]));
+
+    sections.add(ExpansionTile(
+        title: const Text('Paměť', style: TextStyle(fontWeight: FontWeight.bold)),
+        children: [
+          GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              childAspectRatio: 1.3,
+              children: ['STO', 'RCL', 'CLR'].map((b) => parent.buildButton(b)).toList()),
+          const Divider(),
+          GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              childAspectRatio: 1.3,
+              children: ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'].map((b) {
+                if (b == 'C') {
+                  return parent.buildButton('C', semanticLabel: 'Proměnná C', onPressed: () => parent._handleMemoryVariable('C'));
+                }
+                return parent.buildButton(b);
+              }).toList())
+        ]));
+
+    sections.add(ExpansionTile(title: const Text('Zobrazení', style: TextStyle(fontWeight: FontWeight.bold)), children: [
+      Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: Wrap(alignment: WrapAlignment.start, spacing: 4, runSpacing: 4, children: [
+          parent.buildButton('NORM', onPressed: () {
+            parent.setState(() => parent._displayFormat = DisplayFormat.standard);
+            parent.speak('Standardní');
+          }),
+          parent.buildButton('FIX', onPressed: () => parent._showPrecisionDialog(DisplayFormat.fix)),
+          parent.buildButton('SCI', onPressed: () => parent._showPrecisionDialog(DisplayFormat.sci)),
+          parent.buildButton('ENG', onPressed: () => parent._showPrecisionDialog(DisplayFormat.eng))
+        ]),
+      )
+    ]));
+    return sections;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+        title: Semantics(header: true, child: const Text('Pokročilé funkce')),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            children: _buildSections(),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (parent.mounted) parent._mainFocusNode.requestFocus();
+                });
+              },
+              child: const Text('ZAVŘÍT'))
+        ]);
   }
 }
 
