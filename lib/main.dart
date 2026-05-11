@@ -447,9 +447,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   double _evaluateExpression(String expr) {
-    String ansValue = _lastResult.toLowerCase() == 'error' ? '0' : _lastResult;
-    // Odstraníme "°" z ANS, pokud tam je a připravíme číslo
-    ansValue = ansValue.split('°')[0].replaceAll(',', '.');
+    // Použijeme přímo přesnou číselnou hodnotu, pokud existuje, jinak fall-back na 0
+    String ansValue = _lastNumericValue?.toString() ?? '0';
 
     String processed = expr.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
     
@@ -812,17 +811,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           });
                           speak('Nastaveno $i desetinných míst');
                           Navigator.pop(context);
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            _mainFocusNode.requestFocus();
-                          });
                         },
                         child: Text('$i')))),
             actions: [
               TextButton(onPressed: () {
                 Navigator.pop(context);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _mainFocusNode.requestFocus();
-                });
               }, child: Text('ZRUŠIT'))
             ]));
   }
@@ -1575,115 +1568,113 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
         title: Semantics(header: true, child: const Text('Nastavení přístupnosti')),
-        content: SingleChildScrollView(
+        content: SizedBox(
+          width: double.maxFinite,
           child: FocusTraversalGroup(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Divider(),
-              const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('ZOBRAZENÍ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-              Focus(
-                onFocusChange: (hasFocus) {
-                  if (hasFocus) widget.parent.speak('Zobrazení. Šestnácti segmentový displej');
-                },
-                child: SwitchListTile(
-                    autofocus: true,
-                    title: const Text('16-segmentový displej'),
-                    value: widget.parent._useSixteenSegment,
-                    onChanged: (v) {
-                      setState(() {
-                        widget.parent.setState(() => widget.parent._useSixteenSegment = v);
-                        widget.parent._saveSettings();
-                      });
-                      widget.parent.speak(v ? 'Zapnut šestnácti segmentový displej' : 'Zapnut sedmi segmentový displej');
-                    }),
-              ),
-              const Divider(),
-              const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('HLAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-              Focus(
-                onFocusChange: (hasFocus) {
-                  if (hasFocus) widget.parent.speak('Hlas. Hlasový výstup té té es');
-                },
-                child: SwitchListTile(
-                    title: const Text('Hlasový výstup (TTS)'),
-                    value: widget.parent.ttsEnabled,
-                    onChanged: (v) {
-                      setState(() {
-                        widget.parent.setState(() => widget.parent.ttsEnabled = v);
-                        widget.parent._saveSettings();
-                      });
-                      widget.parent.speak(v ? 'Hlas zapnut' : 'Hlas vypnut');
-                    }),
-              ),
-              const SizedBox(height: 8),
-              Focus(
-                onFocusChange: (hasFocus) {
-                  if (hasFocus) widget.parent.speak('Rychlost hlasu. Aktuálně ${(widget.parent._speechRate * 100).toInt()} procent');
-                },
-                child: Semantics(
-                  label: 'Rychlost hlasu',
-                  value: '${(widget.parent._speechRate * 100).toInt()} procent',
-                  child: Column(children: [
-                    const Text('Rychlost hlasu'),
-                    Slider(
-                      value: widget.parent._speechRate,
-                      min: 0.1,
-                      max: 1.0,
-                      onChanged: (v) {
+            policy: OrderedTraversalPolicy(),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Divider(),
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('ZOBRAZENÍ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  ElevatedButton(
+                      onPressed: () {
                         setState(() {
-                          widget.parent.setState(() => widget.parent._speechRate = v);
-                          widget.parent.tts.setSpeechRate(v);
+                          widget.parent.setState(() => widget.parent._useSixteenSegment = !widget.parent._useSixteenSegment);
+                          widget.parent._saveSettings();
                         });
+                        widget.parent.speak(widget.parent._useSixteenSegment ? 'Zapnut šestnácti segmentový displej' : 'Zapnut sedmi segmentový displej');
                       },
-                      onChangeEnd: (v) {
-                        widget.parent._saveSettings();
-                        widget.parent.speak('Rychlost nastavena');
-                      },
-                    ),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Focus(
-                onFocusChange: (hasFocus) {
-                  if (hasFocus) widget.parent.speak('Hlasitost hlasu. Aktuálně ${(widget.parent._speechVolume * 100).toInt()} procent');
-                },
-                child: Semantics(
-                  label: 'Hlasitost hlasu',
-                  value: '${(widget.parent._speechVolume * 100).toInt()} procent',
-                  child: Column(children: [
-                    const Text('Hlasitost'),
-                    Slider(
-                      value: widget.parent._speechVolume,
-                      min: 0.0,
-                      max: 1.0,
-                      onChanged: (v) {
+                      child: Text('Displej: ${widget.parent._useSixteenSegment ? '16-segmentový' : '7-segmentový'}')),
+                  const Divider(),
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('HLAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  ElevatedButton(
+                      onPressed: () {
                         setState(() {
-                          widget.parent.setState(() => widget.parent._speechVolume = v);
-                          widget.parent.tts.setVolume(v);
+                          widget.parent.setState(() => widget.parent.ttsEnabled = !widget.parent.ttsEnabled);
+                          widget.parent._saveSettings();
                         });
+                        widget.parent.speak(widget.parent.ttsEnabled ? 'Hlas zapnut' : 'Hlas vypnut');
                       },
-                      onChangeEnd: (v) {
-                        widget.parent._saveSettings();
-                        widget.parent.speak('Hlasitost nastavena');
-                      },
-                    ),
-                  ]),
-                ),
+                      child: Text('Hlasový výstup: ${widget.parent.ttsEnabled ? 'Zapnuto' : 'Vypnuto'}')),
+                  const SizedBox(height: 16),
+                  Semantics(
+                    container: true,
+                    label: 'Ovládání rychlosti hlasu',
+                    child: Column(children: [
+                      const Text('Rychlost hlasu'),
+                      Row(children: [
+                        Semantics(
+                          label: 'Snížit rychlost hlasu',
+                          button: true,
+                          child: ElevatedButton(onPressed: () => _adjustSpeechRate(-0.1), child: const Text('-')),
+                        ),
+                        Expanded(child: Center(child: Text('${(widget.parent._speechRate * 100).toInt()}%'))),
+                        Semantics(
+                          label: 'Zvýšit rychlost hlasu',
+                          button: true,
+                          child: ElevatedButton(onPressed: () => _adjustSpeechRate(0.1), child: const Text('+')),
+                        ),
+                      ]),
+                    ]),
+                  ),
+                  const SizedBox(height: 16),
+                  Semantics(
+                    container: true,
+                    label: 'Ovládání hlasitosti',
+                    child: Column(children: [
+                      const Text('Hlasitost'),
+                      Row(children: [
+                        Semantics(
+                          label: 'Snížit hlasitost',
+                          button: true,
+                          child: ElevatedButton(onPressed: () => _adjustSpeechVolume(-0.1), child: const Text('-')),
+                        ),
+                        Expanded(child: Center(child: Text('${(widget.parent._speechVolume * 100).toInt()}%'))),
+                        Semantics(
+                          label: 'Zvýšit hlasitost',
+                          button: true,
+                          child: ElevatedButton(onPressed: () => _adjustSpeechVolume(0.1), child: const Text('+')),
+                        ),
+                      ]),
+                    ]),
+                  ),                ],
               ),
-            ]),
+            ),
           ),
         ),
         actions: [
           TextButton(
-              onFocusChange: (hasFocus) {
-                if (hasFocus) widget.parent.speak('Hotovo. Zavřít nastavení');
-              },
               onPressed: () {
                 Navigator.pop(context);
                 Future.delayed(const Duration(milliseconds: 100), () {
-                  widget.parent._mainFocusNode.requestFocus();
+                  if (widget.parent.mounted) widget.parent._mainFocusNode.requestFocus();
                 });
               },
               child: const Text('HOTOVO'))
         ]);
+  }
+
+  void _adjustSpeechRate(double delta) {
+    setState(() {
+      widget.parent.setState(() {
+        widget.parent._speechRate = (widget.parent._speechRate + delta).clamp(0.1, 1.0);
+        widget.parent.tts.setSpeechRate(widget.parent._speechRate);
+      });
+      widget.parent._saveSettings();
+    });
+    widget.parent.speak('Rychlost ${(widget.parent._speechRate * 100).toInt()} procent');
+  }
+
+  void _adjustSpeechVolume(double delta) {
+    setState(() {
+      widget.parent.setState(() {
+        widget.parent._speechVolume = (widget.parent._speechVolume + delta).clamp(0.0, 1.0);
+        widget.parent.tts.setVolume(widget.parent._speechVolume);
+      });
+      widget.parent._saveSettings();
+    });
+    widget.parent.speak('Hlasitost ${(widget.parent._speechVolume * 100).toInt()} procent');
   }
 }
