@@ -1178,13 +1178,13 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.all(4.0),
         child: Wrap(alignment: WrapAlignment.start, spacing: 4, runSpacing: 4, children: [
-          parent.buildButton('NORM', onPressed: () {
+          parent.buildButton('NORM', semanticLabel: 'Standardní zobrazení', onPressed: () {
             parent.setState(() => parent._displayFormat = DisplayFormat.standard);
-            parent.speak('Standardní');
+            parent.speak('Nastaveno standardní zobrazení');
           }),
-          parent.buildButton('FIX', onPressed: () => parent._showPrecisionDialog(DisplayFormat.fix)),
-          parent.buildButton('SCI', onPressed: () => parent._showPrecisionDialog(DisplayFormat.sci)),
-          parent.buildButton('ENG', onPressed: () => parent._showPrecisionDialog(DisplayFormat.eng))
+          parent.buildButton('FIX', semanticLabel: 'Zobrazení s pevným počtem desetinných míst', onPressed: () => parent._showPrecisionDialog(DisplayFormat.fix)),
+          parent.buildButton('SCI', semanticLabel: 'Vědecký zápis', onPressed: () => parent._showPrecisionDialog(DisplayFormat.sci)),
+          parent.buildButton('ENG', semanticLabel: 'Inženýrský zápis', onPressed: () => parent._showPrecisionDialog(DisplayFormat.eng))
         ]),
       )
     ]));
