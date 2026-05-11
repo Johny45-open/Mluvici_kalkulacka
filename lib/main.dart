@@ -401,9 +401,16 @@ void calculateResult() {
     if (display.isEmpty) return;
 
     bool isDms = RegExp(r'''\d+(?:\.\d+)?[°'"]''').hasMatch(display);
-    // Detekce inverzní goniometrické funkce
-    bool isInverse = RegExp(r'A(SIN|COS|TAN)', caseSensitive: false).hasMatch(display);
-
+    // Detekce inverzní goniometrické funkce nebo použití inverzní funkce na výsledek (ANS)
+    bool isInverse = display.toUpperCase().contains('ASIN') || 
+                     display.toUpperCase().contains('ACOS') || 
+                     display.toUpperCase().contains('ATAN');
+    
+    // Pokud je inverzní funkce aplikována na předchozí výsledek, je to také inverzní operace
+    if (_hasResult && display.toUpperCase().contains('ANS')) {
+      isInverse = true;
+    }
+    
     double result = _evaluateExpression(display);
     _lastNumericValue = result;
 
@@ -1538,6 +1545,7 @@ static const Map<String, List<int>> _font = {
 '/': [0x10, 0x08, 0x04, 0x02, 0x01],
 '%': [0x19, 0x05, 0x02, 0x14, 0x13],
 '^': [0x02, 0x01, 0x02, 0x00, 0x00],
+'√': [0x01, 0x02, 0x04, 0x18, 0x10],
 ',': [0x00, 0x00, 0x18, 0x00, 0x00],
 };
 
@@ -1601,15 +1609,14 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               const Divider(),
               ElevatedButton(
                   onPressed: () {
-                    setState(() {
-                      final newFormat = (widget.parent._inverseFormatPreference == 0) ? 1 : 0;
-                      widget.parent._saveInversePreference(newFormat);
-                    });
-                    widget.parent.speak(widget.parent._inverseFormatPreference == 0 
+                    final newFormat = (widget.parent._inverseFormatPreference == 0) ? 1 : 0;
+                    widget.parent._saveInversePreference(newFormat);
+                    widget.parent.speak(newFormat == 0 
                         ? 'Formát nastaven na stupně, minuty a sekundy' 
                         : 'Formát nastaven na desetinné stupně');
+                    setState(() {});
                   },
-                  child: Text('Formát úhlů: ${widget.parent._inverseFormatPreference == 0 ? 'DMS' : 'Desetinné'}')),
+                  child: Text('Úhly: ${widget.parent._inverseFormatPreference == 0 ? 'DMS' : 'Desetinné'}')),
               const SizedBox(height: 16),
 
               // Seskupená Rychlost
