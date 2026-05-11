@@ -415,8 +415,8 @@ void calculateResult() {
     _lastNumericValue = result;
 
     String resStr;
-    // Použijeme formát DMS, pokud výraz obsahuje DMS, nebo pokud je to inverzní funkce a uživatel si zvolil DMS (preference == 0) a jsme v režimu stupňů
-    if (isDms || (isInverse && _inverseFormatPreference == 0 && _isDegreeMode)) {
+    // DMS formát aplikujeme pouze u inverzních funkcí (ASIN, ACOS, ATAN), pokud je zvoleno DMS (0) a režim DEG
+    if (isInverse && _inverseFormatPreference == 0 && _isDegreeMode) {
       resStr = _formatAsDMS(result);
     } else {
       resStr = _formatNumber(result);
@@ -537,8 +537,6 @@ int closeCount = ')'.allMatches(processed).length;
 if (openCount > closeCount) {
 processed += ')' * (openCount - closeCount);
 }
-
-debugPrint('Parsed expression: $processed');
 
 try {
 final p = math_expr.ShuntingYardParser();
@@ -1545,7 +1543,7 @@ static const Map<String, List<int>> _font = {
 '/': [0x10, 0x08, 0x04, 0x02, 0x01],
 '%': [0x19, 0x05, 0x02, 0x14, 0x13],
 '^': [0x02, 0x01, 0x02, 0x00, 0x00],
-'√': [0x01, 0x02, 0x04, 0x18, 0x10],
+'√': [0x02, 0x04, 0x08, 0x10, 0x1E],
 ',': [0x00, 0x00, 0x18, 0x00, 0x00],
 };
 
