@@ -469,14 +469,19 @@ processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
 if (processed.isEmpty) return 0.0;
 
 // 2. DMS A SPECIÁLNÍ ZNAKY
-processed = processed.replaceAllMapped(RegExp(r'''(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
+processed = processed.replaceAllMapped(RegExp(r'''(?:^|[\(\+\-\*\/\^])(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
 double d = double.parse(m[1]!);
 double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
 double sc = m[3] != null ? double.parse(m[3]!) : 0.0;
 double sign = d < 0 ? -1.0 : 1.0;
-return '(${sign * (d.abs() + mn / 60.0 + sc / 3600.0)})';
+String replacement = '${sign * (d.abs() + mn / 60.0 + sc / 3600.0)}';
+// Pokud byl před DMS znak (např. '('), musíme ho zachovat
+if (m[0]!.startsWith('(') || m[0]!.startsWith('+') || m[0]!.startsWith('-') || m[0]!.startsWith('*') || m[0]!.startsWith('/') || m[0]!.startsWith('^')) {
+  return '${m[0]![0]}$replacement';
+}
+return replacement;
 });
-processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?)[eE]([+-]?\d+)"), (m) => '(${m[1]}*10^(${m[2]}))');
+processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?)[eE]([+-]?\d+)"), (m) => '${m[1]}*10^(${m[2]})');
 processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
 
 // 3. IMPLICITNÍ NÁSOBENÍ
@@ -509,14 +514,15 @@ processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
 
 // 5. EXPANZE MARKERŮ (Oprava pro math_expressions: arcsin, arccos, arctan)
 if (_isDegreeMode) {
-// Vstup ve stupních -> převod na radiány pro sin/cos/tan
-processed = processed.replaceAll('#SIN#(', 'sin(($PI_VAL/180)*');
-processed = processed.replaceAll('#COS#(', 'cos(($PI_VAL/180)*');
-processed = processed.replaceAll('#TAN#(', 'tan(($PI_VAL/180)*');
-// Výstup v radiánech -> převod na stupně pro arcsin/arccos/arctan
-processed = processed.replaceAll('#ASIN#(', '(180/$PI_VAL)*arcsin(');
-processed = processed.replaceAll('#ACOS#(', '(180/$PI_VAL)*arccos(');
-processed = processed.replaceAll('#ATAN#(', '(180/$PI_VAL)*arctan(');
+// Vstup ve stupních -> převod na radiány (sin(x*PI/180))
+processed = processed.replaceAllMapped(RegExp(r'#SIN#\((.*?)\)'), (m) => 'sin((${m[1]}*$PI_VAL/180))');
+processed = processed.replaceAllMapped(RegExp(r'#COS#\((.*?)\)'), (m) => 'cos((${m[1]}*$PI_VAL/180))');
+processed = processed.replaceAllMapped(RegExp(r'#TAN#\((.*?)\)'), (m) => 'tan((${m[1]}*$PI_VAL/180))');
+
+// Výstup v radiánech -> převod na stupně
+processed = processed.replaceAllMapped(RegExp(r'#ASIN#\((.*?)\)'), (m) => '(180/$PI_VAL)*arcsin(${m[1]})');
+processed = processed.replaceAllMapped(RegExp(r'#ACOS#\((.*?)\)'), (m) => '(180/$PI_VAL)*arccos(${m[1]})');
+processed = processed.replaceAllMapped(RegExp(r'#ATAN#\((.*?)\)'), (m) => '(180/$PI_VAL)*arctan(${m[1]})');
 } else {
 processed = processed.replaceAll('#SIN#', 'sin');
 processed = processed.replaceAll('#COS#', 'cos');
