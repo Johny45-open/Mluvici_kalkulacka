@@ -415,8 +415,10 @@ void calculateResult() {
     _lastNumericValue = result;
 
     String resStr;
-    // DMS formát aplikujeme pouze u inverzních funkcí (ASIN, ACOS, ATAN), pokud je zvoleno DMS (0) a režim DEG
-    if (isInverse && _inverseFormatPreference == 0 && _isDegreeMode) {
+    // DMS formát aplikujeme u inverzních funkcí nebo pokud byl vstup v DMS formátu,
+    // a pokud je zvoleno DMS (0) a režim DEG
+    bool userWantsDms = (_inverseFormatPreference == 0 && _isDegreeMode);
+    if (userWantsDms && (isDms || isInverse)) {
       resStr = _formatAsDMS(result);
     } else {
       resStr = _formatNumber(result);
@@ -451,6 +453,7 @@ void calculateResult() {
   }
 }
 double _evaluateExpression(String expr) {
+  debugPrint("Evaluating expression: '$expr'");
   // Použijeme přímo přesnou číselnou hodnotu, pokud existuje, jinak fall-back na 0
   String ansValue = _lastNumericValue?.toString() ?? '0';
 
@@ -544,10 +547,17 @@ if (openCount > closeCount) {
 processed += ')' * (openCount - closeCount);
 }
 
+// Pokud je výraz pouze číslo, parser může selhat, přičteme 0
+if (RegExp(r'^-?\d+(\.\d+)?$').hasMatch(processed)) {
+  processed = '$processed+0';
+}
+
 try {
 final p = math_expr.ShuntingYardParser();
+debugPrint("Parsing expression: $processed");
 return p.parse(processed).evaluate(math_expr.EvaluationType.REAL, math_expr.ContextModel());
 } catch (e) {
+debugPrint("Parse error: $e for expression: $processed");
 rethrow;
 }
 }
@@ -1053,38 +1063,58 @@ onPressed: _showAccessibilityDialog,
 ],
 ),
 body: Column(
-children: [
-Expanded(
-flex: (1000 * _displaySizeFactor).toInt(),
-child: GestureDetector(
-onTap: () => _mainFocusNode.requestFocus(),
-child: Container(
-margin: const EdgeInsets.all(8),
-padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)),
-alignment: Alignment.bottomRight,
-child: Semantics(
-liveRegion: true,
-label: 'Displej',
-value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','),
-child: Column(
-mainAxisAlignment: MainAxisAlignment.end,
-crossAxisAlignment: CrossAxisAlignment.end,
-children: [
-Text(_getModeName(_currentMode).toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-const SizedBox(height: 4),
-Flexible(child: FittedBox(child: _buildDotMatrixDisplay())),
-const SizedBox(height: 12),
-Flexible(child: FittedBox(child: _buildMainResultDisplay()))
-]))),
-)),
-_buildModeSelector(),
-Expanded(flex: 1000, child: LayoutBuilder(builder: (context, constraints) {
-return _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 4) / (constraints.maxHeight / 5));
-})),
-],
-),
-),
+        children: [
+          Expanded(
+            flex: (800 * _displaySizeFactor).toInt(),
+            child: GestureDetector(
+              onScaleUpdate: (ScaleUpdateDetails details) {
+                if (details.scale != 1.0) {
+                  setState(() {
+                    _fontSizeMultiplier = (_fontSizeMultiplier * details.scale).clamp(0.5, 3.0);
+                  });
+                  _saveSettings();
+                }
+              },
+              onTap: () => _mainFocusNode.requestFocus(),
+              child: Container(
+                margin: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)),
+                alignment: Alignment.bottomRight,
+                child: Semantics(
+                  liveRegion: true,
+                  label: 'Displej (zoomujte dvěma prsty)',
+                  value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(_getModeName(_currentMode).toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Flexible(child: FittedBox(child: _buildDotMatrixDisplay())),
+                      const SizedBox(height: 12),
+                      Flexible(child: FittedBox(child: _buildMainResultDisplay()))
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _buildModeSelector(),
+          Expanded(
+            flex: 1200,
+            child: LayoutBuilder(builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: SizedBox(
+                  height: constraints.maxHeight,
+                  child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 4) / (constraints.maxHeight / 5)),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),),
 );
 }
 }
