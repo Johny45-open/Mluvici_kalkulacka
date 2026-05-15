@@ -1,0 +1,27 @@
+name: Flutter Windows Release
+on:
+  push:
+    tags:
+      - 'v*' # Spustí se při pushnutí tagu jako v1.0.0
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      - name: Archive Release
+        uses: thewebfreaks/softprops-release-action@v1
+        with:
+          files: build/windows/x64/runner/Release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

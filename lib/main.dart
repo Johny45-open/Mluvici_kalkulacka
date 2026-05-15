@@ -108,6 +108,8 @@ bool _useSixteenSegment = false;
 final bool _sayWelcome = true;
 AccessibilityType _accessibilityType = AccessibilityType.none;
 double _fontSizeMultiplier = 1.0;
+double _dotMatrixZoom = 1.0;
+double _resultZoom = 1.0;
 final double _displaySizeFactor = 1.0;
 double _speechRate = 0.5;
 double _speechVolume = 1.0;
@@ -132,6 +134,9 @@ final Map<String, Map<String, double>> _unitCategories = {
 'Objem': { 'l': 1.0, 'ml': 0.001, 'm³': 1000.0, 'gal': 3.78541, 'pt': 0.473176 },
 'Tlak': { 'Pa': 1.0, 'hPa': 100.0, 'kPa': 1000.0, 'bar': 100000.0, 'atm': 101325.0, 'psi': 6894.76 },
 };
+
+final ScrollController _scrollControllerH = ScrollController();
+final ScrollController _scrollControllerV = ScrollController();
 
 final Map<String, Map<String, dynamic>> _unitSpeechData = {
 'm': {'base': 'metr', 'z': 'metrů', 'na': 'metry', 'forms': ['metr', 'metry', 'metrů', 'metru']},
@@ -654,7 +659,7 @@ return _buildStandardDisplay(res);
 Widget _buildStandardDisplay(String res) {
 return CustomSegmentDisplay(
 value: _normalizeForSegmentDisplay(res),
-size: 16 * _fontSizeMultiplier,
+size: 16 * _resultZoom,
 characterCount: 16,
 isSixteenSegment: _useSixteenSegment,
 );
@@ -672,7 +677,7 @@ Column(mainAxisAlignment: MainAxisAlignment.end, children: [
 const Text('x10', style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
 CustomSegmentDisplay(
 value: formattedExp,
-size: 8 * _fontSizeMultiplier,
+size: 8 * _resultZoom,
 characterCount: 3,
 isSixteenSegment: false,
 ),
@@ -698,6 +703,8 @@ void _loadSettings() async {
     setState(() {
       _isDegreeMode = prefs.getBool('isDegreeMode') ?? true;
       _fontSizeMultiplier = prefs.getDouble('fontSizeMultiplier') ?? 1.0;
+      _dotMatrixZoom = prefs.getDouble('dotMatrixZoom') ?? 1.0;
+      _resultZoom = prefs.getDouble('resultZoom') ?? 1.0;
       ttsEnabled = prefs.getBool('ttsEnabled') ?? true;
       _useSixteenSegment = prefs.getBool('useSixteenSegment') ?? false;
       _accessibilityType = AccessibilityType.values[prefs.getInt('accessibilityType') ?? 0];
@@ -712,6 +719,8 @@ void _saveSettings() async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setBool('isDegreeMode', _isDegreeMode);
   await prefs.setDouble('fontSizeMultiplier', _fontSizeMultiplier);
+  await prefs.setDouble('dotMatrixZoom', _dotMatrixZoom);
+  await prefs.setDouble('resultZoom', _resultZoom);
   await prefs.setBool('ttsEnabled', ttsEnabled);
   await prefs.setBool('useSixteenSegment', _useSixteenSegment);
   await prefs.setInt('accessibilityType', _accessibilityType.index);
@@ -850,7 +859,7 @@ Navigator.pop(context);
 
 Widget _buildDotMatrixDisplay() {
 String txt = display.isEmpty ? "_" : "${display.substring(0, _cursorPosition)}_${display.substring(_cursorPosition)}";
-return CustomDotMatrixDisplay(text: txt, ledSize: 3.0, ledSpacing: 0.8);
+return CustomDotMatrixDisplay(text: txt, ledSize: 3.0 * _dotMatrixZoom, ledSpacing: 0.8 * _dotMatrixZoom);
 }
 
 Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallback? onPressed}) {
@@ -1070,31 +1079,51 @@ body: Column(
               onScaleUpdate: (ScaleUpdateDetails details) {
                 if (details.scale != 1.0) {
                   setState(() {
-                    _fontSizeMultiplier = (_fontSizeMultiplier * details.scale).clamp(0.5, 3.0);
+                    _dotMatrixZoom = (_dotMatrixZoom * details.scale).clamp(0.5, 5.0);
+                    _resultZoom = (_resultZoom * details.scale).clamp(0.5, 5.0);
                   });
                   _saveSettings();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_scrollControllerH.hasClients) _scrollControllerH.jumpTo(_scrollControllerH.position.maxScrollExtent / 2);
+                    if (_scrollControllerV.hasClients) _scrollControllerV.jumpTo(_scrollControllerV.position.maxScrollExtent / 2);
+                  });
                 }
+              },
+              onDoubleTap: () {
+                setState(() {
+                  _dotMatrixZoom = 1.0;
+                  _resultZoom = 1.0;
+                });
+                _saveSettings();
               },
               onTap: () => _mainFocusNode.requestFocus(),
               child: Container(
                 margin: const EdgeInsets.all(8),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)),
-                alignment: Alignment.bottomRight,
+                alignment: Alignment.topLeft,
                 child: Semantics(
                   liveRegion: true,
-                  label: 'Displej (zoomujte dvěma prsty)',
+                  label: 'Displej (zoomujte dvěma prsty, posouvejte tahem)',
                   value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(_getModeName(_currentMode).toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Flexible(child: FittedBox(child: _buildDotMatrixDisplay())),
-                      const SizedBox(height: 12),
-                      Flexible(child: FittedBox(child: _buildMainResultDisplay()))
-                    ],
+                  child: SingleChildScrollView(
+                    controller: _scrollControllerH,
+                    scrollDirection: Axis.horizontal,
+                    child: SingleChildScrollView(
+                      controller: _scrollControllerV,
+                      scrollDirection: Axis.vertical,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(_getModeName(_currentMode).toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          _buildDotMatrixDisplay(),
+                          const SizedBox(height: 12),
+                          _buildMainResultDisplay(),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1656,6 +1685,33 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               // Seskupená Rychlost
               Semantics(
                 container: true,
+                label: 'Ovládání zoomu horního řádku',
+                child: Column(children: [
+                  const Text('Zoom horního řádku'),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Semantics(label: 'Zmenšit zoom', button: true, child: ElevatedButton(onPressed: () => _adjustDotMatrixZoom(-0.1), child: const Text('-'))),
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text('${(widget.parent._dotMatrixZoom * 100).toInt()}%')),
+                    Semantics(label: 'Zvětšit zoom', button: true, child: ElevatedButton(onPressed: () => _adjustDotMatrixZoom(0.1), child: const Text('+'))),
+                  ]),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              Semantics(
+                container: true,
+                label: 'Ovládání zoomu dolního řádku',
+                child: Column(children: [
+                  const Text('Zoom dolního řádku'),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Semantics(label: 'Zmenšit zoom', button: true, child: ElevatedButton(onPressed: () => _adjustResultZoom(-0.1), child: const Text('-'))),
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text('${(widget.parent._resultZoom * 100).toInt()}%')),
+                    Semantics(label: 'Zvětšit zoom', button: true, child: ElevatedButton(onPressed: () => _adjustResultZoom(0.1), child: const Text('+'))),
+                  ]),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              // Seskupená Rychlost
+              Semantics(
+                container: true,
                 label: 'Ovládání rychlosti hlasu',
                 child: Column(children: [
                   const Text('Rychlost hlasu'),
@@ -1694,6 +1750,26 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               },
               child: const Text('HOTOVO'))
         ]);
+  }
+
+  void _adjustDotMatrixZoom(double delta) {
+    setState(() {
+      widget.parent.setState(() {
+        widget.parent._dotMatrixZoom = (widget.parent._dotMatrixZoom + delta).clamp(0.5, 5.0);
+      });
+      widget.parent._saveSettings();
+    });
+    widget.parent.speak('Zoom horního řádku ${(widget.parent._dotMatrixZoom * 100).toInt()} procent');
+  }
+
+  void _adjustResultZoom(double delta) {
+    setState(() {
+      widget.parent.setState(() {
+        widget.parent._resultZoom = (widget.parent._resultZoom + delta).clamp(0.5, 5.0);
+      });
+      widget.parent._saveSettings();
+    });
+    widget.parent.speak('Zoom dolního řádku ${(widget.parent._resultZoom * 100).toInt()} procent');
   }
 
   void _adjustSpeechRate(double delta) {
