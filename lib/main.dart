@@ -1000,27 +1000,51 @@ void _handleButtonPressed(String label) {
   }
 }
 
-Widget _buildMainKeyboard({double aspectRatio = 1.0}) {
-  List<String> btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'DEL', '0', '.', '='];
-  return GridView.builder(
-    shrinkWrap: true,
-    padding: const EdgeInsets.all(4),
-    physics: const BouncingScrollPhysics(),
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 4,
-      childAspectRatio: 1.2,
-      crossAxisSpacing: 4,
-      mainAxisSpacing: 4,
-    ),
-    itemCount: btns.length,
-    itemBuilder: (context, index) {
-      String b = btns[index];
-      if (b == 'C') return buildButton('C', color: Colors.orange, semanticLabel: 'Vymazat displej', onPressed: () => clear());
-      if (b == 'DEL') return buildButton('DEL', color: Colors.redAccent, semanticLabel: 'Smazat poslední', onPressed: () => backspace());
-      if (b == '=') return buildButton('=', color: Colors.green, semanticLabel: 'Rovná se', onPressed: () => calculateResult());
-      return buildButton(b, color: ['/', '*', '-', '+'].contains(b) ? Colors.blue : null);
-    },
-  );
+Widget _buildMainKeyboard() {
+  List<String> btns = [];
+  switch (_currentMode) {
+    case CalculatorMode.basic:
+      btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'DEL', '0', '.', '='];
+      break;
+    case CalculatorMode.scientific:
+      btns = ['SIN', 'COS', 'TAN', 'C', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', 'DEL', '='];
+      break;
+    case CalculatorMode.statistics:
+      btns = ['SD', 'VAR', 'MEAN', 'C', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', ';', 'DEL', '='];
+      break;
+    case CalculatorMode.electrician:
+      btns = ['OHM_V', 'OHM_I', 'OHM_R', 'C', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', 'DEL', '='];
+      break;
+    case CalculatorMode.unitConversion:
+      btns = ['C', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '.', 'DEL', '='];
+      break;
+  }
+  return LayoutBuilder(builder: (context, constraints) {
+    double itemWidth = constraints.maxWidth / 4;
+    double itemHeight = constraints.maxHeight / 5;
+    return GridView.builder(
+      shrinkWrap: true,
+      padding: const EdgeInsets.all(4),
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        childAspectRatio: itemWidth / itemHeight,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
+      ),
+      itemCount: btns.length,
+      itemBuilder: (context, index) {
+        String b = btns[index];
+        Color? color;
+        if (['/', '*', '-', '+'].contains(b)) color = Colors.blue;
+        else if (b == 'C') color = Colors.orange;
+        else if (b == 'DEL') color = Colors.redAccent;
+        else if (b == '=') color = Colors.green;
+        
+        return buildButton(b, color: color, onPressed: () => _handleButtonPressed(b));
+      },
+    );
+  });
 }
 
 Widget _buildModeSelector() {
@@ -1211,15 +1235,7 @@ body: Column(
           _buildModeSelector(),
           Expanded(
             flex: 1200,
-            child: LayoutBuilder(builder: (context, constraints) {
-              return SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: SizedBox(
-                  height: constraints.maxHeight,
-                  child: _buildMainKeyboard(aspectRatio: (constraints.maxWidth / 4) / (constraints.maxHeight / 5)),
-                ),
-              );
-            }),
+            child: _buildMainKeyboard(),
           ),
         ],
       ),),
