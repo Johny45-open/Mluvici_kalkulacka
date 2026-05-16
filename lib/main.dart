@@ -1,79 +1,74 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:math_expressions/math_expressions.dart' as math_expr;
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import 'package:flutter/services.dart';
 
 void main() async {
-WidgetsFlutterBinding.ensureInitialized();
-runApp(const ScientificCalculatorApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const ScientificCalculatorApp());
 }
 
 class ScientificCalculatorApp extends StatefulWidget {
-const ScientificCalculatorApp({super.key});
+  const ScientificCalculatorApp({super.key});
 
-@override
-State<ScientificCalculatorApp> createState() => _ScientificCalculatorAppState();
+  @override
+  State<ScientificCalculatorApp> createState() => _ScientificCalculatorAppState();
 }
 
 class _ScientificCalculatorAppState extends State<ScientificCalculatorApp> {
-ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.system;
 
-@override
-void initState() {
-super.initState();
-_loadTheme();
-}
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
 
-void _loadTheme() async {
-final prefs = await SharedPreferences.getInstance();
-final themeIndex = prefs.getInt('themeMode') ?? 0;
-setState(() {
-_themeMode = ThemeMode.values[themeIndex];
-});
-}
+  void _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final themeIndex = prefs.getInt('themeMode') ?? 0;
+    setState(() {
+      _themeMode = ThemeMode.values[themeIndex];
+    });
+  }
 
-void _updateThemeMode(ThemeMode mode) async {
-setState(() {
-_themeMode = mode;
-});
-final prefs = await SharedPreferences.getInstance();
-await prefs.setInt('themeMode', mode.index);
-}
+  void _updateThemeMode(ThemeMode mode) async {
+    setState(() {
+      _themeMode = mode;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('themeMode', mode.index);
+  }
 
-@override
-Widget build(BuildContext context) {
-return MaterialApp(
-title: 'Mluvící kalkulačka',
-debugShowCheckedModeBanner: false,
-localizationsDelegates: const [
-GlobalMaterialLocalizations.delegate,
-GlobalWidgetsLocalizations.delegate,
-GlobalCupertinoLocalizations.delegate,
-],
-supportedLocales: const [
-Locale('cs', 'CZ'),
-],
-locale: const Locale('cs', 'CZ'),
-theme: ThemeData(
-useMaterial3: true,
-colorSchemeSeed: Colors.blue,
-brightness: Brightness.light,
-),
-darkTheme: ThemeData(
-useMaterial3: true,
-colorSchemeSeed: Colors.blue,
-brightness: Brightness.dark,
-),
-themeMode: _themeMode,
-home: CalculatorScreen(
-themeMode: _themeMode,
-onThemeModeChanged: _updateThemeMode,
-),
-);
-}
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+      debugShowCheckedModeBanner: false,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blue,
+        brightness: Brightness.light,
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blue,
+        brightness: Brightness.dark,
+      ),
+      themeMode: _themeMode,
+      home: CalculatorScreen(
+        themeMode: _themeMode,
+        onThemeModeChanged: _updateThemeMode,
+      ),
+    );
+  }
 }
 
 enum CalculatorMode { basic, scientific, statistics, electrician, unitConversion }
@@ -791,33 +786,40 @@ showDialog(context: context, builder: (context) => _AccessibilityDialog(parent: 
 }
 
 void _showTutorialDialog() {
-const String tutorialText = 'Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek';
-showDialog(
-context: context,
-builder: (context) => AlertDialog(
-title: Semantics(header: true, child: const Text('Nápověda')),
-content: Focus(
-autofocus: true,
-onFocusChange: (hasFocus) {
-if (hasFocus) speak(tutorialText);
-},
-child: Semantics(
-container: true,
-child: SingleChildScrollView(
-child: Text(tutorialText),
-),
-),
-),
-actions: [
-TextButton(
-onPressed: () {
-Navigator.pop(context);
-Future.delayed(const Duration(milliseconds: 100), () {
-if (mounted) _mainFocusNode.requestFocus();
-});
-},
-child: const Text('ROZUMÍM'))
-]));
+  final l10n = AppLocalizations.of(context)!;
+  String tutorialText = l10n.tutorialText;
+  if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+    tutorialText = tutorialText.split('\n\n').first; // Odstranit sekci zkratek
+  }
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Semantics(header: true, child: Text(l10n.helpTitle)),
+      content: Focus(
+        autofocus: true,
+        onFocusChange: (hasFocus) {
+          if (hasFocus) speak(tutorialText);
+        },
+        child: Semantics(
+          container: true,
+          child: SingleChildScrollView(
+            child: Text(tutorialText),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) _mainFocusNode.requestFocus();
+            });
+          },
+          child: Text(l10n.understand),
+        ),
+      ],
+    ),
+  );
 }
 
 void _showPrecisionDialog(DisplayFormat format) {
@@ -999,46 +1001,51 @@ void _handleButtonPressed(String label) {
 }
 
 Widget _buildMainKeyboard({double aspectRatio = 1.0}) {
-List<String> btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'DEL', '0', '.', '='];
-return GridView.count(
-shrinkWrap: true,
-physics: const NeverScrollableScrollPhysics(),
-crossAxisCount: 4,
-childAspectRatio: aspectRatio,
-children: btns.map((b) {
-if (b == 'C') {
-return buildButton('C', color: Colors.orange, semanticLabel: 'Vymazat displej', onPressed: () => clear());
-}
-if (b == 'DEL') {
-return buildButton('DEL', color: Colors.redAccent, semanticLabel: 'Smazat poslední', onPressed: () => backspace());
-}
-if (b == '=') {
-return buildButton('=', color: Colors.green, semanticLabel: 'Rovná se', onPressed: () => calculateResult());
-}
-return buildButton(b, color: ['/', '*', '-', '+'].contains(b) ? Colors.blue : null);
-}).toList(),
-);
+  List<String> btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'DEL', '0', '.', '='];
+  return FittedBox(
+    fit: BoxFit.contain,
+    child: SizedBox(
+      width: 400,
+      height: 400 / aspectRatio,
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          childAspectRatio: 1.0,
+        ),
+        itemCount: btns.length,
+        itemBuilder: (context, index) {
+          String b = btns[index];
+          if (b == 'C') return buildButton('C', color: Colors.orange, semanticLabel: 'Vymazat displej', onPressed: () => clear());
+          if (b == 'DEL') return buildButton('DEL', color: Colors.redAccent, semanticLabel: 'Smazat poslední', onPressed: () => backspace());
+          if (b == '=') return buildButton('=', color: Colors.green, semanticLabel: 'Rovná se', onPressed: () => calculateResult());
+          return buildButton(b, color: ['/', '*', '-', '+'].contains(b) ? Colors.blue : null);
+        },
+      ),
+    ),
+  );
 }
 
 Widget _buildModeSelector() {
-return SingleChildScrollView(
-scrollDirection: Axis.horizontal,
-padding: const EdgeInsets.symmetric(vertical: 4),
-child: Row(
-children: CalculatorMode.values.map((mode) {
-String label = _getModeName(mode);
-return Padding(
-padding: const EdgeInsets.symmetric(horizontal: 4.0),
-child: ChoiceChip(
-label: Text(label),
-selected: _currentMode == mode,
-onSelected: (s) {
-if (s) {
-_changeMode(mode);
-}
-}));
-}).toList()),
-);
+  return Wrap(
+    alignment: WrapAlignment.center,
+    spacing: 8.0,
+    runSpacing: 4.0,
+    children: CalculatorMode.values.map((mode) {
+      String label = _getModeName(mode);
+      return ChoiceChip(
+        label: Text(label),
+        selected: _currentMode == mode,
+        onSelected: (s) {
+          if (s) {
+            _changeMode(mode);
+            speak('Přepnuto na ${_getModeSpeechName(mode)}');
+          }
+        },
+      );
+    }).toList(),
+  );
 }
 
 void _showAdvancedFunctionsDialog() {
