@@ -1083,10 +1083,6 @@ body: Column(
                     _resultZoom = (_resultZoom * details.scale).clamp(0.5, 5.0);
                   });
                   _saveSettings();
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (_scrollControllerH.hasClients) _scrollControllerH.jumpTo(_scrollControllerH.position.maxScrollExtent / 2);
-                    if (_scrollControllerV.hasClients) _scrollControllerV.jumpTo(_scrollControllerV.position.maxScrollExtent / 2);
-                  });
                 }
               },
               onDoubleTap: () {
@@ -1101,29 +1097,39 @@ body: Column(
                 margin: const EdgeInsets.all(8),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)),
-                alignment: Alignment.topLeft,
                 child: Semantics(
                   liveRegion: true,
                   label: 'Displej (zoomujte dvěma prsty, posouvejte tahem)',
                   value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','),
-                  child: SingleChildScrollView(
-                    controller: _scrollControllerH,
-                    scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      controller: _scrollControllerV,
-                      scrollDirection: Axis.vertical,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(_getModeName(_currentMode).toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
-                          _buildDotMatrixDisplay(),
-                          const SizedBox(height: 12),
-                          _buildMainResultDisplay(),
-                        ],
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: Text(_getModeName(_currentMode).toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: Center(
+                          child: SingleChildScrollView(
+                            controller: _scrollControllerH,
+                            scrollDirection: Axis.horizontal,
+                            child: SingleChildScrollView(
+                              controller: _scrollControllerV,
+                              scrollDirection: Axis.vertical,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  _buildDotMatrixDisplay(),
+                                  const SizedBox(height: 12),
+                                  _buildMainResultDisplay(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
