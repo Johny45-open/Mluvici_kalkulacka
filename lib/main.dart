@@ -858,8 +858,8 @@ Navigator.pop(context);
 }
 
 Widget _buildDotMatrixDisplay() {
-String txt = display.isEmpty ? "_" : "${display.substring(0, _cursorPosition)}_${display.substring(_cursorPosition)}";
-return CustomDotMatrixDisplay(text: txt, ledSize: 3.0 * _dotMatrixZoom, ledSpacing: 0.8 * _dotMatrixZoom);
+  String txt = display.isEmpty ? (_hasResult ? "" : "_") : "${display.substring(0, _cursorPosition)}_${display.substring(_cursorPosition)}";
+  return CustomDotMatrixDisplay(text: txt, ledSize: 3.0 * _dotMatrixZoom, ledSpacing: 0.8 * _dotMatrixZoom);
 }
 
 Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallback? onPressed}) {
@@ -889,110 +889,113 @@ child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeig
 }
 
 void _handleButtonPressed(String label) {
-if (_hasResult) {
-if (['+', '-', '*', '/', '^'].contains(label)) {
-display = 'ANS';
-_hasResult = false;
-} else if (RegExp(r'[0-9.]').hasMatch(label) || ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS', '('].contains(label)) {
-// Pokud stiskneme funkci nad výsledkem, chceme Funkce(ANS)
-if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS'].contains(label)) {
-display = 'ANS';
-} else {
-display = '';
-}
-_hasResult = false;
-} else if (label == '°→\'' || label == '\'→°') {
-display = 'ANS';
-_hasResult = false;
-} else {
-_hasResult = false;
-}
-}
-if (label == 'C') {
-clear();
-} else if (label == 'DEL') {
-backspace();
-} else if (label == '=') {
-calculateResult();
-} else if (label == 'STO') {
-_isStoreMode = true;
-speak('Vyberte paměť');
-} else if (label == 'RCL') {
-_isRecallMode = true;
-speak('Vyberte paměť pro vyvolání');
-} else if (label == 'CLR') {
-setState(() {
-_memory.updateAll((key, value) => 0);
-});
-speak('Paměť smazána');
-} else if (_memory.containsKey(label)) {
-_handleMemoryVariable(label);
-} else if (label == 'EXP') {
-append('E');
-} else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS', 'LOG', 'LN'].contains(label)) {
-_insertAtCursor('$label(', cursorOffset: 0);
-} else if (label == 'DMS') {
-if (display.isEmpty) {
-append('°');
-} else {
-// Hledáme poslední číslo na displeji (od konce)
-RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)(°|'|")?$''');
-Match? match = dmsRegex.firstMatch(display);
-if (match != null) {
-String? suffix = match.group(2);
-if (suffix == '°') {
-append("'");
-} else if (suffix == "'") {
-append('"');
-} else if (suffix == '"') {
-append('°');
-} else {
-append('°');
-}
-} else {
-append('°');
-}
-}
-} else if (['°→\'', '\'→°'].contains(label)) {
-try {
-double val = display.isNotEmpty ? _evaluateExpression(display) : (_lastNumericValue ?? 0.0);
-if (label == '°→\'') {
-// Převod na DMS
-String dmsStr = _formatAsDMS(val);
-setState(() {
-_lastResult = dmsStr;
-_hasResult = true;
-display = '';
-_cursorPosition = 0;
-_lastNumericValue = val;
-});
-// Formátování pro TTS: "12°34'5\"" -> "12 stupňů, 34 minut a 5 sekund"
-String spokenDms = dmsStr
-.replaceAll('°', ' stupňů, ')
-.replaceAll("'", ' minut a ')
-.replaceAll('"', ' sekund')
-.replaceAll('.', ',');
-speak('Výsledek je $spokenDms');
-} else {
-// Převod na desetinné stupně
-String decimalStr = val.toStringAsFixed(4).replaceAll(RegExp(r'\.0+$'), '').replaceAll(RegExp(r'0+$'), '');
-setState(() {
-_lastResult = decimalStr;
-_hasResult = true;
-display = '';
-_cursorPosition = 0;
-_lastNumericValue = val;
-});
-speak('Výsledek je ${decimalStr.replaceAll('.', ',')} stupňů');
-}
-} catch (e) {
-speak('Chyba při převodu');
-}
-} else if (label == '\u03C0') {
-append(label);
-} else {
-append(label);
-}
+  if (_hasResult) {
+    if (['+', '-', '*', '/', '^'].contains(label)) {
+      display = 'ANS';
+      _hasResult = false;
+    } else if (RegExp(r'[0-9.]').hasMatch(label) || ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS', '('].contains(label)) {
+      // Pokud stiskneme funkci nad výsledkem, chceme Funkce(ANS)
+      if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS'].contains(label)) {
+        display = 'ANS';
+        _hasResult = false;
+      } else {
+        display = '';
+        _hasResult = false;
+      }
+    } else if (label == '°→\'' || label == '\'→°') {
+      display = 'ANS';
+      _hasResult = false;
+    } else {
+      display = '';
+      _hasResult = false;
+    }
+  }
+  
+  if (label == 'C') {
+    clear();
+  } else if (label == 'DEL') {
+    backspace();
+  } else if (label == '=') {
+    calculateResult();
+  } else if (label == 'STO') {
+    _isStoreMode = true;
+    speak('Vyberte paměť');
+  } else if (label == 'RCL') {
+    _isRecallMode = true;
+    speak('Vyberte paměť pro vyvolání');
+  } else if (label == 'CLR') {
+    setState(() {
+      _memory.updateAll((key, value) => 0);
+    });
+    speak('Paměť smazána');
+  } else if (_memory.containsKey(label)) {
+    _handleMemoryVariable(label);
+  } else if (label == 'EXP') {
+    append('E');
+  } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS', 'LOG', 'LN'].contains(label)) {
+    _insertAtCursor('$label(', cursorOffset: 0);
+  } else if (label == 'DMS') {
+    if (display.isEmpty) {
+      append('°');
+    } else {
+      // Hledáme poslední číslo na displeji (od konce)
+      RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)(°|'|")?$''');
+      Match? match = dmsRegex.firstMatch(display);
+      if (match != null) {
+        String? suffix = match.group(2);
+        if (suffix == '°') {
+          append("'");
+        } else if (suffix == "'") {
+          append('"');
+        } else if (suffix == '"') {
+          append('°');
+        } else {
+          append('°');
+        }
+      } else {
+        append('°');
+      }
+    }
+  } else if (['°→\'', '\'→°'].contains(label)) {
+    try {
+      double val = display.isNotEmpty ? _evaluateExpression(display) : (_lastNumericValue ?? 0.0);
+      if (label == '°→\'') {
+        // Převod na DMS
+        String dmsStr = _formatAsDMS(val);
+        setState(() {
+          _lastResult = dmsStr;
+          _hasResult = true;
+          display = '';
+          _cursorPosition = 0;
+          _lastNumericValue = val;
+        });
+        // Formátování pro TTS: "12°34'5\"" -> "12 stupňů, 34 minut a 5 sekund"
+        String spokenDms = dmsStr
+            .replaceAll('°', ' stupňů, ')
+            .replaceAll("'", ' minut a ')
+            .replaceAll('"', ' sekund')
+            .replaceAll('.', ',');
+        speak('Výsledek je $spokenDms');
+      } else {
+        // Převod na desetinné stupně
+        String decimalStr = val.toStringAsFixed(4).replaceAll(RegExp(r'\.0+$'), '').replaceAll(RegExp(r'0+$'), '');
+        setState(() {
+          _lastResult = decimalStr;
+          _hasResult = true;
+          display = '';
+          _cursorPosition = 0;
+          _lastNumericValue = val;
+        });
+        speak('Výsledek je ${decimalStr.replaceAll('.', ',')} stupňů');
+      }
+    } catch (e) {
+      speak('Chyba při převodu');
+    }
+  } else if (label == '\u03C0') {
+    append(label);
+  } else {
+    append(label);
+  }
 }
 
 Widget _buildMainKeyboard({double aspectRatio = 1.0}) {
@@ -1039,10 +1042,68 @@ _changeMode(mode);
 }
 
 void _showAdvancedFunctionsDialog() {
-showDialog(
-context: context,
-builder: (context) => _AdvancedFunctionsDialog(parent: this),
-);
+  showDialog(
+    context: context,
+    builder: (context) => _AdvancedFunctionsDialog(parent: this),
+  );
+}
+
+void _showHistoryDialog() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Semantics(header: true, child: const Text('Historie výpočtů')),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _history.isEmpty 
+            ? Semantics(container: true, child: const Text('Historie je prázdná.'))
+            : Semantics(
+                container: true,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _history.length,
+                  itemBuilder: (context, index) => ListTile(
+                    title: Text(_history[index]),
+                  ),
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            _showClearHistoryConfirmation();
+          },
+          child: const Text('VYMAZAT HISTORII'),
+        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('ZAVŘÍT')),
+      ],
+    ),
+  );
+}
+
+void _showClearHistoryConfirmation() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Semantics(header: true, child: const Text('Potvrzení')),
+      content: const Text('Opravdu chcete smazat celou historii výpočtů?'),
+      actions: [
+        TextButton(
+          onPressed: () {
+            setState(() {
+              _history.clear();
+              _saveHistory();
+            });
+            speak('Historie smazána');
+            Navigator.pop(context);
+          },
+          child: const Text('ANO, SMAZAT'),
+        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('NE, ZŮSTAT')),
+      ],
+    ),
+  );
 }
 
 @override
@@ -1054,6 +1115,11 @@ child: Scaffold(
 appBar: AppBar(
 title: const Text('Mluvící kalkulačka'),
 actions: [
+IconButton(
+icon: const Icon(Icons.history),
+tooltip: 'Historie',
+onPressed: _showHistoryDialog,
+),
 IconButton(
 icon: const Icon(Icons.list),
 tooltip: 'Pokročilé funkce',
