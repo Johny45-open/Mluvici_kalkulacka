@@ -1002,28 +1002,24 @@ void _handleButtonPressed(String label) {
 
 Widget _buildMainKeyboard({double aspectRatio = 1.0}) {
   List<String> btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'DEL', '0', '.', '='];
-  return FittedBox(
-    fit: BoxFit.contain,
-    child: SizedBox(
-      width: 400,
-      height: 400 / aspectRatio,
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: btns.length,
-        itemBuilder: (context, index) {
-          String b = btns[index];
-          if (b == 'C') return buildButton('C', color: Colors.orange, semanticLabel: 'Vymazat displej', onPressed: () => clear());
-          if (b == 'DEL') return buildButton('DEL', color: Colors.redAccent, semanticLabel: 'Smazat poslední', onPressed: () => backspace());
-          if (b == '=') return buildButton('=', color: Colors.green, semanticLabel: 'Rovná se', onPressed: () => calculateResult());
-          return buildButton(b, color: ['/', '*', '-', '+'].contains(b) ? Colors.blue : null);
-        },
-      ),
+  return GridView.builder(
+    shrinkWrap: true,
+    padding: const EdgeInsets.all(4),
+    physics: const BouncingScrollPhysics(),
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 4,
+      childAspectRatio: 1.2,
+      crossAxisSpacing: 4,
+      mainAxisSpacing: 4,
     ),
+    itemCount: btns.length,
+    itemBuilder: (context, index) {
+      String b = btns[index];
+      if (b == 'C') return buildButton('C', color: Colors.orange, semanticLabel: 'Vymazat displej', onPressed: () => clear());
+      if (b == 'DEL') return buildButton('DEL', color: Colors.redAccent, semanticLabel: 'Smazat poslední', onPressed: () => backspace());
+      if (b == '=') return buildButton('=', color: Colors.green, semanticLabel: 'Rovná se', onPressed: () => calculateResult());
+      return buildButton(b, color: ['/', '*', '-', '+'].contains(b) ? Colors.blue : null);
+    },
   );
 }
 
