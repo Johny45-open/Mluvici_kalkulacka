@@ -1087,7 +1087,11 @@ void _showClearHistoryConfirmation() {
     context: context,
     builder: (context) => AlertDialog(
       title: Semantics(header: true, child: const Text('Potvrzení')),
-      content: const Text('Opravdu chcete smazat celou historii výpočtů?'),
+      content: Semantics(
+        container: true,
+        label: 'Otázka',
+        child: const Text('Opravdu chcete smazat celou historii výpočtů?'),
+      ),
       actions: [
         TextButton(
           onPressed: () {
