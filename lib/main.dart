@@ -400,28 +400,59 @@ void calculateResult() {
   try {
     if (display.isEmpty) return;
 
-    bool isDms = RegExp(r'''\d+(?:\.\d+)?[°'"]''').hasMatch(display);
-    // Detekce inverzní goniometrické funkce nebo použití inverzní funkce na výsledek (ANS)
-    bool isInverse = display.toUpperCase().contains('ASIN') || 
-                     display.toUpperCase().contains('ACOS') || 
-                     display.toUpperCase().contains('ATAN');
-    
-    // Pokud je inverzní funkce aplikována na předchozí výsledek, je to také inverzní operace
-    if (_hasResult && display.toUpperCase().contains('ANS')) {
-      isInverse = true;
-    }
-    
-    double result = _evaluateExpression(display);
-    _lastNumericValue = result;
+    String resStr = '0';
+    String spoken = '';
 
-    String resStr;
-    // DMS formát aplikujeme u inverzních funkcí nebo pokud byl vstup v DMS formátu,
-    // a pokud je zvoleno DMS (0) a režim DEG
-    bool userWantsDms = (_inverseFormatPreference == 0 && _isDegreeMode);
-    if (userWantsDms && (isDms || isInverse)) {
-      resStr = _formatAsDMS(result);
+    if (_currentMode == CalculatorMode.statistics) {
+      List<double> data = display.split(';').map((s) => double.parse(s.replaceAll(',', '.'))).toList();
+      if (data.isEmpty) throw Exception('Prázdná data');
+      
+      double sum = data.reduce((a, b) => a + b);
+      double mean = sum / data.length;
+      double variance = data.map((x) => math.pow(x - mean, 2)).reduce((a, b) => a + b) / data.length;
+      double sd = math.sqrt(variance);
+
+      // Zjednodušená implementace pro demo účely: vrací průměr
+      resStr = _formatNumber(mean);
+      spoken = 'Průměr je ${_formatNumber(mean).replaceAll('.', ',')}, směrodatná odchylka je ${_formatNumber(sd).replaceAll('.', ',')}';
+    } else if (_currentMode == CalculatorMode.electrician) {
+      // Implementace Ohmova zákona: pokud je na displeji "V;I", vypočítá R atd.
+      List<String> parts = display.split(';');
+      if (parts.length >= 2) {
+        double v1 = double.parse(parts[0].replaceAll(',', '.'));
+        double v2 = double.parse(parts[1].replaceAll(',', '.'));
+        // Zde by byla komplexnější logika, pro teď základní Ohmův zákon V/I
+        double r = v1 / v2;
+        resStr = _formatNumber(r);
+        spoken = 'Výsledek je ${_formatNumber(r).replaceAll('.', ',')}';
+      } else {
+        throw Exception('Chybějící data');
+      }
     } else {
-      resStr = _formatNumber(result);
+      bool isDms = RegExp(r'''\d+(?:\.\d+)?[°'"]''').hasMatch(display);
+      bool isInverse = display.toUpperCase().contains('ASIN') || 
+                       display.toUpperCase().contains('ACOS') || 
+                       display.toUpperCase().contains('ATAN');
+      
+      if (_hasResult && display.toUpperCase().contains('ANS')) {
+        isInverse = true;
+      }
+      
+      double result = _evaluateExpression(display);
+      _lastNumericValue = result;
+
+      bool userWantsDms = (_inverseFormatPreference == 0 && _isDegreeMode);
+      if (userWantsDms && (isDms || isInverse)) {
+        resStr = _formatAsDMS(result);
+      } else {
+        resStr = _formatNumber(result);
+      }
+
+      if (resStr.contains('°')) {
+        spoken = 'Výsledek je ${resStr.replaceAll('°', ' stupňů, ').replaceAll('\'', ' minut a ').replaceAll('"', ' sekund').replaceAll('.', ',')}';
+      } else {
+        spoken = 'Výsledek je ${resStr.replaceAll('.', ',')}';
+      }
     }
 
     setState(() {
@@ -431,13 +462,7 @@ void calculateResult() {
       _cursorPosition = 0;
     });
 
-    if (resStr.contains('°')) {
-      String spoken = resStr.replaceAll('°', ' stupňů, ').replaceAll('\'', ' minut a ').replaceAll('"', ' sekund').replaceAll('.', ',');
-      speak('Výsledek je $spoken');
-    } else {
-      String spokenResult = resStr.replaceAll('.', ',');
-      speak('Výsledek je $spokenResult');
-    }
+    speak(spoken);
     _addToHistory(display, resStr);
   } catch (e) {
     String msg = 'Výrazu nerozumím, zkuste zkontrolovat závorky nebo znaménka';
@@ -454,112 +479,90 @@ void calculateResult() {
 }
 double _evaluateExpression(String expr) {
   debugPrint("Evaluating expression: '$expr'");
-  // Použijeme přímo přesnou číselnou hodnotu, pokud existuje, jinak fall-back na 0
   String ansValue = _lastNumericValue?.toString() ?? '0';
-
   String processed = expr.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
 
   // 0. NAHRAZENÍ PROMĚNNÝCH
   _memory.forEach((key, value) {
     processed = processed.replaceAll(RegExp('\\b$key\\b'), '(${value.toString()})');
   });
-// 1. ZÁKLADNÍ PŘÍPRAVA
-const String PI_VAL = '3.14159265358979323846';
-processed = processed.replaceAll('\u03C0', '($PI_VAL)');
-processed = processed.replaceAll(',', '.');
-processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
 
-if (processed.isEmpty) return 0.0;
+  // 1. DMS ZPRACOVÁNÍ (přesunuto na začátek)
+  processed = processed.replaceAllMapped(RegExp(r'''(?:^|[\(\+\-\*\/\^])(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
+    double d = double.parse(m[1]!);
+    double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
+    double sc = m[3] != null ? double.parse(m[3]!) : 0.0;
+    double sign = d < 0 ? -1.0 : 1.0;
+    String replacement = '${sign * (d.abs() + mn / 60.0 + sc / 3600.0)}';
+    if (m[0]!.startsWith(RegExp(r'[\(\+\-\*\/\^]'))) {
+      return '${m[0]![0]}$replacement';
+    }
+    return replacement;
+  });
 
-// 2. DMS A SPECIÁLNÍ ZNAKY
-processed = processed.replaceAllMapped(RegExp(r'''(?:^|[\(\+\-\*\/\^])(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
-double d = double.parse(m[1]!);
-double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
-double sc = m[3] != null ? double.parse(m[3]!) : 0.0;
-double sign = d < 0 ? -1.0 : 1.0;
-String replacement = '${sign * (d.abs() + mn / 60.0 + sc / 3600.0)}';
-// Pokud byl před DMS znak (např. '('), musíme ho zachovat
-if (m[0]!.startsWith('(') || m[0]!.startsWith('+') || m[0]!.startsWith('-') || m[0]!.startsWith('*') || m[0]!.startsWith('/') || m[0]!.startsWith('^')) {
-  return '${m[0]![0]}$replacement';
-}
-return replacement;
-});
-processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?)[eE]([+-]?\d+)"), (m) => '${m[1]}*10^(${m[2]})');
-processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
+  // 2. ZÁKLADNÍ PŘÍPRAVA
+  const String PI_VAL = '3.14159265358979323846';
+  processed = processed.replaceAll('\u03C0', '($PI_VAL)');
+  processed = processed.replaceAll(',', '.');
+  processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
 
-// 3. IMPLICITNÍ NÁSOBENÍ
-// Číslo před závorkou nebo funkcí/znakem
-processed = processed.replaceAllMapped(RegExp(r'(\d)(\(|[A-Z√])'), (m) => '${m[1]}*${m[2]}');
-// Závorka před číslem
-processed = processed.replaceAllMapped(RegExp(r'\)(\d)'), (m) => ')*${m[1]}');
-// Dvě závorky u sebe
-processed = processed.replaceAll(')(', ')*(');
+  if (processed.isEmpty) return 0.0;
 
-// 4. TOKENIZACE FUNKCÍ (prevence kolizí např. ASIN vs SIN)
-final Map<String, String> markers = {
-'ASIN': '#ASIN#',
-'ACOS': '#ACOS#',
-'ATAN': '#ATAN#',
-'SIN': '#SIN#',
-'COS': '#COS#',
-'TAN': '#TAN#',
-'ABS': '#ABS#',
-'LOG': '#LOG#',
-'LN': '#LN#',
-'√': '#SQRT#',
-};
+  processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?)[eE]([+-]?\d+)"), (m) => '${m[1]}*10^(${m[2]})');
+  processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
 
-markers.forEach((name, marker) {
-// Použijeme hranici slova \b pro vše kromě odmocniny
-String pattern = (name == '√') ? '√' : '\\b$name';
-processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
-});
+  // 3. IMPLICITNÍ NÁSOBENÍ
+  processed = processed.replaceAllMapped(RegExp(r'(\d)(\(|[A-Z√])'), (m) => '${m[1]}*${m[2]}');
+  processed = processed.replaceAllMapped(RegExp(r'\)(\d)'), (m) => ')*${m[1]}');
+  processed = processed.replaceAll(')(', ')*(');
 
-// 5. EXPANZE MARKERŮ (Oprava pro math_expressions: arcsin, arccos, arctan)
-if (_isDegreeMode) {
-// Vstup ve stupních -> převod na radiány (sin(x*PI/180))
-processed = processed.replaceAllMapped(RegExp(r'#SIN#\((.*?)\)'), (m) => 'sin((${m[1]}*$PI_VAL/180))');
-processed = processed.replaceAllMapped(RegExp(r'#COS#\((.*?)\)'), (m) => 'cos((${m[1]}*$PI_VAL/180))');
-processed = processed.replaceAllMapped(RegExp(r'#TAN#\((.*?)\)'), (m) => 'tan((${m[1]}*$PI_VAL/180))');
+  // 4. TOKENIZACE FUNKCÍ
+  final Map<String, String> markers = {
+    'ASIN': '#ASIN#', 'ACOS': '#ACOS#', 'ATAN': '#ATAN#',
+    'SIN': '#SIN#', 'COS': '#COS#', 'TAN': '#TAN#',
+    'ABS': '#ABS#', 'LOG': '#LOG#', 'LN': '#LN#', '√': '#SQRT#',
+  };
 
-// Výstup v radiánech -> převod na stupně
-processed = processed.replaceAllMapped(RegExp(r'#ASIN#\((.*?)\)'), (m) => '(180/$PI_VAL)*arcsin(${m[1]})');
-processed = processed.replaceAllMapped(RegExp(r'#ACOS#\((.*?)\)'), (m) => '(180/$PI_VAL)*arccos(${m[1]})');
-processed = processed.replaceAllMapped(RegExp(r'#ATAN#\((.*?)\)'), (m) => '(180/$PI_VAL)*arctan(${m[1]})');
-} else {
-processed = processed.replaceAll('#SIN#', 'sin');
-processed = processed.replaceAll('#COS#', 'cos');
-processed = processed.replaceAll('#TAN#', 'tan');
-processed = processed.replaceAll('#ASIN#', 'arcsin');
-processed = processed.replaceAll('#ACOS#', 'arccos');
-processed = processed.replaceAll('#ATAN#', 'arctan');
-}
+  markers.forEach((name, marker) {
+    String pattern = (name == '√') ? '√' : '\\b$name';
+    processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
+  });
 
-processed = processed.replaceAll('#ABS#', 'abs');
-processed = processed.replaceAll('#SQRT#', 'sqrt');
-processed = processed.replaceAll('#LN#', 'ln');
-processed = processed.replaceAll('#LOG#(', 'log(10,'); // math_expressions: log(base, expr)
+  // 5. EXPANZE MARKERŮ
+  if (_isDegreeMode) {
+    processed = processed.replaceAllMapped(RegExp(r'#SIN#\((.*?)\)'), (m) => 'sin((${m[1]}*$PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'#COS#\((.*?)\)'), (m) => 'cos((${m[1]}*$PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'#TAN#\((.*?)\)'), (m) => 'tan((${m[1]}*$PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'#ASIN#\((.*?)\)'), (m) => '(180/$PI_VAL)*arcsin(${m[1]})');
+    processed = processed.replaceAllMapped(RegExp(r'#ACOS#\((.*?)\)'), (m) => '(180/$PI_VAL)*arccos(${m[1]})');
+    processed = processed.replaceAllMapped(RegExp(r'#ATAN#\((.*?)\)'), (m) => '(180/$PI_VAL)*arctan(${m[1]})');
+  } else {
+    processed = processed.replaceAll('#SIN#', 'sin').replaceAll('#COS#', 'cos').replaceAll('#TAN#', 'tan');
+    processed = processed.replaceAll('#ASIN#', 'arcsin').replaceAll('#ACOS#', 'arccos').replaceAll('#ATAN#', 'arctan');
+  }
 
-// 6. BALANCOVÁNÍ ZÁVOREK
-int openCount = '('.allMatches(processed).length;
-int closeCount = ')'.allMatches(processed).length;
-if (openCount > closeCount) {
-processed += ')' * (openCount - closeCount);
-}
+  processed = processed.replaceAll('#ABS#', 'abs').replaceAll('#SQRT#', 'sqrt').replaceAll('#LN#', 'ln');
+  processed = processed.replaceAll('#LOG#(', 'log(10,');
 
-// Pokud je výraz pouze číslo, parser může selhat, přičteme 0
-if (RegExp(r'^-?\d+(\.\d+)?$').hasMatch(processed)) {
-  processed = '$processed+0';
-}
+  // 6. BALANCOVÁNÍ ZÁVOREK (vylepšeno)
+  int openCount = '('.allMatches(processed).length;
+  int closeCount = ')'.allMatches(processed).length;
+  if (openCount > closeCount) {
+    processed += ')' * (openCount - closeCount);
+  }
 
-try {
-final p = math_expr.ShuntingYardParser();
-debugPrint("Parsing expression: $processed");
-return p.parse(processed).evaluate(math_expr.EvaluationType.REAL, math_expr.ContextModel());
-} catch (e) {
-debugPrint("Parse error: $e for expression: $processed");
-rethrow;
-}
+  if (RegExp(r'^-?\d+(\.\d+)?$').hasMatch(processed)) {
+    processed = '$processed+0';
+  }
+
+  try {
+    final p = math_expr.ShuntingYardParser();
+    debugPrint("Parsing expression: $processed");
+    return p.parse(processed).evaluate(math_expr.EvaluationType.REAL, math_expr.ContextModel());
+  } catch (e) {
+    debugPrint("Parse error: $e for expression: $processed");
+    rethrow;
+  }
 }
 
 String _formatNumber(double value) {
@@ -1007,7 +1010,7 @@ Widget _buildMainKeyboard() {
       btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', 'DEL', '0', '.', '='];
       break;
     case CalculatorMode.scientific:
-      btns = ['SIN', 'COS', 'TAN', 'C', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', 'DEL', '='];
+      btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', '0', '.', 'EXP', '='];
       break;
     case CalculatorMode.statistics:
       btns = ['SD', 'VAR', 'MEAN', 'C', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', ';', 'DEL', '='];
