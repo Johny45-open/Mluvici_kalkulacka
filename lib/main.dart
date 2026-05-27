@@ -408,6 +408,9 @@ void calculateResult() {
       }
     } else {
       bool isDms = RegExp(r'''\d+(?:\.\d+)?[°'"]''').hasMatch(display);
+      bool isTrig = display.toUpperCase().contains('SIN') || 
+                    display.toUpperCase().contains('COS') || 
+                    display.toUpperCase().contains('TAN');
       bool isInverse = display.toUpperCase().contains('ASIN') || 
                        display.toUpperCase().contains('ACOS') || 
                        display.toUpperCase().contains('ATAN');
@@ -420,7 +423,10 @@ void calculateResult() {
       _lastNumericValue = result;
 
       bool userWantsDms = (_inverseFormatPreference == 0 && _isDegreeMode);
-      if (userWantsDms && (isDms || isInverse)) {
+      // DMS formát použijeme pouze pokud:
+      // 1. Uživatel to má v nastavení (userWantsDms)
+      // 2. A ZÁROVEŇ: buď jde o inverzní funkci (výsledek je úhel), nebo šlo o čistý DMS bez SIN/COS/TAN
+      if (userWantsDms && (isInverse || (isDms && !isTrig))) {
         resStr = _formatAsDMS(result);
       } else {
         resStr = _formatNumber(result);
@@ -511,7 +517,21 @@ double _evaluateExpression(String expr) {
 
   // 6. EXPANZE MARKERŮ (opraveno pro vnořené závorky)
   if (_isDegreeMode) {
+    processed = processed.replaceAllMapped(RegExp(r'#SIN#\((([^()]*|\([^()]*\))*)\)'), (m) => 'sin((${m[1]}*$PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'#COS#\((([^()]*|\([^()]*\))*)\)'), (m) => 'cos((${m[1]}*$PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'#TAN#\((([^()]*|\([^()]*\))*)\)'), (m) => 'tan((${m[1]}*$PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'#ASIN#\((([^()]*|\([^()]*\))*)\)'), (m) => '(180/$PI_VAL)*arcsin(${m[1]})');
+    processed = processed.replaceAllMapped(RegExp(r'#ACOS#\((([^()]*|\([^()]*\))*)\)'), (m) => '(180/$PI_VAL)*arccos(${m[1]})');
+    processed = processed.replaceAllMapped(RegExp(r'#ATAN#\((([^()]*|\([^()]*\))*)\)'), (m) => '(180/$PI_VAL)*arctan(${m[1]})');
+  } else {
+    processed = processed.replaceAll('#SIN#', 'sin').replaceAll('#COS#', 'cos').replaceAll('#TAN#', 'tan');
+    processed = processed.replaceAll('#ASIN#', 'arcsin').replaceAll('#ACOS#', 'arccos').replaceAll('#ATAN#', 'arctan');
+  }
 
+  processed = processed.replaceAll('#ABS#', 'abs').replaceAll('#SQRT#', 'sqrt').replaceAll('#LN#', 'ln');
+  processed = processed.replaceAll('#LOG#(', 'log(10,');
+
+  // 7. FINÁLNÍ VYHODNOCENÍ
   if (RegExp(r'^-?\d+(\.\d+)?$').hasMatch(processed)) {
     processed = '$processed+0';
   }
