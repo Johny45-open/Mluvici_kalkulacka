@@ -329,29 +329,7 @@ speak('minut');
 }
 
 void _insertDmsChar() {
-if (display.isEmpty) return;
-
-// ... původní logika pro cyklování ...
-RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)(°|'|")?$''');
-Match? match = dmsRegex.firstMatch(display);
-String charToAppend = '°';
-String spoken = 'stupňů';
-if (match != null) {
-String? suffix = match.group(2);
-if (suffix == '°') {
-charToAppend = "'";
-spoken = 'minut';
-} else if (suffix == "'") {
-charToAppend = '"';
-spoken = 'sekund';
-} else {
-charToAppend = '°';
-spoken = 'stupňů';
-}
-}
-
-append(charToAppend, silent: true);
-speak(spoken);
+  _handleButtonPressed('DMS');
 }
 
 void backspace() { _deleteAtCursor(); }
@@ -488,16 +466,12 @@ double _evaluateExpression(String expr) {
   });
 
   // 1. DMS ZPRACOVÁNÍ (přesunuto na začátek)
-  processed = processed.replaceAllMapped(RegExp(r'''(?:^|[\(\+\-\*\/\^])(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
+  processed = processed.replaceAllMapped(RegExp(r'''(?<![\d.])(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
     double d = double.parse(m[1]!);
     double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
     double sc = m[3] != null ? double.parse(m[3]!) : 0.0;
     double sign = d < 0 ? -1.0 : 1.0;
-    String replacement = '${sign * (d.abs() + mn / 60.0 + sc / 3600.0)}';
-    if (m[0]!.startsWith(RegExp(r'[\(\+\-\*\/\^]'))) {
-      return '${m[0]![0]}$replacement';
-    }
-    return replacement;
+    return '(${sign * (d.abs() + mn / 60.0 + sc / 3600.0)})';
   });
 
   // 2. ZÁKLADNÍ PŘÍPRAVA
@@ -528,28 +502,15 @@ double _evaluateExpression(String expr) {
     processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
   });
 
-  // 5. EXPANZE MARKERŮ
-  if (_isDegreeMode) {
-    processed = processed.replaceAllMapped(RegExp(r'#SIN#\((.*?)\)'), (m) => 'sin((${m[1]}*$PI_VAL/180))');
-    processed = processed.replaceAllMapped(RegExp(r'#COS#\((.*?)\)'), (m) => 'cos((${m[1]}*$PI_VAL/180))');
-    processed = processed.replaceAllMapped(RegExp(r'#TAN#\((.*?)\)'), (m) => 'tan((${m[1]}*$PI_VAL/180))');
-    processed = processed.replaceAllMapped(RegExp(r'#ASIN#\((.*?)\)'), (m) => '(180/$PI_VAL)*arcsin(${m[1]})');
-    processed = processed.replaceAllMapped(RegExp(r'#ACOS#\((.*?)\)'), (m) => '(180/$PI_VAL)*arccos(${m[1]})');
-    processed = processed.replaceAllMapped(RegExp(r'#ATAN#\((.*?)\)'), (m) => '(180/$PI_VAL)*arctan(${m[1]})');
-  } else {
-    processed = processed.replaceAll('#SIN#', 'sin').replaceAll('#COS#', 'cos').replaceAll('#TAN#', 'tan');
-    processed = processed.replaceAll('#ASIN#', 'arcsin').replaceAll('#ACOS#', 'arccos').replaceAll('#ATAN#', 'arctan');
-  }
-
-  processed = processed.replaceAll('#ABS#', 'abs').replaceAll('#SQRT#', 'sqrt').replaceAll('#LN#', 'ln');
-  processed = processed.replaceAll('#LOG#(', 'log(10,');
-
-  // 6. BALANCOVÁNÍ ZÁVOREK (vylepšeno)
+  // 5. BALANCOVÁNÍ ZÁVOREK (přesunuto před expanzi pro stabilitu)
   int openCount = '('.allMatches(processed).length;
   int closeCount = ')'.allMatches(processed).length;
   if (openCount > closeCount) {
     processed += ')' * (openCount - closeCount);
   }
+
+  // 6. EXPANZE MARKERŮ (opraveno pro vnořené závorky)
+  if (_isDegreeMode) {
 
   if (RegExp(r'^-?\d+(\.\d+)?$').hasMatch(processed)) {
     processed = '$processed+0';
@@ -878,19 +839,17 @@ if (hasFocus) speak(descriptiveName);
 },
 onPressed: onPressed ??
 () {
-if (!['°→\'', '\'→°'].contains(label)) {
+if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
 speak(descriptiveName);
 }
 _handleButtonPressed(label);
 },
 child: Semantics(
-button: true,
-label: descriptiveName,
-child: ExcludeSemantics(
-child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)),
-),
-),
-));
+  label: descriptiveName,
+  child: ExcludeSemantics(
+    child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)),
+  ),
+),));
 }
 
 void _handleButtonPressed(String label) {
@@ -940,26 +899,54 @@ void _handleButtonPressed(String label) {
   } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS', 'LOG', 'LN'].contains(label)) {
     _insertAtCursor('$label(', cursorOffset: 0);
   } else if (label == 'DMS') {
-    if (display.isEmpty) {
-      append('°');
-    } else {
-      // Hledáme poslední číslo na displeji (od konce)
-      RegExp dmsRegex = RegExp(r'''(\d+(?:\.\d+)?)(°|'|")?$''');
-      Match? match = dmsRegex.firstMatch(display);
-      if (match != null) {
-        String? suffix = match.group(2);
-        if (suffix == '°') {
-          append("'");
-        } else if (suffix == "'") {
-          append('"');
-        } else if (suffix == '"') {
-          append('°');
-        } else {
-          append('°');
+    // 1. Získat text PŘED kurzorem
+    String textBefore = display.substring(0, _cursorPosition);
+    
+    // 2. Hledáme poslední číselný blok a případný existující DMS symbol
+    // Regex hledá: (číslo)(volitelný symbol)(volitelné další číslice na konci)
+    RegExp dmsSearch = RegExp(r'''(\d+(?:\.\d+)?)([°'\"])?(\d+)?$''');
+    Match? match = dmsSearch.firstMatch(textBefore);
+
+    if (match != null) {
+      String? symbol = match.group(2);
+      String? trailingDigits = match.group(3);
+
+      if (trailingDigits == null && symbol != null) {
+        // Jsme těsně za symbolem (např. "36°"), budeme ho cyklovat
+        String nextSymbol = '°';
+        String spoken = 'stupňů';
+        if (symbol == '°') {
+          nextSymbol = "'";
+          spoken = 'minut';
+        } else if (symbol == "'") {
+          nextSymbol = '"';
+          spoken = 'sekund';
         }
+
+        setState(() {
+          display = display.substring(0, _cursorPosition - 1) + nextSymbol + display.substring(_cursorPosition);
+        });
+        speak(spoken);
       } else {
-        append('°');
+        // Jsme za číslem (např. "36°25" nebo jen "36"), určíme co vložit
+        String toInsert = '°';
+        String spoken = 'stupňů';
+        
+        if (symbol == '°') {
+          toInsert = "'";
+          spoken = 'minut';
+        } else if (symbol == "'") {
+          toInsert = '"';
+          spoken = 'sekund';
+        }
+        
+        append(toInsert, silent: true);
+        speak(spoken);
       }
+    } else {
+      // Nenalezeno žádné číslo před kurzorem, vložíme výchozí stupně
+      append('°', silent: true);
+      speak('stupňů');
     }
   } else if (['°→\'', '\'→°'].contains(label)) {
     try {
@@ -1303,6 +1290,7 @@ children: [
 GridView.count(
 shrinkWrap: true,
 physics: const NeverScrollableScrollPhysics(),
+addSemanticIndexes: false,
 crossAxisCount: 4,
 childAspectRatio: 1.3,
 children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((b) => parent.buildButton(b)).toList())
@@ -1314,6 +1302,7 @@ children: [
 GridView.count(
 shrinkWrap: true,
 physics: const NeverScrollableScrollPhysics(),
+addSemanticIndexes: false,
 crossAxisCount: 4,
 childAspectRatio: 1.3,
 children: ['√', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) => parent.buildButton(b)).toList())
@@ -1325,6 +1314,7 @@ children: [
 GridView.count(
 shrinkWrap: true,
 physics: const NeverScrollableScrollPhysics(),
+addSemanticIndexes: false,
 crossAxisCount: 4,
 childAspectRatio: 1.3,
 children: ['STO', 'RCL', 'CLR'].map((b) => parent.buildButton(b)).toList()),
@@ -1332,6 +1322,7 @@ const Divider(),
 GridView.count(
 shrinkWrap: true,
 physics: const NeverScrollableScrollPhysics(),
+addSemanticIndexes: false,
 crossAxisCount: 4,
 childAspectRatio: 1.3,
 children: ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'].map((b) {
