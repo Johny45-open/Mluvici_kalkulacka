@@ -178,7 +178,7 @@ final Map<String, String> _buttonNames = {
 'SIN': 'Sinus', 'COS': 'Kosinus', 'TAN': 'Tangens', 'ASIN': 'Arkus sinus', 'ACOS': 'Arkus kosinus', 'ATAN': 'Arkus tangens',
 'ABS': 'Absolutní hodnota', '°→\'': 'Převod na DMS', '\'→°': 'Převod na stupně', 'DMS': 'Vložit DMS',
 '=': 'Rovná se', '/': 'Lomeno', '*': 'Krát', '-': 'Mínus', '+': 'Plus', '(': 'Závorka otevřená', ')': 'Závorka zavřená', '.': 'Tečka',
-'^': 'Mocnina', '√': 'Odmocnina', 'ⁿ√': 'Odmocnina en', 'x²': 'Na druhou', 'x³': 'Na třetí', '∛': 'Třetí odmocnina', '1/x': 'Převrácená hodnota',
+'^': 'Mocnina', '√': 'Odmocnina', 'ⁿ√': 'En-tá odmocnina', 'x²': 'Na druhou', 'x³': 'Na třetí', '∛': 'Třetí odmocnina', '1/x': 'Převrácená hodnota',
 'LOG': 'Logaritmus', 'LN': 'Přirozený logaritmus',
 'A': 'Proměnná A', 'B': 'Proměnná B', 'C': 'Proměnná C', 'D': 'Proměnná D', 'E': 'Proměnná E', 'F': 'Proměnná F',
 'X': 'Proměnná X', 'Y': 'Proměnná Y', 'M': 'Proměnná M',
@@ -305,7 +305,7 @@ _insertMinute();
 } else if (char != null) {
 String toAppend = char == ',' ? '.' : char;
 if (RegExp(r'''[0-9.+\-*/^%()eE°'"a-zA-Z]''').hasMatch(toAppend)) {
-append(toAppend.toUpperCase(), silent: true);
+_handleButtonPressed(toAppend.toUpperCase(), silent: true);
 }
 }
 }
@@ -488,11 +488,12 @@ double _evaluateExpression(String expr) {
 
   if (processed.isEmpty) return 0.0;
 
-  processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?)[eE]([+-]?\d+)"), (m) => '${m[1]}*10^(${m[2]})');
+  processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"), (m) => '${m[1]}*10^(${m[2]})');
   processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
+  processed = processed.replaceAll('∛', '#CBRT#');
 
   // 3. IMPLICITNÍ NÁSOBENÍ
-  processed = processed.replaceAllMapped(RegExp(r'(\d)(\(|[A-Z√])'), (m) => '${m[1]}*${m[2]}');
+  processed = processed.replaceAllMapped(RegExp(r'(\d)(\(|[A-Z√#])'), (m) => '${m[1]}*${m[2]}');
   processed = processed.replaceAllMapped(RegExp(r'\)(\d)'), (m) => ')*${m[1]}');
   processed = processed.replaceAll(')(', ')*(');
 
@@ -506,6 +507,11 @@ double _evaluateExpression(String expr) {
   markers.forEach((name, marker) {
     String pattern = (name == '√') ? '√' : '\\b$name';
     processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
+  });
+
+  // Speciální zpracování pro n-tou odmocninu: xⁿ√y -> pow(x, 1/y)
+  processed = processed.replaceAllMapped(RegExp(r'([^()+\-*/^%#]+)ⁿ√([^()+\-*/^%#]+)'), (m) {
+    return 'pow(${m[1]}, 1/(${m[2]}))';
   });
 
   // 5. BALANCOVÁNÍ ZÁVOREK (přesunuto před expanzi pro stabilitu)
@@ -529,6 +535,8 @@ double _evaluateExpression(String expr) {
   }
 
   processed = processed.replaceAll('#ABS#', 'abs').replaceAll('#SQRT#', 'sqrt').replaceAll('#LN#', 'ln');
+  processed = processed.replaceAllMapped(RegExp(r'#CBRT#\((([^()]*|\([^()]*\))*)\)'), (m) => 'pow(${m[1]}, 1/3)');
+  processed = processed.replaceAll('#CBRT#', 'pow('); // Fallback pokud chybí závorky (vyřeší balancing)
   processed = processed.replaceAll('#LOG#(', 'log(10,');
 
   // 7. FINÁLNÍ VYHODNOCENÍ
@@ -872,25 +880,37 @@ child: Semantics(
 ),));
 }
 
-void _handleButtonPressed(String label) {
+void _handleButtonPressed(String label, {bool silent = false}) {
   if (_hasResult) {
-    if (['+', '-', '*', '/', '^'].contains(label)) {
+    if (['+', '-', '*', '/', '^', '%', 'EXP', 'x²', 'x³'].contains(label)) {
       display = 'ANS';
+      _cursorPosition = 3;
       _hasResult = false;
-    } else if (RegExp(r'[0-9.]').hasMatch(label) || ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS', '('].contains(label)) {
-      // Pokud stiskneme funkci nad výsledkem, chceme Funkce(ANS)
-      if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS'].contains(label)) {
-        display = 'ANS';
-        _hasResult = false;
-      } else {
-        display = '';
-        _hasResult = false;
-      }
+    } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', '∛', 'ABS', 'LOG', 'LN'].contains(label)) {
+      display = '$label(ANS)';
+      _cursorPosition = display.length;
+      _hasResult = false;
+      if (!silent) speak('${_buttonNames[label] ?? label} z výsledku');
+      return;
+    } else if (label == 'ⁿ√') {
+      display = 'ANSⁿ√';
+      _cursorPosition = 5;
+      _hasResult = false;
+    } else if (label == '(') {
+      display = 'ANS';
+      _cursorPosition = 3;
+      _hasResult = false;
+    } else if (RegExp(r'[0-9.]').hasMatch(label)) {
+      display = '';
+      _cursorPosition = 0;
+      _hasResult = false;
     } else if (label == '°→\'' || label == '\'→°') {
       display = 'ANS';
+      _cursorPosition = 3;
       _hasResult = false;
-    } else {
+    } else if (label != 'C' && label != 'DEL' && label != '=') {
       display = '';
+      _cursorPosition = 0;
       _hasResult = false;
     }
   }
@@ -915,9 +935,10 @@ void _handleButtonPressed(String label) {
   } else if (_memory.containsKey(label)) {
     _handleMemoryVariable(label);
   } else if (label == 'EXP') {
-    append('E');
-  } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', 'ABS', 'LOG', 'LN'].contains(label)) {
+    append('E', silent: silent);
+  } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', '∛', 'ABS', 'LOG', 'LN'].contains(label)) {
     _insertAtCursor('$label(', cursorOffset: 0);
+    if (!silent) speak(_buttonNames[label] ?? label);
   } else if (label == 'DMS') {
     // 1. Získat text PŘED kurzorem
     String textBefore = display.substring(0, _cursorPosition);
@@ -1004,9 +1025,9 @@ void _handleButtonPressed(String label) {
       speak('Chyba při převodu');
     }
   } else if (label == '\u03C0') {
-    append(label);
+    append(label, silent: silent);
   } else {
-    append(label);
+    append(label, silent: silent);
   }
 }
 
@@ -1325,7 +1346,7 @@ physics: const NeverScrollableScrollPhysics(),
 addSemanticIndexes: false,
 crossAxisCount: 4,
 childAspectRatio: 1.3,
-children: ['√', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) => parent.buildButton(b)).toList())
+children: ['√', '∛', 'ⁿ√', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) => parent.buildButton(b)).toList())
 ]));
 
 sections.add(ExpansionTile(
