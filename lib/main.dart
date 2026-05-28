@@ -509,9 +509,10 @@ double _evaluateExpression(String expr) {
     processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
   });
 
-  // Speciální zpracování pro n-tou odmocninu: xⁿ√y -> pow(x, 1/y)
-  processed = processed.replaceAllMapped(RegExp(r'([^()+\-*/^%#]+)ⁿ√([^()+\-*/^%#]+)'), (m) {
-    return 'pow(${m[1]}, 1/(${m[2]}))';
+  // Speciální zpracování pro n-tou odmocninu: xⁿ√y -> (x)^(1/y)
+  // Podporuje čísla, proměnné i výrazy v závorkách (včetně nahrazeného ANS)
+  processed = processed.replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?|[A-Z]|\([^)]+\))ⁿ√(\d+(?:\.\d+)?|[A-Z]|\([^)]+\))'), (m) {
+    return '(${m[1]})^(1/(${m[2]}))';
   });
 
   // 5. BALANCOVÁNÍ ZÁVOREK (přesunuto před expanzi pro stabilitu)
@@ -519,6 +520,9 @@ double _evaluateExpression(String expr) {
   int closeCount = ')'.allMatches(processed).length;
   if (openCount > closeCount) {
     processed += ')' * (openCount - closeCount);
+  } else if (closeCount > openCount) {
+    // Odstranit přebytečné zavírací závorky z konce nebo začátku
+    processed = processed.replaceAll(RegExp(r'^\)+|\)+$'), '');
   }
 
   // 6. EXPANZE MARKERŮ (opraveno pro vnořené závorky)
@@ -535,8 +539,8 @@ double _evaluateExpression(String expr) {
   }
 
   processed = processed.replaceAll('#ABS#', 'abs').replaceAll('#SQRT#', 'sqrt').replaceAll('#LN#', 'ln');
-  processed = processed.replaceAllMapped(RegExp(r'#CBRT#\((([^()]*|\([^()]*\))*)\)'), (m) => 'pow(${m[1]}, 1/3)');
-  processed = processed.replaceAll('#CBRT#', 'pow('); // Fallback pokud chybí závorky (vyřeší balancing)
+  processed = processed.replaceAllMapped(RegExp(r'#CBRT#\((([^()]*|\([^()]*\))*)\)'), (m) => '(${m[1]})^(1/3)');
+  processed = processed.replaceAll('#CBRT#', '('); // Fallback
   processed = processed.replaceAll('#LOG#(', 'log(10,');
 
   // 7. FINÁLNÍ VYHODNOCENÍ
@@ -1510,7 +1514,9 @@ static const Map<String, List<bool>> _map = {
 'Y': [false, true, true, true, false, true, true],
 '°': [true, true, false, false, false, true, true],
 "'": [false, false, false, false, false, true, false],
-'"': [false, true, false, false, false, true, false],
+'ⁿ': [false, false, false, false, false, false, false], // Symbolicky prázdné nebo specifické
+'∛': [true, false, false, true, true, true, true], // Symbolicky jako root s horním segmentem
+'√': [false, false, false, true, true, true, false],
 '.': [false, false, false, false, false, false, false],
 '_': [false, false, false, true, false, false, false],
 ' ': [false, false, false, false, false, false, false],
@@ -1595,6 +1601,9 @@ static const Map<String, List<bool>> _map = {
 'Z': [true, true, false, false, true, true, false, false, false, false, false, false, true, true, false, false],
 '-': [false, false, false, false, false, false, false, false, true, true, false, false, false, false, false, false],
 '°': [true, true, true, false, false, false, false, true, true, true, false, false, false, false, false, false],
+'ⁿ': [false, false, false, false, false, false, false, false, false, false, true, true, false, false, false, false],
+'∛': [true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false],
+'√': [false, true, false, false, false, false, false, true, false, false, false, false, false, true, false, true],
 "'": [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
 '"': [false, false, false, false, false, false, false, false, false, false, true, false, true, false, false, false],
 '_': [false, false, false, false, true, true, false, false, false, false, false, false, false, false, false, false],
@@ -1739,6 +1748,8 @@ static const Map<String, List<int>> _font = {
 '%': [0x19, 0x05, 0x02, 0x14, 0x13],
 '^': [0x02, 0x01, 0x02, 0x00, 0x00],
 '√': [0x02, 0x04, 0x08, 0x10, 0x1E],
+'∛': [0x22, 0x24, 0x28, 0x30, 0x2E],
+'ⁿ': [0x00, 0x03, 0x01, 0x03, 0x00],
 ',': [0x00, 0x00, 0x18, 0x00, 0x00],
 };
 
