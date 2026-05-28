@@ -885,38 +885,43 @@ child: Semantics(
 }
 
 void _handleButtonPressed(String label, {bool silent = false}) {
+  bool alreadyHandled = false;
   if (_hasResult) {
-    if (['+', '-', '*', '/', '^', '%', 'EXP', 'x²', 'x³'].contains(label)) {
-      display = 'ANS';
-      _cursorPosition = 3;
-      _hasResult = false;
-    } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', '∛', 'ABS', 'LOG', 'LN'].contains(label)) {
-      display = '$label(ANS)';
-      _cursorPosition = display.length;
-      _hasResult = false;
-      if (!silent) speak('${_buttonNames[label] ?? label} z výsledku');
-      return;
-    } else if (label == 'ⁿ√') {
-      display = 'ANSⁿ√';
-      _cursorPosition = 5;
-      _hasResult = false;
-    } else if (label == '(') {
-      display = 'ANS';
-      _cursorPosition = 3;
-      _hasResult = false;
-    } else if (RegExp(r'[0-9.]').hasMatch(label)) {
-      display = '';
-      _cursorPosition = 0;
-      _hasResult = false;
-    } else if (label == '°→\'' || label == '\'→°') {
-      display = 'ANS';
-      _cursorPosition = 3;
-      _hasResult = false;
-    } else if (label != 'C' && label != 'DEL' && label != '=') {
-      display = '';
-      _cursorPosition = 0;
-      _hasResult = false;
-    }
+    setState(() {
+      if (['+', '-', '*', '/', '^', '%', 'EXP', 'x²', 'x³'].contains(label)) {
+        display = 'ANS';
+        _cursorPosition = 3;
+        _hasResult = false;
+      } else if (['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', '√', '∛', 'ABS', 'LOG', 'LN'].contains(label)) {
+        display = '$label(ANS)';
+        _cursorPosition = display.length;
+        _hasResult = false;
+        if (!silent) speak('${_buttonNames[label] ?? label} z výsledku');
+        alreadyHandled = true;
+      } else if (label == 'ⁿ√') {
+        display = 'ANSⁿ√';
+        _cursorPosition = 5;
+        _hasResult = false;
+        alreadyHandled = true;
+      } else if (label == '(') {
+        display = 'ANS';
+        _cursorPosition = 3;
+        _hasResult = false;
+      } else if (RegExp(r'[0-9.]').hasMatch(label)) {
+        display = '';
+        _cursorPosition = 0;
+        _hasResult = false;
+      } else if (label == '°→\'' || label == '\'→°') {
+        display = 'ANS';
+        _cursorPosition = 3;
+        _hasResult = false;
+      } else if (label != 'C' && label != 'DEL' && label != '=') {
+        display = '';
+        _cursorPosition = 0;
+        _hasResult = false;
+      }
+    });
+    if (alreadyHandled) return;
   }
   
   if (label == 'C') {
