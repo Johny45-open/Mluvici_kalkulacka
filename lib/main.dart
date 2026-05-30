@@ -388,6 +388,7 @@ speak('Smazáno');
 void calculateResult() {
   try {
     if (display.isEmpty) return;
+    String currentExpression = display; // Uložíme výraz před vymazáním displeje
 
     String resStr = '0';
     String spoken = '';
@@ -458,7 +459,7 @@ void calculateResult() {
     });
 
     speak(spoken);
-    _addToHistory(display, resStr);
+    _addToHistory(currentExpression, resStr);
   } catch (e) {
     String msg = 'Výrazu nerozumím, zkuste zkontrolovat závorky nebo znaménka';
     String errStr = e.toString().toLowerCase();
@@ -753,11 +754,12 @@ await prefs.setStringList('history', _history);
 }
 
 void _addToHistory(String exp, String res) {
-setState(() {
-_history.insert(0, '$exp = $res');
-if (_history.length > 20) _history.removeLast();
-});
-_saveHistory();
+  setState(() {
+    // Používáme oddělovač |, který se v matematických výrazech nevyskytuje
+    _history.insert(0, '$exp|$res');
+    if (_history.length > 20) _history.removeLast();
+  });
+  _saveHistory();
 }
 
 void _showInitialAccessibilityDialog() {
@@ -1173,6 +1175,15 @@ void _showAdvancedFunctionsDialog() {
   );
 }
 
+void _insertFromHistory(String value) {
+  _insertAtCursor(value.replaceAll(',', '.'));
+  speak('Vloženo ${value.replaceAll('.', ',')}');
+  Navigator.pop(context);
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) _mainFocusNode.requestFocus();
+  });
+}
+
 void _showHistoryDialog() {
   showDialog(
     context: context,
@@ -1182,16 +1193,43 @@ void _showHistoryDialog() {
         width: double.maxFinite,
         child: _history.isEmpty 
             ? Semantics(container: true, child: const Text('Historie je prázdná.'))
-            : Semantics(
-                container: true,
-                child: ListView.builder(
+            : ListView.builder(
                   shrinkWrap: true,
                   itemCount: _history.length,
-                  itemBuilder: (context, index) => ListTile(
-                    title: Text(_history[index]),
-                  ),
+                  itemBuilder: (context, index) {
+                    String item = _history[index];
+                    String expression = item;
+                    String result = "";
+                    
+                    if (item.contains('|')) {
+                      List<String> parts = item.split('|');
+                      expression = parts[0];
+                      result = parts[1];
+                    } else if (item.contains('=')) {
+                      // Zpětná kompatibilita pro starý formát "exp = res"
+                      int eqIdx = item.lastIndexOf('=');
+                      expression = item.substring(0, eqIdx).trim();
+                      result = item.substring(eqIdx + 1).trim();
+                    }
+
+                    String semanticDescription = "Výpočet: $expression, výsledek: $result. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.";
+                    
+                    return Semantics(
+                      label: semanticDescription,
+                      container: true,
+                      child: MergeSemantics(
+                        child: ListTile(
+                          title: Text(expression, style: const TextStyle(fontSize: 14)),
+                          subtitle: result.isNotEmpty 
+                              ? Text(result, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue)) 
+                              : null,
+                          onTap: () => _insertFromHistory(result.isNotEmpty ? result : expression),
+                          onLongPress: () => _insertFromHistory(expression),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              ),
       ),
       actions: [
         TextButton(
@@ -1201,7 +1239,12 @@ void _showHistoryDialog() {
           },
           child: const Text('VYMAZAT HISTORII'),
         ),
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('ZAVŘÍT')),
+        TextButton(onPressed: () {
+          Navigator.pop(context);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _mainFocusNode.requestFocus();
+          });
+        }, child: const Text('ZAVŘÍT')),
       ],
     ),
   );
