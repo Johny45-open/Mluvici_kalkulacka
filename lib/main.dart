@@ -184,9 +184,20 @@ final Map<String, String> _buttonNames = {
 'X': 'Proměnná X', 'Y': 'Proměnná Y', 'M': 'Proměnná M',
 'ANS': 'Poslední výsledek', 'STO': 'Uložit do paměti', 'DEL': 'Smazat poslední', 'RCL': 'Vyvolat z paměti', 'CLR': 'Smazat celou paměť', 'C': 'Smazat displej',
 'DEG': 'Stupně', 'RAD': 'Radiány', '%': 'Procenta', 'SD': 'Směrodatná odchylka', 'VAR': 'Rozptyl', 'MEAN': 'Průměr', 'STATS': 'Statistický souhrn',
-'CV': 'Variační koeficient', ';': 'Oddělovač dat', '(-)': 'Záporné číslo se závorkou', 'EXP': 'krát deset na',
+'CV': 'Variační koeficient', ';': 'Oddělovač dat', '!': 'Faktoriál', '(-)': 'Záporné číslo se závorkou', 'EXP': 'krát deset na',
 'OHM_V': 'Napětí', 'OHM_I': 'Proud', 'OHM_R': 'Odpor', 'PWR_P': 'Výkon', 'PAR': 'Paralelně', 'SER': 'Sériově', 'Hz': 'Hertz', 'μ': 'Mikro', 'n': 'Nano', 'p': 'Piko',
 };
+
+double _factorial(int n) {
+  if (n < 0) return double.nan;
+  if (n == 0) return 1;
+  if (n > 20) return double.infinity; // Omezení pro double přesnost a prevenci záseku
+  double res = 1;
+  for (int i = 1; i <= n; i++) {
+    res *= i;
+  }
+  return res;
+}
 
 @override
 void initState() {
@@ -485,6 +496,13 @@ double _evaluateExpression(String expr) {
   processed = processed.replaceAll('\u03C0', '($PI_VAL)');
   processed = processed.replaceAll(',', '.');
   processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
+
+  // 2.1 PRE-PROCESSING FAKTORIÁLU
+  // Najde čísla následovaná vykřičníkem (např. 5!) a nahradí je vypočtenou hodnotou.
+  processed = processed.replaceAllMapped(RegExp(r'(\d+)!'), (m) {
+    int n = int.parse(m[1]!);
+    return _factorial(n).toString();
+  });
 
   if (processed.isEmpty) return 0.0;
 
@@ -864,6 +882,7 @@ Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallb
 final String descriptiveName = semanticLabel ?? (_buttonNames[label] ?? label);
 return Padding(
 padding: const EdgeInsets.all(2),
+child: MergeSemantics(
 child: ElevatedButton(
 style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: color != null ? Colors.white : null, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
 onFocusChange: (hasFocus) {
@@ -881,7 +900,7 @@ child: Semantics(
   child: ExcludeSemantics(
     child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)),
   ),
-),));
+),),),);
 }
 
 void _handleButtonPressed(String label, {bool silent = false}) {
@@ -930,6 +949,45 @@ void _handleButtonPressed(String label, {bool silent = false}) {
     backspace();
   } else if (label == '=') {
     calculateResult();
+  } else if (['MEAN', 'SD', 'VAR'].contains(label)) {
+    if (_currentMode == CalculatorMode.statistics) {
+      try {
+        List<double> data = display.split(';').where((s) => s.isNotEmpty).map((s) => double.parse(s.replaceAll(',', '.'))).toList();
+        if (data.isEmpty) throw Exception('Prázdná data');
+        
+        double sum = data.reduce((a, b) => a + b);
+        double mean = sum / data.length;
+        double variance = data.map((x) => math.pow(x - mean, 2)).reduce((a, b) => a + b) / data.length;
+        double sd = math.sqrt(variance);
+
+        String resStr = '0';
+        String spoken = '';
+        if (label == 'MEAN') {
+          resStr = _formatNumber(mean);
+          spoken = 'Průměr je ${resStr.replaceAll('.', ',')}';
+        } else if (label == 'VAR') {
+          resStr = _formatNumber(variance);
+          spoken = 'Rozptyl je ${resStr.replaceAll('.', ',')}';
+        } else if (label == 'SD') {
+          resStr = _formatNumber(sd);
+          spoken = 'Směrodatná odchylka je ${resStr.replaceAll('.', ',')}';
+        }
+
+        setState(() {
+          _lastResult = resStr;
+          _hasResult = true;
+          display = '';
+          _cursorPosition = 0;
+          _lastNumericValue = double.tryParse(resStr.replaceAll(',', '.'));
+        });
+        speak(spoken);
+        _addToHistory('STATS($label)', resStr);
+      } catch (e) {
+        speak('Chyba statistického výpočtu. Zkontrolujte formát dat s oddělovačem středník.');
+      }
+    } else {
+      append(label, silent: silent);
+    }
   } else if (label == 'STO') {
     _isStoreMode = true;
     speak('Vyberte paměť');
@@ -1355,7 +1413,7 @@ physics: const NeverScrollableScrollPhysics(),
 addSemanticIndexes: false,
 crossAxisCount: 4,
 childAspectRatio: 1.3,
-children: ['√', '∛', 'ⁿ√', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) => parent.buildButton(b)).toList())
+children: ['√', '∛', 'ⁿ√', '!', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) => parent.buildButton(b)).toList())
 ]));
 
 sections.add(ExpansionTile(
@@ -1524,6 +1582,7 @@ static const Map<String, List<bool>> _map = {
 '√': [false, false, false, true, true, true, false],
 '.': [false, false, false, false, false, false, false],
 '_': [false, false, false, true, false, false, false],
+';': [false, false, true, true, false, false, false], // Jako spodní tečka a čárka
 ' ': [false, false, false, false, false, false, false],
 };
 
@@ -1612,6 +1671,7 @@ static const Map<String, List<bool>> _map = {
 "'": [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
 '"': [false, false, false, false, false, false, false, false, false, false, true, false, true, false, false, false],
 '_': [false, false, false, false, true, true, false, false, false, false, false, false, false, false, false, false],
+';': [false, false, false, true, true, false, false, false, false, false, false, false, false, false, true, false], // Symbolicky jako spodní čárka a tečka
 ' ': [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
 };
 
@@ -1756,6 +1816,7 @@ static const Map<String, List<int>> _font = {
 '∛': [0x22, 0x24, 0x28, 0x30, 0x2E],
 'ⁿ': [0x00, 0x03, 0x01, 0x03, 0x00],
 ',': [0x00, 0x00, 0x18, 0x00, 0x00],
+';': [0x00, 0x00, 0x14, 0x00, 0x00],
 };
 
 @override
