@@ -1251,14 +1251,21 @@ void _showHistoryDialog() {
 }
 
 void _showClearHistoryConfirmation() {
+  String question = 'Opravdu chcete smazat celou historii výpočtů?';
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: Semantics(header: true, child: const Text('Potvrzení')),
-      content: Semantics(
-        container: true,
-        label: 'Otázka',
-        child: const Text('Opravdu chcete smazat celou historii výpočtů?'),
+      title: Semantics(header: true, child: Text('Potvrzení')),
+      content: Focus(
+        autofocus: true,
+        onFocusChange: (hasFocus) {
+          if (hasFocus) speak(question);
+        },
+        child: Semantics(
+          container: true,
+          label: 'Otázka',
+          child: Text(question),
+        ),
       ),
       actions: [
         TextButton(
@@ -1270,12 +1277,24 @@ void _showClearHistoryConfirmation() {
             speak('Historie smazána');
             Navigator.pop(context);
           },
-          child: const Text('ANO, SMAZAT'),
+          child: Semantics(
+            label: 'Ano, potvrdit smazání celé historie výpočtů',
+            button: true,
+            child: Text('ANO, SMAZAT'),
+          ),
         ),
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('NE, ZŮSTAT')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Semantics(
+            label: 'Ne, zrušit smazání a ponechat historii',
+            button: true,
+            child: Text('NE, ZŮSTAT'),
+          ),
+        ),
       ],
     ),
   );
+  speak(question);
 }
 
 @override
