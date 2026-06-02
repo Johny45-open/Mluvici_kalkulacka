@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:math_expressions/math_expressions.dart' as math_expr;
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
@@ -105,7 +104,6 @@ AccessibilityType _accessibilityType = AccessibilityType.none;
 double _fontSizeMultiplier = 1.0;
 double _dotMatrixZoom = 1.0;
 double _resultZoom = 1.0;
-final double _displaySizeFactor = 1.0;
 double _speechRate = 0.5;
 double _speechVolume = 1.0;
 int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
@@ -180,7 +178,6 @@ final Map<String, String> _buttonNames = {
 '=': 'Rovná se', '/': 'Lomeno', '*': 'Krát', '-': 'Mínus', '+': 'Plus', '(': 'Závorka otevřená', ')': 'Závorka zavřená', '.': 'Tečka',
 '^': 'Mocnina', '√': 'Odmocnina', 'ⁿ√': 'En-tá odmocnina', 'x²': 'Na druhou', 'x³': 'Na třetí', '∛': 'Třetí odmocnina', '1/x': 'Převrácená hodnota',
 'LOG': 'Logaritmus', 'LN': 'Přirozený logaritmus',
-'A': 'Proměnná A', 'B': 'Proměnná B', 'C': 'Proměnná C', 'D': 'Proměnná D', 'E': 'Proměnná E', 'F': 'Proměnná F',
 'X': 'Proměnná X', 'Y': 'Proměnná Y', 'M': 'Proměnná M',
 'ANS': 'Poslední výsledek', 'STO': 'Uložit do paměti', 'DEL': 'Smazat poslední', 'RCL': 'Vyvolat z paměti', 'CLR': 'Smazat celou paměť', 'C': 'Smazat displej',
 'DEG': 'Stupně', 'RAD': 'Radiány', '%': 'Procenta', 'SD': 'Směrodatná odchylka', 'VAR': 'Rozptyl', 'MEAN': 'Průměr', 'STATS': 'Statistický souhrn',
@@ -337,10 +334,6 @@ return;
 }
 append("'", silent: true);
 speak('minut');
-}
-
-void _insertDmsChar() {
-  _handleButtonPressed('DMS');
 }
 
 void backspace() { _deleteAtCursor(); }
@@ -880,29 +873,68 @@ Widget _buildDotMatrixDisplay() {
   return CustomDotMatrixDisplay(text: txt, ledSize: 3.0 * _dotMatrixZoom, ledSpacing: 0.8 * _dotMatrixZoom);
 }
 
-Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallback? onPressed}) {
-final String descriptiveName = semanticLabel ?? (_buttonNames[label] ?? label);
-return Padding(
-padding: const EdgeInsets.all(2),
-child: MergeSemantics(
-child: ElevatedButton(
-style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: color != null ? Colors.white : null, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
-onFocusChange: (hasFocus) {
-if (hasFocus) speak(descriptiveName);
-},
-onPressed: onPressed ??
-() {
-if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
-speak(descriptiveName);
-}
-_handleButtonPressed(label);
-},
-child: Semantics(
-  label: descriptiveName,
-  child: ExcludeSemantics(
-    child: Text(label, style: TextStyle(fontSize: 18 * _fontSizeMultiplier, fontWeight: FontWeight.bold)),
-  ),
-),),),);
+Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallback? onPressed, bool expanded = true}) {
+  final String descriptiveName = semanticLabel ?? (_buttonNames[label] ?? label);
+  final theme = Theme.of(context);
+  final isDark = theme.brightness == Brightness.dark;
+  // Detekce, zda je aktivní systémový screen reader
+  final bool isScreenReaderActive = MediaQuery.of(context).accessibleNavigation;
+
+  Widget buttonBody = Container(
+    margin: const EdgeInsets.all(2),
+    decoration: BoxDecoration(
+      color: color ?? (isDark ? Colors.grey[800] : Colors.grey[300]),
+      borderRadius: BorderRadius.zero,
+      border: Border.all(color: Colors.black26, width: 0.5),
+    ),
+    alignment: Alignment.center,
+    padding: const EdgeInsets.all(4),
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: ExcludeSemantics(
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 20 * _fontSizeMultiplier,
+            fontWeight: FontWeight.bold,
+            color: color != null ? Colors.white : (isDark ? Colors.white : Colors.black),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget buttonWidget = MergeSemantics(
+    child: Semantics(
+      label: descriptiveName,
+      button: true,
+      enabled: true,
+      onTap: onPressed ?? () {
+        if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
+          if (!isScreenReaderActive) speak(descriptiveName);
+        }
+        _handleButtonPressed(label);
+      },
+      child: InkWell(
+        onFocusChange: (hasFocus) {
+          // Mluvíme pouze pokud není aktivní TalkBack, aby nedocházelo k dvojitému čtení
+          if (hasFocus && !isScreenReaderActive) speak(descriptiveName);
+        },
+        onTap: onPressed ?? () {
+          if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
+            if (!isScreenReaderActive) speak(descriptiveName);
+          }
+          _handleButtonPressed(label);
+        },
+        child: buttonBody,
+      ),
+    ),
+  );
+
+  return Expanded(
+    flex: expanded ? 1 : 0,
+    child: buttonWidget,
+  );
 }
 
 void _handleButtonPressed(String label, {bool silent = false}) {
@@ -1119,52 +1151,59 @@ Widget _buildMainKeyboard() {
       btns = ['C', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '.', 'DEL', '='];
       break;
   }
-  return LayoutBuilder(builder: (context, constraints) {
-    double itemWidth = constraints.maxWidth / 4;
-    double itemHeight = constraints.maxHeight / 5;
-    return GridView.builder(
-      shrinkWrap: true,
-      padding: const EdgeInsets.all(4),
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: itemWidth / itemHeight,
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
-      ),
-      itemCount: btns.length,
-      itemBuilder: (context, index) {
-        String b = btns[index];
-        Color? color;
-        if (['/', '*', '-', '+'].contains(b)) color = Colors.blue;
-        else if (b == 'C') color = Colors.orange;
-        else if (b == 'DEL') color = Colors.redAccent;
-        else if (b == '=') color = Colors.green;
-        
-        return buildButton(b, color: color, onPressed: () => _handleButtonPressed(b));
-      },
-    );
-  });
+
+  List<List<String>> rows = [];
+  for (var i = 0; i < btns.length; i += 4) {
+    rows.add(btns.sublist(i, i + 4 > btns.length ? btns.length : i + 4));
+  }
+
+  return Padding(
+    padding: const EdgeInsets.all(2),
+    child: Column(
+      children: rows.map((row) {
+        return Expanded(
+          child: Row(
+            children: row.map((b) {
+              Color? color;
+              if (['/', '*', '-', '+'].contains(b)) color = Colors.blue;
+              else if (b == 'C') color = Colors.orange;
+              else if (b == 'DEL') color = Colors.redAccent;
+              else if (b == '=') color = Colors.green;
+              return buildButton(b, color: color, onPressed: () => _handleButtonPressed(b));
+            }).toList(),
+          ),
+        );
+      }).toList(),
+    ),
+  );
 }
 
 Widget _buildModeSelector() {
-  return Wrap(
-    alignment: WrapAlignment.center,
-    spacing: 8.0,
-    runSpacing: 4.0,
-    children: CalculatorMode.values.map((mode) {
-      String label = _getModeName(mode);
-      return ChoiceChip(
-        label: Text(label),
-        selected: _currentMode == mode,
-        onSelected: (s) {
-          if (s) {
-            _changeMode(mode);
-            speak('Přepnuto na ${_getModeSpeechName(mode)}');
-          }
-        },
-      );
-    }).toList(),
+  return Container(
+    height: 48,
+    margin: const EdgeInsets.symmetric(vertical: 4),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: CalculatorMode.values.map((mode) {
+          String label = _getModeName(mode);
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: ChoiceChip(
+              label: Text(label),
+              selected: _currentMode == mode,
+              onSelected: (s) {
+                if (s) {
+                  _changeMode(mode);
+                  speak('Přepnuto na ${_getModeSpeechName(mode)}');
+                }
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    ),
   );
 }
 
@@ -1299,107 +1338,115 @@ void _showClearHistoryConfirmation() {
 
 @override
 Widget build(BuildContext context) {
-return KeyboardListener(
-focusNode: _mainFocusNode,
-onKeyEvent: _handleKeyboardInput,
-child: Scaffold(
-appBar: AppBar(
-title: const Text('Mluvící kalkulačka'),
-actions: [
-IconButton(
-icon: const Icon(Icons.history),
-tooltip: 'Historie',
-onPressed: _showHistoryDialog,
-),
-IconButton(
-icon: const Icon(Icons.list),
-tooltip: 'Pokročilé funkce',
-onPressed: _showAdvancedFunctionsDialog,
-),
-IconButton(
-icon: const Icon(Icons.help_outline),
-tooltip: 'Nápověda k ovládání',
-onPressed: _showTutorialDialog,
-),
-IconButton(
-icon: const Icon(Icons.settings),
-tooltip: 'Nastavení přístupnosti',
-onPressed: _showAccessibilityDialog,
-)
-],
-),
-body: Column(
-        children: [
-          Expanded(
-            flex: (800 * _displaySizeFactor).toInt(),
-            child: GestureDetector(
-              onScaleUpdate: (ScaleUpdateDetails details) {
-                if (details.scale != 1.0) {
-                  setState(() {
-                    _dotMatrixZoom = (_dotMatrixZoom * details.scale).clamp(0.5, 5.0);
-                    _resultZoom = (_resultZoom * details.scale).clamp(0.5, 5.0);
-                  });
-                  _saveSettings();
-                }
-              },
-              onDoubleTap: () {
-                setState(() {
-                  _dotMatrixZoom = 1.0;
-                  _resultZoom = 1.0;
-                });
-                _saveSettings();
-              },
-              onTap: () => _mainFocusNode.requestFocus(),
-              child: Container(
-                margin: const EdgeInsets.all(8),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)),
-                child: Semantics(
-                  liveRegion: true,
-                  label: 'Displej (zoomujte dvěma prsty, posouvejte tahem)',
-                  value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','),
-                  child: Column(
-                    children: [
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: Text(_getModeName(_currentMode).toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: Center(
-                          child: SingleChildScrollView(
-                            controller: _scrollControllerH,
-                            scrollDirection: Axis.horizontal,
-                            child: SingleChildScrollView(
-                              controller: _scrollControllerV,
-                              scrollDirection: Axis.vertical,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  _buildDotMatrixDisplay(),
-                                  const SizedBox(height: 12),
-                                  _buildMainResultDisplay(),
-                                ],
+  // Detekce, zda je aktivní systémový screen reader
+  final bool isScreenReaderActive = MediaQuery.of(context).accessibleNavigation;
+
+  return KeyboardListener(
+    focusNode: _mainFocusNode,
+    onKeyEvent: _handleKeyboardInput,
+    child: Scaffold(
+      appBar: AppBar(
+        title: const Text('Mluvící kalkulačka'),
+        actions: [
+          IconButton(icon: const Icon(Icons.history), tooltip: 'Historie', onPressed: _showHistoryDialog),
+          IconButton(icon: const Icon(Icons.list), tooltip: 'Pokročilé funkce', onPressed: _showAdvancedFunctionsDialog),
+          IconButton(icon: const Icon(Icons.help_outline), tooltip: 'Nápověda k ovládání', onPressed: _showTutorialDialog),
+          IconButton(icon: const Icon(Icons.settings), tooltip: 'Nastavení přístupnosti', onPressed: _showAccessibilityDialog)
+        ],
+      ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Výpočet dostupného prostoru
+            final double totalHeight = constraints.maxHeight;
+
+            // Rozdělení zbývajícího prostoru mezi displej a klávesnici
+            // Na malých displejích dáme klávesnici víc prostoru
+            final double displayFlex = (totalHeight < 600) ? 1.0 : 1.5;
+            final double keyboardFlex = 3.0;
+
+            return Column(
+              children: [
+                // Displej
+                Expanded(
+                  flex: (displayFlex * 100).toInt(),
+                  child: GestureDetector(
+                    onScaleUpdate: (ScaleUpdateDetails details) {
+                      if (details.scale != 1.0) {
+                        setState(() {
+                          _dotMatrixZoom = (_dotMatrixZoom * details.scale).clamp(0.5, 5.0);
+                          _resultZoom = (_resultZoom * details.scale).clamp(0.5, 5.0);
+                        });
+                        _saveSettings();
+                      }
+                    },
+                    onDoubleTap: () {
+                      setState(() {
+                        _dotMatrixZoom = 1.0;
+                        _resultZoom = 1.0;
+                      });
+                      _saveSettings();
+                    },
+                    onTap: () => _mainFocusNode.requestFocus(),
+                    child: Container(
+                      margin: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      decoration: BoxDecoration(color: const Color(0xFF121212), border: Border.all(color: Colors.black, width: 3)),
+                      child: Semantics(
+                        liveRegion: true,
+                        label: 'Displej',
+                        hint: 'Zoomujte dvěma prsty, posouvejte tahem',
+                        value: display.isEmpty ? 'Prázdno' : display.replaceAll('.', ','),
+                        // Pokud běží TalkBack, vnitřní prvky sémantiku nepotřebují, přečte je tento Semantics widget
+                        explicitChildNodes: !isScreenReaderActive,
+                        child: Column(
+                          children: [
+                            Align(
+                              alignment: Alignment.topLeft,
+                              child: Text(_getModeName(_currentMode).toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                            const SizedBox(height: 4),
+                            Expanded(
+                              child: Center(
+                                child: SingleChildScrollView(
+                                  controller: _scrollControllerH,
+                                  scrollDirection: Axis.horizontal,
+                                  child: SingleChildScrollView(
+                                    controller: _scrollControllerV,
+                                    scrollDirection: Axis.vertical,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        _buildDotMatrixDisplay(),
+                                        const SizedBox(height: 12),
+                                        _buildMainResultDisplay(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          _buildModeSelector(),
-          Expanded(
-            flex: 1200,
-            child: _buildMainKeyboard(),
-          ),
-        ],
-      ),),
-);
+                // Přepínač režimů
+                _buildModeSelector(),
+                // Klávesnice
+                Expanded(
+                  flex: (keyboardFlex * 100).toInt(),
+                  child: _buildMainKeyboard(),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    ),
+  );
 }
 }
 
@@ -1407,7 +1454,7 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
 final _CalculatorScreenState parent;
 const _AdvancedFunctionsDialog({required this.parent});
 
-List<Widget> _buildSections() {
+List<Widget> _buildSections(BuildContext ctx) {
 List<Widget> sections = [];
 if (parent._currentMode == CalculatorMode.unitConversion) {
 sections.add(Padding(
@@ -1417,10 +1464,11 @@ child: Padding(
 padding: const EdgeInsets.all(12.0),
 child: Column(children: [
 DropdownButtonFormField<String>(
-value: parent._selectedUnitCategory,
+initialValue: parent._selectedUnitCategory,
 decoration: const InputDecoration(labelText: 'Kategorie'),
 items: parent._unitCategories.keys.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
 onChanged: (val) {
+// ignore: invalid_use_of_protected_member
 parent.setState(() {
 parent._selectedUnitCategory = val!;
 parent._unitFrom = parent._unitCategories[val]!.keys.first;
@@ -1431,20 +1479,22 @@ parent.speak('Kategorie $val');
 Row(children: [
 Expanded(
 child: DropdownButtonFormField<String>(
-value: parent._unitFrom,
+initialValue: parent._unitFrom,
 decoration: const InputDecoration(labelText: 'Z'),
 items: parent._unitCategories[parent._selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(parent._getUnitSpeech(u)))).toList(),
 onChanged: (val) {
+// ignore: invalid_use_of_protected_member
 parent.setState(() => parent._unitFrom = val!);
 parent.speak('Z jednotky ${parent._getUnitSpeech(val!)}');
 })),
 const Icon(Icons.arrow_forward),
 Expanded(
 child: DropdownButtonFormField<String>(
-value: parent._unitTo,
+initialValue: parent._unitTo,
 decoration: const InputDecoration(labelText: 'Na'),
 items: parent._unitCategories[parent._selectedUnitCategory]!.keys.map((u) => DropdownMenuItem(value: u, child: Text(parent._getUnitSpeech(u)))).toList(),
 onChanged: (val) {
+// ignore: invalid_use_of_protected_member
 parent.setState(() => parent._unitTo = val!);
 parent.speak('Na jednotku ${parent._getUnitSpeech(val!)}');
 })),
@@ -1457,63 +1507,92 @@ SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: parent._c
 sections.add(ExpansionTile(
 title: const Text('Goniometrie', style: TextStyle(fontWeight: FontWeight.bold)),
 children: [
-GridView.count(
-shrinkWrap: true,
-physics: const NeverScrollableScrollPhysics(),
-addSemanticIndexes: false,
-crossAxisCount: 4,
-childAspectRatio: 1.3,
-children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((b) => parent.buildButton(b)).toList())
+Padding(
+  padding: const EdgeInsets.all(8.0),
+  child: Wrap(
+    alignment: WrapAlignment.center,
+    spacing: 4,
+    runSpacing: 4,
+    children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((b) {
+      return SizedBox(
+        width: (MediaQuery.of(ctx).size.width - 80) / 4,
+        height: 50,
+        child: parent.buildButton(b, expanded: false),
+      );
+    }).toList(),
+  ),
+)
 ]));
 
 sections.add(ExpansionTile(
 title: const Text('Funkce', style: TextStyle(fontWeight: FontWeight.bold)),
 children: [
-GridView.count(
-shrinkWrap: true,
-physics: const NeverScrollableScrollPhysics(),
-addSemanticIndexes: false,
-crossAxisCount: 4,
-childAspectRatio: 1.3,
-children: ['√', '∛', 'ⁿ√', '!', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) => parent.buildButton(b)).toList())
+Padding(
+  padding: const EdgeInsets.all(8.0),
+  child: Wrap(
+    alignment: WrapAlignment.center,
+    spacing: 4,
+    runSpacing: 4,
+    children: ['√', '∛', 'ⁿ√', '!', 'LOG', 'LN', 'EXP', 'x²', 'x³', '^', '\u03C0', 'DMS', '°→\'', '\'→°', 'ANS', 'ABS'].map((b) {
+      return SizedBox(
+        width: (MediaQuery.of(ctx).size.width - 80) / 4,
+        height: 50,
+        child: parent.buildButton(b, expanded: false),
+      );
+    }).toList(),
+  ),
+)
 ]));
 
 sections.add(ExpansionTile(
 title: const Text('Paměť', style: TextStyle(fontWeight: FontWeight.bold)),
 children: [
-GridView.count(
-shrinkWrap: true,
-physics: const NeverScrollableScrollPhysics(),
-addSemanticIndexes: false,
-crossAxisCount: 4,
-childAspectRatio: 1.3,
-children: ['STO', 'RCL', 'CLR'].map((b) => parent.buildButton(b)).toList()),
-const Divider(),
-GridView.count(
-shrinkWrap: true,
-physics: const NeverScrollableScrollPhysics(),
-addSemanticIndexes: false,
-crossAxisCount: 4,
-childAspectRatio: 1.3,
-children: ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'].map((b) {
-if (b == 'C') {
-return parent.buildButton('C', semanticLabel: 'Proměnná C', onPressed: () => parent._handleMemoryVariable('C'));
-}
-return parent.buildButton(b);
-}).toList())
+Padding(
+  padding: const EdgeInsets.all(8.0),
+  child: Column(children: [
+    Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 4,
+      runSpacing: 4,
+      children: ['STO', 'RCL', 'CLR'].map((b) {
+        return SizedBox(
+          width: (MediaQuery.of(ctx).size.width - 80) / 3.2,
+          height: 50,
+          child: parent.buildButton(b, expanded: false),
+        );
+      }).toList(),
+    ),
+    const Divider(),
+    Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 4,
+      runSpacing: 4,
+      children: ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'].map((b) {
+        return SizedBox(
+          width: (MediaQuery.of(ctx).size.width - 80) / 4,
+          height: 50,
+          child: b == 'C' 
+            ? parent.buildButton('C', semanticLabel: 'Proměnná C', onPressed: () => parent._handleMemoryVariable('C'), expanded: false)
+            : parent.buildButton(b, expanded: false),
+        );
+      }).toList(),
+    ),
+  ]),
+)
 ]));
 
 sections.add(ExpansionTile(title: const Text('Zobrazení', style: TextStyle(fontWeight: FontWeight.bold)), children: [
 Padding(
-padding: const EdgeInsets.all(4.0),
-child: Wrap(alignment: WrapAlignment.start, spacing: 4, runSpacing: 4, children: [
-parent.buildButton('NORM', semanticLabel: 'Standardní zobrazení', onPressed: () {
-parent.setState(() => parent._displayFormat = DisplayFormat.standard);
-parent.speak('Nastaveno standardní zobrazení');
-}),
-parent.buildButton('FIX', semanticLabel: 'Zobrazení s pevným počtem desetinných míst', onPressed: () => parent._showPrecisionDialog(DisplayFormat.fix)),
-parent.buildButton('SCI', semanticLabel: 'Vědecký zápis', onPressed: () => parent._showPrecisionDialog(DisplayFormat.sci)),
-parent.buildButton('ENG', semanticLabel: 'Inženýrský zápis', onPressed: () => parent._showPrecisionDialog(DisplayFormat.eng))
+padding: const EdgeInsets.all(8.0),
+child: Wrap(alignment: WrapAlignment.center, spacing: 4, runSpacing: 4, children: [
+  SizedBox(width: 80, height: 50, child: parent.buildButton('NORM', semanticLabel: 'Standardní zobrazení', onPressed: () {
+    // ignore: invalid_use_of_protected_member
+    parent.setState(() => parent._displayFormat = DisplayFormat.standard);
+    parent.speak('Nastaveno standardní zobrazení');
+  }, expanded: false)),
+  SizedBox(width: 80, height: 50, child: parent.buildButton('FIX', semanticLabel: 'Zobrazení s pevným počtem desetinných míst', onPressed: () => parent._showPrecisionDialog(DisplayFormat.fix), expanded: false)),
+  SizedBox(width: 80, height: 50, child: parent.buildButton('SCI', semanticLabel: 'Vědecký zápis', onPressed: () => parent._showPrecisionDialog(DisplayFormat.sci), expanded: false)),
+  SizedBox(width: 80, height: 50, child: parent.buildButton('ENG', semanticLabel: 'Inženýrský zápis', onPressed: () => parent._showPrecisionDialog(DisplayFormat.eng), expanded: false)),
 ]),
 )
 ]));
@@ -1527,7 +1606,7 @@ title: Semantics(header: true, child: const Text('Pokročilé funkce')),
 content: SizedBox(
 width: double.maxFinite,
 child: ListView(
-children: _buildSections(),
+children: _buildSections(context),
 ),
 ),
 actions: [
@@ -1949,6 +2028,26 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     setState(() {});
                   },
                   child: Text('Úhly: ${widget.parent._inverseFormatPreference == 0 ? 'DMS' : 'Desetinné'}')),
+              const Divider(),
+              const Text('Motiv aplikace'),
+              const SizedBox(height: 8),
+              SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(value: ThemeMode.system, label: Text('Systém'), icon: Icon(Icons.brightness_auto)),
+                  ButtonSegment(value: ThemeMode.light, label: Text('Světlý'), icon: Icon(Icons.light_mode)),
+                  ButtonSegment(value: ThemeMode.dark, label: Text('Tmavý'), icon: Icon(Icons.dark_mode)),
+                ],
+                selected: {widget.parent.widget.themeMode},
+                onSelectionChanged: (Set<ThemeMode> selection) {
+                  ThemeMode mode = selection.first;
+                  widget.parent.widget.onThemeModeChanged(mode);
+                  String modeName = 'systémový';
+                  if (mode == ThemeMode.light) modeName = 'světlý';
+                  if (mode == ThemeMode.dark) modeName = 'tmavý';
+                  widget.parent.speak('Motiv nastaven na $modeName');
+                  setState(() {});
+                },
+              ),
               const SizedBox(height: 16),
 
               // Seskupená Rychlost
