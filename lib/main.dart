@@ -904,37 +904,37 @@ Widget buildButton(String label, {Color? color, String? semanticLabel, VoidCallb
     ),
   );
 
-  Widget buttonWidget = MergeSemantics(
-    child: Semantics(
-      label: descriptiveName,
-      button: true,
-      enabled: true,
+  Widget buttonWidget = Semantics(
+    label: descriptiveName,
+    button: true,
+    enabled: true,
+    onTap: onPressed ?? () {
+      if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
+        if (!isScreenReaderActive) speak(descriptiveName);
+      }
+      _handleButtonPressed(label);
+    },
+    child: InkWell(
+      excludeFromSemantics: true, // Zamezí TalkBacku vidět InkWell jako samostatný prvek
+      onFocusChange: (hasFocus) {
+        // Mluvíme pouze pokud není aktivní TalkBack, aby nedocházelo k dvojitému čtení
+        if (hasFocus && !isScreenReaderActive) speak(descriptiveName);
+      },
       onTap: onPressed ?? () {
         if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
           if (!isScreenReaderActive) speak(descriptiveName);
         }
         _handleButtonPressed(label);
       },
-      child: InkWell(
-        onFocusChange: (hasFocus) {
-          // Mluvíme pouze pokud není aktivní TalkBack, aby nedocházelo k dvojitému čtení
-          if (hasFocus && !isScreenReaderActive) speak(descriptiveName);
-        },
-        onTap: onPressed ?? () {
-          if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
-            if (!isScreenReaderActive) speak(descriptiveName);
-          }
-          _handleButtonPressed(label);
-        },
-        child: buttonBody,
-      ),
+      child: buttonBody,
     ),
   );
 
-  return Expanded(
-    flex: expanded ? 1 : 0,
-    child: buttonWidget,
-  );
+  if (expanded) {
+    return Expanded(child: buttonWidget);
+  } else {
+    return buttonWidget;
+  }
 }
 
 void _handleButtonPressed(String label, {bool silent = false}) {
@@ -1504,8 +1504,8 @@ SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: parent._c
 ])))));
 }
 
-sections.add(ExpansionTile(
-title: const Text('Goniometrie', style: TextStyle(fontWeight: FontWeight.bold)),
+sections.add(_CollapsibleSection(
+title: 'Goniometrie',
 children: [
 Padding(
   padding: const EdgeInsets.all(8.0),
@@ -1524,8 +1524,8 @@ Padding(
 )
 ]));
 
-sections.add(ExpansionTile(
-title: const Text('Funkce', style: TextStyle(fontWeight: FontWeight.bold)),
+sections.add(_CollapsibleSection(
+title: 'Funkce',
 children: [
 Padding(
   padding: const EdgeInsets.all(8.0),
@@ -1544,8 +1544,8 @@ Padding(
 )
 ]));
 
-sections.add(ExpansionTile(
-title: const Text('Paměť', style: TextStyle(fontWeight: FontWeight.bold)),
+sections.add(_CollapsibleSection(
+title: 'Paměť',
 children: [
 Padding(
   padding: const EdgeInsets.all(8.0),
@@ -1581,7 +1581,9 @@ Padding(
 )
 ]));
 
-sections.add(ExpansionTile(title: const Text('Zobrazení', style: TextStyle(fontWeight: FontWeight.bold)), children: [
+sections.add(_CollapsibleSection(
+title: 'Zobrazení',
+children: [
 Padding(
 padding: const EdgeInsets.all(8.0),
 child: Wrap(alignment: WrapAlignment.center, spacing: 4, runSpacing: 4, children: [
@@ -1598,6 +1600,7 @@ child: Wrap(alignment: WrapAlignment.center, spacing: 4, runSpacing: 4, children
 ]));
 return sections;
 }
+
 
 @override
 Widget build(BuildContext context) {
@@ -1620,6 +1623,39 @@ if (parent.mounted) parent._mainFocusNode.requestFocus();
 child: const Text('ZAVŘÍT'))
 ]);
 }
+}
+
+class _CollapsibleSection extends StatefulWidget {
+  final String title;
+  final List<Widget> children;
+  const _CollapsibleSection({required this.title, required this.children});
+  @override
+  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
+}
+
+class _CollapsibleSectionState extends State<_CollapsibleSection> {
+  bool _isExpanded = false;
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Semantics(
+          label: "${widget.title}, ${_isExpanded ? 'rozbaleno' : 'sbaleno'}",
+          hint: _isExpanded ? 'Klepnutím sbalíte' : 'Klepnutím rozbalíte',
+          button: true,
+          onTap: () => setState(() => _isExpanded = !_isExpanded),
+          child: ExcludeSemantics(
+            child: ListTile(
+              title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              trailing: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+            ),
+          ),
+        ),
+        if (_isExpanded) ...widget.children,
+      ],
+    );
+  }
 }
 
 class CustomSegmentDisplay extends StatelessWidget {
