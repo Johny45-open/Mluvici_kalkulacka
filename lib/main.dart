@@ -471,12 +471,38 @@ double _evaluateExpression(String expr) {
   String ansValue = _lastNumericValue?.toString() ?? '0';
   String processed = expr.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
 
-  // 0. NAHRAZENÍ PROMĚNNÝCH
+  // 1. PŘÍPRAVA SYMBOLŮ (Základní normalizace před zpracováním proměnných)
+  processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3');
+  processed = processed.replaceAll('\u03C0', '(3.14159265358979323846)');
+  processed = processed.replaceAll('(-)', '-');
+  processed = processed.replaceAll(',', '.');
+  processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
+
+  // 2. FUNKCE -> MARKERY (Ochráníme názvy funkcí před rozbitím při doplňování násobení)
+  final Map<String, String> markers = {
+    'ASIN': '#ASIN#', 'ACOS': '#ACOS#', 'ATAN': '#ATAN#',
+    'SIN': '#SIN#', 'COS': '#COS#', 'TAN': '#TAN#',
+    'ABS': '#ABS#', 'LOG': '#LOG#', 'LN': '#LN#', '√': '#SQRT#', '∛': '#CBRT#',
+  };
+  markers.forEach((name, marker) {
+    String pattern = (name == '√' || name == '∛') ? name : '\\b$name';
+    processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
+  });
+
+  // 3. ROBUSTNÍ IMPLICITNÍ NÁSOBENÍ
+  // Doplňování * mezi čísla, proměnné, markery a závorky
+  // Např: 4A -> 4*A, AC -> A*C, 4( -> 4*(, )A -> )*A, A# -> A*#
+  processed = processed.replaceAllMapped(RegExp(r'(\d|[A-Z])(?=[A-Z#\(])'), (m) => '${m[1]}*');
+  processed = processed.replaceAllMapped(RegExp(r'(\))(?=[\d[A-Z#])'), (m) => '${m[1]}*');
+  processed = processed.replaceAll(')(', ')*(');
+
+  // 4. NAHRAZENÍ PROMĚNNÝCH (Teď už jsou proměnné bezpečně izolovány)
   _memory.forEach((key, value) {
     processed = processed.replaceAll(RegExp('\\b$key\\b'), '(${value.toString()})');
   });
 
-  // 1. DMS ZPRACOVÁNÍ (přesunuto na začátek)
+  // 5. DMS A SPECIÁLNÍ PRE-PROCESSING
+  // DMS ZPRACOVÁNÍ
   processed = processed.replaceAllMapped(RegExp(r'''(?<![\d.])(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
     double d = double.parse(m[1]!);
     double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
@@ -485,14 +511,7 @@ double _evaluateExpression(String expr) {
     return '(${sign * (d.abs() + mn / 60.0 + sc / 3600.0)})';
   });
 
-  // 2. ZÁKLADNÍ PŘÍPRAVA
-  const String PI_VAL = '3.14159265358979323846';
-  processed = processed.replaceAll('\u03C0', '($PI_VAL)');
-  processed = processed.replaceAll(',', '.');
-  processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
-
-  // 2.1 PRE-PROCESSING FAKTORIÁLU
-  // Najde čísla následovaná vykřičníkem (např. 5!) a nahradí je vypočtenou hodnotou.
+  // FAKTORIÁL
   processed = processed.replaceAllMapped(RegExp(r'(\d+)!'), (m) {
     int n = int.parse(m[1]!);
     return _factorial(n).toString();
@@ -500,44 +519,25 @@ double _evaluateExpression(String expr) {
 
   if (processed.isEmpty) return 0.0;
 
+  // E-NOTACE
   processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"), (m) => '${m[1]}*10^(${m[2]})');
-  processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3').replaceAll('(-)', '-');
-  processed = processed.replaceAll('∛', '#CBRT#');
 
-  // 3. IMPLICITNÍ NÁSOBENÍ
-  processed = processed.replaceAllMapped(RegExp(r'(\d)(\(|[A-Z√#])'), (m) => '${m[1]}*${m[2]}');
-  processed = processed.replaceAllMapped(RegExp(r'\)(\d)'), (m) => ')*${m[1]}');
-  processed = processed.replaceAll(')(', ')*(');
-
-  // 4. TOKENIZACE FUNKCÍ
-  final Map<String, String> markers = {
-    'ASIN': '#ASIN#', 'ACOS': '#ACOS#', 'ATAN': '#ATAN#',
-    'SIN': '#SIN#', 'COS': '#COS#', 'TAN': '#TAN#',
-    'ABS': '#ABS#', 'LOG': '#LOG#', 'LN': '#LN#', '√': '#SQRT#',
-  };
-
-  markers.forEach((name, marker) {
-    String pattern = (name == '√') ? '√' : '\\b$name';
-    processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
-  });
-
-  // Speciální zpracování pro n-tou odmocninu: xⁿ√y -> (x)^(1/y)
-  // Podporuje čísla, proměnné i výrazy v závorkách (včetně nahrazeného ANS)
+  // N-TÁ ODMOCNINA: xⁿ√y -> (x)^(1/y)
   processed = processed.replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?|[A-Z]|\([^)]+\))ⁿ√(\d+(?:\.\d+)?|[A-Z]|\([^)]+\))'), (m) {
     return '(${m[1]})^(1/(${m[2]}))';
   });
 
-  // 5. BALANCOVÁNÍ ZÁVOREK (přesunuto před expanzi pro stabilitu)
+  // 6. BALANCOVÁNÍ ZÁVOREK
   int openCount = '('.allMatches(processed).length;
   int closeCount = ')'.allMatches(processed).length;
   if (openCount > closeCount) {
     processed += ')' * (openCount - closeCount);
   } else if (closeCount > openCount) {
-    // Odstranit přebytečné zavírací závorky z konce nebo začátku
     processed = processed.replaceAll(RegExp(r'^\)+|\)+$'), '');
   }
 
-  // 6. EXPANZE MARKERŮ (opraveno pro vnořené závorky)
+  // 7. EXPANZE MARKERŮ ZPĚT NA FUNKCE (Včetně konverze stupňů na radiány)
+  const String PI_VAL = '3.14159265358979323846';
   if (_isDegreeMode) {
     processed = processed.replaceAllMapped(RegExp(r'#SIN#\((([^()]*|\([^()]*\))*)\)'), (m) => 'sin((${m[1]}*$PI_VAL/180))');
     processed = processed.replaceAllMapped(RegExp(r'#COS#\((([^()]*|\([^()]*\))*)\)'), (m) => 'cos((${m[1]}*$PI_VAL/180))');
@@ -555,7 +555,7 @@ double _evaluateExpression(String expr) {
   processed = processed.replaceAll('#CBRT#', '('); // Fallback
   processed = processed.replaceAll('#LOG#(', 'log(10,');
 
-  // 7. FINÁLNÍ VYHODNOCENÍ
+  // 8. FINÁLNÍ VYHODNOCENÍ
   if (RegExp(r'^-?\d+(\.\d+)?$').hasMatch(processed)) {
     processed = '$processed+0';
   }
@@ -569,6 +569,7 @@ double _evaluateExpression(String expr) {
     rethrow;
   }
 }
+
 
 String _formatNumber(double value) {
 if (value.isNaN || value.isInfinite) {
