@@ -478,7 +478,13 @@ double _evaluateExpression(String expr) {
   processed = processed.replaceAll(',', '.');
   processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
 
-  // 2. FUNKCE -> MARKERY (Ochráníme názvy funkcí před rozbitím při doplňování násobení)
+  // 2. ROBUSTNÍ IMPLICITNÍ NÁSOBENÍ
+  // Doplňování * mezi čísla, proměnné a závorky (před nahrazením funkcí markery)
+  processed = processed.replaceAllMapped(RegExp(r'(\d|[A-Z])(?=[A-Z\(])'), (m) => '${m[1]}*');
+  processed = processed.replaceAllMapped(RegExp(r'(\))(?=[\d[A-Z])'), (m) => '${m[1]}*');
+  processed = processed.replaceAll(')(', ')*(');
+
+  // 3. FUNKCE -> MARKERY
   final Map<String, String> markers = {
     'ASIN': '#ASIN#', 'ACOS': '#ACOS#', 'ATAN': '#ATAN#',
     'SIN': '#SIN#', 'COS': '#COS#', 'TAN': '#TAN#',
@@ -488,13 +494,6 @@ double _evaluateExpression(String expr) {
     String pattern = (name == '√' || name == '∛') ? name : '\\b$name';
     processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
   });
-
-  // 3. ROBUSTNÍ IMPLICITNÍ NÁSOBENÍ
-  // Doplňování * mezi čísla, proměnné, markery a závorky
-  // Např: 4A -> 4*A, AC -> A*C, 4( -> 4*(, )A -> )*A, A# -> A*#
-  processed = processed.replaceAllMapped(RegExp(r'(\d|[A-Z])(?=[A-Z#\(])'), (m) => '${m[1]}*');
-  processed = processed.replaceAllMapped(RegExp(r'(\))(?=[\d[A-Z#])'), (m) => '${m[1]}*');
-  processed = processed.replaceAll(')(', ')*(');
 
   // 4. NAHRAZENÍ PROMĚNNÝCH (Teď už jsou proměnné bezpečně izolovány)
   _memory.forEach((key, value) {
@@ -536,23 +535,26 @@ double _evaluateExpression(String expr) {
     processed = processed.replaceAll(RegExp(r'^\)+|\)+$'), '');
   }
 
-  // 7. EXPANZE MARKERŮ ZPĚT NA FUNKCE (Včetně konverze stupňů na radiány)
+  // 7. EXPANZE MARKERŮ ZPĚT NA FUNKCE
   const String PI_VAL = '3.14159265358979323846';
+  
+  // Konverze stupňů na radiány, pokud je aktivní DEG mód
   if (_isDegreeMode) {
-    processed = processed.replaceAllMapped(RegExp(r'#SIN#\((([^()]*|\([^()]*\))*)\)'), (m) => 'sin((${m[1]}*$PI_VAL/180))');
-    processed = processed.replaceAllMapped(RegExp(r'#COS#\((([^()]*|\([^()]*\))*)\)'), (m) => 'cos((${m[1]}*$PI_VAL/180))');
-    processed = processed.replaceAllMapped(RegExp(r'#TAN#\((([^()]*|\([^()]*\))*)\)'), (m) => 'tan((${m[1]}*$PI_VAL/180))');
-    processed = processed.replaceAllMapped(RegExp(r'#ASIN#\((([^()]*|\([^()]*\))*)\)'), (m) => '(180/$PI_VAL)*arcsin(${m[1]})');
-    processed = processed.replaceAllMapped(RegExp(r'#ACOS#\((([^()]*|\([^()]*\))*)\)'), (m) => '(180/$PI_VAL)*arccos(${m[1]})');
-    processed = processed.replaceAllMapped(RegExp(r'#ATAN#\((([^()]*|\([^()]*\))*)\)'), (m) => '(180/$PI_VAL)*arctan(${m[1]})');
+    processed = processed.replaceAllMapped(RegExp(r'#SIN#\(([^()]+)\)'), (m) => 'sin((${m[1]}*$PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'#COS#\(([^()]+)\)'), (m) => 'cos((${m[1]}*$PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'#TAN#\(([^()]+)\)'), (m) => 'tan((${m[1]}*$PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'#ASIN#\(([^()]+)\)'), (m) => '(180/$PI_VAL)*arcsin(${m[1]})');
+    processed = processed.replaceAllMapped(RegExp(r'#ACOS#\(([^()]+)\)'), (m) => '(180/$PI_VAL)*arccos(${m[1]})');
+    processed = processed.replaceAllMapped(RegExp(r'#ATAN#\(([^()]+)\)'), (m) => '(180/$PI_VAL)*arctan(${m[1]})');
   } else {
     processed = processed.replaceAll('#SIN#', 'sin').replaceAll('#COS#', 'cos').replaceAll('#TAN#', 'tan');
     processed = processed.replaceAll('#ASIN#', 'arcsin').replaceAll('#ACOS#', 'arccos').replaceAll('#ATAN#', 'arctan');
   }
 
+  // Ostatní funkce
   processed = processed.replaceAll('#ABS#', 'abs').replaceAll('#SQRT#', 'sqrt').replaceAll('#LN#', 'ln');
-  processed = processed.replaceAllMapped(RegExp(r'#CBRT#\((([^()]*|\([^()]*\))*)\)'), (m) => '(${m[1]})^(1/3)');
-  processed = processed.replaceAll('#CBRT#', '('); // Fallback
+  processed = processed.replaceAllMapped(RegExp(r'#CBRT#\(([^()]+)\)'), (m) => '(${m[1]})^(1/3)');
+  processed = processed.replaceAll('#CBRT#', '(');
   processed = processed.replaceAll('#LOG#(', 'log(10,');
 
   // 8. FINÁLNÍ VYHODNOCENÍ
