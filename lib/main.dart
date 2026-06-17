@@ -479,6 +479,11 @@ double _evaluateExpression(String expr) {
   processed = processed.replaceAll(',', '.');
   processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
 
+  // 1.5. N-TÁ ODMOCNINA: xⁿ√y -> (y)^(1/x) (POZOR: toto musí být před náhradou √)
+  processed = processed.replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?|[A-Z]|\([^)]+\))ⁿ√(\d+(?:\.\d+)?|[A-Z]|\([^)]+\))'), (m) {
+    return '(${m[2]})^(1/(${m[1]}))';
+  });
+
   // 2. FUNKCE -> MARKERY (První krok, aby názvy funkcí byly chráněny)
   final Map<String, String> markers = {
     'ASIN': '_ASIN_', 'ACOS': '_ACOS_', 'ATAN': '_ATAN_',
@@ -523,9 +528,9 @@ double _evaluateExpression(String expr) {
   // E-NOTACE
   processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"), (m) => '${m[1]}*10^(${m[2]})');
 
-  // N-TÁ ODMOCNINA: xⁿ√y -> (x)^(1/y)
+  // N-TÁ ODMOCNINA: xⁿ√y -> root(x, y)
   processed = processed.replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?|[A-Z]|\([^)]+\))ⁿ√(\d+(?:\.\d+)?|[A-Z]|\([^)]+\))'), (m) {
-    return '(${m[1]})^(1/(${m[2]}))';
+    return 'root(${m[1]},${m[2]})';
   });
 
   // 6. BALANCOVÁNÍ ZÁVOREK
@@ -2037,6 +2042,7 @@ static const Map<String, List<int>> _font = {
 '∛': [0x22, 0x24, 0x28, 0x30, 0x2E],
 'ⁿ': [0x00, 0x03, 0x01, 0x03, 0x00],
 ',': [0x00, 0x00, 0x18, 0x00, 0x00],
+'!': [0x00, 0x16, 0x16, 0x00, 0x00],
 ';': [0x00, 0x00, 0x14, 0x00, 0x00],
 };
 
