@@ -387,7 +387,7 @@ void calculateResult() {
     String spoken = '';
 
     if (_currentMode == CalculatorMode.statistics) {
-      List<double> data = display.split(';').map((s) => double.parse(s.replaceAll(',', '.'))).toList();
+      List<double> data = display.split(';').where((s) => s.isNotEmpty).map((s) => double.parse(s.replaceAll(',', '.'))).toList();
       if (data.isEmpty) throw Exception('Prázdná data');
       
       double sum = data.reduce((a, b) => a + b);
@@ -466,41 +466,43 @@ void calculateResult() {
     speak(msg);
   }
 }
+
 double _evaluateExpression(String expr) {
   debugPrint("Evaluating expression: '$expr'");
   String ansValue = _lastNumericValue?.toString() ?? '0';
   String processed = expr.replaceAll('ANS', '($ansValue)').replaceAll(' ', '');
 
-  // 1. PŘÍPRAVA SYMBOLŮ (Základní normalizace před zpracováním proměnných)
+  // 1. PŘÍPRAVA SYMBOLŮ
   processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3');
   processed = processed.replaceAll('\u03C0', '(3.14159265358979323846)');
   processed = processed.replaceAll('(-)', '-');
   processed = processed.replaceAll(',', '.');
   processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
 
-  // 2. ROBUSTNÍ IMPLICITNÍ NÁSOBENÍ
-  // Doplňování * mezi čísla, proměnné a závorky (před nahrazením funkcí markery)
-  processed = processed.replaceAllMapped(RegExp(r'(\d|[A-Z])(?=[A-Z\(])'), (m) => '${m[1]}*');
-  processed = processed.replaceAllMapped(RegExp(r'(\))(?=[\d[A-Z])'), (m) => '${m[1]}*');
-  processed = processed.replaceAll(')(', ')*(');
-
-  // 3. FUNKCE -> MARKERY
+  // 2. FUNKCE -> MARKERY (První krok, aby názvy funkcí byly chráněny)
   final Map<String, String> markers = {
-    'ASIN': '#ASIN#', 'ACOS': '#ACOS#', 'ATAN': '#ATAN#',
-    'SIN': '#SIN#', 'COS': '#COS#', 'TAN': '#TAN#',
-    'ABS': '#ABS#', 'LOG': '#LOG#', 'LN': '#LN#', '√': '#SQRT#', '∛': '#CBRT#',
+    'ASIN': '_ASIN_', 'ACOS': '_ACOS_', 'ATAN': '_ATAN_',
+    'SIN': '_SIN_', 'COS': '_COS_', 'TAN': '_TAN_',
+    'ABS': '_ABS_', 'LOG': '_LOG_', 'LN': '_LN_', '√': '_SQRT_', '∛': '_CBRT_',
   };
   markers.forEach((name, marker) {
     String pattern = (name == '√' || name == '∛') ? name : '\\b$name';
     processed = processed.replaceAll(RegExp(pattern, caseSensitive: false), marker);
   });
 
-  // 4. NAHRAZENÍ PROMĚNNÝCH (Teď už jsou proměnné bezpečně izolovány)
+  // 3. NAHRAZENÍ PROMĚNNÝCH
   _memory.forEach((key, value) {
     processed = processed.replaceAll(RegExp('\\b$key\\b'), '(${value.toString()})');
   });
 
-  // 5. DMS A SPECIÁLNÍ PRE-PROCESSING
+  // 4. E-NOTACE
+  processed = processed.replaceAllMapped(RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"), (m) => '${m[1]}*10^(${m[2]})');
+
+  // 5. ROBUSTNÍ IMPLICITNÍ NÁSOBENÍ
+  processed = processed.replaceAllMapped(RegExp(r'(\d|[A-Z])(?=[A-Z\(])(?![^_]*_)'), (m) => '${m[1]}*');
+  processed = processed.replaceAllMapped(RegExp(r'(\))(?=[\d[A-Z])(?![^_]*_)'), (m) => '${m[1]}*');
+  processed = processed.replaceAll(')(', ')*(');
+
   // DMS ZPRACOVÁNÍ
   processed = processed.replaceAllMapped(RegExp(r'''(?<![\d.])(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?'''), (m) {
     double d = double.parse(m[1]!);
@@ -535,27 +537,64 @@ double _evaluateExpression(String expr) {
     processed = processed.replaceAll(RegExp(r'^\)+|\)+$'), '');
   }
 
-  // 7. EXPANZE MARKERŮ ZPĚT NA FUNKCE
+  // =========================================================================
+  // 7. EXPANZE MARKERŮ A DEG/RAD KONVERZE
+  // =========================================================================
   const String PI_VAL = '3.14159265358979323846';
   
-  // Konverze stupňů na radiány, pokud je aktivní DEG mód
+  // KROK A: Ostatní standardní funkce musíme z markerů expandovat jako PRVNÍ!
+  // Tím zmizí matoucí vnitřní závorky typu _SQRT_(5) a nahradí se za čisté sqrt(5).
+  processed = processed.replaceAll('_ABS_', 'abs');
+  processed = processed.replaceAll('_SQRT_', 'sqrt');
+  processed = processed.replaceAll('_LN_', 'ln');
+
+  // Vyčištění speciálních funkcí
+  processed = processed.replaceAllMapped(RegExp(r'_CBRT_\(([^()]+)\)'), (m) => '(${m[1]})^(1/3)');
+  processed = processed.replaceAll('_CBRT_', '(');
+  processed = processed.replaceAll('_LOG_(', 'log(10,');
+
+  // KROK B: Nyní zpracujeme goniometrické funkce podle zvoleného režimu úhlů
   if (_isDegreeMode) {
-    processed = processed.replaceAllMapped(RegExp(r'#SIN#\(([^()]+)\)'), (m) => 'sin((${m[1]}*$PI_VAL/180))');
-    processed = processed.replaceAllMapped(RegExp(r'#COS#\(([^()]+)\)'), (m) => 'cos((${m[1]}*$PI_VAL/180))');
-    processed = processed.replaceAllMapped(RegExp(r'#TAN#\(([^()]+)\)'), (m) => 'tan((${m[1]}*$PI_VAL/180))');
-    processed = processed.replaceAllMapped(RegExp(r'#ASIN#\(([^()]+)\)'), (m) => '(180/$PI_VAL)*arcsin(${m[1]})');
-    processed = processed.replaceAllMapped(RegExp(r'#ACOS#\(([^()]+)\)'), (m) => '(180/$PI_VAL)*arccos(${m[1]})');
-    processed = processed.replaceAllMapped(RegExp(r'#ATAN#\(([^()]+)\)'), (m) => '(180/$PI_VAL)*arctan(${m[1]})');
+    // Pro sin, cos, tan: argument ve stupních * (PI/180)
+    processed = processed.replaceAllMapped(RegExp(r'_SIN_\((.+)\)'), (m) => 'sin(${m[1]}*($PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'_COS_\((.+)\)'), (m) => 'cos(${m[1]}*($PI_VAL/180))');
+    processed = processed.replaceAllMapped(RegExp(r'_TAN_\((.+)\)'), (m) => 'tan(${m[1]}*($PI_VAL/180))');
+    
+    // Pro asin, acos, atan: ZMĚNA na arcsin, arccos, arctan pro knihovnu math_expressions!
+    // Přidány otevírací závorky na začátek pro správnou vyváženost
+    processed = processed.replaceAllMapped(RegExp(r'_ASIN_\((.+)\)'), (m) => '(arcsin(${m[1]})*(180/$PI_VAL))');
+    processed = processed.replaceAllMapped(RegExp(r'_ACOS_\((.+)\)'), (m) => '(arccos(${m[1]})*(180/$PI_VAL))');
+    processed = processed.replaceAllMapped(RegExp(r'_ATAN_\((.+)\)'), (m) => '(arctan(${m[1]})*(180/$PI_VAL))');
   } else {
-    processed = processed.replaceAll('#SIN#', 'sin').replaceAll('#COS#', 'cos').replaceAll('#TAN#', 'tan');
-    processed = processed.replaceAll('#ASIN#', 'arcsin').replaceAll('#ACOS#', 'arccos').replaceAll('#ATAN#', 'arctan');
+    // RAD mód: knihovna vyžaduje arcsin, arccos, arctan i v radiánech
+    processed = processed.replaceAll('_SIN_', 'sin');
+    processed = processed.replaceAll('_COS_', 'cos');
+    processed = processed.replaceAll('_TAN_', 'tan');
+    processed = processed.replaceAll('_ASIN_', 'arcsin');
+    processed = processed.replaceAll('_ACOS_', 'arccos');
+    processed = processed.replaceAll('_ATAN_', 'arctan');
   }
 
-  // Ostatní funkce
-  processed = processed.replaceAll('#ABS#', 'abs').replaceAll('#SQRT#', 'sqrt').replaceAll('#LN#', 'ln');
-  processed = processed.replaceAllMapped(RegExp(r'#CBRT#\(([^()]+)\)'), (m) => '(${m[1]})^(1/3)');
-  processed = processed.replaceAll('#CBRT#', '(');
-  processed = processed.replaceAll('#LOG#(', 'log(10,');
+  // Odstranění případných zdvojených závorek po dosazení ANS, pokud by vznikly
+  processed = processed.replaceAll('arcsin((', 'arcsin(');
+  processed = processed.replaceAll('arccos((', 'arccos(');
+  processed = processed.replaceAll('arctan((', 'arctan(');
+  
+  // Robustní vyvážení závorek
+  openCount = '('.allMatches(processed).length;
+  closeCount = ')'.allMatches(processed).length;
+  
+  if (openCount > closeCount) {
+    processed += ')' * (openCount - closeCount);
+  } else if (closeCount > openCount) {
+    // Odstranění přebytečných ')' na konci
+    while (closeCount > openCount && processed.endsWith(')')) {
+      processed = processed.substring(0, processed.length - 1);
+      closeCount--;
+    }
+  }
+
+  debugPrint("Parsing expression: $processed");
 
   // 8. FINÁLNÍ VYHODNOCENÍ
   if (RegExp(r'^-?\d+(\.\d+)?$').hasMatch(processed)) {
@@ -565,143 +604,145 @@ double _evaluateExpression(String expr) {
   try {
     final p = math_expr.ShuntingYardParser();
     debugPrint("Parsing expression: $processed");
-    return p.parse(processed).evaluate(math_expr.EvaluationType.REAL, math_expr.ContextModel());
+    math_expr.Expression exp = p.parse(processed);
+    math_expr.ContextModel cm = math_expr.ContextModel();
+    
+    return exp.evaluate(math_expr.EvaluationType.REAL, cm);
   } catch (e) {
     debugPrint("Parse error: $e for expression: $processed");
     rethrow;
   }
 }
 
-
 String _formatNumber(double value) {
-if (value.isNaN || value.isInfinite) {
-return value.toString();
-}
-switch (_displayFormat) {
-case DisplayFormat.fix:
-return value.toStringAsFixed(_precision);
-case DisplayFormat.sci:
-return value.toStringAsExponential(_precision).toUpperCase();
-case DisplayFormat.eng:
-if (value == 0) {
-return "0.00E+00";
-}
-int engExp = ((math.log(value.abs()) / math.ln10).floor() / 3).floor() * 3;
-return "${(value / math.pow(10, engExp)).toStringAsFixed(_precision)}E${engExp >= 0 ? '+' : ''}${engExp.toString().padLeft(2, '0')}";
-default:
-return value.toString().contains('.') ? value.toStringAsFixed(10).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '') : value.toInt().toString();
-}
+  if (value.isNaN || value.isInfinite) {
+    return value.toString();
+  }
+  switch (_displayFormat) {
+    case DisplayFormat.fix:
+      return value.toStringAsFixed(_precision);
+    case DisplayFormat.sci:
+      return value.toStringAsExponential(_precision).toUpperCase();
+    case DisplayFormat.eng:
+      if (value == 0) {
+        return "0.00E+00";
+      }
+      int engExp = ((math.log(value.abs()) / math.ln10).floor() / 3).floor() * 3;
+      return "${(value / math.pow(10, engExp)).toStringAsFixed(_precision)}E${engExp >= 0 ? '+' : ''}${engExp.toString().padLeft(2, '0')}";
+    default:
+      return value.toString().contains('.') ? value.toStringAsFixed(10).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '') : value.toInt().toString();
+  }
 }
 
 String _formatAsDMS(double value) {
-double absVal = value.abs();
-int d = absVal.floor();
-int m = ((absVal - d) * 60).floor();
-double s = ((absVal - d - m / 60) * 3600);
-String sStr = s.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
-return "${value < 0 ? '-' : ''}$d°$m'$sStr\"";
+  double absVal = value.abs();
+  int d = absVal.floor();
+  int m = ((absVal - d) * 60).floor();
+  double s = ((absVal - d - m / 60) * 3600);
+  String sStr = s.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+  return "${value < 0 ? '-' : ''}$d°$m'$sStr\"";
 }
 
 void _convertUnits() {
-try {
-double value = display.isNotEmpty ? _evaluateExpression(display) : double.parse(_lastResult.replaceAll(',', '.'));
-double fromFactor = _unitCategories[_selectedUnitCategory]![_unitFrom]!;
-double toFactor = _unitCategories[_selectedUnitCategory]![_unitTo]!;
-double result = value * (fromFactor / toFactor);
-String resStr = _formatNumber(result);
-setState(() {
-_lastResult = resStr;
-display = '';
-_hasResult = true;
-});
-speak('Převedeno z ${_getUnitSpeech(_unitFrom, context: 'z')} na ${_getUnitSpeech(_unitTo, context: 'na')}. Výsledek je $resStr ${_getUnitSpeech(_unitTo, value: result)}');
-} catch (e) {
-speak('Chyba převodu');
-}
+  try {
+    double value = display.isNotEmpty ? _evaluateExpression(display) : double.parse(_lastResult.replaceAll(',', '.'));
+    double fromFactor = _unitCategories[_selectedUnitCategory]![_unitFrom]!;
+    double toFactor = _unitCategories[_selectedUnitCategory]![_unitTo]!;
+    double result = value * (fromFactor / toFactor);
+    String resStr = _formatNumber(result);
+    setState(() {
+      _lastResult = resStr;
+      display = '';
+      _hasResult = true;
+    });
+    speak('Převedeno z ${_getUnitSpeech(_unitFrom, context: 'z')} na ${_getUnitSpeech(_unitTo, context: 'na')}. Výsledek je $resStr ${_getUnitSpeech(_unitTo, value: result)}');
+  } catch (e) {
+    speak('Chyba převodu');
+  }
 }
 
 String _getUnitSpeech(String unitCode, {double? value, String context = 'base'}) {
-final data = _unitSpeechData[unitCode];
-if (data == null) {
-return unitCode;
-}
-if (value != null) {
-double absVal = value.abs();
-if (absVal % 1 != 0) {
-return data['forms'][3];
-}
-if (absVal == 1) {
-return data['forms'][0];
-}
-if (absVal >= 2 && absVal <= 4) {
-return data['forms'][1];
-}
-return data['forms'][2];
-}
-return data[context] ?? data['base'];
+  final data = _unitSpeechData[unitCode];
+  if (data == null) {
+    return unitCode;
+  }
+  if (value != null) {
+    double absVal = value.abs();
+    if (absVal % 1 != 0) {
+      return data['forms'][3];
+    }
+    if (absVal == 1) {
+      return data['forms'][0];
+    }
+    if (absVal >= 2 && absVal <= 4) {
+      return data['forms'][1];
+    }
+    return data['forms'][2];
+  }
+  return data[context] ?? data['base'];
 }
 
 String _normalizeForSegmentDisplay(String text) {
-if (text.toLowerCase() == 'error') {
-return _useSixteenSegment ? 'CHYBA' : 'Err';
-}
-const map = {'á': 'A', 'č': 'C', 'ď': 'D', 'é': 'E', 'ě': 'E', 'í': 'I', 'ň': 'N', 'ó': 'O', 'ř': 'R', 'š': 'S', 'ť': 'T', 'ú': 'U', 'ů': 'U', 'ý': 'Y', 'ž': 'Z'};
-String result = text;
-map.forEach((key, value) => result = result.replaceAll(key, value).replaceAll(key.toUpperCase(), value));
-return result;
+  if (text.toLowerCase() == 'error') {
+    return _useSixteenSegment ? 'CHYBA' : 'Err';
+  }
+  const map = {'á': 'A', 'č': 'C', 'ď': 'D', 'é': 'E', 'ě': 'E', 'í': 'I', 'ň': 'N', 'ó': 'O', 'ř': 'R', 'š': 'S', 'ť': 'T', 'ú': 'U', 'ů': 'U', 'ý': 'Y', 'ž': 'Z'};
+  String result = text;
+  map.forEach((key, value) => result = result.replaceAll(key, value).replaceAll(key.toUpperCase(), value));
+  return result;
 }
 
 Widget _buildMainResultDisplay() {
-String res = _lastResult.isEmpty ? '0.' : _lastResult;
-if (res.contains('°')) {
-return _buildDmsDisplay(res);
-}
-if ((_displayFormat != DisplayFormat.standard) && res.toLowerCase() != 'error') {
-return _buildScientificTripleDisplay(res);
-}
-return _buildStandardDisplay(res);
+  String res = _lastResult.isEmpty ? '0.' : _lastResult;
+  if (res.contains('°')) {
+    return _buildDmsDisplay(res);
+  }
+  if ((_displayFormat != DisplayFormat.standard) && res.toLowerCase() != 'error') {
+    return _buildScientificTripleDisplay(res);
+  }
+  return _buildStandardDisplay(res);
 }
 
 Widget _buildStandardDisplay(String res) {
-return CustomSegmentDisplay(
-value: _normalizeForSegmentDisplay(res),
-size: 16 * _resultZoom,
-characterCount: 16,
-isSixteenSegment: _useSixteenSegment,
-);
+  return CustomSegmentDisplay(
+    value: _normalizeForSegmentDisplay(res),
+    size: 16 * _resultZoom,
+    characterCount: 16,
+    isSixteenSegment: _useSixteenSegment,
+  );
 }
 
 Widget _buildScientificTripleDisplay(String text) {
-List<String> parts = text.contains('E') ? text.split('E') : [text, '00'];
-String mantissa = parts[0];
-String exponent = parts[1].replaceAll('+', '');
-String formattedExp = exponent.startsWith('-') ? '-${exponent.substring(1).padLeft(2, '0')}' : exponent.padLeft(3, '0');
-return Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-_buildStandardDisplay(mantissa),
-const SizedBox(width: 8),
-Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-const Text('x10', style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-CustomSegmentDisplay(
-value: formattedExp,
-size: 8 * _resultZoom,
-characterCount: 3,
-isSixteenSegment: false,
-),
-]),
-]);
+  List<String> parts = text.contains('E') ? text.split('E') : [text, '00'];
+  String mantissa = parts[0];
+  String exponent = parts[1].replaceAll('+', '');
+  String formattedExp = exponent.startsWith('-') ? '-${exponent.substring(1).padLeft(2, '0')}' : exponent.padLeft(3, '0');
+  return Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+    _buildStandardDisplay(mantissa),
+    const SizedBox(width: 8),
+    Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+      const Text('x10', style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+      CustomSegmentDisplay(
+        value: formattedExp,
+        size: 8 * _resultZoom,
+        characterCount: 3,
+        isSixteenSegment: false,
+      ),
+    ]),
+  ]);
 }
 
 Widget _buildDmsDisplay(String text) {
-// DMS už zobrazujeme na jednom řádku přímo pomocí CustomSegmentDisplay
-return _buildStandardDisplay(text);
+  // DMS už zobrazujeme na jednom řádku přímo pomocí CustomSegmentDisplay
+  return _buildStandardDisplay(text);
 }
 
 void _changeMode(CalculatorMode mode) {
-setState(() {
-_currentMode = mode;
-display = '';
-});
-speak('Aktivní je ${_getModeSpeechName(mode)}');
+  setState(() {
+    _currentMode = mode;
+    display = '';
+  });
+  speak('Aktivní je ${_getModeSpeechName(mode)}');
 }
 
 void _loadSettings() async {
@@ -2023,7 +2064,7 @@ bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 
 class _AccessibilityDialog extends StatefulWidget {
 final _CalculatorScreenState parent;
-_AccessibilityDialog({required this.parent});
+const _AccessibilityDialog({required this.parent});
 @override
 State<_AccessibilityDialog> createState() => _AccessibilityDialogState();
 }
