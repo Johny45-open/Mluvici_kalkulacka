@@ -463,6 +463,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     'MED': 'Medián',
     'MODE': 'Modus',
     'CV': 'Variační koeficient',
+    'SUM': 'Součet hodnot',
     ';': 'Oddělovač dat',
     '!': 'Faktoriál',
     '(-)': 'Záporné číslo se závorkou',
@@ -1797,7 +1798,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       } else {
         append(label, silent: silent);
       }
-    } else if (['MEAN', 'SD', 'VAR', 'MED', 'MODE', 'CV'].contains(label)) {
+    } else if (['MEAN', 'SD', 'VAR', 'MED', 'MODE', 'CV', 'SUM'].contains(label)) {
       if (_currentMode == CalculatorMode.statistics) {
         try {
           if (_statsMemory.isEmpty) {
@@ -1820,6 +1821,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           if (label == 'MEAN') {
             resStr = _formatNumber(mean);
             spoken = 'Průměr z paměti je ${resStr.replaceAll('.', ',')}';
+          } else if (label == 'SUM') {
+            resStr = _formatNumber(sum);
+            spoken = 'Součet hodnot je ${resStr.replaceAll('.', ',')}';
           } else if (label == 'VAR') {
             resStr = _formatNumber(variance);
             spoken = 'Rozptyl z paměti je ${resStr.replaceAll('.', ',')}';
@@ -2080,6 +2084,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           'VAR',
           'MEAN',
           'CV',
+          'SUM',
           'C',
           'MED',
           'MODE',
