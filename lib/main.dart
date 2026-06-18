@@ -184,6 +184,7 @@ final Map<String, String> _buttonNames = {
 'ANS': 'Poslední výsledek', 'STO': 'Uložit do paměti', 'DEL': 'Smazat poslední', 'RCL': 'Vyvolat z paměti', 'CLR': 'Smazat celou paměť', 'C': 'Smazat displej',
 'DEG': 'Stupně', 'RAD': 'Radiány', '%': 'Procenta', 'SD': 'Směrodatná odchylka', 'VAR': 'Rozptyl', 'MEAN': 'Průměr', 'STATS': 'Statistický souhrn',
 'M+': 'Přidat do statistické paměti', 'MC': 'Smazat statistickou paměť', 'MR': 'Vyvolat ze statistické paměti',
+'MED': 'Medián', 'MODE': 'Modus',
 'CV': 'Variační koeficient', ';': 'Oddělovač dat', '!': 'Faktoriál', '(-)': 'Záporné číslo se závorkou', 'EXP': 'krát deset na',
 'OHM_V': 'Napětí', 'OHM_I': 'Proud', 'OHM_R': 'Odpor', 'PWR_P': 'Výkon', 'PAR': 'Paralelně', 'SER': 'Sériově', 'Hz': 'Hertz', 'μ': 'Mikro', 'n': 'Nano', 'p': 'Piko',
 };
@@ -1111,7 +1112,7 @@ void _handleButtonPressed(String label, {bool silent = false}) {
     } else {
       speak('Tlačítko M R je dostupné pouze ve statistickém režimu.');
     }
-  } else if (['MEAN', 'SD', 'VAR'].contains(label)) {
+  } else if (['MEAN', 'SD', 'VAR', 'MED', 'MODE'].contains(label)) {
     if (_currentMode == CalculatorMode.statistics) {
       try {
         if (_statsMemory.isEmpty) {
@@ -1136,6 +1137,40 @@ void _handleButtonPressed(String label, {bool silent = false}) {
         } else if (label == 'SD') {
           resStr = _formatNumber(sd);
           spoken = 'Směrodatná odchylka z paměti je ${resStr.replaceAll('.', ',')}';
+        } else if (label == 'MED') {
+          List<double> sorted = List.from(data)..sort();
+          double median;
+          int middle = sorted.length ~/ 2;
+          if (sorted.length % 2 == 1) {
+            median = sorted[middle];
+          } else {
+            median = (sorted[middle - 1] + sorted[middle]) / 2;
+          }
+          resStr = _formatNumber(median);
+          spoken = 'Medián z paměti je ${resStr.replaceAll('.', ',')}';
+        } else if (label == 'MODE') {
+          Map<double, int> counts = {};
+          for (double x in data) {
+            counts[x] = (counts[x] ?? 0) + 1;
+          }
+          int maxCount = counts.values.reduce((a, b) => a > b ? a : b);
+          List<double> modes = counts.entries
+              .where((e) => e.value == maxCount)
+              .map((e) => e.key)
+              .toList();
+
+          if (maxCount == 1) {
+            resStr = _formatNumber(data.first);
+            spoken = 'Modus neexistuje, všechny hodnoty se v paměti vyskytují pouze jednou.';
+          } else {
+            resStr = modes.map((m) => _formatNumber(m)).join(';');
+            String modesSpoken = modes.map((m) => _formatNumber(m).replaceAll('.', ',')).join(' a ');
+            if (modes.length == 1) {
+              spoken = 'Modus z paměti je $modesSpoken, vyskytuje se $maxCount krát';
+            } else {
+              spoken = 'Modusy z paměti jsou $modesSpoken, vyskytují se $maxCount krát';
+            }
+          }
         }
 
         setState(() {
@@ -1275,11 +1310,12 @@ Widget _buildMainKeyboard() {
     case CalculatorMode.statistics:
       btns = [
         'SD', 'VAR', 'MEAN', 'C',
-        'M+', 'MC', 'MR', 'DEL',
-        '7', '8', '9', '/',
-        '4', '5', '6', '*',
-        '1', '2', '3', '-',
-        '0', '.', ';', '='
+        'MED', 'MODE', 'M+', 'DEL',
+        'MC', 'MR', ';', '/',
+        '7', '8', '9', '*',
+        '4', '5', '6', '-',
+        '1', '2', '3', '+',
+        '0', '.', 'ANS', '='
       ];
       break;
     case CalculatorMode.electrician:
