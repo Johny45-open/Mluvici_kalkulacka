@@ -120,6 +120,8 @@ final Map<String, double> _memory = {
 'X': 0, 'Y': 0, 'M': 0,
 };
 
+final List<double> _statsMemory = [];
+
 final Map<String, Map<String, double>> _unitCategories = {
 'Délka': { 'm': 1.0, 'km': 1000.0, 'cm': 0.01, 'mm': 0.001, 'mi': 1609.344, 'yd': 0.9144, 'ft': 0.3048, 'in': 0.0254 },
 'Hmotnost': { 'kg': 1.0, 'g': 0.001, 'mg': 0.000001, 't': 1000.0, 'lb': 0.45359237, 'oz': 0.028349523125 },
@@ -181,6 +183,7 @@ final Map<String, String> _buttonNames = {
 'X': 'Proměnná X', 'Y': 'Proměnná Y', 'M': 'Proměnná M',
 'ANS': 'Poslední výsledek', 'STO': 'Uložit do paměti', 'DEL': 'Smazat poslední', 'RCL': 'Vyvolat z paměti', 'CLR': 'Smazat celou paměť', 'C': 'Smazat displej',
 'DEG': 'Stupně', 'RAD': 'Radiány', '%': 'Procenta', 'SD': 'Směrodatná odchylka', 'VAR': 'Rozptyl', 'MEAN': 'Průměr', 'STATS': 'Statistický souhrn',
+'M+': 'Přidat do statistické paměti', 'MC': 'Smazat statistickou paměť', 'MR': 'Vyvolat ze statistické paměti',
 'CV': 'Variační koeficient', ';': 'Oddělovač dat', '!': 'Faktoriál', '(-)': 'Záporné číslo se závorkou', 'EXP': 'krát deset na',
 'OHM_V': 'Napětí', 'OHM_I': 'Proud', 'OHM_R': 'Odpor', 'PWR_P': 'Výkon', 'PAR': 'Paralelně', 'SER': 'Sériově', 'Hz': 'Hertz', 'μ': 'Mikro', 'n': 'Nano', 'p': 'Piko',
 };
@@ -194,6 +197,16 @@ double _factorial(int n) {
     res *= i;
   }
   return res;
+}
+
+String _getStatsCountForm(int count) {
+  if (count == 1) {
+    return 'hodnota';
+  } else if (count >= 2 && count <= 4) {
+    return 'hodnoty';
+  } else {
+    return 'hodnot';
+  }
 }
 
 @override
@@ -387,17 +400,19 @@ void calculateResult() {
     String spoken = '';
 
     if (_currentMode == CalculatorMode.statistics) {
-      List<double> data = display.split(';').where((s) => s.isNotEmpty).map((s) => double.parse(s.replaceAll(',', '.'))).toList();
-      if (data.isEmpty) throw Exception('Prázdná data');
+      if (_statsMemory.isEmpty) {
+        speak('Statistická paměť je prázdná. Nejprve přidejte data pomocí tlačítka M plus.');
+        return;
+      }
+      List<double> data = List.from(_statsMemory);
       
       double sum = data.reduce((a, b) => a + b);
       double mean = sum / data.length;
       double variance = data.map((x) => math.pow(x - mean, 2)).reduce((a, b) => a + b) / data.length;
       double sd = math.sqrt(variance);
 
-      // Zjednodušená implementace pro demo účely: vrací průměr
       resStr = _formatNumber(mean);
-      spoken = 'Průměr je ${_formatNumber(mean).replaceAll('.', ',')}, směrodatná odchylka je ${_formatNumber(sd).replaceAll('.', ',')}';
+      spoken = 'Průměr z paměti je ${_formatNumber(mean).replaceAll('.', ',')}, směrodatná odchylka je ${_formatNumber(sd).replaceAll('.', ',')}';
     } else if (_currentMode == CalculatorMode.electrician) {
       // Implementace Ohmova zákona: pokud je na displeji "V;I", vypočítá R atd.
       List<String> parts = display.split(';');
@@ -1032,11 +1047,78 @@ void _handleButtonPressed(String label, {bool silent = false}) {
     backspace();
   } else if (label == '=') {
     calculateResult();
+  } else if (label == 'M+') {
+    if (_currentMode == CalculatorMode.statistics) {
+      if (display.isEmpty) {
+        speak('Displej je prázdný. Zadejte číslo k uložení.');
+        return;
+      }
+      try {
+        List<double> valuesToAdd = display
+            .split(';')
+            .where((s) => s.trim().isNotEmpty)
+            .map((s) => double.parse(s.trim().replaceAll(',', '.')))
+            .toList();
+        
+        if (valuesToAdd.isEmpty) {
+          speak('Žádná platná čísla k uložení.');
+          return;
+        }
+
+        setState(() {
+          _statsMemory.addAll(valuesToAdd);
+          display = '';
+          _cursorPosition = 0;
+        });
+
+        String valuesStr = valuesToAdd.map((v) => _formatNumber(v).replaceAll('.', ',')).join(', ');
+        String countForm = _getStatsCountForm(_statsMemory.length);
+        String spoken = '';
+        if (valuesToAdd.length == 1) {
+          spoken = 'Přidáno $valuesStr do statistické paměti. V paměti je celkem ${_statsMemory.length} $countForm.';
+        } else {
+          spoken = 'Přidány hodnoty $valuesStr do statistické paměti. V paměti je celkem ${_statsMemory.length} $countForm.';
+        }
+        speak(spoken);
+      } catch (e) {
+        speak('Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.');
+      }
+    } else {
+      speak('Tlačítko M plus je dostupné pouze ve statistickém režimu.');
+    }
+  } else if (label == 'MC') {
+    if (_currentMode == CalculatorMode.statistics) {
+      setState(() {
+        _statsMemory.clear();
+      });
+      speak('Statistická paměť byla smazána.');
+    } else {
+      speak('Tlačítko M C je dostupné pouze ve statistickém režimu.');
+    }
+  } else if (label == 'MR') {
+    if (_currentMode == CalculatorMode.statistics) {
+      if (_statsMemory.isEmpty) {
+        speak('Statistická paměť je prázdná.');
+      } else {
+        setState(() {
+          display = _statsMemory.map((v) => _formatNumber(v)).join(';');
+          _cursorPosition = display.length;
+        });
+        String spokenValues = _statsMemory.map((v) => _formatNumber(v).replaceAll('.', ',')).join(', ');
+        String countForm = _getStatsCountForm(_statsMemory.length);
+        speak('V paměti je ${_statsMemory.length} $countForm: $spokenValues');
+      }
+    } else {
+      speak('Tlačítko M R je dostupné pouze ve statistickém režimu.');
+    }
   } else if (['MEAN', 'SD', 'VAR'].contains(label)) {
     if (_currentMode == CalculatorMode.statistics) {
       try {
-        List<double> data = display.split(';').where((s) => s.isNotEmpty).map((s) => double.parse(s.replaceAll(',', '.'))).toList();
-        if (data.isEmpty) throw Exception('Prázdná data');
+        if (_statsMemory.isEmpty) {
+          speak('Statistická paměť je prázdná. Nejprve přidejte data pomocí tlačítka M plus.');
+          return;
+        }
+        List<double> data = List.from(_statsMemory);
         
         double sum = data.reduce((a, b) => a + b);
         double mean = sum / data.length;
@@ -1047,26 +1129,26 @@ void _handleButtonPressed(String label, {bool silent = false}) {
         String spoken = '';
         if (label == 'MEAN') {
           resStr = _formatNumber(mean);
-          spoken = 'Průměr je ${resStr.replaceAll('.', ',')}';
+          spoken = 'Průměr z paměti je ${resStr.replaceAll('.', ',')}';
         } else if (label == 'VAR') {
           resStr = _formatNumber(variance);
-          spoken = 'Rozptyl je ${resStr.replaceAll('.', ',')}';
+          spoken = 'Rozptyl z paměti je ${resStr.replaceAll('.', ',')}';
         } else if (label == 'SD') {
           resStr = _formatNumber(sd);
-          spoken = 'Směrodatná odchylka je ${resStr.replaceAll('.', ',')}';
+          spoken = 'Směrodatná odchylka z paměti je ${resStr.replaceAll('.', ',')}';
         }
 
         setState(() {
           _lastResult = resStr;
           _hasResult = true;
-          display = '';
-          _cursorPosition = 0;
+          display = resStr;
+          _cursorPosition = display.length;
           _lastNumericValue = double.tryParse(resStr.replaceAll(',', '.'));
         });
         speak(spoken);
         _addToHistory('STATS($label)', resStr);
       } catch (e) {
-        speak('Chyba statistického výpočtu. Zkontrolujte formát dat s oddělovačem středník.');
+        speak('Chyba statistického výpočtu.');
       }
     } else {
       append(label, silent: silent);
@@ -1191,7 +1273,14 @@ Widget _buildMainKeyboard() {
       btns = ['C', '(', ')', '/', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', '0', '.', 'EXP', '='];
       break;
     case CalculatorMode.statistics:
-      btns = ['SD', 'VAR', 'MEAN', 'C', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', ';', 'DEL', '='];
+      btns = [
+        'SD', 'VAR', 'MEAN', 'C',
+        'M+', 'MC', 'MR', 'DEL',
+        '7', '8', '9', '/',
+        '4', '5', '6', '*',
+        '1', '2', '3', '-',
+        '0', '.', ';', '='
+      ];
       break;
     case CalculatorMode.electrician:
       btns = ['OHM_V', 'OHM_I', 'OHM_R', 'C', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', 'DEL', '='];
@@ -1218,6 +1307,7 @@ Widget _buildMainKeyboard() {
               else if (b == 'C') color = Colors.orange;
               else if (b == 'DEL') color = Colors.redAccent;
               else if (b == '=') color = Colors.green;
+              else if (['M+', 'MC', 'MR'].contains(b)) color = Colors.deepPurple;
               return buildButton(b, color: color, onPressed: () => _handleButtonPressed(b));
             }).toList(),
           ),
