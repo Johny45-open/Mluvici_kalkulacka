@@ -488,6 +488,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     }
   }
 
+  String _getStatsOccurrenceCountForm(int count) {
+    if (count == 1) {
+      return 'výskyt';
+    } else if (count >= 2 && count <= 4) {
+      return 'výskyty';
+    } else {
+      return 'výskytů';
+    }
+  }
+
+  Map<double, int> _getStatsValueCounts() {
+    final counts = <double, int>{};
+    for (final value in _statsMemory) {
+      counts[value] = (counts[value] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1584,15 +1602,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         if (_statsMemory.isEmpty) {
           speak('Statistická paměť je prázdná.');
         } else {
-          setState(() {
-            display = _statsMemory.map((v) => _formatNumber(v)).join(';');
-            _cursorPosition = display.length;
-          });
-          String spokenValues = _statsMemory
-              .map((v) => _formatNumber(v).replaceAll('.', ','))
-              .join(', ');
-          String countForm = _getStatsCountForm(_statsMemory.length);
-          speak('V paměti je ${_statsMemory.length} $countForm: $spokenValues');
+          _showStatisticsMemoryDialog();
         }
       } else {
         speak('Tlačítko M R je dostupné pouze ve statistickém režimu.');
@@ -2029,6 +2039,127 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     Navigator.pop(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _mainFocusNode.requestFocus();
+    });
+  }
+
+  void _showStatisticsMemoryDialog() {
+    final valueCounts = _getStatsValueCounts();
+    final totalCount = _statsMemory.length;
+    final totalCountForm = _getStatsCountForm(totalCount);
+    final rowsSpeech = valueCounts.entries
+        .map((entry) {
+          final value = _formatNumber(entry.key).replaceAll('.', ',');
+          final count = entry.value;
+          return '$value, $count ${_getStatsOccurrenceCountForm(count)}';
+        })
+        .join('; ');
+    final spokenSummary =
+        'Statistická paměť obsahuje $totalCount $totalCountForm. '
+        'Hodnoty a počty výskytů: $rowsSpeech.';
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final isScreenReaderActive = MediaQuery.of(
+          dialogContext,
+        ).accessibleNavigation;
+
+        return AlertDialog(
+          title: Semantics(
+            header: true,
+            child: const Text('Statistická paměť'),
+          ),
+          content: Focus(
+            autofocus: true,
+            onFocusChange: (hasFocus) {
+              if (hasFocus && !isScreenReaderActive) speak(spokenSummary);
+            },
+            child: SizedBox(
+              width: double.maxFinite,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 360),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Semantics(
+                        label:
+                            'Celkem $totalCount $totalCountForm. Počet různých hodnot: ${valueCounts.length}.',
+                        child: ExcludeSemantics(
+                          child: Text(
+                            'Celkem hodnot: $totalCount\n'
+                            'Různých hodnot: ${valueCounts.length}',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Semantics(
+                        header: true,
+                        label: 'Sloupce: hodnota a počet výskytů',
+                        child: ExcludeSemantics(
+                          child: DefaultTextStyle.merge(
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            child: const Row(
+                              children: [
+                                Expanded(flex: 3, child: Text('Hodnota')),
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    'Počet výskytů',
+                                    textAlign: TextAlign.right,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 16),
+                      ...valueCounts.entries.map((entry) {
+                        final value = _formatNumber(entry.key);
+                        final spokenValue = value.replaceAll('.', ',');
+                        final count = entry.value;
+                        return Semantics(
+                          container: true,
+                          label: 'Hodnota $spokenValue, počet výskytů: $count.',
+                          child: ExcludeSemantics(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Row(
+                                children: [
+                                  Expanded(flex: 3, child: Text(value)),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      '$count',
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('ZAVŘÍT'),
+            ),
+          ],
+        );
+      },
+    ).then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mainFocusNode.requestFocus();
+      });
     });
   }
 
