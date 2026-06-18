@@ -83,6 +83,17 @@ enum AccessibilityType { none, blind, visuallyImpaired }
 
 enum DisplayFormat { standard, fix, sci, eng }
 
+enum ElectricianCalculation { voltage, current, resistance }
+
+class _ElectricianInputException implements Exception {
+  final String message;
+
+  const _ElectricianInputException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class CalculatorScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
@@ -120,6 +131,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   DisplayFormat _displayFormat = DisplayFormat.standard;
   int _precision = 2;
   double? _lastNumericValue;
+  ElectricianCalculation _selectedElectricianCalculation =
+      ElectricianCalculation.resistance;
 
   DateTime? _lastSpeakTime;
   final Duration _speakThrottle = const Duration(milliseconds: 300);
@@ -506,6 +519,164 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return counts;
   }
 
+  ElectricianCalculation? _electricianCalculationFromButton(String label) {
+    switch (label) {
+      case 'OHM_V':
+        return ElectricianCalculation.voltage;
+      case 'OHM_I':
+        return ElectricianCalculation.current;
+      case 'OHM_R':
+        return ElectricianCalculation.resistance;
+      default:
+        return null;
+    }
+  }
+
+  String _getElectricianCalculationName(ElectricianCalculation calculation) {
+    switch (calculation) {
+      case ElectricianCalculation.voltage:
+        return 'napětí';
+      case ElectricianCalculation.current:
+        return 'proud';
+      case ElectricianCalculation.resistance:
+        return 'odpor';
+    }
+  }
+
+  String _getElectricianHistoryName(ElectricianCalculation calculation) {
+    switch (calculation) {
+      case ElectricianCalculation.voltage:
+        return 'OHM_V';
+      case ElectricianCalculation.current:
+        return 'OHM_I';
+      case ElectricianCalculation.resistance:
+        return 'OHM_R';
+    }
+  }
+
+  String _getElectricianInputDescription(ElectricianCalculation calculation) {
+    switch (calculation) {
+      case ElectricianCalculation.voltage:
+        return 'proud a odpor';
+      case ElectricianCalculation.current:
+        return 'napětí a odpor';
+      case ElectricianCalculation.resistance:
+        return 'napětí a proud';
+    }
+  }
+
+  String _getElectricianUnitSpeech(
+    ElectricianCalculation calculation,
+    double value,
+  ) {
+    final absValue = value.abs();
+    final isWholeNumber = absValue == absValue.roundToDouble();
+    final wholeValue = absValue.toInt();
+
+    if (isWholeNumber && wholeValue == 1) {
+      switch (calculation) {
+        case ElectricianCalculation.voltage:
+          return 'volt';
+        case ElectricianCalculation.current:
+          return 'ampér';
+        case ElectricianCalculation.resistance:
+          return 'ohm';
+      }
+    }
+
+    if (isWholeNumber && wholeValue >= 2 && wholeValue <= 4) {
+      switch (calculation) {
+        case ElectricianCalculation.voltage:
+          return 'volty';
+        case ElectricianCalculation.current:
+          return 'ampéry';
+        case ElectricianCalculation.resistance:
+          return 'ohmy';
+      }
+    }
+
+    switch (calculation) {
+      case ElectricianCalculation.voltage:
+        return 'voltů';
+      case ElectricianCalculation.current:
+        return 'ampérů';
+      case ElectricianCalculation.resistance:
+        return 'ohmů';
+    }
+  }
+
+  void _selectElectricianCalculation(ElectricianCalculation calculation) {
+    setState(() {
+      _selectedElectricianCalculation = calculation;
+    });
+    final calculationName = _getElectricianCalculationName(calculation);
+    final inputDescription = _getElectricianInputDescription(calculation);
+    speak(
+      'Výpočet $calculationName. Zadejte $inputDescription oddělené středníkem.',
+    );
+  }
+
+  List<double> _parseElectricianInputValues(String input) {
+    final parts = input.split(';');
+    if (parts.length != 2 || parts.any((part) => part.trim().isEmpty)) {
+      throw const _ElectricianInputException(
+        'Zadejte dvě hodnoty oddělené středníkem.',
+      );
+    }
+
+    try {
+      return parts.map((part) => _evaluateExpression(part.trim())).toList();
+    } catch (e) {
+      throw const _ElectricianInputException(
+        'Zadané hodnoty v elektro režimu nemají platný číselný formát.',
+      );
+    }
+  }
+
+  double _calculateElectricianResult(String input) {
+    final values = _parseElectricianInputValues(input);
+    final first = values[0];
+    final second = values[1];
+
+    switch (_selectedElectricianCalculation) {
+      case ElectricianCalculation.voltage:
+        return first * second;
+      case ElectricianCalculation.current:
+        if (second == 0) {
+          throw const _ElectricianInputException(
+            'Odpor nesmí být nula při výpočtu proudu.',
+          );
+        }
+        return first / second;
+      case ElectricianCalculation.resistance:
+        if (second == 0) {
+          throw const _ElectricianInputException(
+            'Proud nesmí být nula při výpočtu odporu.',
+          );
+        }
+        return first / second;
+    }
+  }
+
+  bool _isSelectedElectricianButton(String label) {
+    final calculation = _electricianCalculationFromButton(label);
+    return calculation != null &&
+        calculation == _selectedElectricianCalculation;
+  }
+
+  String? _getElectricianButtonSemanticLabel(String label) {
+    final calculation = _electricianCalculationFromButton(label);
+    if (calculation == null) {
+      return null;
+    }
+
+    final baseLabel = _buttonNames[label] ?? label;
+    if (calculation == _selectedElectricianCalculation) {
+      return '$baseLabel, vybráno';
+    }
+    return baseLabel;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -764,18 +935,22 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         spoken =
             'Průměr z paměti je ${_formatNumber(mean).replaceAll('.', ',')}, směrodatná odchylka je ${_formatNumber(sd).replaceAll('.', ',')}';
       } else if (_currentMode == CalculatorMode.electrician) {
-        // Implementace Ohmova zákona: pokud je na displeji "V;I", vypočítá R atd.
-        List<String> parts = display.split(';');
-        if (parts.length >= 2) {
-          double v1 = double.parse(parts[0].replaceAll(',', '.'));
-          double v2 = double.parse(parts[1].replaceAll(',', '.'));
-          // Zde by byla komplexnější logika, pro teď základní Ohmův zákon V/I
-          double r = v1 / v2;
-          resStr = _formatNumber(r);
-          spoken = 'Výsledek je ${_formatNumber(r).replaceAll('.', ',')}';
-        } else {
-          throw Exception('Chybějící data');
+        final result = _calculateElectricianResult(display);
+        if (!result.isFinite) {
+          throw const _ElectricianInputException(
+            'Výsledek elektro výpočtu není platné číslo.',
+          );
         }
+
+        final calculation = _selectedElectricianCalculation;
+        resStr = _formatNumber(result);
+        final spokenResult = resStr.replaceAll('.', ',');
+        final calculationName = _getElectricianCalculationName(calculation);
+        final unitSpeech = _getElectricianUnitSpeech(calculation, result);
+        spoken = '$calculationName je $spokenResult $unitSpeech';
+        currentExpression =
+            '${_getElectricianHistoryName(calculation)}($display)';
+        _lastNumericValue = result;
       } else {
         bool isDms = RegExp(r'''\d+(?:\.\d+)?[°'"]''').hasMatch(display);
         bool isTrig =
@@ -824,11 +999,18 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } catch (e) {
       String msg =
           'Výrazu nerozumím, zkuste zkontrolovat závorky nebo znaménka';
-      String errStr = e.toString().toLowerCase();
-      if (errStr.contains('division by zero') || errStr.contains('infinity'))
-        msg = 'Nulou nelze dělit';
-      else if (errStr.contains('range') || errStr.contains('invalid argument'))
-        msg = 'Hodnota je mimo povolený rozsah funkce';
+      if (e is _ElectricianInputException) {
+        msg = e.message;
+      } else {
+        String errStr = e.toString().toLowerCase();
+        if (errStr.contains('division by zero') ||
+            errStr.contains('infinity')) {
+          msg = 'Nulou nelze dělit';
+        } else if (errStr.contains('range') ||
+            errStr.contains('invalid argument')) {
+          msg = 'Hodnota je mimo povolený rozsah funkce';
+        }
+      }
 
       setState(() {
         _lastResult = 'Error';
@@ -1607,6 +1789,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       } else {
         speak('Tlačítko M R je dostupné pouze ve statistickém režimu.');
       }
+    } else if (_electricianCalculationFromButton(label) != null) {
+      if (_currentMode == CalculatorMode.electrician) {
+        _selectElectricianCalculation(
+          _electricianCalculationFromButton(label)!,
+        );
+      } else {
+        append(label, silent: silent);
+      }
     } else if (['MEAN', 'SD', 'VAR', 'MED', 'MODE', 'CV'].contains(label)) {
       if (_currentMode == CalculatorMode.statistics) {
         try {
@@ -1923,6 +2113,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           'OHM_I',
           'OHM_R',
           'C',
+          ';',
           '7',
           '8',
           '9',
@@ -1938,6 +2129,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           '0',
           '.',
           'DEL',
+          '+',
+          'ANS',
           '=',
         ];
         break;
@@ -1974,19 +2167,27 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             child: Row(
               children: row.map((b) {
                 Color? color;
-                if (['/', '*', '-', '+'].contains(b))
+                if (['/', '*', '-', '+'].contains(b)) {
                   color = Colors.blue;
-                else if (b == 'C')
+                } else if (b == 'C') {
                   color = Colors.orange;
-                else if (b == 'DEL')
+                } else if (b == 'DEL') {
                   color = Colors.redAccent;
-                else if (b == '=')
+                } else if (b == '=') {
                   color = Colors.green;
-                else if (['M+', 'MC', 'MR'].contains(b))
+                } else if (['M+', 'MC', 'MR'].contains(b)) {
                   color = Colors.deepPurple;
+                } else if (_electricianCalculationFromButton(b) != null) {
+                  color = _isSelectedElectricianButton(b)
+                      ? Colors.green
+                      : Colors.teal;
+                } else if (b == ';') {
+                  color = Colors.deepPurple;
+                }
                 return buildButton(
                   b,
                   color: color,
+                  semanticLabel: _getElectricianButtonSemanticLabel(b),
                   onPressed: () => _handleButtonPressed(b),
                 );
               }).toList(),

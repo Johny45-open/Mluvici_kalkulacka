@@ -84,4 +84,62 @@ void main() {
       semanticsHandle.dispose();
     }
   });
+
+  testWidgets(
+    'Elektro režim počítá napětí, proud i odpor podle zvoleného cíle',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const ScientificCalculatorApp());
+      await tester.tap(find.text('Elektro'));
+      await tester.pumpAndSettle();
+
+      Future<void> tapButton(String label) async {
+        await tester.tap(find.text(label).last);
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> enterSequence(List<String> labels) async {
+        for (final label in labels) {
+          await tapButton(label);
+        }
+      }
+
+      await tapButton('OHM_R');
+      await enterSequence(['1', '2', ';', '2', '=']);
+
+      await tapButton('OHM_V');
+      await enterSequence(['2', ';', '6', '=']);
+
+      await tapButton('OHM_I');
+      await enterSequence(['1', '2', ';', '6', '=']);
+
+      await tester.tap(find.byTooltip('Historie'));
+      await tester.pumpAndSettle();
+
+      final dialog = find.byType(AlertDialog);
+      expect(
+        find.descendant(of: dialog, matching: find.text('OHM_R(12;2)')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: dialog, matching: find.text('6')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: dialog, matching: find.text('OHM_V(2;6)')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: dialog, matching: find.text('12')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: dialog, matching: find.text('OHM_I(12;6)')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: dialog, matching: find.text('2')),
+        findsOneWidget,
+      );
+    },
+  );
 }
