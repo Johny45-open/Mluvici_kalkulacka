@@ -801,6 +801,15 @@ void _saveInversePreference(int val) async {
   await prefs.setInt('inverseFormatPreference', val);
   setState(() => _inverseFormatPreference = val);
 }
+
+void _toggleTts() {
+  setState(() {
+    ttsEnabled = !ttsEnabled;
+  });
+  _saveSettings();
+  speak(ttsEnabled ? 'Hlas zapnut' : 'Hlas vypnut');
+}
+
 void _loadHistory() async {
 final prefs = await SharedPreferences.getInstance();
 setState(() => _history = prefs.getStringList('history') ?? []);
@@ -1526,6 +1535,11 @@ Widget build(BuildContext context) {
           IconButton(icon: const Icon(Icons.history), tooltip: 'Historie', onPressed: _showHistoryDialog),
           IconButton(icon: const Icon(Icons.list), tooltip: 'Pokročilé funkce', onPressed: _showAdvancedFunctionsDialog),
           IconButton(icon: const Icon(Icons.help_outline), tooltip: 'Nápověda k ovládání', onPressed: _showTutorialDialog),
+          IconButton(
+            icon: Icon(ttsEnabled ? Icons.volume_up : Icons.volume_off),
+            tooltip: ttsEnabled ? 'Ztlumit hlas' : 'Zapnout hlas',
+            onPressed: _toggleTts,
+          ),
           IconButton(icon: const Icon(Icons.settings), tooltip: 'Nastavení přístupnosti', onPressed: _showAccessibilityDialog)
         ],
       ),
