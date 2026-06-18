@@ -1575,7 +1575,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         setState(() {
           _statsMemory.clear();
         });
-        speak('Statistickou paměť byla smazána.');
+        speak('Statistická paměť byla smazána.');
       } else {
         speak('Tlačítko M C je dostupné pouze ve statistickém režimu.');
       }
@@ -1597,7 +1597,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       } else {
         speak('Tlačítko M R je dostupné pouze ve statistickém režimu.');
       }
-    } else if (['MEAN', 'SD', 'VAR', 'MED', 'MODE'].contains(label)) {
+    } else if (['MEAN', 'SD', 'VAR', 'MED', 'MODE', 'CV'].contains(label)) {
       if (_currentMode == CalculatorMode.statistics) {
         try {
           if (_statsMemory.isEmpty) {
@@ -1665,6 +1665,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 spoken =
                     'Modusy z paměti jsou $modesSpoken, vyskytují se $maxCount krát';
               }
+            }
+          } else if (label == 'CV') {
+            if (mean == 0) {
+              spoken = 'Nelze vypočítat variační koeficient, průměr je nula.';
+              resStr = 'Err';
+            } else {
+              double cv = (sd / mean) * 100;
+              resStr = _formatNumber(cv);
+              spoken =
+                  'Variační koeficient je ${resStr.replaceAll('.', ',')} procent';
             }
           }
 
@@ -1869,6 +1879,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           'SD',
           'VAR',
           'MEAN',
+          'CV',
           'C',
           'MED',
           'MODE',
