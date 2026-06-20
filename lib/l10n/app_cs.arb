@@ -1,4 +1,5 @@
 {
+  "@@locale": "cs",
   "appTitle": "Mluvící kalkulačka",
   "history": "Historie",
   "advancedFunctions": "Pokročilé funkce",
@@ -17,8 +18,29 @@
   "tutorialText": "Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek",
   "accessibilitySettings": "Nastavení přístupnosti",
   "displayType": "Displej: {type}",
+  "@displayType": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "voiceOutput": "Hlasový výstup: {state}",
+  "@voiceOutput": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
   "angles": "Úhly: {type}",
+  "@angles": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "zoomUpper": "Zoom horního řádku",
   "zoomLower": "Zoom dolního řádku",
   "speechRate": "Rychlost hlasu",
@@ -26,5 +48,101 @@
   "done": "HOTOVO",
   "display": "Zobrazení",
   "dms": "DMS",
-  "decimal": "Desetinné"
+  "decimal": "Desetinné",
+  "helpTooltip": "Nápověda k ovládání",
+  "muteVoice": "Ztlumit hlas",
+  "unmuteVoice": "Zapnout hlas",
+  "modeBasic": "Základní",
+  "modeScientific": "Vědecká",
+  "modeStatistics": "Statistika",
+  "modeElectrician": "Elektro",
+  "modeUnitConversion": "Převody jednotek",
+  "modeSpeechBasic": "základní režim",
+  "modeSpeechScientific": "vědecký režim",
+  "modeSpeechStatistics": "statistický režim",
+  "modeSpeechElectrician": "elektrotechnický režim",
+  "modeSpeechUnitConversion": "režim převodů jednotek",
+  "switchedToMode": "Přepnuto na {mode}",
+  "@switchedToMode": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "welcomeMessage": "Vítejte v mluvící kalkulačce, aktivní je {mode}",
+  "@welcomeMessage": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "displayEmpty": "Prázdno",
+  "displayLabel": "Displej",
+  "displayHint": "Zoomujte dvěma prsty, posouvejte tahem",
+  "cancel": "Zrušit",
+  "confirmAction": "Potvrdit",
+  "statsMemoryTitle": "Statistická paměť",
+  "statsSummaryTitle": "Statistický souhrn",
+  "statsValue": "Hodnota",
+  "statsOccurrenceCount": "Počet výskytů",
+  "statsTotalValues": "Celkem hodnot: {count}",
+  "@statsTotalValues": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsDistinctValues": "Různých hodnot: {count}",
+  "@statsDistinctValues": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsColumnsLabel": "Sloupce: hodnota a počet výskytů",
+  "statsRepeatTitle": "Počet opakování",
+  "statsRepeatHint": "Zadejte, kolikrát se mají hodnoty vložit do statistické paměti",
+  "statsRepeatLabel": "Počet vložení",
+  "statsAllValuesSection": "Všechny hodnoty v paměti",
+  "statsComputedSection": "Vypočtené statistiky",
+  "statsMean": "Průměr",
+  "statsSum": "Součet",
+  "statsVariance": "Rozptyl",
+  "statsStdDev": "Směrodatná odchylka",
+  "statsMedian": "Medián",
+  "statsMode": "Modus",
+  "statsCv": "Variační koeficient",
+  "statsModeNone": "Modus neexistuje",
+  "statsMemoryEmpty": "Statistická paměť je prázdná.",
+  "statsMemoryEmptyHint": "Statistická paměť je prázdná. Nejprve přidejte data pomocí tlačítka M plus.",
+  "statsMemoryCleared": "Statistická paměť byla smazána.",
+  "statsRowSemantics": "Hodnota {value}, počet výskytů: {count}.",
+  "@statsRowSemantics": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsTotalSemantics": "Celkem {count} {countLabel}. Počet různých hodnot: {distinct}.",
+  "@statsTotalSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "countLabel": {
+        "type": "String"
+      },
+      "distinct": {
+        "type": "int"
+      }
+    }
+  }
 }

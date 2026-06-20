@@ -262,6 +262,96 @@ abstract class AppLocalizations {
   /// In cs, this message translates to:
   /// **'Desetinné'**
   String get decimal;
+
+  String get helpTooltip;
+
+  String get muteVoice;
+
+  String get unmuteVoice;
+
+  String get modeBasic;
+
+  String get modeScientific;
+
+  String get modeStatistics;
+
+  String get modeElectrician;
+
+  String get modeUnitConversion;
+
+  String get modeSpeechBasic;
+
+  String get modeSpeechScientific;
+
+  String get modeSpeechStatistics;
+
+  String get modeSpeechElectrician;
+
+  String get modeSpeechUnitConversion;
+
+  String switchedToMode(String mode);
+
+  String welcomeMessage(String mode);
+
+  String get displayEmpty;
+
+  String get displayLabel;
+
+  String get displayHint;
+
+  String get cancel;
+
+  String get confirmAction;
+
+  String get statsMemoryTitle;
+
+  String get statsSummaryTitle;
+
+  String get statsValue;
+
+  String get statsOccurrenceCount;
+
+  String statsTotalValues(int count);
+
+  String statsDistinctValues(int count);
+
+  String get statsColumnsLabel;
+
+  String get statsRepeatTitle;
+
+  String get statsRepeatHint;
+
+  String get statsRepeatLabel;
+
+  String get statsAllValuesSection;
+
+  String get statsComputedSection;
+
+  String get statsMean;
+
+  String get statsSum;
+
+  String get statsVariance;
+
+  String get statsStdDev;
+
+  String get statsMedian;
+
+  String get statsMode;
+
+  String get statsCv;
+
+  String get statsModeNone;
+
+  String get statsMemoryEmpty;
+
+  String get statsMemoryEmptyHint;
+
+  String get statsMemoryCleared;
+
+  String statsRowSemantics(String value, int count);
+
+  String statsTotalSemantics(int count, String countLabel, int distinct);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -13,7 +13,9 @@ void main() async {
 }
 
 class ScientificCalculatorApp extends StatefulWidget {
-  const ScientificCalculatorApp({super.key});
+  final Locale? locale;
+
+  const ScientificCalculatorApp({super.key, this.locale});
 
   @override
   State<ScientificCalculatorApp> createState() =>
@@ -48,6 +50,7 @@ class _ScientificCalculatorAppState extends State<ScientificCalculatorApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      locale: widget.locale,
       onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -94,6 +97,30 @@ class _ElectricianInputException implements Exception {
   String toString() => message;
 }
 
+class _StatisticsSnapshot {
+  final double sum;
+  final double mean;
+  final double variance;
+  final double sd;
+  final double median;
+  final List<double> modes;
+  final int modeOccurrenceCount;
+  final bool modeExists;
+  final double? cv;
+
+  const _StatisticsSnapshot({
+    required this.sum,
+    required this.mean,
+    required this.variance,
+    required this.sd,
+    required this.median,
+    required this.modes,
+    required this.modeOccurrenceCount,
+    required this.modeExists,
+    required this.cv,
+  });
+}
+
 class CalculatorScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
@@ -136,6 +163,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   DateTime? _lastSpeakTime;
   final Duration _speakThrottle = const Duration(milliseconds: 300);
+  String? _lastTtsLocale;
 
   final Map<String, double> _memory = {
     'A': 0,
@@ -493,6 +521,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   String _getStatsCountForm(int count) {
+    if (_isEnglish()) {
+      return count == 1 ? 'value' : 'values';
+    }
     if (count == 1) {
       return 'hodnota';
     } else if (count >= 2 && count <= 4) {
@@ -503,6 +534,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   String _getStatsOccurrenceCountForm(int count) {
+    if (_isEnglish()) {
+      return count == 1 ? 'occurrence' : 'occurrences';
+    }
     if (count == 1) {
       return 'výskyt';
     } else if (count >= 2 && count <= 4) {
@@ -518,6 +552,108 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       counts[value] = (counts[value] ?? 0) + 1;
     }
     return counts;
+  }
+
+  AppLocalizations get _l10n => AppLocalizations.of(context)!;
+
+  bool _isEnglish([BuildContext? ctx]) {
+    final code = ctx != null
+        ? Localizations.localeOf(ctx).languageCode
+        : WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    return code == 'en';
+  }
+
+  String _s(String cs, String en) => _isEnglish() ? en : cs;
+
+  String _getModeSpeechNameForL10n(
+    CalculatorMode mode,
+    AppLocalizations l10n,
+  ) {
+    switch (mode) {
+      case CalculatorMode.basic:
+        return l10n.modeSpeechBasic;
+      case CalculatorMode.scientific:
+        return l10n.modeSpeechScientific;
+      case CalculatorMode.statistics:
+        return l10n.modeSpeechStatistics;
+      case CalculatorMode.electrician:
+        return l10n.modeSpeechElectrician;
+      case CalculatorMode.unitConversion:
+        return l10n.modeSpeechUnitConversion;
+    }
+  }
+
+  void _updateTtsLanguage() {
+    if (!mounted) return;
+    final lang = _isEnglish() ? 'en-US' : 'cs-CZ';
+    if (_lastTtsLocale == lang) return;
+    _lastTtsLocale = lang;
+    tts.setLanguage(lang);
+  }
+
+  _StatisticsSnapshot? _computeStatisticsSnapshot() {
+    if (_statsMemory.isEmpty) return null;
+    final data = List<double>.from(_statsMemory);
+    final sum = data.reduce((a, b) => a + b);
+    final mean = sum / data.length;
+    final variance =
+        data.map((x) => math.pow(x - mean, 2)).reduce((a, b) => a + b) /
+        data.length;
+    final sd = math.sqrt(variance);
+
+    final sorted = List<double>.from(data)..sort();
+    final middle = sorted.length ~/ 2;
+    final median = sorted.length % 2 == 1
+        ? sorted[middle]
+        : (sorted[middle - 1] + sorted[middle]) / 2;
+
+    final counts = <double, int>{};
+    for (final x in data) {
+      counts[x] = (counts[x] ?? 0) + 1;
+    }
+    final maxCount = counts.values.reduce((a, b) => a > b ? a : b);
+    final modeExists = maxCount > 1;
+    final modes = counts.entries
+        .where((e) => e.value == maxCount)
+        .map((e) => e.key)
+        .toList();
+
+    return _StatisticsSnapshot(
+      sum: sum,
+      mean: mean,
+      variance: variance,
+      sd: sd,
+      median: median,
+      modes: modes,
+      modeOccurrenceCount: maxCount,
+      modeExists: modeExists,
+      cv: mean == 0 ? null : (sd / mean) * 100,
+    );
+  }
+
+  String _formatSpokenNumber(double value) =>
+      _formatNumber(value).replaceAll('.', ',');
+
+  String _getButtonName(String label) {
+    const localized = {
+      'SD': ['Směrodatná odchylka', 'Standard deviation'],
+      'VAR': ['Rozptyl', 'Variance'],
+      'MEAN': ['Průměr', 'Mean'],
+      'STATS': ['Statistický souhrn', 'Statistics summary'],
+      'M+': ['Přidat do statistické paměti', 'Add to statistics memory'],
+      'MC': ['Smazat statistickou paměť', 'Clear statistics memory'],
+      'MR': ['Vyvolat ze statistické paměti', 'Recall statistics memory'],
+      'MED': ['Medián', 'Median'],
+      'MODE': ['Modus', 'Mode'],
+      'CV': ['Variační koeficient', 'Coefficient of variation'],
+      'SUM': ['Součet hodnot', 'Sum of values'],
+      ';': ['Oddělovač dat', 'Data separator'],
+    };
+    if (localized.containsKey(label)) {
+      final pair = localized[label]!;
+      return _isEnglish() ? pair[1] : pair[0];
+    }
+    return _buttonNames[label] ?? label;
   }
 
   ElectricianCalculation? _electricianCalculationFromButton(String label) {
@@ -697,12 +833,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _initTts() async {
     try {
-      await tts.setLanguage("cs-CZ");
+      final locale = WidgetsBinding.instance.platformDispatcher.locale;
+      final l10n = lookupAppLocalizations(locale);
+      _lastTtsLocale = locale.languageCode == 'en' ? 'en-US' : 'cs-CZ';
+      await tts.setLanguage(_lastTtsLocale!);
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
       if (_sayWelcome) {
         speak(
-          'Vítejte v mluvící kalkulačce, aktivní je ${_getModeSpeechName(_currentMode)}',
+          l10n.welcomeMessage(
+            _getModeSpeechNameForL10n(_currentMode, l10n),
+          ),
         );
       }
     } catch (e) {
@@ -718,31 +859,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String _getModeName(CalculatorMode mode) {
     switch (mode) {
       case CalculatorMode.basic:
-        return 'Základní';
+        return _l10n.modeBasic;
       case CalculatorMode.scientific:
-        return 'Vědecká';
+        return _l10n.modeScientific;
       case CalculatorMode.statistics:
-        return 'Statistika';
+        return _l10n.modeStatistics;
       case CalculatorMode.electrician:
-        return 'Elektro';
+        return _l10n.modeElectrician;
       case CalculatorMode.unitConversion:
-        return 'Převody jednotek';
+        return _l10n.modeUnitConversion;
     }
   }
 
   String _getModeSpeechName(CalculatorMode mode) {
-    switch (mode) {
-      case CalculatorMode.basic:
-        return 'základní režim';
-      case CalculatorMode.scientific:
-        return 'vědecký režim';
-      case CalculatorMode.statistics:
-        return 'statistický režim';
-      case CalculatorMode.electrician:
-        return 'elektrotechnický režim';
-      case CalculatorMode.unitConversion:
-        return 'režim převodů jednotek';
-    }
+    return _getModeSpeechNameForL10n(mode, _l10n);
   }
 
   void speak(String text) async {
@@ -918,9 +1048,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
       if (_currentMode == CalculatorMode.statistics) {
         if (_statsMemory.isEmpty) {
-          speak(
-            'Statistická paměť je prázdná. Nejprve přidejte data pomocí tlačítka M plus.',
-          );
+          speak(_l10n.statsMemoryEmptyHint);
           return;
         }
         List<double> data = List.from(_statsMemory);
@@ -933,8 +1061,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         double sd = math.sqrt(variance);
 
         resStr = _formatNumber(mean);
-        spoken =
-            'Průměr z paměti je ${_formatNumber(mean).replaceAll('.', ',')}, směrodatná odchylka je ${_formatNumber(sd).replaceAll('.', ',')}';
+        spoken = _s(
+          'Průměr z paměti je ${_formatSpokenNumber(mean)}, směrodatná odchylka je ${_formatSpokenNumber(sd)}',
+          'Mean from memory is ${_formatSpokenNumber(mean)}, standard deviation is ${_formatSpokenNumber(sd)}',
+        );
       } else if (_currentMode == CalculatorMode.electrician) {
         final result = _calculateElectricianResult(display);
         if (!result.isFinite) {
@@ -1635,7 +1765,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     bool expanded = true,
   }) {
     final String descriptiveName =
-        semanticLabel ?? (_buttonNames[label] ?? label);
+        semanticLabel ?? _getButtonName(label);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     // Detekce, zda je aktivní systémový screen reader
@@ -1769,26 +1899,48 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       if (_currentMode == CalculatorMode.statistics) {
         _handleMultipleStatisticsAddition();
       } else {
-        speak('Tlačítko M plus je dostupné pouze ve statistickém režimu.');
+        speak(_s(
+          'Tlačítko M plus je dostupné pouze ve statistickém režimu.',
+          'The M+ button is available only in statistics mode.',
+        ));
       }
     } else if (label == 'MC') {
       if (_currentMode == CalculatorMode.statistics) {
         setState(() {
           _statsMemory.clear();
         });
-        speak('Statistická paměť byla smazána.');
+        speak(_l10n.statsMemoryCleared);
       } else {
-        speak('Tlačítko M C je dostupné pouze ve statistickém režimu.');
+        speak(_s(
+          'Tlačítko M C je dostupné pouze ve statistickém režimu.',
+          'The MC button is available only in statistics mode.',
+        ));
       }
     } else if (label == 'MR') {
       if (_currentMode == CalculatorMode.statistics) {
         if (_statsMemory.isEmpty) {
-          speak('Statistická paměť je prázdná.');
+          speak(_l10n.statsMemoryEmpty);
         } else {
           _showStatisticsMemoryDialog();
         }
       } else {
-        speak('Tlačítko M R je dostupné pouze ve statistickém režimu.');
+        speak(_s(
+          'Tlačítko M R je dostupné pouze ve statistickém režimu.',
+          'The MR button is available only in statistics mode.',
+        ));
+      }
+    } else if (label == 'STATS') {
+      if (_currentMode == CalculatorMode.statistics) {
+        if (_statsMemory.isEmpty) {
+          speak(_l10n.statsMemoryEmptyHint);
+        } else {
+          _showStatisticsSummaryDialog();
+        }
+      } else {
+        speak(_s(
+          'Statistický souhrn je dostupný pouze ve statistickém režimu.',
+          'Statistics summary is available only in statistics mode.',
+        ));
       }
     } else if (_electricianCalculationFromButton(label) != null) {
       if (_currentMode == CalculatorMode.electrician) {
@@ -1802,83 +1954,80 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       if (_currentMode == CalculatorMode.statistics) {
         try {
           if (_statsMemory.isEmpty) {
-            speak(
-              'Statistická paměť je prázdná. Nejprve přidejte data pomocí tlačítka M plus.',
-            );
+            speak(_l10n.statsMemoryEmptyHint);
             return;
           }
-          List<double> data = List.from(_statsMemory);
-
-          double sum = data.reduce((a, b) => a + b);
-          double mean = sum / data.length;
-          double variance =
-              data.map((x) => math.pow(x - mean, 2)).reduce((a, b) => a + b) /
-              data.length;
-          double sd = math.sqrt(variance);
+          final snapshot = _computeStatisticsSnapshot()!;
 
           String resStr = '0';
           String spoken = '';
           if (label == 'MEAN') {
-            resStr = _formatNumber(mean);
-            spoken = 'Průměr z paměti je ${resStr.replaceAll('.', ',')}';
+            resStr = _formatNumber(snapshot.mean);
+            spoken = _s(
+              'Průměr z paměti je ${_formatSpokenNumber(snapshot.mean)}',
+              'Mean from memory is ${_formatSpokenNumber(snapshot.mean)}',
+            );
           } else if (label == 'SUM') {
-            resStr = _formatNumber(sum);
-            spoken = 'Součet hodnot je ${resStr.replaceAll('.', ',')}';
+            resStr = _formatNumber(snapshot.sum);
+            spoken = _s(
+              'Součet hodnot je ${_formatSpokenNumber(snapshot.sum)}',
+              'Sum of values is ${_formatSpokenNumber(snapshot.sum)}',
+            );
           } else if (label == 'VAR') {
-            resStr = _formatNumber(variance);
-            spoken = 'Rozptyl z paměti je ${resStr.replaceAll('.', ',')}';
+            resStr = _formatNumber(snapshot.variance);
+            spoken = _s(
+              'Rozptyl z paměti je ${_formatSpokenNumber(snapshot.variance)}',
+              'Variance from memory is ${_formatSpokenNumber(snapshot.variance)}',
+            );
           } else if (label == 'SD') {
-            resStr = _formatNumber(sd);
-            spoken =
-                'Směrodatná odchylka z paměti je ${resStr.replaceAll('.', ',')}';
+            resStr = _formatNumber(snapshot.sd);
+            spoken = _s(
+              'Směrodatná odchylka z paměti je ${_formatSpokenNumber(snapshot.sd)}',
+              'Standard deviation from memory is ${_formatSpokenNumber(snapshot.sd)}',
+            );
           } else if (label == 'MED') {
-            List<double> sorted = List.from(data)..sort();
-            double median;
-            int middle = sorted.length ~/ 2;
-            if (sorted.length % 2 == 1) {
-              median = sorted[middle];
-            } else {
-              median = (sorted[middle - 1] + sorted[middle]) / 2;
-            }
-            resStr = _formatNumber(median);
-            spoken = 'Medián z paměti je ${resStr.replaceAll('.', ',')}';
+            resStr = _formatNumber(snapshot.median);
+            spoken = _s(
+              'Medián z paměti je ${_formatSpokenNumber(snapshot.median)}',
+              'Median from memory is ${_formatSpokenNumber(snapshot.median)}',
+            );
           } else if (label == 'MODE') {
-            Map<double, int> counts = {};
-            for (double x in data) {
-              counts[x] = (counts[x] ?? 0) + 1;
-            }
-            int maxCount = counts.values.reduce((a, b) => a > b ? a : b);
-            List<double> modes = counts.entries
-                .where((e) => e.value == maxCount)
-                .map((e) => e.key)
-                .toList();
-
-            if (maxCount == 1) {
-              resStr = _formatNumber(data.first);
-              spoken =
-                  'Modus neexistuje, všechny hodnoty se v paměti vyskytují pouze jednou.';
+            if (!snapshot.modeExists) {
+              resStr = _formatNumber(_statsMemory.first);
+              spoken = _s(
+                'Modus neexistuje, všechny hodnoty se v paměti vyskytují pouze jednou.',
+                'No mode exists, all values in memory occur only once.',
+              );
             } else {
-              resStr = modes.map((m) => _formatNumber(m)).join(';');
-              String modesSpoken = modes
-                  .map((m) => _formatNumber(m).replaceAll('.', ','))
-                  .join(' a ');
-              if (modes.length == 1) {
-                spoken =
-                    'Modus z paměti je $modesSpoken, vyskytuje se $maxCount krát';
+              resStr = snapshot.modes.map((m) => _formatNumber(m)).join(';');
+              final modesSpoken = snapshot.modes
+                  .map((m) => _formatSpokenNumber(m))
+                  .join(_s(' a ', ' and '));
+              if (snapshot.modes.length == 1) {
+                spoken = _s(
+                  'Modus z paměti je $modesSpoken, vyskytuje se ${snapshot.modeOccurrenceCount} krát',
+                  'Mode from memory is $modesSpoken, occurs ${snapshot.modeOccurrenceCount} times',
+                );
               } else {
-                spoken =
-                    'Modusy z paměti jsou $modesSpoken, vyskytují se $maxCount krát';
+                spoken = _s(
+                  'Modusy z paměti jsou $modesSpoken, vyskytují se ${snapshot.modeOccurrenceCount} krát',
+                  'Modes from memory are $modesSpoken, occur ${snapshot.modeOccurrenceCount} times',
+                );
               }
             }
           } else if (label == 'CV') {
-            if (mean == 0) {
-              spoken = 'Nelze vypočítat variační koeficient, průměr je nula.';
+            if (snapshot.cv == null) {
+              spoken = _s(
+                'Nelze vypočítat variační koeficient, průměr je nula.',
+                'Cannot calculate coefficient of variation, mean is zero.',
+              );
               resStr = 'Err';
             } else {
-              double cv = (sd / mean) * 100;
-              resStr = _formatNumber(cv);
-              spoken =
-                  'Variační koeficient je ${resStr.replaceAll('.', ',')} procent';
+              resStr = _formatNumber(snapshot.cv!);
+              spoken = _s(
+                'Variační koeficient je ${_formatSpokenNumber(snapshot.cv!)} procent',
+                'Coefficient of variation is ${_formatSpokenNumber(snapshot.cv!)} percent',
+              );
             }
           }
 
@@ -1892,7 +2041,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           speak(spoken);
           _addToHistory('STATS($label)', resStr);
         } catch (e) {
-          speak('Chyba statistického výpočtu.');
+          speak(_s(
+            'Chyba statistického výpočtu.',
+            'Statistics calculation error.',
+          ));
         }
       } else {
         append(label, silent: silent);
@@ -2080,19 +2232,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         break;
       case CalculatorMode.statistics:
         btns = [
-          'SD',
-          'VAR',
-          'MEAN',
-          'CV',
-          'SUM',
-          'C',
-          'MED',
-          'MODE',
           'M+',
-          'DEL',
           'MC',
           'MR',
-          ';',
+          'STATS',
+          'MEAN',
+          'SD',
+          'VAR',
+          'SUM',
+          'MED',
+          'MODE',
+          'CV',
+          'C',
+          '(',
+          ')',
           '/',
           '7',
           '8',
@@ -2108,6 +2261,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           '+',
           '0',
           '.',
+          ';',
           'ANS',
           '=',
         ];
@@ -2180,7 +2334,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   color = Colors.redAccent;
                 } else if (b == '=') {
                   color = Colors.green;
-                } else if (['M+', 'MC', 'MR'].contains(b)) {
+                } else if (['M+', 'MC', 'MR', 'STATS'].contains(b)) {
                   color = Colors.deepPurple;
                 } else if (_electricianCalculationFromButton(b) != null) {
                   color = _isSelectedElectricianButton(b)
@@ -2221,7 +2375,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 onSelected: (s) {
                   if (s) {
                     _changeMode(mode);
-                    speak('Přepnuto na ${_getModeSpeechName(mode)}');
+                    speak(_l10n.switchedToMode(_getModeSpeechName(mode)));
                   }
                 },
               ),
@@ -2249,19 +2403,23 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   void _showStatisticsMemoryDialog() {
+    final l10n = _l10n;
     final valueCounts = _getStatsValueCounts();
     final totalCount = _statsMemory.length;
     final totalCountForm = _getStatsCountForm(totalCount);
     final rowsSpeech = valueCounts.entries
         .map((entry) {
-          final value = _formatNumber(entry.key).replaceAll('.', ',');
+          final value = _formatSpokenNumber(entry.key);
           final count = entry.value;
           return '$value, $count ${_getStatsOccurrenceCountForm(count)}';
         })
         .join('; ');
-    final spokenSummary =
-        'Statistická paměť obsahuje $totalCount $totalCountForm. '
-        'Hodnoty a počty výskytů: $rowsSpeech.';
+    final spokenSummary = _s(
+      'Statistická paměť obsahuje $totalCount $totalCountForm. '
+      'Hodnoty a počty výskytů: $rowsSpeech.',
+      'Statistics memory contains $totalCount $totalCountForm. '
+      'Values and occurrence counts: $rowsSpeech.',
+    );
 
     showDialog<void>(
       context: context,
@@ -2273,7 +2431,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         return AlertDialog(
           title: Semantics(
             header: true,
-            child: const Text('Statistická paměť'),
+            child: Text(l10n.statsMemoryTitle),
           ),
           content: Focus(
             autofocus: true,
@@ -2290,29 +2448,32 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Semantics(
-                        label:
-                            'Celkem $totalCount $totalCountForm. Počet různých hodnot: ${valueCounts.length}.',
+                        label: l10n.statsTotalSemantics(
+                          totalCount,
+                          totalCountForm,
+                          valueCounts.length,
+                        ),
                         child: ExcludeSemantics(
                           child: Text(
-                            'Celkem hodnot: $totalCount\n'
-                            'Různých hodnot: ${valueCounts.length}',
+                            '${l10n.statsTotalValues(totalCount)}\n'
+                            '${l10n.statsDistinctValues(valueCounts.length)}',
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       Semantics(
                         header: true,
-                        label: 'Sloupce: hodnota a počet výskytů',
+                        label: l10n.statsColumnsLabel,
                         child: ExcludeSemantics(
                           child: DefaultTextStyle.merge(
                             style: const TextStyle(fontWeight: FontWeight.bold),
-                            child: const Row(
+                            child: Row(
                               children: [
-                                Expanded(flex: 3, child: Text('Hodnota')),
+                                Expanded(flex: 3, child: Text(l10n.statsValue)),
                                 Expanded(
                                   flex: 2,
                                   child: Text(
-                                    'Počet výskytů',
+                                    l10n.statsOccurrenceCount,
                                     textAlign: TextAlign.right,
                                   ),
                                 ),
@@ -2324,11 +2485,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       const Divider(height: 16),
                       ...valueCounts.entries.map((entry) {
                         final value = _formatNumber(entry.key);
-                        final spokenValue = value.replaceAll('.', ',');
+                        final spokenValue = _formatSpokenNumber(entry.key);
                         final count = entry.value;
                         return Semantics(
                           container: true,
-                          label: 'Hodnota $spokenValue, počet výskytů: $count.',
+                          label: l10n.statsRowSemantics(spokenValue, count),
                           child: ExcludeSemantics(
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 6),
@@ -2357,7 +2518,169 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('ZAVŘÍT'),
+              child: Text(l10n.close),
+            ),
+          ],
+        );
+      },
+    ).then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mainFocusNode.requestFocus();
+      });
+    });
+  }
+
+  void _showStatisticsSummaryDialog() {
+    final l10n = _l10n;
+    final snapshot = _computeStatisticsSnapshot();
+    if (snapshot == null) {
+      speak(l10n.statsMemoryEmpty);
+      return;
+    }
+
+    final allValues = _statsMemory
+        .map((v) => _formatNumber(v))
+        .join(_isEnglish() ? ', ' : '; ');
+    final allValuesSpoken = _statsMemory
+        .map((v) => _formatSpokenNumber(v))
+        .join(_isEnglish() ? ', ' : '; ');
+
+    final modeText = snapshot.modeExists
+        ? snapshot.modes.map((m) => _formatNumber(m)).join('; ')
+        : l10n.statsModeNone;
+    final modeSpoken = snapshot.modeExists
+        ? snapshot.modes.map((m) => _formatSpokenNumber(m)).join(_s(' a ', ' and '))
+        : l10n.statsModeNone;
+
+    final cvText = snapshot.cv == null
+        ? 'Err'
+        : '${_formatNumber(snapshot.cv!)} %';
+    final cvSpoken = snapshot.cv == null
+        ? _s('nelze vypočítat', 'cannot calculate')
+        : '${_formatSpokenNumber(snapshot.cv!)} ${_s('procent', 'percent')}';
+
+    final statRows = <MapEntry<String, String>>[
+      MapEntry(l10n.statsMean, _formatNumber(snapshot.mean)),
+      MapEntry(l10n.statsSum, _formatNumber(snapshot.sum)),
+      MapEntry(l10n.statsVariance, _formatNumber(snapshot.variance)),
+      MapEntry(l10n.statsStdDev, _formatNumber(snapshot.sd)),
+      MapEntry(l10n.statsMedian, _formatNumber(snapshot.median)),
+      MapEntry(l10n.statsMode, modeText),
+      MapEntry(l10n.statsCv, cvText),
+    ];
+
+    final spokenSummary = _s(
+      'Statistický souhrn. Všechny hodnoty: $allValuesSpoken. '
+      'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
+      'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
+      'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
+      'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
+      'Medián: ${_formatSpokenNumber(snapshot.median)}. '
+      'Modus: $modeSpoken. '
+      'Variační koeficient: $cvSpoken.',
+      'Statistics summary. All values: $allValuesSpoken. '
+      'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
+      'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
+      'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
+      'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
+      'Median: ${_formatSpokenNumber(snapshot.median)}. '
+      'Mode: $modeSpoken. '
+      'Coefficient of variation: $cvSpoken.',
+    );
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final isScreenReaderActive = MediaQuery.of(
+          dialogContext,
+        ).accessibleNavigation;
+
+        return AlertDialog(
+          title: Semantics(
+            header: true,
+            child: Text(l10n.statsSummaryTitle),
+          ),
+          content: Focus(
+            autofocus: true,
+            onFocusChange: (hasFocus) {
+              if (hasFocus && !isScreenReaderActive) speak(spokenSummary);
+            },
+            child: SizedBox(
+              width: double.maxFinite,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Semantics(
+                        header: true,
+                        label: l10n.statsAllValuesSection,
+                        child: ExcludeSemantics(
+                          child: Text(
+                            l10n.statsAllValuesSection,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Semantics(
+                        label: _s(
+                          'Všechny hodnoty: $allValuesSpoken',
+                          'All values: $allValuesSpoken',
+                        ),
+                        child: ExcludeSemantics(child: Text(allValues)),
+                      ),
+                      const SizedBox(height: 16),
+                      Semantics(
+                        header: true,
+                        label: l10n.statsComputedSection,
+                        child: ExcludeSemantics(
+                          child: Text(
+                            l10n.statsComputedSection,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...statRows.map((row) {
+                        final spokenValue = row.value.replaceAll('.', ',');
+                        return Semantics(
+                          container: true,
+                          label: '${row.key}: $spokenValue',
+                          child: ExcludeSemantics(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(row.key),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      row.value,
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.close),
             ),
           ],
         );
@@ -2514,32 +2837,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         .map((v) => _formatNumber(v).replaceAll('.', ','))
         .join(', ');
     String countForm = _getStatsCountForm(_statsMemory.length);
-    String spoken =
-        'Přidáno $valuesStr, $count krát. V paměti je celkem ${_statsMemory.length} $countForm.';
+    String spoken = _s(
+      'Přidáno $valuesStr, $count krát. V paměti je celkem ${_statsMemory.length} $countForm.',
+      'Added $valuesStr, $count times. Memory now contains ${_statsMemory.length} $countForm.',
+    );
     speak(spoken);
   }
 
   void _showRepeatDialog(List<double> values) {
+    final l10n = _l10n;
     TextEditingController controller = TextEditingController(text: '1');
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Semantics(header: true, child: Text('Počet opakování')),
+        title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
         content: Semantics(
-          label:
-              'Zadejte, kolikrát se mají hodnoty vložit do statistické paměti',
+          label: l10n.statsRepeatHint,
           child: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Počet vložení'),
+            decoration: InputDecoration(labelText: l10n.statsRepeatLabel),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Zrušit'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -2547,7 +2872,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               _addValuesToStats(values, count);
               Navigator.pop(context);
             },
-            child: const Text('Potvrdit'),
+            child: Text(l10n.confirmAction),
           ),
         ],
       ),
@@ -2556,7 +2881,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _handleMultipleStatisticsAddition() {
     if (display.isEmpty) {
-      speak('Displej je prázdný. Zadejte číslo k uložení.');
+      speak(_s(
+        'Displej je prázdný. Zadejte číslo k uložení.',
+        'Display is empty. Enter a number to store.',
+      ));
       return;
     }
     try {
@@ -2567,20 +2895,26 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           .toList();
 
       if (valuesToAdd.isEmpty) {
-        speak('Žádná platná čísla k uložení.');
+        speak(_s(
+          'Žádná platná čísla k uložení.',
+          'No valid numbers to store.',
+        ));
         return;
       }
 
       _showRepeatDialog(valuesToAdd);
     } catch (e) {
-      speak(
+      speak(_s(
         'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
-      );
+        'Error storing to statistics memory. Check the data format.',
+      ));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    _updateTtsLanguage();
+    final l10n = _l10n;
     // Detekce, zda je aktivní systémový screen reader
     final bool isScreenReaderActive = MediaQuery.of(
       context,
@@ -2591,31 +2925,31 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       onKeyEvent: _handleKeyboardInput,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Mluvící kalkulačka'),
+          title: Text(l10n.appTitle),
           actions: [
             IconButton(
               icon: const Icon(Icons.history),
-              tooltip: 'Historie',
+              tooltip: l10n.history,
               onPressed: _showHistoryDialog,
             ),
             IconButton(
               icon: const Icon(Icons.list),
-              tooltip: 'Pokročilé funkce',
+              tooltip: l10n.advancedFunctions,
               onPressed: _showAdvancedFunctionsDialog,
             ),
             IconButton(
               icon: const Icon(Icons.help_outline),
-              tooltip: 'Nápověda k ovládání',
+              tooltip: l10n.helpTooltip,
               onPressed: _showTutorialDialog,
             ),
             IconButton(
               icon: Icon(ttsEnabled ? Icons.volume_up : Icons.volume_off),
-              tooltip: ttsEnabled ? 'Ztlumit hlas' : 'Zapnout hlas',
+              tooltip: ttsEnabled ? l10n.muteVoice : l10n.unmuteVoice,
               onPressed: _toggleTts,
             ),
             IconButton(
               icon: const Icon(Icons.settings),
-              tooltip: 'Nastavení přístupnosti',
+              tooltip: l10n.accessibility,
               onPressed: _showAccessibilityDialog,
             ),
           ],
@@ -2670,10 +3004,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         ),
                         child: Semantics(
                           liveRegion: true,
-                          label: 'Displej',
-                          hint: 'Zoomujte dvěma prsty, posouvejte tahem',
+                          label: l10n.displayLabel,
+                          hint: l10n.displayHint,
                           value: display.isEmpty
-                              ? 'Prázdno'
+                              ? l10n.displayEmpty
                               : display.replaceAll('.', ','),
                           // Pokud běží TalkBack, vnitřní prvky sémantiku nepotřebují, přečte je tento Semantics widget
                           explicitChildNodes: !isScreenReaderActive,

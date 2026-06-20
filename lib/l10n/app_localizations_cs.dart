@@ -97,4 +97,144 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get decimal => 'Desetinné';
+
+  @override
+  String get helpTooltip => 'Nápověda k ovládání';
+
+  @override
+  String get muteVoice => 'Ztlumit hlas';
+
+  @override
+  String get unmuteVoice => 'Zapnout hlas';
+
+  @override
+  String get modeBasic => 'Základní';
+
+  @override
+  String get modeScientific => 'Vědecká';
+
+  @override
+  String get modeStatistics => 'Statistika';
+
+  @override
+  String get modeElectrician => 'Elektro';
+
+  @override
+  String get modeUnitConversion => 'Převody jednotek';
+
+  @override
+  String get modeSpeechBasic => 'základní režim';
+
+  @override
+  String get modeSpeechScientific => 'vědecký režim';
+
+  @override
+  String get modeSpeechStatistics => 'statistický režim';
+
+  @override
+  String get modeSpeechElectrician => 'elektrotechnický režim';
+
+  @override
+  String get modeSpeechUnitConversion => 'režim převodů jednotek';
+
+  @override
+  String switchedToMode(String mode) => 'Přepnuto na $mode';
+
+  @override
+  String welcomeMessage(String mode) =>
+      'Vítejte v mluvící kalkulačce, aktivní je $mode';
+
+  @override
+  String get displayEmpty => 'Prázdno';
+
+  @override
+  String get displayLabel => 'Displej';
+
+  @override
+  String get displayHint => 'Zoomujte dvěma prsty, posouvejte tahem';
+
+  @override
+  String get cancel => 'Zrušit';
+
+  @override
+  String get confirmAction => 'Potvrdit';
+
+  @override
+  String get statsMemoryTitle => 'Statistická paměť';
+
+  @override
+  String get statsSummaryTitle => 'Statistický souhrn';
+
+  @override
+  String get statsValue => 'Hodnota';
+
+  @override
+  String get statsOccurrenceCount => 'Počet výskytů';
+
+  @override
+  String statsTotalValues(int count) => 'Celkem hodnot: $count';
+
+  @override
+  String statsDistinctValues(int count) => 'Různých hodnot: $count';
+
+  @override
+  String get statsColumnsLabel => 'Sloupce: hodnota a počet výskytů';
+
+  @override
+  String get statsRepeatTitle => 'Počet opakování';
+
+  @override
+  String get statsRepeatHint =>
+      'Zadejte, kolikrát se mají hodnoty vložit do statistické paměti';
+
+  @override
+  String get statsRepeatLabel => 'Počet vložení';
+
+  @override
+  String get statsAllValuesSection => 'Všechny hodnoty v paměti';
+
+  @override
+  String get statsComputedSection => 'Vypočtené statistiky';
+
+  @override
+  String get statsMean => 'Průměr';
+
+  @override
+  String get statsSum => 'Součet';
+
+  @override
+  String get statsVariance => 'Rozptyl';
+
+  @override
+  String get statsStdDev => 'Směrodatná odchylka';
+
+  @override
+  String get statsMedian => 'Medián';
+
+  @override
+  String get statsMode => 'Modus';
+
+  @override
+  String get statsCv => 'Variační koeficient';
+
+  @override
+  String get statsModeNone => 'Modus neexistuje';
+
+  @override
+  String get statsMemoryEmpty => 'Statistická paměť je prázdná.';
+
+  @override
+  String get statsMemoryEmptyHint =>
+      'Statistická paměť je prázdná. Nejprve přidejte data pomocí tlačítka M plus.';
+
+  @override
+  String get statsMemoryCleared => 'Statistická paměť byla smazána.';
+
+  @override
+  String statsRowSemantics(String value, int count) =>
+      'Hodnota $value, počet výskytů: $count.';
+
+  @override
+  String statsTotalSemantics(int count, String countLabel, int distinct) =>
+      'Celkem $count $countLabel. Počet různých hodnot: $distinct.';
 }

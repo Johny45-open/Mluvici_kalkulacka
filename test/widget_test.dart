@@ -11,6 +11,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mluvici_kalkulacka/main.dart';
 
+const _testLocale = Locale('cs');
+
+Future<void> pumpCalculatorApp(WidgetTester tester) async {
+  await tester.pumpWidget(
+    const ScientificCalculatorApp(locale: _testLocale),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({
@@ -20,11 +29,52 @@ void main() {
   });
 
   testWidgets('Scientific calculator app test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const ScientificCalculatorApp());
-
-    // Verify some text in the UI (e.g. title of the app bar)
+    await pumpCalculatorApp(tester);
     expect(find.text('Mluvící kalkulačka'), findsOneWidget);
+  });
+
+  testWidgets('STATS ve statistickém režimu zobrazí souhrnný dialog', (
+    WidgetTester tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    try {
+      await pumpCalculatorApp(tester);
+      await tester.tap(find.text('Statistika'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('2').last);
+      await tester.pump();
+      await tester.tap(find.text('M+'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Potvrdit'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('STATS'));
+      await tester.pumpAndSettle();
+
+      final dialog = find.byType(AlertDialog);
+      expect(find.text('Statistický souhrn'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: dialog,
+          matching: find.text('Všechny hodnoty v paměti'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: dialog,
+          matching: find.text('Vypočtené statistiky'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: dialog, matching: find.text('2')),
+        findsWidgets,
+      );
+    } finally {
+      semanticsHandle.dispose();
+    }
   });
 
   testWidgets('MR ve statistickém režimu zobrazí dialog četností', (
@@ -32,7 +82,7 @@ void main() {
   ) async {
     final semanticsHandle = tester.ensureSemantics();
     try {
-      await tester.pumpWidget(const ScientificCalculatorApp());
+      await pumpCalculatorApp(tester);
       await tester.tap(find.text('Statistika'));
       await tester.pumpAndSettle();
 
@@ -88,7 +138,7 @@ void main() {
   testWidgets(
     'Elektro režim počítá napětí, proud i odpor podle zvoleného cíle',
     (WidgetTester tester) async {
-      await tester.pumpWidget(const ScientificCalculatorApp());
+      await pumpCalculatorApp(tester);
       await tester.tap(find.text('Elektro'));
       await tester.pumpAndSettle();
 
