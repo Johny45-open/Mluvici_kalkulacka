@@ -352,6 +352,19 @@ abstract class AppLocalizations {
   String statsRowSemantics(String value, int count);
 
   String statsTotalSemantics(int count, String countLabel, int distinct);
+
+  String get statsSetsTitle;
+  String get statsSetsManage;
+  String get statsSetsCreate;
+  String get statsSetsRename;
+  String get statsSetsDelete;
+  String get statsSetNameLabel;
+  String statsSetCreatedAnnouncement(String name);
+  String statsSetRenamedAnnouncement(String name);
+  String statsSetDeletedAnnouncement(String name, String activeName);
+  String statsSetSelectedAnnouncement(String name, int count, String countForm);
+  String statsSetDefaultName(int index);
+  String statsCurrentSetLabel(String name);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

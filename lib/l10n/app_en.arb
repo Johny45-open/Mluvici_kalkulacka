@@ -72,5 +72,68 @@
   "statsMemoryEmptyHint": "Statistics memory is empty. Add data first using the M+ button.",
   "statsMemoryCleared": "Statistics memory was cleared.",
   "statsRowSemantics": "Value {value}, occurrences: {count}.",
-  "statsTotalSemantics": "Total {count} {countLabel}. Distinct values: {distinct}."
+  "statsTotalSemantics": "Total {count} {countLabel}. Distinct values: {distinct}.",
+  "statsSetsTitle": "Statistics Sets",
+  "statsSetsManage": "Manage Sets",
+  "statsSetsCreate": "Create new set",
+  "statsSetsRename": "Rename set",
+  "statsSetsDelete": "Delete set",
+  "statsSetNameLabel": "Set name",
+  "statsSetCreatedAnnouncement": "Created and selected new empty set {name}",
+  "@statsSetCreatedAnnouncement": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "statsSetRenamedAnnouncement": "Set renamed to {name}",
+  "@statsSetRenamedAnnouncement": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "statsSetDeletedAnnouncement": "Set {name} deleted. Active set is now {activeName}",
+  "@statsSetDeletedAnnouncement": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "activeName": {
+        "type": "String"
+      }
+    }
+  },
+  "statsSetSelectedAnnouncement": "Selected set {name}, contains {count} {countForm}",
+  "@statsSetSelectedAnnouncement": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "countForm": {
+        "type": "String"
+      }
+    }
+  },
+  "statsSetDefaultName": "Set {index}",
+  "@statsSetDefaultName": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "statsCurrentSetLabel": "Active set: {name}",
+  "@statsCurrentSetLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

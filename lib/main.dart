@@ -121,6 +121,28 @@ class _StatisticsSnapshot {
   });
 }
 
+class StatisticsSet {
+  String name;
+  final List<double> data;
+
+  StatisticsSet({
+    required this.name,
+    required this.data,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'data': data,
+      };
+
+  factory StatisticsSet.fromJson(Map<String, dynamic> json) {
+    return StatisticsSet(
+      name: json['name'] as String,
+      data: (json['data'] as List).map((e) => (e as num).toDouble()).toList(),
+    );
+  }
+}
+
 class CalculatorScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
@@ -177,7 +199,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     'M': 0,
   };
 
-  final List<double> _statsMemory = [];
+  final List<StatisticsSet> _statsSets = [];
+  int _currentStatsSetIndex = 0;
+
+  bool get _hasStatsSet => _statsSets.isNotEmpty;
+
+
+
+  List<double> get _statsMemory {
+    if (_statsSets.isEmpty) return const [];
+    return _statsSets[_currentStatsSetIndex].data;
+  }
 
   final Map<String, Map<String, double>> _unitCategories = {
     'Délka': {
@@ -648,6 +680,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       'CV': ['Variační koeficient', 'Coefficient of variation'],
       'SUM': ['Součet hodnot', 'Sum of values'],
       ';': ['Oddělovač dat', 'Data separator'],
+      'SETS': ['Správa sad', 'Manage sets'],
     };
     if (localized.containsKey(label)) {
       final pair = localized[label]!;
@@ -1906,6 +1939,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       }
     } else if (label == 'MC') {
       if (_currentMode == CalculatorMode.statistics) {
+        if (!_hasStatsSet) {
+          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          return;
+        }
         setState(() {
           _statsMemory.clear();
         });
@@ -1918,6 +1955,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       }
     } else if (label == 'MR') {
       if (_currentMode == CalculatorMode.statistics) {
+        if (!_hasStatsSet) {
+          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          return;
+        }
         if (_statsMemory.isEmpty) {
           speak(_l10n.statsMemoryEmpty);
         } else {
@@ -1931,6 +1972,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       }
     } else if (label == 'STATS') {
       if (_currentMode == CalculatorMode.statistics) {
+        if (!_hasStatsSet) {
+          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          return;
+        }
         if (_statsMemory.isEmpty) {
           speak(_l10n.statsMemoryEmptyHint);
         } else {
@@ -1940,6 +1985,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         speak(_s(
           'Statistický souhrn je dostupný pouze ve statistickém režimu.',
           'Statistics summary is available only in statistics mode.',
+        ));
+      }
+    } else if (label == 'SETS') {
+      if (_currentMode == CalculatorMode.statistics) {
+        _showStatsSetsDialog();
+      } else {
+        speak(_s(
+          'Správa sad je dostupná pouze ve statistickém režimu.',
+          'Manage sets is available only in statistics mode.',
         ));
       }
     } else if (_electricianCalculationFromButton(label) != null) {
@@ -2232,17 +2286,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         break;
       case CalculatorMode.statistics:
         btns = [
-          'M+',
-          'MC',
-          'MR',
-          'STATS',
-          'MEAN',
-          'SD',
-          'VAR',
-          'SUM',
-          'MED',
-          'MODE',
-          'CV',
           'C',
           '(',
           ')',
@@ -2262,7 +2305,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           '0',
           '.',
           ';',
-          'ANS',
           '=',
         ];
         break;
@@ -2407,6 +2449,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final valueCounts = _getStatsValueCounts();
     final totalCount = _statsMemory.length;
     final totalCountForm = _getStatsCountForm(totalCount);
+    final currentSetName = _statsSets[_currentStatsSetIndex].name;
     final rowsSpeech = valueCounts.entries
         .map((entry) {
           final value = _formatSpokenNumber(entry.key);
@@ -2415,9 +2458,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         })
         .join('; ');
     final spokenSummary = _s(
-      'Statistická paměť obsahuje $totalCount $totalCountForm. '
+      'Statistická paměť, sada $currentSetName. Obsahuje $totalCount $totalCountForm. '
       'Hodnoty a počty výskytů: $rowsSpeech.',
-      'Statistics memory contains $totalCount $totalCountForm. '
+      'Statistics memory, set $currentSetName. Contains $totalCount $totalCountForm. '
       'Values and occurrence counts: $rowsSpeech.',
     );
 
@@ -2447,6 +2490,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Semantics(
+                        label: l10n.statsCurrentSetLabel(currentSetName),
+                        child: ExcludeSemantics(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Text(
+                              l10n.statsCurrentSetLabel(currentSetName),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 8),
                       Semantics(
                         label: l10n.statsTotalSemantics(
                           totalCount,
@@ -2517,6 +2573,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           ),
           actions: [
             TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _showStatsSetsDialog();
+              },
+              child: Text(l10n.statsSetsManage),
+            ),
+            TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: Text(l10n.close),
             ),
@@ -2538,6 +2601,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       return;
     }
 
+    final currentSetName = _statsSets[_currentStatsSetIndex].name;
     final allValues = _statsMemory
         .map((v) => _formatNumber(v))
         .join(_isEnglish() ? ', ' : '; ');
@@ -2570,7 +2634,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     ];
 
     final spokenSummary = _s(
-      'Statistický souhrn. Všechny hodnoty: $allValuesSpoken. '
+      'Statistický souhrn pro sadu $currentSetName. Všechny hodnoty: $allValuesSpoken. '
       'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
       'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
       'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
@@ -2578,7 +2642,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       'Medián: ${_formatSpokenNumber(snapshot.median)}. '
       'Modus: $modeSpoken. '
       'Variační koeficient: $cvSpoken.',
-      'Statistics summary. All values: $allValuesSpoken. '
+      'Statistics summary for set $currentSetName. All values: $allValuesSpoken. '
       'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
       'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
       'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
@@ -2614,6 +2678,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Semantics(
+                        label: l10n.statsCurrentSetLabel(currentSetName),
+                        child: ExcludeSemantics(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: Text(
+                              l10n.statsCurrentSetLabel(currentSetName),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 8),
                       Semantics(
                         header: true,
                         label: l10n.statsAllValuesSection,
@@ -2679,6 +2756,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           ),
           actions: [
             TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _showStatsSetsDialog();
+              },
+              child: Text(l10n.statsSetsManage),
+            ),
+            TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: Text(l10n.close),
             ),
@@ -2690,6 +2774,243 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         if (mounted) _mainFocusNode.requestFocus();
       });
     });
+  }
+
+  void _showStatsSetsDialog() {
+    final l10n = _l10n;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Semantics(
+                header: true,
+                child: Text(l10n.statsSetsTitle),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 360),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _statsSets.length,
+                          itemBuilder: (ctx, index) {
+                            final set = _statsSets[index];
+                            final isCurrent = index == _currentStatsSetIndex;
+                            final count = set.data.length;
+                            final countForm = _getStatsCountForm(count);
+                            final titleText = '${set.name} ($count $countForm)';
+
+                            final semanticsLabel = isCurrent
+                                ? '${set.name}, $count $countForm, vybráno jako aktivní sada.'
+                                : '${set.name}, $count $countForm. Poklepáním vyberete jako aktivní sadu.';
+
+                            return Semantics(
+                              container: true,
+                              label: semanticsLabel,
+                              child: ListTile(
+                                selected: isCurrent,
+                                selectedTileColor: Colors.blue.withOpacity(0.1),
+                                title: ExcludeSemantics(
+                                  child: Text(
+                                    titleText,
+                                    style: TextStyle(
+                                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit),
+                                      tooltip: l10n.statsSetsRename,
+                                      onPressed: () {
+                                        _showRenameStatsSetDialog(context, index, () {
+                                          setStateDialog(() {});
+                                          setState(() {});
+                                        });
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete),
+                                      tooltip: l10n.statsSetsDelete,
+                                      onPressed: () {
+                                              setStateDialog(() {
+                                                _deleteStatsSet(index);
+                                              });
+                                              setState(() {});
+                                            },
+                                    ),
+                                  ],
+                                ),
+                                onTap: () {
+                                  setStateDialog(() {
+                                    _currentStatsSetIndex = index;
+                                  });
+                                  setState(() {});
+                                  final announcement = l10n.statsSetSelectedAnnouncement(
+                                    set.name,
+                                    count,
+                                    _getStatsCountForm(count),
+                                  );
+                                  speak(announcement);
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: Text(l10n.statsSetsCreate),
+                        onPressed: () {
+                          _showCreateStatsSetDialog(context, () {
+                            setStateDialog(() {});
+                            setState(() {});
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(l10n.close),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mainFocusNode.requestFocus();
+      });
+    });
+  }
+
+  void _showRenameStatsSetDialog(BuildContext context, int index, VoidCallback onUpdated) {
+    final l10n = _l10n;
+    final controller = TextEditingController(text: _statsSets[index].name);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(l10n.statsSetsRename),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: l10n.statsSetNameLabel,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () {
+                final newName = controller.text.trim();
+                if (newName.isNotEmpty) {
+                  setState(() {
+                    _statsSets[index].name = newName;
+                  });
+                  onUpdated();
+                  Navigator.pop(ctx);
+                  speak(l10n.statsSetRenamedAnnouncement(newName));
+                }
+              },
+              child: Text(l10n.confirmAction),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCreateStatsSetDialog(BuildContext context, VoidCallback onUpdated) {
+    final l10n = _l10n;
+    final defaultName = l10n.statsSetDefaultName(_statsSets.length + 1);
+    final controller = TextEditingController(text: defaultName);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(l10n.statsSetsCreate),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: l10n.statsSetNameLabel,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () {
+                final newName = controller.text.trim();
+                if (newName.isNotEmpty) {
+                  setState(() {
+                    _statsSets.add(StatisticsSet(name: newName, data: []));
+                    _currentStatsSetIndex = _statsSets.length - 1;
+                  });
+                  onUpdated();
+                  Navigator.pop(ctx);
+                  speak(l10n.statsSetCreatedAnnouncement(newName));
+                }
+              },
+              child: Text(l10n.confirmAction),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteStatsSet(int index) {
+    final l10n = _l10n;
+
+    final deletedName = _statsSets[index].name;
+    _statsSets.removeAt(index);
+
+    if (_statsSets.isEmpty) {
+      _currentStatsSetIndex = 0;
+      speak(_s(
+        'Sada $deletedName byla smazána. Nejsou vytvořeny žádné sady.',
+        'Set $deletedName was deleted. No sets created.',
+      ));
+      return;
+    }
+
+    if (_currentStatsSetIndex >= _statsSets.length) {
+      _currentStatsSetIndex = _statsSets.length - 1;
+    } else if (_currentStatsSetIndex == index) {
+      if (_currentStatsSetIndex >= _statsSets.length) {
+        _currentStatsSetIndex = _statsSets.length - 1;
+      }
+    } else if (_currentStatsSetIndex > index) {
+      _currentStatsSetIndex--;
+    }
+
+    final activeSetName = _statsSets[_currentStatsSetIndex].name;
+    speak(l10n.statsSetDeletedAnnouncement(deletedName, activeSetName));
   }
 
   void _showHistoryDialog() {
@@ -2833,13 +3154,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _cursorPosition = 0;
     });
 
+    final setName = _statsSets[_currentStatsSetIndex].name;
     String valuesStr = values
         .map((v) => _formatNumber(v).replaceAll('.', ','))
         .join(', ');
     String countForm = _getStatsCountForm(_statsMemory.length);
     String spoken = _s(
-      'Přidáno $valuesStr, $count krát. V paměti je celkem ${_statsMemory.length} $countForm.',
-      'Added $valuesStr, $count times. Memory now contains ${_statsMemory.length} $countForm.',
+      'Přidáno $valuesStr, $count krát do sady $setName. V paměti je celkem ${_statsMemory.length} $countForm.',
+      'Added $valuesStr, $count times to set $setName. Memory now contains ${_statsMemory.length} $countForm.',
     );
     speak(spoken);
   }
@@ -2880,6 +3202,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   void _handleMultipleStatisticsAddition() {
+    if (!_hasStatsSet) {
+      speak(_s(
+        'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
+        'No statistics set created. Enter a name for a new set first.',
+      ));
+      _showCreateStatsSetDialog(context, () {
+        _handleMultipleStatisticsAddition();
+      });
+      return;
+    }
     if (display.isEmpty) {
       speak(_s(
         'Displej je prázdný. Zadejte číslo k uložení.',
@@ -3077,6 +3409,77 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
 
   List<Widget> _buildSections(BuildContext ctx) {
     List<Widget> sections = [];
+    if (parent._currentMode == CalculatorMode.statistics) {
+      sections.add(
+        _CollapsibleSection(
+          title: parent._l10n.modeStatistics,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (parent._hasStatsSet)
+                    Semantics(
+                      label: parent._l10n.statsCurrentSetLabel(parent._statsSets[parent._currentStatsSetIndex].name),
+                      child: Container(
+                        padding: const EdgeInsets.all(8.0),
+                        color: Colors.blue.withOpacity(0.1),
+                        child: Text(
+                          parent._l10n.statsCurrentSetLabel(parent._statsSets[parent._currentStatsSetIndex].name) +
+                              ' (${parent._statsMemory.length} ${parent._getStatsCountForm(parent._statsMemory.length)})',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        parent._s(
+                          'Není vytvořena žádná sada. Vytvořte novou sadu tlačítkem SETS.',
+                          'No set created. Create a new set using the SETS button.',
+                        ),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontStyle: FontStyle.italic),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      'M+', 'MC', 'MR', 'STATS',
+                      'MEAN', 'SD', 'VAR', 'SUM',
+                      'MED', 'MODE', 'CV', 'SETS'
+                    ].map((b) {
+                      return SizedBox(
+                        width: (MediaQuery.of(ctx).size.width - 80) / 4,
+                        height: 50,
+                        child: parent.buildButton(
+                          b,
+                          color: ['M+', 'MC', 'MR', 'STATS', 'SETS'].contains(b) ? Colors.deepPurple : null,
+                          onPressed: () {
+                            if (['MR', 'STATS', 'SETS'].contains(b)) {
+                              Navigator.pop(ctx);
+                            }
+                            parent._handleButtonPressed(b);
+                          },
+                          expanded: false,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (parent._currentMode == CalculatorMode.unitConversion) {
       sections.add(
         Padding(

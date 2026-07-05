@@ -237,4 +237,44 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String statsTotalSemantics(int count, String countLabel, int distinct) =>
       'Total $count $countLabel. Distinct values: $distinct.';
+
+  @override
+  String get statsSetsTitle => 'Statistics Sets';
+
+  @override
+  String get statsSetsManage => 'Manage Sets';
+
+  @override
+  String get statsSetsCreate => 'Create new set';
+
+  @override
+  String get statsSetsRename => 'Rename set';
+
+  @override
+  String get statsSetsDelete => 'Delete set';
+
+  @override
+  String get statsSetNameLabel => 'Set name';
+
+  @override
+  String statsSetCreatedAnnouncement(String name) =>
+      'Created and selected new empty set $name';
+
+  @override
+  String statsSetRenamedAnnouncement(String name) =>
+      'Set renamed to $name';
+
+  @override
+  String statsSetDeletedAnnouncement(String name, String activeName) =>
+      'Set $name deleted. Active set is now $activeName';
+
+  @override
+  String statsSetSelectedAnnouncement(String name, int count, String countForm) =>
+      'Selected set $name, contains $count $countForm';
+
+  @override
+  String statsSetDefaultName(int index) => 'Set $index';
+
+  @override
+  String statsCurrentSetLabel(String name) => 'Active set: $name';
 }

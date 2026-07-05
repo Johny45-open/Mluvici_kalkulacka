@@ -144,5 +144,68 @@
         "type": "int"
       }
     }
+  },
+  "statsSetsTitle": "Statistické sady",
+  "statsSetsManage": "Správa sad",
+  "statsSetsCreate": "Vytvořit novou sadu",
+  "statsSetsRename": "Přejmenovat sadu",
+  "statsSetsDelete": "Smazat sadu",
+  "statsSetNameLabel": "Název sady",
+  "statsSetCreatedAnnouncement": "Vytvořena a vybrána nová prázdná sada {name}",
+  "@statsSetCreatedAnnouncement": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "statsSetRenamedAnnouncement": "Sada přejmenována na {name}",
+  "@statsSetRenamedAnnouncement": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "statsSetDeletedAnnouncement": "Sada {name} smazána. Aktivní je nyní sada {activeName}",
+  "@statsSetDeletedAnnouncement": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "activeName": {
+        "type": "String"
+      }
+    }
+  },
+  "statsSetSelectedAnnouncement": "Vybrána sada {name}, obsahuje {count} {countForm}",
+  "@statsSetSelectedAnnouncement": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "countForm": {
+        "type": "String"
+      }
+    }
+  },
+  "statsSetDefaultName": "Sada {index}",
+  "@statsSetDefaultName": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "statsCurrentSetLabel": "Aktivní sada: {name}",
+  "@statsCurrentSetLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

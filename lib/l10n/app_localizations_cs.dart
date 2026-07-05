@@ -237,4 +237,44 @@ class AppLocalizationsCs extends AppLocalizations {
   @override
   String statsTotalSemantics(int count, String countLabel, int distinct) =>
       'Celkem $count $countLabel. Počet různých hodnot: $distinct.';
+
+  @override
+  String get statsSetsTitle => 'Statistické sady';
+
+  @override
+  String get statsSetsManage => 'Správa sad';
+
+  @override
+  String get statsSetsCreate => 'Vytvořit novou sadu';
+
+  @override
+  String get statsSetsRename => 'Přejmenovat sadu';
+
+  @override
+  String get statsSetsDelete => 'Smazat sadu';
+
+  @override
+  String get statsSetNameLabel => 'Název sady';
+
+  @override
+  String statsSetCreatedAnnouncement(String name) =>
+      'Vytvořena a vybrána nová prázdná sada $name';
+
+  @override
+  String statsSetRenamedAnnouncement(String name) =>
+      'Sada přejmenována na $name';
+
+  @override
+  String statsSetDeletedAnnouncement(String name, String activeName) =>
+      'Sada $name smazána. Aktivní je nyní sada $activeName';
+
+  @override
+  String statsSetSelectedAnnouncement(String name, int count, String countForm) =>
+      'Vybrána sada $name, obsahuje $count $countForm';
+
+  @override
+  String statsSetDefaultName(int index) => 'Sada $index';
+
+  @override
+  String statsCurrentSetLabel(String name) => 'Aktivní sada: $name';
 }
