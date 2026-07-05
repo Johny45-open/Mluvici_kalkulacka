@@ -6,6 +6,8 @@ import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'update_checker.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -158,6 +160,8 @@ class CalculatorScreen extends StatefulWidget {
 }
 
 class _CalculatorScreenState extends State<CalculatorScreen> {
+  static const String _currentAppVersion = '1.0.0+1';
+
   final FlutterTts tts = FlutterTts();
   final FocusNode _mainFocusNode = FocusNode();
   String display = '';
@@ -166,6 +170,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   CalculatorMode _currentMode = CalculatorMode.scientific;
 
   bool ttsEnabled = true;
+  bool _updateDialogShown = false;
   bool _isDegreeMode = true;
   bool _useSixteenSegment = false;
   final bool _sayWelcome = true;
@@ -854,7 +859,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     _loadSettings();
     _loadHistory();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _mainFocusNode.requestFocus();
+      if (mounted) {
+        _mainFocusNode.requestFocus();
+        _checkForUpdates();
+      }
     });
   }
 
@@ -862,6 +870,83 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void dispose() {
     _mainFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (_updateDialogShown || !mounted) {
+      return;
+    }
+
+    final checker = GitHubReleaseChecker();
+    final release = await checker.checkForUpdates(
+      owner: 'Johny45-open',
+      repo: 'Mluvici_kalkulacka',
+      currentVersion: _currentAppVersion,
+    );
+
+    if (!mounted || release == null || _updateDialogShown) {
+      return;
+    }
+
+    setState(() {
+      _updateDialogShown = true;
+    });
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Semantics(header: true, child: Text('Dostupná aktualizace')),
+        content: Semantics(
+          label: 'Je dostupná nová verze ${release.normalizedVersion}. Vaše verze je $_currentAppVersion.',
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Je dostupná nová verze ${release.normalizedVersion}.\n\nVaše verze: $_currentAppVersion',
+              ),
+              if (release.releaseSummary.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Co je nového:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(release.releaseSummary),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          Semantics(
+            button: true,
+            label: 'Později, zavřít dialog bez aktualizace',
+            child: TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Později'),
+            ),
+          ),
+          Semantics(
+            button: true,
+            label: 'Zobrazit detail release na GitHubu',
+            child: FilledButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                final url = release.htmlUrl;
+                if (url != null) {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri);
+                  }
+                }
+              },
+              child: const Text('Zobrazit release'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _initTts() async {
