@@ -1664,7 +1664,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _currentMode = mode;
       display = '';
     });
-    speak('Aktivní je ${_getModeSpeechName(mode)}');
+    String speech = _l10n.switchedToMode(_getModeSpeechName(mode));
+    if (mode == CalculatorMode.statistics && !_hasStatsSet) {
+      speech += '. ' + _s(
+        'Zatím nemáte vytvořenou žádnou statistickou sadu. Vytvořte ji stisknutím tlačítka SETS.',
+        'You have no statistical sets created yet. Create one by pressing the SETS button.'
+      );
+    }
+    speak(speech);
   }
 
   void _loadSettings() async {
@@ -2025,7 +2032,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'MC') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          speak(_s('Není vytvořena žádná sada. Vytvořte ji pomocí tlačítka SETS.', 'No set created. Create it using the SETS button.'));
           return;
         }
         setState(() {
@@ -2041,7 +2048,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'MR') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          speak(_s('Není vytvořena žádná sada. Vytvořte ji pomocí tlačítka SETS.', 'No set created. Create it using the SETS button.'));
           return;
         }
         if (_statsMemory.isEmpty) {
@@ -2058,7 +2065,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'STATS') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          speak(_s('Není vytvořena žádná sada. Vytvořte ji pomocí tlačítka SETS.', 'No set created. Create it using the SETS button.'));
           return;
         }
         if (_statsMemory.isEmpty) {
@@ -2371,9 +2378,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         break;
       case CalculatorMode.statistics:
         btns = [
+          'SETS',
+          'MC',
+          'MR',
+          'M+',
+          'STATS',
           'C',
-          '(',
-          ')',
+          'DEL',
           '/',
           '7',
           '8',
@@ -2461,7 +2472,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   color = Colors.redAccent;
                 } else if (b == '=') {
                   color = Colors.green;
-                } else if (['M+', 'MC', 'MR', 'STATS'].contains(b)) {
+                } else if (['M+', 'MC', 'MR', 'STATS', 'SETS'].contains(b)) {
                   color = Colors.deepPurple;
                 } else if (_electricianCalculationFromButton(b) != null) {
                   color = _isSelectedElectricianButton(b)
@@ -2502,7 +2513,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 onSelected: (s) {
                   if (s) {
                     _changeMode(mode);
-                    speak(_l10n.switchedToMode(_getModeSpeechName(mode)));
                   }
                 },
               ),
@@ -3519,15 +3529,29 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                       ),
                     )
                   else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text(
-                        parent._s(
-                          'Není vytvořena žádná sada. Vytvořte novou sadu tlačítkem SETS.',
-                          'No set created. Create a new set using the SETS button.',
+                    Focus(
+                      autofocus: true,
+                      onFocusChange: (hasFocus) {
+                        if (hasFocus) {
+                          parent.speak(parent._s(
+                            'Není vytvořena žádná sada. Vytvořte novou sadu tlačítkem SETS na hlavní klávesnici.',
+                            'No set created. Create a new set using the SETS button on the main keyboard.',
+                          ));
+                        }
+                      },
+                      child: Semantics(
+                        container: true,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            parent._s(
+                              'Není vytvořena žádná sada. Vytvořte novou sadu tlačítkem SETS na hlavní klávesnici.',
+                              'No set created. Create a new set using the SETS button on the main keyboard.',
+                            ),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontStyle: FontStyle.italic),
+                          ),
                         ),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontStyle: FontStyle.italic),
                       ),
                     ),
                   const SizedBox(height: 8),
@@ -3536,20 +3560,15 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                     spacing: 4,
                     runSpacing: 4,
                     children: [
-                      'M+', 'MC', 'MR', 'STATS',
                       'MEAN', 'SD', 'VAR', 'SUM',
-                      'MED', 'MODE', 'CV', 'SETS'
+                      'MED', 'MODE', 'CV'
                     ].map((b) {
                       return SizedBox(
                         width: (MediaQuery.of(ctx).size.width - 80) / 4,
                         height: 50,
                         child: parent.buildButton(
                           b,
-                          color: ['M+', 'MC', 'MR', 'STATS', 'SETS'].contains(b) ? Colors.deepPurple : null,
                           onPressed: () {
-                            if (['MR', 'STATS', 'SETS'].contains(b)) {
-                              Navigator.pop(ctx);
-                            }
                             parent._handleButtonPressed(b);
                           },
                           expanded: false,
