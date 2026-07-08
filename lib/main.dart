@@ -209,8 +209,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   bool get _hasStatsSet => _statsSets.isNotEmpty;
 
-
-
   List<double> get _statsMemory {
     if (_statsSets.isEmpty) return const [];
     return _statsSets[_currentStatsSetIndex].data;
@@ -2539,146 +2537,287 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     });
   }
 
-  void _showStatisticsMemoryDialog() {
-    final l10n = _l10n;
-    final valueCounts = _getStatsValueCounts();
-    final totalCount = _statsMemory.length;
-    final totalCountForm = _getStatsCountForm(totalCount);
-    final currentSetName = _statsSets[_currentStatsSetIndex].name;
-    final rowsSpeech = valueCounts.entries
-        .map((entry) {
-          final value = _formatSpokenNumber(entry.key);
-          final count = entry.value;
-          return '$value, $count ${_getStatsOccurrenceCountForm(count)}';
-        })
-        .join('; ');
-    final spokenSummary = _s(
-      'Statistická paměť, sada $currentSetName. Obsahuje $totalCount $totalCountForm. '
-      'Hodnoty a počty výskytů: $rowsSpeech.',
-      'Statistics memory, set $currentSetName. Contains $totalCount $totalCountForm. '
-      'Values and occurrence counts: $rowsSpeech.',
-    );
+  void _removeOneStatsValue(double value, StateSetter setStateDialog, BuildContext dialogContext) {
+    setState(() {
+      _statsSets[_currentStatsSetIndex].data.remove(value);
+    });
+    setStateDialog(() {});
+    speak(_s(
+      'Odebrán jeden výskyt hodnoty ${_formatSpokenNumber(value)}',
+      'Removed one occurrence of ${_formatSpokenNumber(value)}',
+    ));
+    if (_statsMemory.isEmpty) {
+      speak(_l10n.statsMemoryEmpty);
+      Navigator.pop(dialogContext);
+    }
+  }
+
+  void _removeAllStatsValue(double value, StateSetter setStateDialog, BuildContext dialogContext) {
+    setState(() {
+      _statsSets[_currentStatsSetIndex].data.removeWhere((v) => v == value);
+    });
+    setStateDialog(() {});
+    speak(_s(
+      'Odebrány všechny výskyty hodnoty ${_formatSpokenNumber(value)}',
+      'Removed all occurrences of ${_formatSpokenNumber(value)}',
+    ));
+    if (_statsMemory.isEmpty) {
+      speak(_l10n.statsMemoryEmpty);
+      Navigator.pop(dialogContext);
+    }
+  }
+
+  void _showEditStatsValueDialog(double oldValue, BuildContext dialogContext, StateSetter setStateDialog) {
+    final controller = TextEditingController(text: _formatNumber(oldValue).replaceAll(',', '.'));
 
     showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        final isScreenReaderActive = MediaQuery.of(
-          dialogContext,
-        ).accessibleNavigation;
-
+      context: dialogContext,
+      builder: (ctx) {
         return AlertDialog(
-          title: Semantics(
-            header: true,
-            child: Text(l10n.statsMemoryTitle),
-          ),
-          content: Focus(
+          title: Text(_s('Upravit hodnotu', 'Edit value')),
+          content: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
             autofocus: true,
-            onFocusChange: (hasFocus) {
-              if (hasFocus && !isScreenReaderActive) speak(spokenSummary);
-            },
-            child: SizedBox(
-              width: double.maxFinite,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 360),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Semantics(
-                        label: l10n.statsCurrentSetLabel(currentSetName),
-                        child: ExcludeSemantics(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Text(
-                              l10n.statsCurrentSetLabel(currentSetName),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Divider(height: 8),
-                      Semantics(
-                        label: l10n.statsTotalSemantics(
-                          totalCount,
-                          totalCountForm,
-                          valueCounts.length,
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${l10n.statsTotalValues(totalCount)}\n'
-                            '${l10n.statsDistinctValues(valueCounts.length)}',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Semantics(
-                        header: true,
-                        label: l10n.statsColumnsLabel,
-                        child: ExcludeSemantics(
-                          child: DefaultTextStyle.merge(
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                            child: Row(
-                              children: [
-                                Expanded(flex: 3, child: Text(l10n.statsValue)),
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    l10n.statsOccurrenceCount,
-                                    textAlign: TextAlign.right,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Divider(height: 16),
-                      ...valueCounts.entries.map((entry) {
-                        final value = _formatNumber(entry.key);
-                        final spokenValue = _formatSpokenNumber(entry.key);
-                        final count = entry.value;
-                        return Semantics(
-                          container: true,
-                          label: l10n.statsRowSemantics(spokenValue, count),
-                          child: ExcludeSemantics(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: Row(
-                                children: [
-                                  Expanded(flex: 3, child: Text(value)),
-                                  Expanded(
-                                    flex: 2,
-                                    child: Text(
-                                      '$count',
-                                      textAlign: TextAlign.right,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ),
+            decoration: InputDecoration(
+              labelText: _s('Nová hodnota', 'New value'),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _showStatsSetsDialog();
-              },
-              child: Text(l10n.statsSetsManage),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(_l10n.cancel),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10n.close),
+              onPressed: () {
+                final newText = controller.text.trim().replaceAll(',', '.');
+                if (newText.isEmpty) return;
+                final newValue = double.tryParse(newText);
+                if (newValue != null) {
+                  setState(() {
+                    final data = _statsSets[_currentStatsSetIndex].data;
+                    for (int i = 0; i < data.length; i++) {
+                      if (data[i] == oldValue) {
+                        data[i] = newValue;
+                      }
+                    }
+                  });
+                  setStateDialog(() {});
+                  Navigator.pop(ctx);
+                  speak(_s(
+                    'Hodnota upravena na ${_formatSpokenNumber(newValue)}',
+                    'Value changed to ${_formatSpokenNumber(newValue)}',
+                  ));
+                } else {
+                  speak(_s('Neplatná hodnota', 'Invalid value'));
+                }
+              },
+              child: Text(_l10n.confirmAction),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showStatisticsMemoryDialog() {
+    final l10n = _l10n;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            final isScreenReaderActive = MediaQuery.of(
+              dialogContext,
+            ).accessibleNavigation;
+
+            final valueCounts = _getStatsValueCounts();
+            final totalCount = _statsMemory.length;
+            final totalCountForm = _getStatsCountForm(totalCount);
+            final currentSetName = _statsSets[_currentStatsSetIndex].name;
+            final rowsSpeech = valueCounts.entries
+                .map((entry) {
+                  final value = _formatSpokenNumber(entry.key);
+                  final count = entry.value;
+                  return '$value, $count ${_getStatsOccurrenceCountForm(count)}';
+                })
+                .join('; ');
+            final spokenSummary = _s(
+              'Statistická paměť, sada $currentSetName. Obsahuje $totalCount $totalCountForm. '
+              'Hodnoty a počty výskytů: $rowsSpeech.',
+              'Statistics memory, set $currentSetName. Contains $totalCount $totalCountForm. '
+              'Values and occurrence counts: $rowsSpeech.',
+            );
+
+            return AlertDialog(
+              title: Semantics(
+                header: true,
+                child: Text(l10n.statsMemoryTitle),
+              ),
+              content: Focus(
+                autofocus: true,
+                onFocusChange: (hasFocus) {
+                  if (hasFocus && !isScreenReaderActive) speak(spokenSummary);
+                },
+                child: SizedBox(
+                  width: double.maxFinite,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 400),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Semantics(
+                            label: l10n.statsCurrentSetLabel(currentSetName),
+                            child: ExcludeSemantics(
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Text(
+                                  l10n.statsCurrentSetLabel(currentSetName),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 8),
+                          Semantics(
+                            label: l10n.statsTotalSemantics(
+                              totalCount,
+                              totalCountForm,
+                              valueCounts.length,
+                            ),
+                            child: ExcludeSemantics(
+                              child: Text(
+                                '${l10n.statsTotalValues(totalCount)}\n'
+                                '${l10n.statsDistinctValues(valueCounts.length)}',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Semantics(
+                            header: true,
+                            label: l10n.statsColumnsLabel,
+                            child: ExcludeSemantics(
+                              child: DefaultTextStyle.merge(
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                child: Row(
+                                  children: [
+                                    Expanded(flex: 2, child: Text(l10n.statsValue)),
+                                    Expanded(
+                                      flex: 1,
+                                      child: Text(
+                                        l10n.statsOccurrenceCount,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        _s('Akce', 'Actions'),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 16),
+                          ...valueCounts.entries.map((entry) {
+                            final value = _formatNumber(entry.key);
+                            final spokenValue = _formatSpokenNumber(entry.key);
+                            final count = entry.value;
+
+                            return Semantics(
+                              container: true,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Semantics(
+                                        label: l10n.statsRowSemantics(spokenValue, count),
+                                        child: ExcludeSemantics(child: Text(value)),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 1,
+                                      child: ExcludeSemantics(
+                                        child: Text(
+                                          '$count',
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          Semantics(
+                                            button: true,
+                                            label: _s('Upravit hodnotu $spokenValue', 'Edit value $spokenValue'),
+                                            child: IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              icon: const Icon(Icons.edit, size: 22, color: Colors.blue),
+                                              onPressed: () => _showEditStatsValueDialog(entry.key, dialogContext, setStateDialog),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Semantics(
+                                            button: true,
+                                            label: _s('Odebrat jeden výskyt hodnoty $spokenValue', 'Remove one occurrence of $spokenValue'),
+                                            child: IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              icon: const Icon(Icons.remove_circle_outline, size: 22, color: Colors.orange),
+                                              onPressed: () => _removeOneStatsValue(entry.key, setStateDialog, dialogContext),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Semantics(
+                                            button: true,
+                                            label: _s('Smazat všechny výskyty hodnoty $spokenValue', 'Delete all occurrences of $spokenValue'),
+                                            child: IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              icon: const Icon(Icons.delete, size: 22, color: Colors.red),
+                                              onPressed: () => _removeAllStatsValue(entry.key, setStateDialog, dialogContext),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _showStatsSetsDialog();
+                  },
+                  child: Text(l10n.statsSetsManage),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(l10n.close),
+                ),
+              ],
+            );
+          },
         );
       },
     ).then((_) {
