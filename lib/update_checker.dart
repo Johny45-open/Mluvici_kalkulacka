@@ -90,6 +90,9 @@ class GitHubReleaseChecker {
     );
 
     if (response.statusCode != 200) {
+      debugPrint(
+        'Failed to check for updates: ${response.statusCode} ${response.body}',
+      );
       return null;
     }
 

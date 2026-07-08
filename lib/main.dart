@@ -3514,6 +3514,27 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               onPressed: _toggleTts,
             ),
             IconButton(
+              icon: const Icon(Icons.update),
+              tooltip: 'Zkontrolovat aktualizace',
+              onPressed: () async {
+                final checker = GitHubReleaseChecker();
+                final release = await checker.checkForUpdates(
+                  owner: 'Johny45-open',
+                  repo: 'Mluvici_kalkulacka',
+                  currentVersion: _currentAppVersion,
+                );
+                if (mounted) {
+                  if (release != null) {
+                    _checkForUpdates();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Aplikace je aktuální.')),
+                    );
+                  }
+                }
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.settings),
               tooltip: l10n.accessibility,
               onPressed: _showAccessibilityDialog,
