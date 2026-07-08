@@ -1984,7 +1984,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           display = '$label(ANS)';
           _cursorPosition = display.length;
           _hasResult = false;
-          if (!silent) speak('${_buttonNames[label] ?? label} z výsledku');
+          if (!silent) {
+            final name = _buttonNames[label] ?? label;
+            if (['ASIN', 'ACOS', 'ATAN'].contains(label)) {
+              speak('Inverzní $name z výsledku');
+            } else {
+              speak('$name z výsledku');
+            }
+          }
           alreadyHandled = true;
         } else if (label == 'ⁿ√') {
           display = 'ANSⁿ√';
@@ -4065,23 +4072,15 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Semantics(
-          label: "${widget.title}, ${_isExpanded ? 'rozbaleno' : 'sbaleno'}",
-          hint: _isExpanded ? 'Klepnutím sbalíte' : 'Klepnutím rozbalíte',
-          button: true,
-          onTap: () => setState(() => _isExpanded = !_isExpanded),
-          child: ExcludeSemantics(
-            child: ListTile(
-              title: Text(
-                widget.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              trailing: Icon(
-                _isExpanded ? Icons.expand_less : Icons.expand_more,
-              ),
-              onTap: () => setState(() => _isExpanded = !_isExpanded),
-            ),
+        ListTile(
+          title: Text(
+            widget.title,
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
+          trailing: Icon(
+            _isExpanded ? Icons.expand_less : Icons.expand_more,
+          ),
+          onTap: () => setState(() => _isExpanded = !_isExpanded),
         ),
         if (_isExpanded) ...widget.children,
       ],

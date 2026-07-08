@@ -138,11 +138,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modeSpeechUnitConversion => 'unit conversion mode';
 
   @override
-  String switchedToMode(String mode) => 'Switched to $mode';
+  String switchedToMode(Object mode) {
+    return 'Switched to $mode';
+  }
 
   @override
-  String welcomeMessage(String mode) =>
-      'Welcome to the talking calculator, active mode is $mode';
+  String welcomeMessage(Object mode) {
+    return 'Welcome to the talking calculator, active mode is $mode';
+  }
 
   @override
   String get displayEmpty => 'Empty';
@@ -172,10 +175,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsOccurrenceCount => 'Occurrences';
 
   @override
-  String statsTotalValues(int count) => 'Total values: $count';
+  String statsTotalValues(Object count) {
+    return 'Total values: $count';
+  }
 
   @override
-  String statsDistinctValues(int count) => 'Distinct values: $count';
+  String statsDistinctValues(Object count) {
+    return 'Distinct values: $count';
+  }
 
   @override
   String get statsColumnsLabel => 'Columns: value and occurrence count';
@@ -184,8 +191,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsRepeatTitle => 'Repeat count';
 
   @override
-  String get statsRepeatHint =>
-      'Enter how many times the values should be added to statistics memory';
+  String get statsRepeatHint => 'Enter how many times the values should be added to statistics memory';
 
   @override
   String get statsRepeatLabel => 'Insert count';
@@ -224,19 +230,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsMemoryEmpty => 'Statistics memory is empty.';
 
   @override
-  String get statsMemoryEmptyHint =>
-      'Statistics memory is empty. Add data first using the M+ button.';
+  String get statsMemoryEmptyHint => 'Statistics memory is empty. Add data first using the M+ button.';
 
   @override
   String get statsMemoryCleared => 'Statistics memory was cleared.';
 
   @override
-  String statsRowSemantics(String value, int count) =>
-      'Value $value, occurrences: $count.';
+  String statsRowSemantics(Object count, Object value) {
+    return 'Value $value, occurrences: $count.';
+  }
 
   @override
-  String statsTotalSemantics(int count, String countLabel, int distinct) =>
-      'Total $count $countLabel. Distinct values: $distinct.';
+  String statsTotalSemantics(Object count, Object countLabel, Object distinct) {
+    return 'Total $count $countLabel. Distinct values: $distinct.';
+  }
 
   @override
   String get statsSetsTitle => 'Statistics Sets';
@@ -257,24 +264,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsSetNameLabel => 'Set name';
 
   @override
-  String statsSetCreatedAnnouncement(String name) =>
-      'Created and selected new empty set $name';
+  String statsSetCreatedAnnouncement(String name) {
+    return 'Created and selected new empty set $name';
+  }
 
   @override
-  String statsSetRenamedAnnouncement(String name) =>
-      'Set renamed to $name';
+  String statsSetRenamedAnnouncement(String name) {
+    return 'Set renamed to $name';
+  }
 
   @override
-  String statsSetDeletedAnnouncement(String name, String activeName) =>
-      'Set $name deleted. Active set is now $activeName';
+  String statsSetDeletedAnnouncement(String name, String activeName) {
+    return 'Set $name deleted. Active set is now $activeName';
+  }
 
   @override
-  String statsSetSelectedAnnouncement(String name, int count, String countForm) =>
-      'Selected set $name, contains $count $countForm';
+  String statsSetSelectedAnnouncement(String name, int count, String countForm) {
+    return 'Selected set $name, contains $count $countForm';
+  }
 
   @override
-  String statsSetDefaultName(int index) => 'Set $index';
+  String statsSetDefaultName(int index) {
+    return 'Set $index';
+  }
 
   @override
-  String statsCurrentSetLabel(String name) => 'Active set: $name';
+  String statsCurrentSetLabel(String name) {
+    return 'Active set: $name';
+  }
 }

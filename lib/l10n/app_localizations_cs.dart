@@ -54,7 +54,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get understand => 'ROZUMÍM';
 
   @override
-  String get tutorialText => 'Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek';
+  String get tutorialText => 'Vítejte v Mluvící kalkulačce. \n\nZákladní ovládání:\n- Aplikace se ovládá primárně tlačítky na obrazovce nebo klávesnicí.\n- Se čtečkou obrazovky (TalkBack/NVDA) se pohybujte pomocí gest nebo kláves tabulátoru.\n- Každé tlačítko po aktivaci ohlásí svou funkci hlasem.\n- Výsledek se ohlásí automaticky po stisknutí tlačítka \'=\' (nebo klávesy Enter).\n\nRežimy a funkce:\n- Režimy (Vědecký, Statistika atd.) mění rozložení klávesnice.\n- Pokročilé funkce jsou dostupné v menu pod tlačítkem \'Pokročilé funkce\'.\n\nKlávesové zkratky:\n- Enter: Výsledek\n- Backspace: Smazat poslední znak\n- Escape/Delete: Vymazat displej\n- S, C, T: Sinus, Kosinus, Tangens (Shift pro inverzní funkce)\n- P: Pí, Q: Odmocnina, A: Absolutní hodnota';
 
   @override
   String get accessibilitySettings => 'Nastavení přístupnosti';
@@ -138,11 +138,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String get modeSpeechUnitConversion => 'režim převodů jednotek';
 
   @override
-  String switchedToMode(String mode) => 'Přepnuto na $mode';
+  String switchedToMode(Object mode) {
+    return 'Přepnuto na $mode';
+  }
 
   @override
-  String welcomeMessage(String mode) =>
-      'Vítejte v mluvící kalkulačce, aktivní je $mode';
+  String welcomeMessage(Object mode) {
+    return 'Vítejte v mluvící kalkulačce, aktivní je $mode';
+  }
 
   @override
   String get displayEmpty => 'Prázdno';
@@ -172,10 +175,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsOccurrenceCount => 'Počet výskytů';
 
   @override
-  String statsTotalValues(int count) => 'Celkem hodnot: $count';
+  String statsTotalValues(Object count) {
+    return 'Celkem hodnot: $count';
+  }
 
   @override
-  String statsDistinctValues(int count) => 'Různých hodnot: $count';
+  String statsDistinctValues(Object count) {
+    return 'Různých hodnot: $count';
+  }
 
   @override
   String get statsColumnsLabel => 'Sloupce: hodnota a počet výskytů';
@@ -184,8 +191,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsRepeatTitle => 'Počet opakování';
 
   @override
-  String get statsRepeatHint =>
-      'Zadejte, kolikrát se mají hodnoty vložit do statistické paměti';
+  String get statsRepeatHint => 'Zadejte, kolikrát se mají hodnoty vložit do statistické paměti';
 
   @override
   String get statsRepeatLabel => 'Počet vložení';
@@ -224,19 +230,20 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsMemoryEmpty => 'Statistická paměť je prázdná.';
 
   @override
-  String get statsMemoryEmptyHint =>
-      'Statistická paměť je prázdná. Nejprve přidejte data pomocí tlačítka M plus.';
+  String get statsMemoryEmptyHint => 'Statistická paměť je prázdná. Nejprve přidejte data pomocí tlačítka M plus.';
 
   @override
   String get statsMemoryCleared => 'Statistická paměť byla smazána.';
 
   @override
-  String statsRowSemantics(String value, int count) =>
-      'Hodnota $value, počet výskytů: $count.';
+  String statsRowSemantics(Object count, Object value) {
+    return 'Hodnota $value, počet výskytů: $count.';
+  }
 
   @override
-  String statsTotalSemantics(int count, String countLabel, int distinct) =>
-      'Celkem $count $countLabel. Počet různých hodnot: $distinct.';
+  String statsTotalSemantics(Object count, Object countLabel, Object distinct) {
+    return 'Celkem $count $countLabel. Počet různých hodnot: $distinct.';
+  }
 
   @override
   String get statsSetsTitle => 'Statistické sady';
@@ -257,24 +264,32 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsSetNameLabel => 'Název sady';
 
   @override
-  String statsSetCreatedAnnouncement(String name) =>
-      'Vytvořena a vybrána nová prázdná sada $name';
+  String statsSetCreatedAnnouncement(String name) {
+    return 'Vytvořena a vybrána nová prázdná sada $name';
+  }
 
   @override
-  String statsSetRenamedAnnouncement(String name) =>
-      'Sada přejmenována na $name';
+  String statsSetRenamedAnnouncement(String name) {
+    return 'Sada přejmenována na $name';
+  }
 
   @override
-  String statsSetDeletedAnnouncement(String name, String activeName) =>
-      'Sada $name smazána. Aktivní je nyní sada $activeName';
+  String statsSetDeletedAnnouncement(String name, String activeName) {
+    return 'Sada $name smazána. Aktivní je nyní sada $activeName';
+  }
 
   @override
-  String statsSetSelectedAnnouncement(String name, int count, String countForm) =>
-      'Vybrána sada $name, obsahuje $count $countForm';
+  String statsSetSelectedAnnouncement(String name, int count, String countForm) {
+    return 'Vybrána sada $name, obsahuje $count $countForm';
+  }
 
   @override
-  String statsSetDefaultName(int index) => 'Sada $index';
+  String statsSetDefaultName(int index) {
+    return 'Sada $index';
+  }
 
   @override
-  String statsCurrentSetLabel(String name) => 'Aktivní sada: $name';
+  String statsCurrentSetLabel(String name) {
+    return 'Aktivní sada: $name';
+  }
 }

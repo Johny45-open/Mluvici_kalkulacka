@@ -15,13 +15,13 @@
   "noStay": "NE, ZŮSTAT",
   "helpTitle": "Nápověda",
   "understand": "ROZUMÍM",
-  "tutorialText": "Tato kalkulačka podporuje vědecké výpočty, statistiku, elektrotechnické vzorce a převody jednotek. \n\nKlávesové zkratky:\nS - Sinus (Shift+S pro Arkus)\nC - Kosinus (Shift+C pro Arkus)\nT - Tangens (Shift+T pro Arkus)\nP - Pí\nQ - Odmocnina\nEnter - Výsledek",
+  "tutorialText": "Vítejte v Mluvící kalkulačce. \n\nZákladní ovládání:\n- Aplikace se ovládá primárně tlačítky na obrazovce nebo klávesnicí.\n- Se čtečkou obrazovky (TalkBack/NVDA) se pohybujte pomocí gest nebo kláves tabulátoru.\n- Každé tlačítko po aktivaci ohlásí svou funkci hlasem.\n- Výsledek se ohlásí automaticky po stisknutí tlačítka '=' (nebo klávesy Enter).\n\nRežimy a funkce:\n- Režimy (Vědecký, Statistika atd.) mění rozložení klávesnice.\n- Pokročilé funkce jsou dostupné v menu pod tlačítkem 'Pokročilé funkce'.\n\nKlávesové zkratky:\n- Enter: Výsledek\n- Backspace: Smazat poslední znak\n- Escape/Delete: Vymazat displej\n- S, C, T: Sinus, Kosinus, Tangens (Shift pro inverzní funkce)\n- P: Pí, Q: Odmocnina, A: Absolutní hodnota",
   "accessibilitySettings": "Nastavení přístupnosti",
   "displayType": "Displej: {type}",
   "@displayType": {
     "placeholders": {
       "type": {
-        "type": "String"
+        "type": "Object"
       }
     }
   },
@@ -29,7 +29,7 @@
   "@voiceOutput": {
     "placeholders": {
       "state": {
-        "type": "String"
+        "type": "Object"
       }
     }
   },
@@ -37,7 +37,7 @@
   "@angles": {
     "placeholders": {
       "type": {
-        "type": "String"
+        "type": "Object"
       }
     }
   },
@@ -66,7 +66,7 @@
   "@switchedToMode": {
     "placeholders": {
       "mode": {
-        "type": "String"
+        "type": "Object"
       }
     }
   },
@@ -74,7 +74,7 @@
   "@welcomeMessage": {
     "placeholders": {
       "mode": {
-        "type": "String"
+        "type": "Object"
       }
     }
   },
@@ -91,7 +91,7 @@
   "@statsTotalValues": {
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
@@ -99,7 +99,7 @@
   "@statsDistinctValues": {
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
@@ -124,10 +124,10 @@
   "@statsRowSemantics": {
     "placeholders": {
       "value": {
-        "type": "String"
+        "type": "Object"
       },
       "count": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
@@ -135,13 +135,13 @@
   "@statsTotalSemantics": {
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "Object"
       },
       "countLabel": {
-        "type": "String"
+        "type": "Object"
       },
       "distinct": {
-        "type": "int"
+        "type": "Object"
       }
     }
   },
