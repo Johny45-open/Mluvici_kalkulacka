@@ -83,7 +83,10 @@ class GitHubReleaseChecker {
     final uri = Uri.https('api.github.com', '/repos/$owner/$repo/releases/latest');
     final response = await _client.get(
       uri,
-      headers: {'Accept': 'application/vnd.github+json'},
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'MluviciKalkulackaApp', // GitHub vyžaduje identifikaci klienta
+      },
     );
 
     if (response.statusCode != 200) {
