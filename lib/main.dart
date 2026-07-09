@@ -2746,7 +2746,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                     Expanded(
                                       flex: 2,
                                       child: Semantics(
-                                        label: l10n.statsRowSemantics(spokenValue, count),
+                                        label: l10n.statsRowSemantics(count, spokenValue),
                                         child: ExcludeSemantics(child: Text(value)),
                                       ),
                                     ),
@@ -3397,8 +3397,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     final setName = _statsSets[_currentStatsSetIndex].name;
     String valuesStr = values
-        .map((v) => _formatNumber(v).replaceAll('.', ','))
-        .join(', ');
+        .map((v) => _formatNumber(v).replaceAll('.', ',') + ',')
+        .join(' ');
     String countForm = _getStatsCountForm(_statsMemory.length);
     String spoken = _s(
       'Přidáno $valuesStr, $count krát do sady $setName. V paměti je celkem ${_statsMemory.length} $countForm.',
