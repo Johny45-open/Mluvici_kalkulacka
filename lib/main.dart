@@ -991,8 +991,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return _getModeSpeechNameForL10n(mode, _l10n);
   }
 
-  void speak(String text) async {
-    if (text.isEmpty || !ttsEnabled || !mounted) {
+  bool get _isScreenReaderActive => MediaQuery.of(context).accessibleNavigation;
+
+  void speak(String text, {bool force = false}) async {
+    // Pokud je aktivní čtečka, vypneme vlastní TTS kalkulačky,
+    // pokud není vynuceno (např. systémové hlášení výsledku).
+    if (text.isEmpty || !ttsEnabled || !mounted || (_isScreenReaderActive && !force)) {
       return;
     }
     final now = DateTime.now();
@@ -1791,9 +1795,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     if (!kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
             defaultTargetPlatform == TargetPlatform.iOS)) {
-      tutorialText = tutorialText
-          .split('\n\n')
-          .first; // Odstranit sekci zkratek
+      final sections = tutorialText.split('\n\n');
+      if (sections.length > 1) {
+        tutorialText = sections.take(sections.length - 1).join('\n\n');
+      }
     }
     showDialog(
       context: context,
@@ -1945,6 +1950,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             onPressed ??
             () {
               if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
+                // Pokud je aktivní čtečka, nevoláme speak, protože čtečka přečte label sama.
                 if (!isScreenReaderActive) speak(descriptiveName);
               }
               _handleButtonPressed(label);
@@ -2037,7 +2043,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'MC') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada. Vytvořte ji pomocí tlačítka SETS.', 'No set created. Create it using the SETS button.'));
+          speak(_s('Není vytvořena žádná sada. Otevřete Správu sad v menu Pokročilé funkce.', 'No set created. Open Manage sets in the Advanced functions menu.'));
           return;
         }
         setState(() {
@@ -2053,7 +2059,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'MR') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada. Vytvořte ji pomocí tlačítka SETS.', 'No set created. Create it using the SETS button.'));
+          speak(_s('Není vytvořena žádná sada. Otevřete Správu sad v menu Pokročilé funkce.', 'No set created. Open Manage sets in the Advanced functions menu.'));
           return;
         }
         if (_statsMemory.isEmpty) {
@@ -2070,7 +2076,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'STATS') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada. Vytvořte ji pomocí tlačítka SETS.', 'No set created. Create it using the SETS button.'));
+          speak(_s('Není vytvořena žádná sada. Otevřete Správu sad v menu Pokročilé funkce.', 'No set created. Open Manage sets in the Advanced functions menu.'));
           return;
         }
         if (_statsMemory.isEmpty) {
