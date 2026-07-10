@@ -44,10 +44,11 @@ class GitHubReleaseInfo {
   }
 
   static List<int> _parseVersion(String version) {
-    final cleaned = version.trim();
-    final match = RegExp(r'\d+(?:\.\d+)+').firstMatch(cleaned);
-    final numeric = match?.group(0) ?? cleaned;
-    final parts = numeric.split('.').where((part) => part.isNotEmpty).toList();
+    // Odstranění prefixu 'v' a build metadat (+...)
+    final cleaned = version.trim().replaceAll(RegExp(r'^v'), '').split('+').first;
+    
+    // Extrakce pouze číselných částí oddělených tečkou
+    final parts = cleaned.split('.').where((part) => part.isNotEmpty).toList();
     if (parts.isEmpty) {
       return [];
     }
