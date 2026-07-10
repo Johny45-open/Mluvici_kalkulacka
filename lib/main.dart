@@ -3403,7 +3403,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     final setName = _statsSets[_currentStatsSetIndex].name;
     String valuesStr = values
-        .map((v) => _formatNumber(v).replaceAll('.', ',') + ',')
+        .map((v) => _formatNumber(v).replaceAll('.', ',') + ';')
         .join(' ');
     String countForm = _getStatsCountForm(_statsMemory.length);
     String spoken = _s(
