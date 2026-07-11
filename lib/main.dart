@@ -1516,11 +1516,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   String _formatAsDMS(double value) {
     double absVal = value.abs();
-    int d = absVal.floor();
-    int m = ((absVal - d) * 60).floor();
-    double s = ((absVal - d - m / 60) * 3600);
-    String sStr = s.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
-    return "${value < 0 ? '-' : ''}$d°$m'$sStr\"";
+    
+    // Zaokrouhlíme na nejbližší vteřinu před rozkladem
+    int totalSeconds = (absVal * 3600).round();
+    
+    int s = totalSeconds % 60;
+    int totalMinutes = totalSeconds ~/ 60;
+    int m = totalMinutes % 60;
+    int d = totalMinutes ~/ 60;
+    
+    return "${value < 0 ? '-' : ''}$d°$m'$s\"";
   }
 
   void _convertUnits() {
@@ -5470,19 +5475,22 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
             const Divider(),
             ElevatedButton(
               onPressed: () {
-                final newFormat = (widget.parent._inverseFormatPreference == 0)
-                    ? 1
-                    : 0;
+                // Pokud je null nebo 1, nastavíme na 0 (DMS). Pokud je 0, nastavíme na 1 (Desetinné).
+                final current = widget.parent._inverseFormatPreference ?? 1;
+                final newFormat = (current == 0) ? 1 : 0;
+                
                 widget.parent._saveInversePreference(newFormat);
+                
                 widget.parent.speak(
                   newFormat == 0
                       ? 'Formát nastaven na stupně, minuty a sekundy'
                       : 'Formát nastaven na desetinné stupně',
                 );
+                // Vynucené překreslení dialogu
                 setState(() {});
               },
               child: Text(
-                'Úhly: ${widget.parent._inverseFormatPreference == 0 ? 'DMS' : 'Desetinné'}',
+                'Úhly: ${(widget.parent._inverseFormatPreference == 0) ? 'DMS' : 'Desetinné'}',
               ),
             ),
             const Divider(),
