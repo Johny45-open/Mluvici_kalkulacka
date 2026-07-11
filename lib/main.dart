@@ -992,7 +992,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return _getModeSpeechNameForL10n(mode, _l10n);
   }
 
-  bool get _isScreenReaderActive => MediaQuery.of(context).accessibleNavigation;
+  bool get _isScreenReaderActive =>
+      _accessibilityType == AccessibilityType.none &&
+      MediaQuery.of(context).accessibleNavigation;
 
   void speak(String text, {bool force = false}) async {
     // Pokud je aktivní čtečka, vypneme vlastní TTS kalkulačky,
@@ -3479,9 +3481,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           .map((v) => _formatNumber(v).replaceAll('.', ',') + ';')
           .join(' ');
       String countForm = _getStatsCountForm(_statsMemory.length);
+
+      String countPartCs = count == 1 ? '' : ', $count krát';
+      String countPartEn = count == 1 ? '' : ', $count times';
+
       spoken = _s(
-        'Přidáno $valuesStr, $count krát do sady $setName. V paměti je celkem ${_statsMemory.length} $countForm.',
-        'Added $valuesStr, $count times to set $setName. Memory now contains ${_statsMemory.length} $countForm.',
+        'Přidáno $valuesStr$countPartCs do sady $setName. V paměti je celkem ${_statsMemory.length} $countForm.',
+        'Added $valuesStr$countPartEn to set $setName. Memory now contains ${_statsMemory.length} $countForm.',
       );
     }
     speak(spoken);
