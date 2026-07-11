@@ -2089,7 +2089,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       calculateResult();
     } else if (label == 'M+') {
       if (_currentMode == CalculatorMode.statistics) {
-        _handleMultipleStatisticsAddition();
+        // Logika pro krátký a dlouhý stisk je obsloužena v `buildButton`
+        // Pokud je vyvoláno zde (např. klávesnice), defaultně provedeme krátký stisk
+        _addSingleValueToStats();
       } else {
         speak(_s(
           'Tlačítko M plus je dostupné pouze ve statistickém režimu.',
@@ -2105,7 +2107,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         setState(() {
           _statsMemory.clear();
         });
-        speak(_l10n.statsMemoryCleared);
+        final setName = _statsSets[_currentStatsSetIndex].name;
+        speak(_s(
+          'Paměť sady $setName byla smazána.',
+          'Memory of set $setName was cleared.',
+        ));
       } else {
         speak(_s(
           'Tlačítko M C je dostupné pouze ve statistickém režimu.',
@@ -3253,7 +3259,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  void _showCreateStatsSetDialog(BuildContext context, VoidCallback onUpdated) {
+  void _showCreateStatsSetDialog(BuildContext context, VoidCallback onUpdated, {List<double>? valuesToRepeat}) {
     final l10n = _l10n;
     final defaultName = l10n.statsSetDefaultName(_statsSets.length + 1);
     final controller = TextEditingController(text: defaultName);
@@ -3285,7 +3291,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   });
                   onUpdated();
                   Navigator.pop(ctx);
-                  speak(l10n.statsSetCreatedAnnouncement(newName));
+                  
+                  if (valuesToRepeat != null) {
+                    speak(_s(
+                      'Sada $newName vytvořena. Nyní můžete zadat počet opakování pro vložení hodnot.',
+                      'Set $newName created. You can now enter the number of repetitions to insert the values.',
+                    ));
+                    _showRepeatDialog(valuesToRepeat);
+                  } else {
+                    speak(l10n.statsSetCreatedAnnouncement(newName));
+                  }
                 }
               },
               child: Text(l10n.confirmAction),
@@ -3534,9 +3549,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
         'No statistics set created. Enter a name for a new set first.',
       ));
+      
+      List<double>? valuesToRepeat;
+      if (display.isNotEmpty) {
+        try {
+          valuesToRepeat = display
+              .split(';')
+              .where((s) => s.trim().isNotEmpty)
+              .map((s) => double.parse(s.trim().replaceAll(',', '.')))
+              .toList();
+        } catch (_) {}
+      }
+      
       _showCreateStatsSetDialog(context, () {
         _handleMultipleStatisticsAddition();
-      });
+      }, valuesToRepeat: valuesToRepeat);
       return;
     }
     if (display.isEmpty) {
