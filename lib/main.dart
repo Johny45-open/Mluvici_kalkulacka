@@ -206,6 +206,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   final List<StatisticsSet> _statsSets = [];
   int _currentStatsSetIndex = 0;
+  List<double> _lastAddedBatch = [];
 
   bool get _hasStatsSet => _statsSets.isNotEmpty;
 
@@ -3397,19 +3398,30 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       for (int i = 0; i < count; i++) {
         _statsMemory.addAll(values);
       }
+      _lastAddedBatch = List.from(values);
       display = '';
       _cursorPosition = 0;
     });
 
     final setName = _statsSets[_currentStatsSetIndex].name;
-    String valuesStr = values
-        .map((v) => _formatNumber(v).replaceAll('.', ',') + ';')
-        .join(' ');
-    String countForm = _getStatsCountForm(_statsMemory.length);
-    String spoken = _s(
-      'Přidáno $valuesStr, $count krát do sady $setName. V paměti je celkem ${_statsMemory.length} $countForm.',
-      'Added $valuesStr, $count times to set $setName. Memory now contains ${_statsMemory.length} $countForm.',
-    );
+    final int totalAdded = values.length * count;
+    String spoken;
+
+    if (totalAdded > 3) {
+      spoken = _s(
+        'Přidáno $totalAdded hodnot do sady $setName. V paměti je celkem ${_statsMemory.length} ${_getStatsCountForm(_statsMemory.length)}.',
+        'Added $totalAdded values to set $setName. Memory now contains ${_statsMemory.length} ${_getStatsCountForm(_statsMemory.length)}.',
+      );
+    } else {
+      String valuesStr = values
+          .map((v) => _formatNumber(v).replaceAll('.', ',') + ';')
+          .join(' ');
+      String countForm = _getStatsCountForm(_statsMemory.length);
+      spoken = _s(
+        'Přidáno $valuesStr, $count krát do sady $setName. V paměti je celkem ${_statsMemory.length} $countForm.',
+        'Added $valuesStr, $count times to set $setName. Memory now contains ${_statsMemory.length} $countForm.',
+      );
+    }
     speak(spoken);
   }
 
@@ -3748,6 +3760,23 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                         ),
                       );
                     }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (parent._lastAddedBatch.isEmpty) {
+                        parent.speak(parent._s('Žádná data v poslední dávce.', 'No data in the last batch.'));
+                      } else {
+                        String valuesStr = parent._lastAddedBatch
+                            .map((v) => parent._formatNumber(v).replaceAll('.', ',') + ';')
+                            .join(' ');
+                        parent.speak(parent._s(
+                          'Poslední vložená data: $valuesStr',
+                          'Last added data: $valuesStr',
+                        ));
+                      }
+                    },
+                    child: Text(parent._s('Přečíst naposledy vložená data', 'Read last added data')),
                   ),
                 ],
               ),
