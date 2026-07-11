@@ -1891,10 +1891,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     Color? color,
     String? semanticLabel,
     VoidCallback? onPressed,
+    VoidCallback? onLongPressed,
     bool expanded = true,
   }) {
-    final String descriptiveName =
-        semanticLabel ?? _getButtonName(label);
+    String descriptiveName = semanticLabel ?? _getButtonName(label);
+    if (label == 'M+' && _currentMode == CalculatorMode.statistics) {
+      descriptiveName +=
+          ', krátký stisk pro přidání hodnoty, dlouhý stisk pro zadání opakování';
+    }
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     // Detekce, zda je aktivní systémový screen reader
@@ -1956,6 +1961,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               }
               _handleButtonPressed(label);
             },
+        onLongPress: onLongPressed,
         child: buttonBody,
       ),
     );
@@ -1964,6 +1970,48 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       return Expanded(child: buttonWidget);
     } else {
       return buttonWidget;
+    }
+  }
+
+  void _addSingleValueToStats() {
+    if (!_hasStatsSet) {
+      speak(_s(
+        'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
+        'No statistics set created. Enter a name for a new set first.',
+      ));
+      _showCreateStatsSetDialog(context, () {
+        _addSingleValueToStats();
+      });
+      return;
+    }
+    if (display.isEmpty) {
+      speak(_s(
+        'Displej je prázdný. Zadejte číslo k uložení.',
+        'Display is empty. Enter a number to store.',
+      ));
+      return;
+    }
+    try {
+      List<double> valuesToAdd = display
+          .split(';')
+          .where((s) => s.trim().isNotEmpty)
+          .map((s) => double.parse(s.trim().replaceAll(',', '.')))
+          .toList();
+
+      if (valuesToAdd.isEmpty) {
+        speak(_s(
+          'Žádná platná čísla k uložení.',
+          'No valid numbers to store.',
+        ));
+        return;
+      }
+
+      _addValuesToStats(valuesToAdd, 1);
+    } catch (e) {
+      speak(_s(
+        'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
+        'Error storing to statistics memory. Check the data format.',
+      ));
     }
   }
 
@@ -2497,7 +2545,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   b,
                   color: color,
                   semanticLabel: _getElectricianButtonSemanticLabel(b),
-                  onPressed: () => _handleButtonPressed(b),
+                  onPressed: () {
+                    if (b == 'M+' && _currentMode == CalculatorMode.statistics) {
+                      _addSingleValueToStats();
+                    } else {
+                      _handleButtonPressed(b);
+                    }
+                  },
+                  onLongPressed: (b == 'M+' && _currentMode == CalculatorMode.statistics)
+                      ? _handleMultipleStatisticsAddition
+                      : null,
                 );
               }).toList(),
             ),
@@ -3887,28 +3944,30 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
       );
     }
 
-    sections.add(
-      _CollapsibleSection(
-        title: 'Goniometrie',
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 4,
-              runSpacing: 4,
-              children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((b) {
-                return SizedBox(
-                  width: (MediaQuery.of(ctx).size.width - 80) / 4,
-                  height: 50,
-                  child: parent.buildButton(b, expanded: false),
-                );
-              }).toList(),
+    if (parent._currentMode != CalculatorMode.statistics) {
+      sections.add(
+        _CollapsibleSection(
+          title: 'Goniometrie',
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 4,
+                runSpacing: 4,
+                children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((b) {
+                  return SizedBox(
+                    width: (MediaQuery.of(ctx).size.width - 80) / 4,
+                    height: 50,
+                    child: parent.buildButton(b, expanded: false),
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    }
 
     sections.add(
       _CollapsibleSection(
