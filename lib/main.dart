@@ -1154,10 +1154,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _isStoreMode = false;
       });
       speak('Uloženo do proměnné $name');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Uloženo do proměnné $name')),
+        );
+      }
     } else if (_isRecallMode) {
       String valStr = _formatNumber(_memory[name]!).replaceAll('.', ',');
       append(_formatNumber(_memory[name]!), silent: true);
       speak('Vyvoláno $valStr');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vyvoláno $valStr')),
+        );
+      }
       _isRecallMode = false;
     } else {
       append(name);
@@ -2089,6 +2099,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
         'No statistics set created. Enter a name for a new set first.',
       ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_s(
+            'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
+            'No statistics set created. Enter a name for a new set first.',
+          ))),
+        );
+      }
       _showCreateStatsSetDialog(context, () {
         _addSingleValueToStats();
       });
@@ -2099,6 +2117,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         'Displej je prázdný. Zadejte číslo k uložení.',
         'Display is empty. Enter a number to store.',
       ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_s(
+            'Displej je prázdný. Zadejte číslo k uložení.',
+            'Display is empty. Enter a number to store.',
+          ))),
+        );
+      }
       return;
     }
     try {
@@ -2113,6 +2139,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           'Žádná platná čísla k uložení.',
           'No valid numbers to store.',
         ));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_s(
+              'Žádná platná čísla k uložení.',
+              'No valid numbers to store.',
+            ))),
+          );
+        }
         return;
       }
 
@@ -2122,6 +2156,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
         'Error storing to statistics memory. Check the data format.',
       ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_s(
+            'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
+            'Error storing to statistics memory. Check the data format.',
+          ))),
+        );
+      }
     }
   }
 
@@ -2204,7 +2246,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'MC') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada. Otevřete Správu sad v menu Pokročilé funkce.', 'No set created. Open Manage sets in the Advanced functions menu.'));
+          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_s('Není vytvořena žádná sada.', 'No set created.'))),
+            );
+          }
           return;
         }
         setState(() {
@@ -2215,6 +2262,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           'Paměť sady $setName byla smazána.',
           'Memory of set $setName was cleared.',
         ));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_s(
+              'Paměť sady $setName byla smazána.',
+              'Memory of set $setName was cleared.',
+            ))),
+          );
+        }
       } else {
         speak(_s(
           'Tlačítko M C je dostupné pouze ve statistickém režimu.',
@@ -2224,11 +2279,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'MR') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada. Otevřete Správu sad v menu Pokročilé funkce.', 'No set created. Open Manage sets in the Advanced functions menu.'));
+          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_s('Není vytvořena žádná sada.', 'No set created.'))),
+            );
+          }
           return;
         }
         if (_statsMemory.isEmpty) {
           speak(_l10n.statsMemoryEmpty);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_l10n.statsMemoryEmpty)),
+            );
+          }
         } else {
           _showStatisticsMemoryDialog();
         }
@@ -2241,11 +2306,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'STATS') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada. Otevřete Správu sad v menu Pokročilé funkce.', 'No set created. Open Manage sets in the Advanced functions menu.'));
+          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_s('Není vytvořena žádná sada.', 'No set created.'))),
+            );
+          }
           return;
         }
         if (_statsMemory.isEmpty) {
           speak(_l10n.statsMemoryEmptyHint);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_l10n.statsMemoryEmptyHint)),
+            );
+          }
         } else {
           _showStatisticsSummaryDialog();
         }
@@ -2374,14 +2449,29 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (label == 'STO') {
       _isStoreMode = true;
       speak('Vyberte paměť');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Vyberte paměť')),
+        );
+      }
     } else if (label == 'RCL') {
       _isRecallMode = true;
       speak('Vyberte paměť pro vyvolání');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Vyberte paměť pro vyvolání')),
+        );
+      }
     } else if (label == 'CLR') {
       setState(() {
         _memory.updateAll((key, value) => 0);
       });
       speak('Paměť smazána');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Paměť smazána')),
+        );
+      }
     } else if (_memory.containsKey(label)) {
       _handleMemoryVariable(label);
     } else if (label == 'EXP') {
@@ -2733,8 +2823,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       'Odebrán jeden výskyt hodnoty ${_formatSpokenNumber(value)}',
       'Removed one occurrence of ${_formatSpokenNumber(value)}',
     ));
+    if (mounted) {
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        SnackBar(content: Text(_s(
+          'Odebrán jeden výskyt hodnoty ${_formatSpokenNumber(value)}',
+          'Removed one occurrence of ${_formatSpokenNumber(value)}',
+        ))),
+      );
+    }
     if (_statsMemory.isEmpty) {
       speak(_l10n.statsMemoryEmpty);
+      if (mounted) {
+        ScaffoldMessenger.of(dialogContext).showSnackBar(
+          SnackBar(content: Text(_l10n.statsMemoryEmpty)),
+        );
+      }
       Navigator.pop(dialogContext);
     }
   }
@@ -2748,8 +2851,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       'Odebrány všechny výskyty hodnoty ${_formatSpokenNumber(value)}',
       'Removed all occurrences of ${_formatSpokenNumber(value)}',
     ));
+    if (mounted) {
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        SnackBar(content: Text(_s(
+          'Odebrány všechny výskyty hodnoty ${_formatSpokenNumber(value)}',
+          'Removed all occurrences of ${_formatSpokenNumber(value)}',
+        ))),
+      );
+    }
     if (_statsMemory.isEmpty) {
       speak(_l10n.statsMemoryEmpty);
+      if (mounted) {
+        ScaffoldMessenger.of(dialogContext).showSnackBar(
+          SnackBar(content: Text(_l10n.statsMemoryEmpty)),
+        );
+      }
       Navigator.pop(dialogContext);
     }
   }
@@ -2795,8 +2911,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     'Hodnota upravena na ${_formatSpokenNumber(newValue)}',
                     'Value changed to ${_formatSpokenNumber(newValue)}',
                   ));
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(_s(
+                        'Hodnota upravena na ${_formatSpokenNumber(newValue)}',
+                        'Value changed to ${_formatSpokenNumber(newValue)}',
+                      ))),
+                    );
+                  }
                 } else {
                   speak(_s('Neplatná hodnota', 'Invalid value'));
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(_s('Neplatná hodnota', 'Invalid value'))),
+                    );
+                  }
                 }
               },
               child: Text(_l10n.confirmAction),
@@ -3006,6 +3135,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final snapshot = _computeStatisticsSnapshot();
     if (snapshot == null) {
       speak(l10n.statsMemoryEmpty);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.statsMemoryEmpty)),
+        );
+      }
       return;
     }
 
@@ -3536,6 +3670,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 _saveHistory();
               });
               speak('Historie smazána');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Historie smazána')),
+                );
+              }
               Navigator.pop(context);
             },
             child: Semantics(
@@ -3590,6 +3729,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       );
     }
     speak(spoken);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(spoken)),
+      );
+    }
   }
 
   void _showRepeatDialog(List<double> values) {
@@ -3940,16 +4084,16 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                   ElevatedButton(
                     onPressed: () {
                       if (parent._lastAddedBatch.isEmpty) {
-                        parent.speak(parent._s('Žádná data v poslední dávce.', 'No data in the last batch.'));
-                      } else {
-                        String valuesStr = parent._lastAddedBatch
-                            .map((v) => parent._formatNumber(v).replaceAll('.', ',') + ';')
-                            .join(' ');
-                        parent.speak(parent._s(
-                          'Poslední vložená data: $valuesStr',
-                          'Last added data: $valuesStr',
-                        ));
-                      }
+                      parent.speak(parent._s('Žádná data v poslední dávce.', 'No data in the last batch.'), force: true);
+                    } else {
+                      String valuesStr = parent._lastAddedBatch
+                          .map((v) => parent._formatNumber(v).replaceAll('.', ',') + ';')
+                          .join(' ');
+                      parent.speak(parent._s(
+                        'Poslední vložená data: $valuesStr',
+                        'Last added data: $valuesStr',
+                      ), force: true);
+                    }
                     },
                     child: Text(parent._s('Přečíst naposledy vložená data', 'Read last added data')),
                   ),
@@ -4201,6 +4345,11 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                         () => parent._displayFormat = DisplayFormat.standard,
                       );
                       parent.speak('Nastaveno standardní zobrazení');
+                      if (parent.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Nastaveno standardní zobrazení')),
+                        );
+                      }
                     },
                     expanded: false,
                   ),
