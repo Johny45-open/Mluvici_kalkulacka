@@ -180,6 +180,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   double _resultZoom = 1.0;
   double _speechRate = 0.5;
   double _speechVolume = 1.0;
+  bool _screenReaderMode = false;
   String? _ttsEngine;
   int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
 
@@ -947,7 +948,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         ),
         actions: [
           Semantics(
-            button: true,
             label: 'Později, zavřít dialog bez aktualizace',
             child: TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
@@ -955,7 +955,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             ),
           ),
           Semantics(
-            button: true,
             label: 'Zobrazit detail release na GitHubu',
             child: FilledButton(
               onPressed: () async {
@@ -1022,8 +1021,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   bool get _isScreenReaderActive =>
-      _accessibilityType == AccessibilityType.none &&
-      MediaQuery.of(context).accessibleNavigation;
+      _screenReaderMode ||
+      (_accessibilityType == AccessibilityType.none &&
+       MediaQuery.of(context).accessibleNavigation);
 
   void speak(String text, {bool force = false}) async {
     // Pokud je aktivní čtečka, vypneme vlastní TTS kalkulačky,
@@ -1291,7 +1291,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _cursorPosition = 0;
       });
 
-      speak(spoken);
+      speak(spoken, force: true);
       _addToHistory(currentExpression, resStr);
     } catch (e) {
       String msg =
@@ -1313,7 +1313,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _lastResult = 'Error';
         _hasResult = true;
       });
-      speak(msg);
+      speak(msg, force: true);
     }
   }
 
@@ -1589,9 +1589,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       });
       speak(
         'Převedeno z ${_getUnitSpeech(_unitFrom, context: 'z')} na ${_getUnitSpeech(_unitTo, context: 'na')}. Výsledek je $resStr ${_getUnitSpeech(_unitTo, value: result)}',
+        force: true,
       );
     } catch (e) {
-      speak('Chyba převodu');
+      speak('Chyba převodu', force: true);
     }
   }
 
@@ -1742,6 +1743,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _speechVolume = prefs.getDouble('speechVolume') ?? 1.0;
       _ttsEngine = prefs.getString('ttsEngine');
       _inverseFormatPreference = prefs.getInt('inverseFormatPreference');
+      _screenReaderMode = prefs.getBool('screenReaderMode') ?? false;
     });
     await tts.setSpeechRate(_speechRate);
     await tts.setVolume(_speechVolume);
@@ -1760,6 +1762,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     await prefs.setDouble('speechRate', _speechRate);
     await prefs.setDouble('speechVolume', _speechVolume);
     if (_ttsEngine != null) await prefs.setString('ttsEngine', _ttsEngine!);
+    await prefs.setBool('screenReaderMode', _screenReaderMode);
   }
 
   void _saveInversePreference(int val) async {
@@ -2013,10 +2016,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    // Detekce, zda je aktivní systémový screen reader
-    final bool isScreenReaderActive = MediaQuery.of(
-      context,
-    ).accessibleNavigation;
 
     Widget buttonBody = Container(
       margin: const EdgeInsets.all(2),
@@ -2051,8 +2050,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       onTap:
           onPressed ??
           () {
-            if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
-              if (!isScreenReaderActive) speak(descriptiveName);
+              if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
+              if (!_isScreenReaderActive) speak(descriptiveName);
             }
             _handleButtonPressed(label);
           },
@@ -2061,14 +2060,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             true, // Zamezí TalkBacku vidět InkWell jako samostatný prvek
         onFocusChange: (hasFocus) {
           // Mluvíme pouze pokud není aktivní TalkBack, aby nedocházelo k dvojitému čtení
-          if (hasFocus && !isScreenReaderActive) speak(descriptiveName);
+          if (hasFocus && !_isScreenReaderActive) speak(descriptiveName);
         },
         onTap:
             onPressed ??
             () {
               if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
                 // Pokud je aktivní čtečka, nevoláme speak, protože čtečka přečte label sama.
-                if (!isScreenReaderActive) speak(descriptiveName);
+                if (!_isScreenReaderActive) speak(descriptiveName);
               }
               _handleButtonPressed(label);
             },
@@ -2361,13 +2360,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             _cursorPosition = display.length;
             _lastNumericValue = double.tryParse(resStr.replaceAll(',', '.'));
           });
-          speak(spoken);
+          speak(spoken, force: true);
           _addToHistory('STATS($label)', resStr);
         } catch (e) {
           speak(_s(
             'Chyba statistického výpočtu.',
             'Statistics calculation error.',
-          ));
+          ), force: true);
         }
       } else {
         append(label, silent: silent);
@@ -2476,7 +2475,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               .replaceAll("'", ' minut a ')
               .replaceAll('"', ' sekund')
               .replaceAll('.', ',');
-          speak('Výsledek je $spokenDms');
+          speak('Výsledek je $spokenDms', force: true);
         } else {
           // Převod na desetinné stupně
           String decimalStr = val
@@ -2490,10 +2489,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             _cursorPosition = 0;
             _lastNumericValue = val;
           });
-          speak('Výsledek je ${decimalStr.replaceAll('.', ',')} stupňů');
+          speak('Výsledek je ${decimalStr.replaceAll('.', ',')} stupňů', force: true);
         }
       } catch (e) {
-        speak('Chyba při převodu');
+        speak('Chyba při převodu', force: true);
       }
     } else if (label == '\u03C0') {
       append(label, silent: silent);
@@ -2816,10 +2815,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            final isScreenReaderActive = MediaQuery.of(
-              dialogContext,
-            ).accessibleNavigation;
-
             final valueCounts = _getStatsValueCounts();
             final totalCount = _statsMemory.length;
             final totalCountForm = _getStatsCountForm(totalCount);
@@ -2846,7 +2841,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               content: Focus(
                 autofocus: true,
                 onFocusChange: (hasFocus) {
-                  if (hasFocus && !isScreenReaderActive) speak(spokenSummary);
+                  if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
                 },
                 child: SizedBox(
                   width: double.maxFinite,
@@ -2945,37 +2940,28 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.end,
                                         children: [
-                                          Semantics(
-                                            button: true,
-                                            label: _s('Upravit hodnotu $spokenValue', 'Edit value $spokenValue'),
-                                            child: IconButton(
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
-                                              icon: const Icon(Icons.edit, size: 22, color: Colors.blue),
-                                              onPressed: () => _showEditStatsValueDialog(entry.key, dialogContext, setStateDialog),
-                                            ),
+                                          IconButton(
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            icon: const Icon(Icons.edit, size: 22, color: Colors.blue),
+                                            tooltip: _s('Upravit hodnotu $spokenValue', 'Edit value $spokenValue'),
+                                            onPressed: () => _showEditStatsValueDialog(entry.key, dialogContext, setStateDialog),
                                           ),
                                           const SizedBox(width: 12),
-                                          Semantics(
-                                            button: true,
-                                            label: _s('Odebrat jeden výskyt hodnoty $spokenValue', 'Remove one occurrence of $spokenValue'),
-                                            child: IconButton(
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
-                                              icon: const Icon(Icons.remove_circle_outline, size: 22, color: Colors.orange),
-                                              onPressed: () => _removeOneStatsValue(entry.key, setStateDialog, dialogContext),
-                                            ),
+                                          IconButton(
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            icon: const Icon(Icons.remove_circle_outline, size: 22, color: Colors.orange),
+                                            tooltip: _s('Odebrat jeden výskyt hodnoty $spokenValue', 'Remove one occurrence of $spokenValue'),
+                                            onPressed: () => _removeOneStatsValue(entry.key, setStateDialog, dialogContext),
                                           ),
                                           const SizedBox(width: 12),
-                                          Semantics(
-                                            button: true,
-                                            label: _s('Smazat všechny výskyty hodnoty $spokenValue', 'Delete all occurrences of $spokenValue'),
-                                            child: IconButton(
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
-                                              icon: const Icon(Icons.delete, size: 22, color: Colors.red),
-                                              onPressed: () => _removeAllStatsValue(entry.key, setStateDialog, dialogContext),
-                                            ),
+                                          IconButton(
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            icon: const Icon(Icons.delete, size: 22, color: Colors.red),
+                                            tooltip: _s('Smazat všechny výskyty hodnoty $spokenValue', 'Delete all occurrences of $spokenValue'),
+                                            onPressed: () => _removeAllStatsValue(entry.key, setStateDialog, dialogContext),
                                           ),
                                         ],
                                       ),
@@ -3077,10 +3063,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        final isScreenReaderActive = MediaQuery.of(
-          dialogContext,
-        ).accessibleNavigation;
-
         return AlertDialog(
           title: Semantics(
             header: true,
@@ -3089,7 +3071,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           content: Focus(
             autofocus: true,
             onFocusChange: (hasFocus) {
-              if (hasFocus && !isScreenReaderActive) speak(spokenSummary);
+              if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
             },
             child: SizedBox(
               width: double.maxFinite,
@@ -3558,7 +3540,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             },
             child: Semantics(
               label: 'Ano, potvrdit smazání celé historie výpočtů',
-              button: true,
               child: Text('ANO, SMAZAT'),
             ),
           ),
@@ -3566,7 +3547,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             onPressed: () => Navigator.pop(context),
             child: Semantics(
               label: 'Ne, zrušit smazání a ponechat historii',
-              button: true,
               child: Text('NE, ZŮSTAT'),
             ),
           ),
@@ -3705,10 +3685,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   Widget build(BuildContext context) {
     _updateTtsLanguage();
     final l10n = _l10n;
-    // Detekce, zda je aktivní systémový screen reader
-    final bool isScreenReaderActive = MediaQuery.of(
-      context,
-    ).accessibleNavigation;
 
     return KeyboardListener(
       focusNode: _mainFocusNode,
@@ -3821,7 +3797,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                               ? l10n.displayEmpty
                               : display.replaceAll('.', ','),
                           // Pokud běží TalkBack, vnitřní prvky sémantiku nepotřebují, přečte je tento Semantics widget
-                          explicitChildNodes: !isScreenReaderActive,
+                          explicitChildNodes: !_isScreenReaderActive,
                           child: Column(
                             children: [
                               Align(
@@ -5612,6 +5588,25 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
             const Divider(),
             ElevatedButton(
               onPressed: () {
+                setState(() {
+                  widget.parent.setState(
+                    () => widget.parent._screenReaderMode = !widget.parent._screenReaderMode,
+                  );
+                  widget.parent._saveSettings();
+                });
+                widget.parent.speak(
+                  widget.parent._screenReaderMode
+                      ? 'Režim čtečky obrazovky zapnut'
+                      : 'Režim čtečky obrazovky vypnut',
+                );
+              },
+              child: Text(
+                'Režim čtečky: ${widget.parent._screenReaderMode ? 'Zapnuto' : 'Vypnuto'}',
+              ),
+            ),
+            const Divider(),
+            ElevatedButton(
+              onPressed: () {
                 widget.parent._showTtsEngineDialog();
               },
               child: Text(
@@ -5685,7 +5680,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     children: [
                       Semantics(
                         label: 'Zmenšit zoom',
-                        button: true,
                         child: ElevatedButton(
                           onPressed: () => _adjustDotMatrixZoom(-0.1),
                           child: const Text('-'),
@@ -5699,7 +5693,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                       Semantics(
                         label: 'Zvětšit zoom',
-                        button: true,
                         child: ElevatedButton(
                           onPressed: () => _adjustDotMatrixZoom(0.1),
                           child: const Text('+'),
@@ -5722,7 +5715,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     children: [
                       Semantics(
                         label: 'Zmenšit zoom',
-                        button: true,
                         child: ElevatedButton(
                           onPressed: () => _adjustResultZoom(-0.1),
                           child: const Text('-'),
@@ -5736,7 +5728,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                       Semantics(
                         label: 'Zvětšit zoom',
-                        button: true,
                         child: ElevatedButton(
                           onPressed: () => _adjustResultZoom(0.1),
                           child: const Text('+'),
@@ -5760,7 +5751,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     children: [
                       Semantics(
                         label: 'Snížit rychlost',
-                        button: true,
                         child: ElevatedButton(
                           onPressed: () => _adjustSpeechRate(-0.1),
                           child: const Text('-'),
@@ -5774,7 +5764,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                       Semantics(
                         label: 'Zvýšit rychlost',
-                        button: true,
                         child: ElevatedButton(
                           onPressed: () => _adjustSpeechRate(0.1),
                           child: const Text('+'),
@@ -5799,7 +5788,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     children: [
                       Semantics(
                         label: 'Snížit hlasitost',
-                        button: true,
                         child: ElevatedButton(
                           onPressed: () => _adjustSpeechVolume(-0.1),
                           child: const Text('-'),
@@ -5813,7 +5801,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                       Semantics(
                         label: 'Zvýšit hlasitost',
-                        button: true,
                         child: ElevatedButton(
                           onPressed: () => _adjustSpeechVolume(0.1),
                           child: const Text('+'),
