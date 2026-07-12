@@ -1839,9 +1839,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Chyba'),
-          content: const Text(
-            'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
+          title: Semantics(header: true, child: const Text('Chyba')),
+          content: Focus(
+            autofocus: true,
+            child: Semantics(
+              label: 'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
+              child: const Text(
+                'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
+              ),
+            ),
           ),
           actions: [
             TextButton(
