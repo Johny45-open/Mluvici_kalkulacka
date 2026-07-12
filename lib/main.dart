@@ -180,6 +180,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   double _resultZoom = 1.0;
   double _speechRate = 0.5;
   double _speechVolume = 1.0;
+  String? _ttsEngine;
   int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
 
   DisplayFormat _displayFormat = DisplayFormat.standard;
@@ -953,6 +954,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       final locale = WidgetsBinding.instance.platformDispatcher.locale;
       final l10n = lookupAppLocalizations(locale);
       _lastTtsLocale = locale.languageCode == 'en' ? 'en-US' : 'cs-CZ';
+      if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
       await tts.setLanguage(_lastTtsLocale!);
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
@@ -1697,10 +1699,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           AccessibilityType.values[prefs.getInt('accessibilityType') ?? 0];
       _speechRate = prefs.getDouble('speechRate') ?? 0.5;
       _speechVolume = prefs.getDouble('speechVolume') ?? 1.0;
+      _ttsEngine = prefs.getString('ttsEngine');
       _inverseFormatPreference = prefs.getInt('inverseFormatPreference');
     });
     await tts.setSpeechRate(_speechRate);
     await tts.setVolume(_speechVolume);
+    if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
   }
 
   void _saveSettings() async {
@@ -1714,6 +1718,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     await prefs.setInt('accessibilityType', _accessibilityType.index);
     await prefs.setDouble('speechRate', _speechRate);
     await prefs.setDouble('speechVolume', _speechVolume);
+    if (_ttsEngine != null) await prefs.setString('ttsEngine', _ttsEngine!);
   }
 
   void _saveInversePreference(int val) async {
@@ -1795,6 +1800,58 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       context: context,
       builder: (context) => _AccessibilityDialog(parent: this),
     );
+  }
+
+  void _showTtsEngineDialog() async {
+    try {
+      final engines = await tts.getEngines;
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Vybrat TTS engine'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: engines.length,
+              itemBuilder: (context, index) {
+                final engine = engines[index].toString();
+                return ListTile(
+                  title: Text(engine),
+                  selected: _ttsEngine == engine,
+                  onTap: () {
+                    setState(() => _ttsEngine = engine);
+                    _saveSettings();
+                    tts.setEngine(engine);
+                    Navigator.pop(context);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('TTS Engine Error: $e');
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Chyba'),
+          content: const Text(
+            'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Zavřít'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   void _showTutorialDialog() {
@@ -5503,6 +5560,15 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               },
               child: Text(
                 'Hlasový výstup: ${widget.parent.ttsEnabled ? 'Zapnuto' : 'Vypnuto'}',
+              ),
+            ),
+            const Divider(),
+            ElevatedButton(
+              onPressed: () {
+                widget.parent._showTtsEngineDialog();
+              },
+              child: Text(
+                'Engine: ${widget.parent._ttsEngine ?? 'Výchozí'}',
               ),
             ),
             const Divider(),
