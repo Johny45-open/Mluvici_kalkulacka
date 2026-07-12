@@ -557,6 +557,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return res;
   }
 
+  Map<String, dynamic> _getScaledValueAndPrefix(double value) {
+    double absValue = value.abs();
+    if (absValue == 0) return {'value': value, 'prefix': ''};
+    if (absValue >= 1e9) return {'value': value / 1e9, 'prefix': 'giga'};
+    if (absValue >= 1e6) return {'value': value / 1e6, 'prefix': 'mega'};
+    if (absValue >= 1e3) return {'value': value / 1e3, 'prefix': 'kilo'};
+    if (absValue >= 1) return {'value': value, 'prefix': ''};
+    if (absValue >= 1e-3) return {'value': value * 1e3, 'prefix': 'mili'};
+    if (absValue >= 1e-6) return {'value': value * 1e6, 'prefix': 'mikro'};
+    if (absValue >= 1e-9) return {'value': value * 1e9, 'prefix': 'nano'};
+    return {'value': value * 1e12, 'prefix': 'piko'};
+  }
+
   String _getStatsCountForm(int count) {
     if (_isEnglish()) {
       return count == 1 ? 'value' : 'values';
@@ -743,41 +756,55 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String _getElectricianUnitSpeech(
     ElectricianCalculation calculation,
     double value,
+    String prefix,
   ) {
+    // Prefix je např. 'mili', 'kilo', ''
+    // value je jiż přeškálovaná hodnota
     final absValue = value.abs();
     final isWholeNumber = absValue == absValue.roundToDouble();
     final wholeValue = absValue.toInt();
 
+    String unit = '';
+    switch (calculation) {
+      case ElectricianCalculation.voltage:
+        unit = 'volt';
+        break;
+      case ElectricianCalculation.current:
+        unit = 'ampér';
+        break;
+      case ElectricianCalculation.resistance:
+        unit = 'ohm';
+        break;
+    }
+
+    // Aplikace prefixu na základní jednotku
+    if (prefix == 'mili') unit = 'mili${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'mikro') unit = 'mikro${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'nano') unit = 'nano${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'piko') unit = 'piko${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'kilo') unit = 'kilo${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'mega') unit = 'mega${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'giga') unit = 'giga${unit == 'ohm' ? 'ohm' : unit}';
+
+    // Gramatické tvary
     if (isWholeNumber && wholeValue == 1) {
-      switch (calculation) {
-        case ElectricianCalculation.voltage:
-          return 'volt';
-        case ElectricianCalculation.current:
-          return 'ampér';
-        case ElectricianCalculation.resistance:
-          return 'ohm';
-      }
+       // Základní jednotka, např. 1 volt, 1 kiloampér
+       return unit;
     }
 
     if (isWholeNumber && wholeValue >= 2 && wholeValue <= 4) {
-      switch (calculation) {
-        case ElectricianCalculation.voltage:
-          return 'volty';
-        case ElectricianCalculation.current:
-          return 'ampéry';
-        case ElectricianCalculation.resistance:
-          return 'ohmy';
-      }
+      // Plural 2-4, např. 2 volty, 2 kiloampéry
+      if (unit.endsWith('volt')) return '${unit}y';
+      if (unit.endsWith('ampér')) return '${unit}y';
+      if (unit.endsWith('ohm')) return '${unit}y';
+      return '${unit}y'; // Default
     }
 
-    switch (calculation) {
-      case ElectricianCalculation.voltage:
-        return 'voltů';
-      case ElectricianCalculation.current:
-        return 'ampérů';
-      case ElectricianCalculation.resistance:
-        return 'ohmů';
-    }
+    // Genitiv plural, např. 5 voltů, 5 kiloampérů
+    if (unit.endsWith('volt')) return '${unit}ů';
+    if (unit.endsWith('ampér')) return '${unit}ů';
+    if (unit.endsWith('ohm')) return '${unit}ů';
+    return '${unit}ů';
   }
 
   void _selectElectricianCalculation(ElectricianCalculation calculation) {
@@ -1199,10 +1226,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         }
 
         final calculation = _selectedElectricianCalculation;
-        resStr = _formatNumber(result);
-        final spokenResult = resStr.replaceAll('.', ',');
+        
+        final scaledData = _getScaledValueAndPrefix(result);
+        final scaledValue = scaledData['value'] as double;
+        final prefix = scaledData['prefix'] as String;
+
+        // Formátování pro zobrazení s předponou
+        String formattedValue = _formatNumber(scaledValue);
+        String unit = '';
+        switch (calculation) {
+          case ElectricianCalculation.voltage: unit = 'V'; break;
+          case ElectricianCalculation.current: unit = 'A'; break;
+          case ElectricianCalculation.resistance: unit = '\u03A9'; break; // Omega symbol
+        }
+        resStr = '$formattedValue $prefix$unit';
+
+        final spokenResult = _formatSpokenNumber(scaledValue);
         final calculationName = _getElectricianCalculationName(calculation);
-        final unitSpeech = _getElectricianUnitSpeech(calculation, result);
+        final unitSpeech = _getElectricianUnitSpeech(calculation, scaledValue, prefix);
         spoken = '$calculationName je $spokenResult $unitSpeech';
         currentExpression =
             '${_getElectricianHistoryName(calculation)}($display)';
