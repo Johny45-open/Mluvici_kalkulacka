@@ -5,6 +5,7 @@ import 'package:math_expressions/math_expressions.dart' as math_expr;
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
+import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'update_checker.dart';
@@ -89,6 +90,8 @@ enum AccessibilityType { none, blind, visuallyImpaired }
 enum DisplayFormat { standard, fix, sci, eng }
 
 enum ElectricianCalculation { voltage, current, resistance }
+
+enum ScreenReaderMode { auto, on, off }
 
 class _ElectricianInputException implements Exception {
   final String message;
@@ -180,7 +183,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   double _resultZoom = 1.0;
   double _speechRate = 0.5;
   double _speechVolume = 1.0;
-  bool _screenReaderMode = false;
+  ScreenReaderMode _screenReaderMode = ScreenReaderMode.auto;
   String? _ttsEngine;
   int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
 
@@ -886,6 +889,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     _initTts();
     _loadSettings();
     _loadHistory();
+    _loadStatsData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _mainFocusNode.requestFocus();
@@ -1020,10 +1024,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return _getModeSpeechNameForL10n(mode, _l10n);
   }
 
-  bool get _isScreenReaderActive =>
-      _screenReaderMode ||
-      (_accessibilityType == AccessibilityType.none &&
-       MediaQuery.of(context).accessibleNavigation);
+  bool get _isScreenReaderActive {
+    switch (_screenReaderMode) {
+      case ScreenReaderMode.on:
+        return true;
+      case ScreenReaderMode.off:
+        return false;
+      case ScreenReaderMode.auto:
+        return MediaQuery.of(context).accessibleNavigation;
+    }
+  }
 
   void speak(String text, {bool force = false}) async {
     // Pokud je aktivní čtečka, vypneme vlastní TTS kalkulačky,
@@ -1153,6 +1163,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _memory[name] = val;
         _isStoreMode = false;
       });
+      _saveStatsData();
       speak('Uloženo do proměnné $name');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1753,7 +1764,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _speechVolume = prefs.getDouble('speechVolume') ?? 1.0;
       _ttsEngine = prefs.getString('ttsEngine');
       _inverseFormatPreference = prefs.getInt('inverseFormatPreference');
-      _screenReaderMode = prefs.getBool('screenReaderMode') ?? false;
+      final savedMode = prefs.getInt('screenReaderModeState');
+      if (savedMode != null) {
+        _screenReaderMode = ScreenReaderMode.values[savedMode];
+      } else {
+        _screenReaderMode = prefs.getBool('screenReaderMode') == true
+            ? ScreenReaderMode.on
+            : ScreenReaderMode.auto;
+      }
     });
     await tts.setSpeechRate(_speechRate);
     await tts.setVolume(_speechVolume);
@@ -1772,7 +1790,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     await prefs.setDouble('speechRate', _speechRate);
     await prefs.setDouble('speechVolume', _speechVolume);
     if (_ttsEngine != null) await prefs.setString('ttsEngine', _ttsEngine!);
-    await prefs.setBool('screenReaderMode', _screenReaderMode);
+    await prefs.setInt('screenReaderModeState', _screenReaderMode.index);
   }
 
   void _saveInversePreference(int val) async {
@@ -1792,6 +1810,35 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void _loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() => _history = prefs.getStringList('history') ?? []);
+  }
+
+  void _loadStatsData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      final statsJson = prefs.getString('statsSets');
+      if (statsJson != null) {
+        _statsSets.clear();
+        _statsSets.addAll(
+          (jsonDecode(statsJson) as List)
+              .map((e) => StatisticsSet.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        );
+      }
+      _currentStatsSetIndex = prefs.getInt('currentStatsSetIndex') ?? 0;
+      final memJson = prefs.getString('memoryVariables');
+      if (memJson != null) {
+        final decoded = jsonDecode(memJson) as Map<String, dynamic>;
+        decoded.forEach((key, value) => _memory[key] = (value as num).toDouble());
+      }
+    });
+  }
+
+  void _saveStatsData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        'statsSets', jsonEncode(_statsSets.map((s) => s.toJson()).toList()));
+    await prefs.setInt('currentStatsSetIndex', _currentStatsSetIndex);
+    await prefs.setString('memoryVariables', jsonEncode(_memory));
   }
 
   void _saveHistory() async {
@@ -2257,6 +2304,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         setState(() {
           _statsMemory.clear();
         });
+        _saveStatsData();
         final setName = _statsSets[_currentStatsSetIndex].name;
         speak(_s(
           'Paměť sady $setName byla smazána.',
@@ -2466,6 +2514,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       setState(() {
         _memory.updateAll((key, value) => 0);
       });
+      _saveStatsData();
       speak('Paměť smazána');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2818,6 +2867,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     setState(() {
       _statsSets[_currentStatsSetIndex].data.remove(value);
     });
+    _saveStatsData();
     setStateDialog(() {});
     speak(_s(
       'Odebrán jeden výskyt hodnoty ${_formatSpokenNumber(value)}',
@@ -2846,6 +2896,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     setState(() {
       _statsSets[_currentStatsSetIndex].data.removeWhere((v) => v == value);
     });
+    _saveStatsData();
     setStateDialog(() {});
     speak(_s(
       'Odebrány všechny výskyty hodnoty ${_formatSpokenNumber(value)}',
@@ -2905,6 +2956,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       }
                     }
                   });
+                  _saveStatsData();
                   setStateDialog(() {});
                   Navigator.pop(ctx);
                   speak(_s(
@@ -3466,6 +3518,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   setState(() {
                     _statsSets[index].name = newName;
                   });
+                  _saveStatsData();
                   onUpdated();
                   Navigator.pop(ctx);
                   speak(l10n.statsSetRenamedAnnouncement(newName));
@@ -3509,6 +3562,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     _statsSets.add(StatisticsSet(name: newName, data: []));
                     _currentStatsSetIndex = _statsSets.length - 1;
                   });
+                  _saveStatsData();
                   onUpdated();
                   Navigator.pop(ctx);
                   
@@ -3536,6 +3590,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
     final deletedName = _statsSets[index].name;
     _statsSets.removeAt(index);
+    _saveStatsData();
 
     if (_statsSets.isEmpty) {
       _currentStatsSetIndex = 0;
@@ -3704,6 +3759,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       display = '';
       _cursorPosition = 0;
     });
+    _saveStatsData();
 
     final setName = _statsSets[_currentStatsSetIndex].name;
     final int totalAdded = values.length * count;
@@ -5735,23 +5791,31 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
             ),
             const Divider(),
-            ElevatedButton(
-              onPressed: () {
+            const Text('Režim čtečky obrazovky'),
+            const SizedBox(height: 8),
+            SegmentedButton<ScreenReaderMode>(
+              segments: const [
+                ButtonSegment(value: ScreenReaderMode.auto, label: Text('Auto')),
+                ButtonSegment(value: ScreenReaderMode.on, label: Text('Zapnuto')),
+                ButtonSegment(value: ScreenReaderMode.off, label: Text('Vypnuto')),
+              ],
+              selected: {widget.parent._screenReaderMode},
+              onSelectionChanged: (Set<ScreenReaderMode> selected) {
+                final mode = selected.first;
                 setState(() {
-                  widget.parent.setState(
-                    () => widget.parent._screenReaderMode = !widget.parent._screenReaderMode,
-                  );
+                  widget.parent.setState(() {
+                    widget.parent._screenReaderMode = mode;
+                  });
                   widget.parent._saveSettings();
                 });
                 widget.parent.speak(
-                  widget.parent._screenReaderMode
-                      ? 'Režim čtečky obrazovky zapnut'
-                      : 'Režim čtečky obrazovky vypnut',
+                  mode == ScreenReaderMode.auto
+                      ? 'Režim čtečky: automaticky'
+                      : mode == ScreenReaderMode.on
+                          ? 'Režim čtečky obrazovky zapnut'
+                          : 'Režim čtečky obrazovky vypnut',
                 );
               },
-              child: Text(
-                'Režim čtečky: ${widget.parent._screenReaderMode ? 'Zapnuto' : 'Vypnuto'}',
-              ),
             ),
             const Divider(),
             ElevatedButton(
