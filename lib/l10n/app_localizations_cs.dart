@@ -292,4 +292,20 @@ class AppLocalizationsCs extends AppLocalizations {
   String statsCurrentSetLabel(String name) {
     return 'Aktivní sada: $name';
   }
+
+  @override
+  String get backupData => 'Zálohovat data';
+
+  @override
+  String get restoreData => 'Obnovit data';
+
+  @override
+  String get backupSuccess => 'Záloha vytvořena';
+
+  @override
+  String get restoreSuccess => 'Data obnovena';
+
+  @override
+  String get restoreConfirm =>
+      'Opravdu chcete obnovit všechna data ze zálohy?';
 }

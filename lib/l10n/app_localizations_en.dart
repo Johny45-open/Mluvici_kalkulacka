@@ -292,4 +292,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String statsCurrentSetLabel(String name) {
     return 'Active set: $name';
   }
+
+  @override
+  String get backupData => 'Backup data';
+
+  @override
+  String get restoreData => 'Restore data';
+
+  @override
+  String get backupSuccess => 'Backup created';
+
+  @override
+  String get restoreSuccess => 'Data restored';
+
+  @override
+  String get restoreConfirm =>
+      'Are you sure you want to restore all data from backup?';
 }

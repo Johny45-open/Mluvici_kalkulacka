@@ -604,6 +604,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Active set: {name}'**
   String statsCurrentSetLabel(String name);
+
+  /// No description provided for @backupData.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup data'**
+  String get backupData;
+
+  /// No description provided for @restoreData.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore data'**
+  String get restoreData;
+
+  /// No description provided for @backupSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup created'**
+  String get backupSuccess;
+
+  /// No description provided for @restoreSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Data restored'**
+  String get restoreSuccess;
+
+  /// No description provided for @restoreConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to restore all data from backup?'**
+  String get restoreConfirm;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

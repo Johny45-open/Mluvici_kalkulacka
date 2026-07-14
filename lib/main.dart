@@ -6,8 +6,10 @@ import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:file_picker/file_picker.dart';
 import 'update_checker.dart';
 
 void main() async {
@@ -512,6 +514,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     'LN': 'Přirozený logaritmus',
     'X': 'Proměnná X',
     'Y': 'Proměnná Y',
+    'A': 'Proměnná A',
+    'B': 'Proměnná B',
+    'D': 'Proměnná D',
+    'E': 'Proměnná E',
+    'F': 'Proměnná F',
     'M': 'Proměnná M',
     'ANS': 'Poslední výsledek',
     'STO': 'Uložit do paměti',
@@ -1173,15 +1180,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     } else if (_isRecallMode) {
       String valStr = _formatNumber(_memory[name]!).replaceAll('.', ',');
       append(_formatNumber(_memory[name]!), silent: true);
-      speak('Vyvoláno $valStr');
+      speak('Vyvoláno z proměnné $name: $valStr');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Vyvoláno $valStr')),
+          SnackBar(content: Text('Vyvoláno z proměnné $name: $valStr')),
         );
       }
       _isRecallMode = false;
     } else {
-      append(name);
+      append(name, silent: true);
+      speak('Proměnná $name');
     }
   }
 
@@ -1582,16 +1590,25 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   String _formatAsDMS(double value) {
     double absVal = value.abs();
-    
-    // Zaokrouhlíme na nejbližší vteřinu před rozkladem
-    int totalSeconds = (absVal * 3600).round();
-    
-    int s = totalSeconds % 60;
-    int totalMinutes = totalSeconds ~/ 60;
+    double totalSeconds = absVal * 3600;
+    int wholeSeconds = totalSeconds.floor();
+    double fracSeconds = totalSeconds - wholeSeconds;
+    int s = wholeSeconds % 60;
+    int totalMinutes = wholeSeconds ~/ 60;
     int m = totalMinutes % 60;
     int d = totalMinutes ~/ 60;
-    
-    return "${value < 0 ? '-' : ''}$d°$m'$s\"";
+
+    String sStr;
+    if (fracSeconds > 0) {
+      sStr = (s + fracSeconds)
+          .toStringAsFixed(6)
+          .replaceAll(RegExp(r'0+$'), '')
+          .replaceAll(RegExp(r'\.$'), '');
+    } else {
+      sStr = s.toString();
+    }
+
+    return "${value < 0 ? '-' : ''}$d°$m'$sStr\"";
   }
 
   void _convertUnits() {
@@ -1853,6 +1870,80 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       if (_history.length > 20) _history.removeLast();
     });
     _saveHistory();
+  }
+
+  Future<void> _exportBackup() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final Map<String, dynamic> data = {};
+      for (final key in prefs.getKeys()) {
+        data[key] = prefs.get(key);
+      }
+      final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
+
+      String? outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: _l10n.backupData,
+        fileName: 'kalkulacka_zaloha.json',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (outputPath != null) {
+        await File(outputPath).writeAsString(jsonStr);
+        speak(_l10n.backupSuccess, force: true);
+      }
+    } catch (e) {
+      speak('Chyba při vytváření zálohy', force: true);
+    }
+  }
+
+  Future<void> _importBackup() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.single;
+      String content;
+      if (file.bytes != null) {
+        content = utf8.decode(file.bytes!);
+      } else if (file.path != null) {
+        content = await File(file.path!).readAsString();
+      } else {
+        return;
+      }
+
+      final data = jsonDecode(content) as Map<String, dynamic>;
+      final prefs = await SharedPreferences.getInstance();
+
+      for (final entry in data.entries) {
+        final value = entry.value;
+        if (value is String) {
+          await prefs.setString(entry.key, value);
+        } else if (value is bool) {
+          await prefs.setBool(entry.key, value);
+        } else if (value is int) {
+          await prefs.setInt(entry.key, value);
+        } else if (value is double) {
+          await prefs.setDouble(entry.key, value);
+        } else if (value is List) {
+          await prefs.setStringList(
+              entry.key, value.map((e) => e.toString()).toList());
+        }
+      }
+
+      _loadSettings();
+      _loadHistory();
+      _loadStatsData();
+      setState(() {});
+      speak(_l10n.restoreSuccess, force: true);
+    } catch (e) {
+      speak('Chyba při obnově dat', force: true);
+    }
   }
 
   void _showInitialAccessibilityDialog() {
@@ -4359,15 +4450,12 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                     return SizedBox(
                       width: (MediaQuery.of(ctx).size.width - 80) / 4,
                       height: 50,
-                      child: b == 'C'
-                          ? parent.buildButton(
-                              'C',
-                              semanticLabel: 'Proměnná C',
-                              onPressed: () =>
-                                  parent._handleMemoryVariable('C'),
-                              expanded: false,
-                            )
-                          : parent.buildButton(b, expanded: false),
+                      child: parent.buildButton(
+                        b,
+                        semanticLabel: 'Proměnná $b',
+                        onPressed: () => parent._handleMemoryVariable(b),
+                        expanded: false,
+                      ),
                     );
                   }).toList(),
                 ),
@@ -5848,9 +5936,14 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
             ),
             const Divider(),
-            const Text('Motiv aplikace'),
-            const SizedBox(height: 8),
-            SegmentedButton<ThemeMode>(
+            Semantics(
+              container: true,
+              label: 'Výběr motivu aplikace',
+              child: Column(
+                children: [
+                  const Text('Motiv aplikace'),
+                  const SizedBox(height: 8),
+                  SegmentedButton<ThemeMode>(
               segments: const [
                 ButtonSegment(
                   value: ThemeMode.system,
@@ -5879,6 +5972,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 setState(() {});
               },
             ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 16),
 
             // Seskupená Rychlost
@@ -6017,6 +6113,67 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         child: ElevatedButton(
                           onPressed: () => _adjustSpeechVolume(0.1),
                           child: const Text('+'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            Semantics(
+              container: true,
+              label: 'Záloha a obnova dat',
+              child: Column(
+                children: [
+                  const Text('Správa dat'),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Semantics(
+                        label: 'Zálohovat data',
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.backup),
+                          onPressed: () {
+                            widget.parent._exportBackup();
+                            Navigator.pop(context);
+                          },
+                          label: const Text('Zálohovat'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Semantics(
+                        label: 'Obnovit data',
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.restore),
+                          onPressed: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Potvrzení'),
+                                content: Text(
+                                  widget.parent._l10n.restoreConfirm,
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('NE'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('ANO'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmed == true) {
+                              widget.parent._importBackup();
+                              if (context.mounted) Navigator.pop(context);
+                            }
+                          },
+                          label: const Text('Obnovit'),
                         ),
                       ),
                     ],
