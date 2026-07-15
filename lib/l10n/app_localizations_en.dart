@@ -308,4 +308,49 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get restoreConfirm =>
       'Are you sure you want to restore all data from backup?';
+
+  @override
+  String get numberInfo => 'Number Info';
+
+  @override
+  String get infoValue => 'Value';
+
+  @override
+  String get infoFraction => 'Fraction';
+
+  @override
+  String get infoDms => 'DMS (degrees/minutes/seconds)';
+
+  @override
+  String get infoPercentage => 'Percentage';
+
+  @override
+  String get infoPrimeFactors => 'Prime factors';
+
+  @override
+  String get infoDivisors => 'Divisors';
+
+  @override
+  String get infoRead => 'READ ALOUD';
+
+  @override
+  String get infoNoResult => 'Calculate a result first.';
+
+  @override
+  String get infoNotInteger => 'Positive integers only';
+
+  @override
+  String get infoNotApplicable => 'N/A';
+
+  @override
+  String get dialogSizeSetting => 'Dialog size';
+
+  @override
+  String get dialogSizeCompact => 'Compact';
+
+  @override
+  String get dialogSizeWide => 'Wide';
+
+  @override
+  String get dialogSizeFullscreen => 'Full screen';
 }

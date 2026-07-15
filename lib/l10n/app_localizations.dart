@@ -634,6 +634,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Are you sure you want to restore all data from backup?'**
   String get restoreConfirm;
+
+  /// No description provided for @numberInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Number Info'**
+  String get numberInfo;
+
+  /// No description provided for @infoValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get infoValue;
+
+  /// No description provided for @infoFraction.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraction'**
+  String get infoFraction;
+
+  /// No description provided for @infoDms.
+  ///
+  /// In en, this message translates to:
+  /// **'DMS'**
+  String get infoDms;
+
+  /// No description provided for @infoPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Percentage'**
+  String get infoPercentage;
+
+  /// No description provided for @infoPrimeFactors.
+  ///
+  /// In en, this message translates to:
+  /// **'Prime factors'**
+  String get infoPrimeFactors;
+
+  /// No description provided for @infoDivisors.
+  ///
+  /// In en, this message translates to:
+  /// **'Divisors'**
+  String get infoDivisors;
+
+  /// No description provided for @infoRead.
+  ///
+  /// In en, this message translates to:
+  /// **'READ ALOUD'**
+  String get infoRead;
+
+  /// No description provided for @infoNoResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculate a result first.'**
+  String get infoNoResult;
+
+  /// No description provided for @infoNotInteger.
+  ///
+  /// In en, this message translates to:
+  /// **'Positive integers only'**
+  String get infoNotInteger;
+
+  /// No description provided for @infoNotApplicable.
+  ///
+  /// In en, this message translates to:
+  /// **'N/A'**
+  String get infoNotApplicable;
+
+  /// No description provided for @dialogSizeSetting.
+  ///
+  /// In en, this message translates to:
+  /// **'Dialog size'**
+  String get dialogSizeSetting;
+
+  /// No description provided for @dialogSizeCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact'**
+  String get dialogSizeCompact;
+
+  /// No description provided for @dialogSizeWide.
+  ///
+  /// In en, this message translates to:
+  /// **'Wide'**
+  String get dialogSizeWide;
+
+  /// No description provided for @dialogSizeFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Full screen'**
+  String get dialogSizeFullscreen;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

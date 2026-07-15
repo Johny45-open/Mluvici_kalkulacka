@@ -95,6 +95,8 @@ enum ElectricianCalculation { voltage, current, resistance }
 
 enum ScreenReaderMode { auto, on, off }
 
+enum DialogSize { compact, wide, fullscreen }
+
 class _ElectricianInputException implements Exception {
   final String message;
 
@@ -189,6 +191,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String? _ttsEngine;
   int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
 
+  DialogSize _dialogSize = DialogSize.compact;
   DisplayFormat _displayFormat = DisplayFormat.standard;
   int _precision = 2;
   double? _lastNumericValue;
@@ -1588,6 +1591,79 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     }
   }
 
+  String _decimalToFraction(double val) {
+    if (val.isNaN || val.isInfinite || val == 0) {
+      return _s('nedostupné', 'N/A');
+    }
+    bool negative = val < 0;
+    val = val.abs();
+    double intPart = val.floorToDouble();
+    double frac = val - intPart;
+    if (frac < 1e-10) {
+      return '${negative ? '-' : ''}${intPart.toInt()}/1';
+    }
+    double hPrev = 1, hCurr = 0;
+    double kPrev = 0, kCurr = 1;
+    double remaining = frac;
+    const int maxIter = 10000;
+    int iter = 0;
+    while (iter < maxIter && kCurr <= 10000) {
+      double a = remaining.floorToDouble();
+      double hNext = a * hCurr + hPrev;
+      double kNext = a * kCurr + kPrev;
+      if (kNext > 10000) {
+        break;
+      }
+      hPrev = hCurr; hCurr = hNext;
+      kPrev = kCurr; kCurr = kNext;
+      double approx = (intPart * kCurr + hCurr) / kCurr;
+      if ((val - approx).abs() < 1e-10) {
+        break;
+      }
+      double diff = remaining - a;
+      if (diff < 1e-10) break;
+      remaining = 1.0 / diff;
+      iter++;
+    }
+    int num = (intPart * kCurr + hCurr).round();
+    int den = kCurr.round();
+    if (negative) num = -num;
+    return '$num/$den';
+  }
+
+  List<int> _primeFactors(int n) {
+    List<int> factors = [];
+    int m = n;
+    while (m % 2 == 0) {
+      factors.add(2);
+      m ~/= 2;
+    }
+    for (int i = 3; i * i <= m; i += 2) {
+      while (m % i == 0) {
+        factors.add(i);
+        m ~/= i;
+      }
+    }
+    if (m > 1) {
+      factors.add(m);
+    }
+    return factors;
+  }
+
+  List<int> _getDivisors(int n) {
+    List<int> divs = [];
+    for (int i = 1; i * i <= n; i++) {
+      if (n % i == 0) {
+        divs.add(i);
+        if (i != n ~/ i) {
+          divs.add(n ~/ i);
+        }
+      }
+    }
+    divs.sort();
+    return divs;
+  }
+
   String _formatAsDMS(double value) {
     double absVal = value.abs();
     double totalSeconds = absVal * 3600;
@@ -1789,6 +1865,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             ? ScreenReaderMode.on
             : ScreenReaderMode.auto;
       }
+      final savedDialogSize = prefs.getInt('dialogSize');
+      if (savedDialogSize != null) {
+        _dialogSize = DialogSize.values[savedDialogSize];
+      }
     });
     await tts.setSpeechRate(_speechRate);
     await tts.setVolume(_speechVolume);
@@ -1808,6 +1888,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     await prefs.setDouble('speechVolume', _speechVolume);
     if (_ttsEngine != null) await prefs.setString('ttsEngine', _ttsEngine!);
     await prefs.setInt('screenReaderModeState', _screenReaderMode.index);
+    await prefs.setInt('dialogSize', _dialogSize.index);
   }
 
   void _saveInversePreference(int val) async {
@@ -3706,14 +3787,268 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     speak(l10n.statsSetDeletedAnnouncement(deletedName, activeSetName));
   }
 
+  Widget _applyDialogSize(Widget child) {
+    switch (_dialogSize) {
+      case DialogSize.compact:
+        return child;
+      case DialogSize.wide:
+        return SizedBox(
+          width: double.maxFinite,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            child: child,
+          ),
+        );
+      case DialogSize.fullscreen:
+        return SizedBox.expand(child: child);
+    }
+  }
+
+  void _showNumberInfoDialog() {
+    final l10n = _l10n;
+    final value = _lastNumericValue;
+    if (value == null) {
+      speak(l10n.infoNoResult, force: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.infoNoResult)),
+        );
+      }
+      return;
+    }
+
+    bool isInteger = value == value.roundToDouble() && value.isFinite;
+    bool isPosInt = isInteger && value > 0;
+    int intVal = value.round();
+
+    String fraction = _decimalToFraction(value);
+    String fractionSpoken = fraction
+        .replaceAll('/', _s(' lomeno ', ' over '))
+        .replaceAll('.', ',');
+
+    String dmsStr = _formatAsDMS(value);
+    String dmsSpoken = dmsStr
+        .replaceAll('°', _s(' stupňů ', ' degrees '))
+        .replaceAll('\'', _s(' minut ', ' minutes '))
+        .replaceAll('"', _s(' sekund', ' seconds'))
+        .replaceAll('.', ',');
+
+    String percent = '${_formatNumber(value * 100)} %';
+    String percentSpoken = '${_formatSpokenNumber(value * 100)} '
+        '${_s('procent', 'percent')}';
+
+    String factorsStr = '';
+    String factorsSpoken = '';
+    if (isPosInt && intVal >= 2) {
+      List<int> factors = _primeFactors(intVal);
+      factorsStr = factors.join(' × ');
+      factorsSpoken = factors.join(_s(' krát ', ' times '));
+    }
+
+    String divisorsStr = '';
+    String divisorsSpoken = '';
+    if (isPosInt) {
+      List<int> divs = _getDivisors(intVal);
+      divisorsStr = divs.join(', ');
+      divisorsSpoken = divs.join(', ');
+    }
+
+    String formattedValue = _formatNumber(value);
+    String spokenValue = _formatSpokenNumber(value);
+
+    final spokenText = _s(
+      'Info o čísle. Hodnota: $spokenValue. '
+      'Zlomek: $fractionSpoken. '
+      'DMS: $dmsSpoken. '
+      'Procenta: $percentSpoken. '
+      '${factorsSpoken.isNotEmpty ? 'Rozklad na prvočísla: $factorsSpoken. ' : ''}'
+      '${divisorsSpoken.isNotEmpty ? 'Dělitele: $divisorsSpoken.' : ''}',
+      'Number info. Value: $spokenValue. '
+      'Fraction: $fractionSpoken. '
+      'DMS: $dmsSpoken. '
+      'Percentage: $percentSpoken. '
+      '${factorsSpoken.isNotEmpty ? 'Prime factors: $factorsSpoken. ' : ''}'
+      '${divisorsSpoken.isNotEmpty ? 'Divisors: $divisorsSpoken.' : ''}',
+    );
+
+    String notIntMsg = l10n.infoNotInteger;
+    String naMsg = l10n.infoNotApplicable;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        DialogSize currentSize = _dialogSize;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            bool isInfoFullscreen = currentSize == DialogSize.fullscreen;
+            return AlertDialog(
+              title: Semantics(
+                header: true,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(l10n.numberInfo),
+                    ),
+                    Semantics(
+                      label: isInfoFullscreen
+                          ? _s('Zmenšit dialog', 'Minimize dialog')
+                          : _s('Zvětšit dialog', 'Maximize dialog'),
+                      button: true,
+                      child: IconButton(
+                        icon: Icon(
+                          isInfoFullscreen
+                              ? Icons.fullscreen_exit
+                              : Icons.fullscreen,
+                        ),
+                        tooltip: isInfoFullscreen
+                            ? _s('Zmenšit', 'Minimize')
+                            : _s('Zvětšit', 'Maximize'),
+                        onPressed: () {
+                          setDialogState(() {
+                            currentSize = isInfoFullscreen
+                                ? DialogSize.wide
+                                : DialogSize.fullscreen;
+                          });
+                          speak(
+                            isInfoFullscreen
+                                ? _s('Dialog zmenšen', 'Dialog minimized')
+                                : _s('Dialog zvětšen', 'Dialog maximized'),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              content: Focus(
+                autofocus: true,
+                onFocusChange: (hasFocus) {
+                  if (hasFocus && !_isScreenReaderActive) {
+                    speak(spokenText, force: true);
+                  }
+                },
+                child: _applyDialogSize(
+                  SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildInfoCard(
+                          label: l10n.infoValue,
+                          value: formattedValue,
+                          spoken: '${l10n.infoValue}: $spokenValue',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildInfoCard(
+                          label: l10n.infoFraction,
+                          value: fraction,
+                          spoken: '${l10n.infoFraction}: $fractionSpoken',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildInfoCard(
+                          label: l10n.infoDms,
+                          value: dmsStr,
+                          spoken: '${l10n.infoDms}: $dmsSpoken',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildInfoCard(
+                          label: l10n.infoPercentage,
+                          value: percent,
+                          spoken: '${l10n.infoPercentage}: $percentSpoken',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildInfoCard(
+                          label: l10n.infoPrimeFactors,
+                          value: factorsStr.isNotEmpty ? factorsStr : naMsg,
+                          spoken: factorsSpoken.isNotEmpty
+                              ? '${l10n.infoPrimeFactors}: $factorsSpoken'
+                              : '${l10n.infoPrimeFactors}: $notIntMsg',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildInfoCard(
+                          label: l10n.infoDivisors,
+                          value: divisorsStr.isNotEmpty ? divisorsStr : naMsg,
+                          spoken: divisorsSpoken.isNotEmpty
+                              ? '${l10n.infoDivisors}: $divisorsSpoken'
+                              : '${l10n.infoDivisors}: $notIntMsg',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                Semantics(
+                  label: _s('Přečíst všechny informace hlasem',
+                      'Read all information aloud'),
+                  button: true,
+                  child: TextButton(
+                    onPressed: () => speak(spokenText, force: true),
+                    child: Text(l10n.infoRead),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(l10n.close),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mainFocusNode.requestFocus();
+      });
+    });
+  }
+
+  Widget _buildInfoCard({
+    required String label,
+    required String value,
+    required String spoken,
+  }) {
+    return Semantics(
+      container: true,
+      label: spoken,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: ExcludeSemantics(
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showHistoryDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Semantics(header: true, child: const Text('Historie výpočtů')),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: _history.isEmpty
+        content: _applyDialogSize(
+          _history.isEmpty
               ? Semantics(
                   container: true,
                   child: const Text('Historie je prázdná.'),
@@ -4024,6 +4359,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   }
                 }
               },
+            ),
+            IconButton(
+              icon: const Icon(Icons.info_outline),
+              tooltip: l10n.numberInfo,
+              onPressed: _showNumberInfoDialog,
             ),
             IconButton(
               icon: const Icon(Icons.settings),
@@ -5975,6 +6315,57 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   ],
                 ),
               ),
+            const SizedBox(height: 16),
+
+            // Velikost dialogů
+            Semantics(
+              container: true,
+              label: widget.parent._l10n.dialogSizeSetting,
+              child: Column(
+                children: [
+                  Text(widget.parent._l10n.dialogSizeSetting),
+                  const SizedBox(height: 8),
+                  SegmentedButton<DialogSize>(
+                    segments: [
+                      ButtonSegment(
+                        value: DialogSize.compact,
+                        label: Text(widget.parent._l10n.dialogSizeCompact),
+                        icon: const Icon(Icons.phone_android),
+                      ),
+                      ButtonSegment(
+                        value: DialogSize.wide,
+                        label: Text(widget.parent._l10n.dialogSizeWide),
+                        icon: const Icon(Icons.phone_iphone),
+                      ),
+                      ButtonSegment(
+                        value: DialogSize.fullscreen,
+                        label: Text(widget.parent._l10n.dialogSizeFullscreen),
+                        icon: const Icon(Icons.fullscreen),
+                      ),
+                    ],
+                    selected: {widget.parent._dialogSize},
+                    onSelectionChanged: (Set<DialogSize> selected) {
+                      final size = selected.first;
+                      setState(() {
+                        widget.parent.setState(() {
+                          widget.parent._dialogSize = size;
+                        });
+                        widget.parent._saveSettings();
+                      });
+                      String sizeName = widget.parent._l10n.dialogSizeCompact;
+                      if (size == DialogSize.wide) {
+                        sizeName = widget.parent._l10n.dialogSizeWide;
+                      } else if (size == DialogSize.fullscreen) {
+                        sizeName = widget.parent._l10n.dialogSizeFullscreen;
+                      }
+                      widget.parent.speak(
+                        '${widget.parent._l10n.dialogSizeSetting}: $sizeName',
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
 
             // Seskupená Rychlost

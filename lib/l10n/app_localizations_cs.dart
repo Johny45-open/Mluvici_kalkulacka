@@ -308,4 +308,49 @@ class AppLocalizationsCs extends AppLocalizations {
   @override
   String get restoreConfirm =>
       'Opravdu chcete obnovit všechna data ze zálohy?';
+
+  @override
+  String get numberInfo => 'Info o čísle';
+
+  @override
+  String get infoValue => 'Hodnota';
+
+  @override
+  String get infoFraction => 'Zlomek';
+
+  @override
+  String get infoDms => 'DMS (stupně/minuty/vteřiny)';
+
+  @override
+  String get infoPercentage => 'Procenta';
+
+  @override
+  String get infoPrimeFactors => 'Rozklad na prvočísla';
+
+  @override
+  String get infoDivisors => 'Dělitele';
+
+  @override
+  String get infoRead => 'PŘEČÍST';
+
+  @override
+  String get infoNoResult => 'Nejprve vypočítejte výsledek.';
+
+  @override
+  String get infoNotInteger => 'Pouze pro celá kladná čísla';
+
+  @override
+  String get infoNotApplicable => 'nedostupné';
+
+  @override
+  String get dialogSizeSetting => 'Velikost dialogů';
+
+  @override
+  String get dialogSizeCompact => 'Kompaktní';
+
+  @override
+  String get dialogSizeWide => 'Široký';
+
+  @override
+  String get dialogSizeFullscreen => 'Celá obrazovka';
 }
