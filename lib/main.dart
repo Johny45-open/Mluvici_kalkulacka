@@ -132,24 +132,61 @@ class _StatisticsSnapshot {
   });
 }
 
+class StatisticsRecord {
+  final List<double> values;
+
+  StatisticsRecord({required this.values});
+
+  Map<String, dynamic> toJson() => {
+        'values': values,
+      };
+
+  factory StatisticsRecord.fromJson(Map<String, dynamic> json) {
+    return StatisticsRecord(
+      values: (json['values'] as List).map((e) => (e as num).toDouble()).toList(),
+    );
+  }
+
+  StatisticsRecord copyWith({List<double>? values}) {
+    return StatisticsRecord(values: values ?? this.values);
+  }
+}
+
 class StatisticsSet {
   String name;
-  final List<double> data;
+  final List<String> fieldNames;
+  final List<StatisticsRecord> records;
 
   StatisticsSet({
     required this.name,
-    required this.data,
+    required this.fieldNames,
+    required this.records,
   });
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'data': data,
+        'fieldNames': fieldNames,
+        'records': records.map((r) => r.toJson()).toList(),
       };
 
   factory StatisticsSet.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('data')) {
+      final data = (json['data'] as List)
+          .map((e) => (e as num).toDouble())
+          .toList();
+      return StatisticsSet(
+        name: json['name'] as String,
+        fieldNames: ['Hodnota'],
+        records:
+            data.map((v) => StatisticsRecord(values: [v])).toList(),
+      );
+    }
     return StatisticsSet(
       name: json['name'] as String,
-      data: (json['data'] as List).map((e) => (e as num).toDouble()).toList(),
+      fieldNames: (json['fieldNames'] as List).cast<String>(),
+      records: (json['records'] as List)
+          .map((e) => StatisticsRecord.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
@@ -222,13 +259,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   final List<StatisticsSet> _statsSets = [];
   int _currentStatsSetIndex = 0;
-  List<double> _lastAddedBatch = [];
+  int _selectedFieldIndex = 0;
+  List<StatisticsRecord> _lastAddedBatch = [];
 
   bool get _hasStatsSet => _statsSets.isNotEmpty;
 
-  List<double> get _statsMemory {
+  List<StatisticsRecord> get _statsMemory {
     if (_statsSets.isEmpty) return const [];
-    return _statsSets[_currentStatsSetIndex].data;
+    return _statsSets[_currentStatsSetIndex].records;
+  }
+
+  int get _currentFieldCount {
+    if (_statsSets.isEmpty) return 1;
+    return _statsSets[_currentStatsSetIndex].fieldNames.length;
+  }
+
+  List<double> _getFieldValues(int fieldIndex) {
+    return _statsMemory.map((r) => r.values[fieldIndex]).toList();
   }
 
   final Map<String, Map<String, double>> _unitCategories = {
@@ -603,27 +650,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  String _getStatsOccurrenceCountForm(int count) {
-    if (_isEnglish()) {
-      return count == 1 ? 'occurrence' : 'occurrences';
-    }
-    if (count == 1) {
-      return 'výskyt';
-    } else if (count >= 2 && count <= 4) {
-      return 'výskyty';
-    } else {
-      return 'výskytů';
-    }
-  }
-
-  Map<double, int> _getStatsValueCounts() {
-    final counts = <double, int>{};
-    for (final value in _statsMemory) {
-      counts[value] = (counts[value] ?? 0) + 1;
-    }
-    return counts;
-  }
-
   AppLocalizations get _l10n => AppLocalizations.of(context)!;
 
   bool _isEnglish([BuildContext? ctx]) {
@@ -661,9 +687,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     tts.setLanguage(lang);
   }
 
-  _StatisticsSnapshot? _computeStatisticsSnapshot() {
+  _StatisticsSnapshot? _computeStatisticsSnapshot([int fieldIndex = -1]) {
+    if (fieldIndex < 0) fieldIndex = _selectedFieldIndex;
     if (_statsMemory.isEmpty) return null;
-    final data = List<double>.from(_statsMemory);
+    final data = List<double>.from(_getFieldValues(fieldIndex));
     final sum = data.reduce((a, b) => a + b);
     final mean = sum / data.length;
     final variance =
@@ -717,6 +744,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'MODE': ['Modus', 'Mode'],
       'CV': ['Variační koeficient', 'Coefficient of variation'],
       'SUM': ['Součet hodnot', 'Sum of values'],
+      'WMEAN': ['Vážený průměr', 'Weighted mean'],
       ';': ['Oddělovač dat', 'Data separator'],
       'SETS': ['Správa sad', 'Manage sets'],
     };
@@ -2360,6 +2388,29 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  List<StatisticsRecord> _parseDisplayToRecords(String text) {
+    final parts = text
+        .split(';')
+        .where((s) => s.trim().isNotEmpty)
+        .map((s) => double.parse(s.trim().replaceAll(',', '.')))
+        .toList();
+    final fieldCount = _currentFieldCount;
+    if (fieldCount == 1) {
+      return parts.map((v) => StatisticsRecord(values: [v])).toList();
+    }
+    final records = <StatisticsRecord>[];
+    for (int i = 0; i + fieldCount <= parts.length; i += fieldCount) {
+      records.add(StatisticsRecord(values: parts.sublist(i, i + fieldCount)));
+    }
+    if (records.isEmpty || records.length * fieldCount != parts.length) {
+      throw FormatException(_s(
+        'Počet hodnot musí být násobkem počtu polí ($fieldCount).',
+        'Number of values must be a multiple of field count ($fieldCount).',
+      ));
+    }
+    return records;
+  }
+
   void _addSingleValueToStats() {
     if (!_hasStatsSet) {
       speak(_s(
@@ -2395,13 +2446,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return;
     }
     try {
-      List<double> valuesToAdd = display
-          .split(';')
-          .where((s) => s.trim().isNotEmpty)
-          .map((s) => double.parse(s.trim().replaceAll(',', '.')))
-          .toList();
+      final recordsToAdd = _parseDisplayToRecords(display);
 
-      if (valuesToAdd.isEmpty) {
+      if (recordsToAdd.isEmpty) {
         speak(_s(
           'Žádná platná čísla k uložení.',
           'No valid numbers to store.',
@@ -2417,7 +2464,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return;
       }
 
-      _addValuesToStats(valuesToAdd, 1);
+      _addValuesToStats(recordsToAdd, 1);
     } catch (e) {
       speak(_s(
         'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
@@ -2615,53 +2662,103 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } else {
         append(label, silent: silent);
       }
-    } else if (['MEAN', 'SD', 'VAR', 'MED', 'MODE', 'CV', 'SUM'].contains(label)) {
+    } else if (['MEAN', 'SD', 'VAR', 'MED', 'MODE', 'CV', 'SUM', 'WMEAN'].contains(label)) {
       if (_currentMode == CalculatorMode.statistics) {
         try {
           if (_statsMemory.isEmpty) {
             speak(_l10n.statsMemoryEmptyHint);
             return;
           }
+
+          final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
+
+          if (label == 'WMEAN') {
+            if (_currentFieldCount < 2) {
+              speak(_s(
+                'Vážený průměr vyžaduje alespoň 2 pole (hodnoty a váhy).',
+                'Weighted mean requires at least 2 fields (values and weights).',
+              ));
+              return;
+            }
+            final values = _getFieldValues(0);
+            final weights = _getFieldValues(1);
+            double sumW = 0;
+            double sumVW = 0;
+            for (int i = 0; i < values.length; i++) {
+              sumVW += values[i] * weights[i];
+              sumW += weights[i];
+            }
+            if (sumW == 0) {
+              speak(_s(
+                'Součet vah je nulový, nelze vypočítat vážený průměr.',
+                'Sum of weights is zero, cannot calculate weighted mean.',
+              ));
+              return;
+            }
+            final wmean = sumVW / sumW;
+            final resStr = _formatNumber(wmean);
+            final spoken = _s(
+              'Vážený průměr z paměti je ${_formatSpokenNumber(wmean)} '
+              '(pole ${fieldNames[0]} váženo polem ${fieldNames[1]})',
+              'Weighted mean from memory is ${_formatSpokenNumber(wmean)} '
+              '(field ${fieldNames[0]} weighted by field ${fieldNames[1]})',
+            );
+            setState(() {
+              _lastResult = resStr;
+              _hasResult = true;
+              display = resStr;
+              _cursorPosition = display.length;
+              _lastNumericValue = double.tryParse(resStr.replaceAll(',', '.'));
+            });
+            speak(spoken, force: true);
+            _addToHistory('STATS($label)', resStr);
+            return;
+          }
+
           final snapshot = _computeStatisticsSnapshot()!;
 
           String resStr = '0';
           String spoken = '';
+          final fieldLabelSpoken = _currentFieldCount > 1
+              ? _s(' pro pole ${fieldNames[_selectedFieldIndex]}', ' for field ${fieldNames[_selectedFieldIndex]}')
+              : '';
+
           if (label == 'MEAN') {
             resStr = _formatNumber(snapshot.mean);
             spoken = _s(
-              'Průměr z paměti je ${_formatSpokenNumber(snapshot.mean)}',
-              'Mean from memory is ${_formatSpokenNumber(snapshot.mean)}',
+              'Průměr${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.mean)}',
+              'Mean${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.mean)}',
             );
           } else if (label == 'SUM') {
             resStr = _formatNumber(snapshot.sum);
             spoken = _s(
-              'Součet hodnot je ${_formatSpokenNumber(snapshot.sum)}',
-              'Sum of values is ${_formatSpokenNumber(snapshot.sum)}',
+              'Součet hodnot${fieldLabelSpoken} je ${_formatSpokenNumber(snapshot.sum)}',
+              'Sum of values${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.sum)}',
             );
           } else if (label == 'VAR') {
             resStr = _formatNumber(snapshot.variance);
             spoken = _s(
-              'Rozptyl z paměti je ${_formatSpokenNumber(snapshot.variance)}',
-              'Variance from memory is ${_formatSpokenNumber(snapshot.variance)}',
+              'Rozptyl${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.variance)}',
+              'Variance${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.variance)}',
             );
           } else if (label == 'SD') {
             resStr = _formatNumber(snapshot.sd);
             spoken = _s(
-              'Směrodatná odchylka z paměti je ${_formatSpokenNumber(snapshot.sd)}',
-              'Standard deviation from memory is ${_formatSpokenNumber(snapshot.sd)}',
+              'Směrodatná odchylka${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.sd)}',
+              'Standard deviation${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.sd)}',
             );
           } else if (label == 'MED') {
             resStr = _formatNumber(snapshot.median);
             spoken = _s(
-              'Medián z paměti je ${_formatSpokenNumber(snapshot.median)}',
-              'Median from memory is ${_formatSpokenNumber(snapshot.median)}',
+              'Medián${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.median)}',
+              'Median${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.median)}',
             );
           } else if (label == 'MODE') {
             if (!snapshot.modeExists) {
-              resStr = _formatNumber(_statsMemory.first);
+              resStr = _formatNumber(_getFieldValues(_selectedFieldIndex).first);
               spoken = _s(
-                'Modus neexistuje, všechny hodnoty se v paměti vyskytují pouze jednou.',
-                'No mode exists, all values in memory occur only once.',
+                'Modus${fieldLabelSpoken} neexistuje, všechny hodnoty se vyskytují pouze jednou.',
+                'No mode${fieldLabelSpoken} exists, all values occur only once.',
               );
             } else {
               resStr = snapshot.modes.map((m) => _formatNumber(m)).join(';');
@@ -2670,28 +2767,28 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   .join(_s(' a ', ' and '));
               if (snapshot.modes.length == 1) {
                 spoken = _s(
-                  'Modus z paměti je $modesSpoken, vyskytuje se ${snapshot.modeOccurrenceCount} krát',
-                  'Mode from memory is $modesSpoken, occurs ${snapshot.modeOccurrenceCount} times',
+                  'Modus${fieldLabelSpoken} z paměti je $modesSpoken, vyskytuje se ${snapshot.modeOccurrenceCount} krát',
+                  'Mode${fieldLabelSpoken} from memory is $modesSpoken, occurs ${snapshot.modeOccurrenceCount} times',
                 );
               } else {
                 spoken = _s(
-                  'Modusy z paměti jsou $modesSpoken, vyskytují se ${snapshot.modeOccurrenceCount} krát',
-                  'Modes from memory are $modesSpoken, occur ${snapshot.modeOccurrenceCount} times',
+                  'Modusy${fieldLabelSpoken} z paměti jsou $modesSpoken, vyskytují se ${snapshot.modeOccurrenceCount} krát',
+                  'Modes${fieldLabelSpoken} from memory are $modesSpoken, occur ${snapshot.modeOccurrenceCount} times',
                 );
               }
             }
           } else if (label == 'CV') {
             if (snapshot.cv == null) {
               spoken = _s(
-                'Nelze vypočítat variační koeficient, průměr je nula.',
-                'Cannot calculate coefficient of variation, mean is zero.',
+                'Nelze vypočítat variační koeficient${fieldLabelSpoken}, průměr je nula.',
+                'Cannot calculate coefficient of variation${fieldLabelSpoken}, mean is zero.',
               );
               resStr = 'Err';
             } else {
               resStr = _formatNumber(snapshot.cv!);
               spoken = _s(
-                'Variační koeficient je ${_formatSpokenNumber(snapshot.cv!)} procent',
-                'Coefficient of variation is ${_formatSpokenNumber(snapshot.cv!)} percent',
+                'Variační koeficient${fieldLabelSpoken} je ${_formatSpokenNumber(snapshot.cv!)} procent',
+                'Coefficient of variation${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.cv!)} percent',
               );
             }
           }
@@ -3083,21 +3180,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
-  void _removeOneStatsValue(double value, StateSetter setStateDialog, BuildContext dialogContext) {
+  void _removeStatsRecord(int index, StateSetter setStateDialog, BuildContext dialogContext) {
     setState(() {
-      _statsSets[_currentStatsSetIndex].data.remove(value);
+      _statsSets[_currentStatsSetIndex].records.removeAt(index);
+      if (_selectedFieldIndex >= _currentFieldCount) {
+        _selectedFieldIndex = 0;
+      }
     });
     _saveStatsData();
     setStateDialog(() {});
     speak(_s(
-      'Odebrán jeden výskyt hodnoty ${_formatSpokenNumber(value)}',
-      'Removed one occurrence of ${_formatSpokenNumber(value)}',
+      'Odebrán záznam ${index + 1}',
+      'Removed record ${index + 1}',
     ));
     if (mounted) {
       ScaffoldMessenger.of(dialogContext).showSnackBar(
         SnackBar(content: Text(_s(
-          'Odebrán jeden výskyt hodnoty ${_formatSpokenNumber(value)}',
-          'Removed one occurrence of ${_formatSpokenNumber(value)}',
+          'Odebrán záznam ${index + 1}',
+          'Removed record ${index + 1}',
         ))),
       );
     }
@@ -3112,49 +3212,34 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  void _removeAllStatsValue(double value, StateSetter setStateDialog, BuildContext dialogContext) {
-    setState(() {
-      _statsSets[_currentStatsSetIndex].data.removeWhere((v) => v == value);
-    });
-    _saveStatsData();
-    setStateDialog(() {});
-    speak(_s(
-      'Odebrány všechny výskyty hodnoty ${_formatSpokenNumber(value)}',
-      'Removed all occurrences of ${_formatSpokenNumber(value)}',
-    ));
-    if (mounted) {
-      ScaffoldMessenger.of(dialogContext).showSnackBar(
-        SnackBar(content: Text(_s(
-          'Odebrány všechny výskyty hodnoty ${_formatSpokenNumber(value)}',
-          'Removed all occurrences of ${_formatSpokenNumber(value)}',
-        ))),
-      );
-    }
-    if (_statsMemory.isEmpty) {
-      speak(_l10n.statsMemoryEmpty);
-      if (mounted) {
-        ScaffoldMessenger.of(dialogContext).showSnackBar(
-          SnackBar(content: Text(_l10n.statsMemoryEmpty)),
-        );
-      }
-      Navigator.pop(dialogContext);
-    }
-  }
-
-  void _showEditStatsValueDialog(double oldValue, BuildContext dialogContext, StateSetter setStateDialog) {
-    final controller = TextEditingController(text: _formatNumber(oldValue).replaceAll(',', '.'));
+  void _showEditStatsRecordDialog(int recordIndex, BuildContext dialogContext, StateSetter setStateDialog) {
+    final record = _statsMemory[recordIndex];
+    final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
+    final controllers = record.values
+        .map((v) => TextEditingController(text: _formatNumber(v).replaceAll(',', '.')))
+        .toList();
 
     showDialog<void>(
       context: dialogContext,
       builder: (ctx) {
         return AlertDialog(
-          title: Text(_s('Upravit hodnotu', 'Edit value')),
-          content: TextField(
-            controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: _s('Nová hodnota', 'New value'),
+          title: Text(_s('Upravit záznam ${recordIndex + 1}', 'Edit record ${recordIndex + 1}')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(fieldNames.length, (i) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: TextField(
+                    controller: controllers[i],
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                    decoration: InputDecoration(
+                      labelText: '${fieldNames[i]} (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                      isDense: true,
+                    ),
+                  ),
+                );
+              }),
             ),
           ),
           actions: [
@@ -3164,40 +3249,40 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             ),
             TextButton(
               onPressed: () {
-                final newText = controller.text.trim().replaceAll(',', '.');
-                if (newText.isEmpty) return;
-                final newValue = double.tryParse(newText);
-                if (newValue != null) {
+                final newValues = <double>[];
+                bool valid = true;
+                for (int i = 0; i < controllers.length; i++) {
+                  final text = controllers[i].text.trim().replaceAll(',', '.');
+                  final val = double.tryParse(text);
+                  if (val != null) {
+                    newValues.add(val);
+                  } else {
+                    valid = false;
+                    break;
+                  }
+                }
+                if (valid) {
                   setState(() {
-                    final data = _statsSets[_currentStatsSetIndex].data;
-                    for (int i = 0; i < data.length; i++) {
-                      if (data[i] == oldValue) {
-                        data[i] = newValue;
-                      }
-                    }
+                    _statsSets[_currentStatsSetIndex].records[recordIndex] =
+                        StatisticsRecord(values: newValues);
                   });
                   _saveStatsData();
                   setStateDialog(() {});
                   Navigator.pop(ctx);
                   speak(_s(
-                    'Hodnota upravena na ${_formatSpokenNumber(newValue)}',
-                    'Value changed to ${_formatSpokenNumber(newValue)}',
+                    'Záznam ${recordIndex + 1} upraven',
+                    'Record ${recordIndex + 1} edited',
                   ));
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(_s(
-                        'Hodnota upravena na ${_formatSpokenNumber(newValue)}',
-                        'Value changed to ${_formatSpokenNumber(newValue)}',
+                        'Záznam ${recordIndex + 1} upraven',
+                        'Record ${recordIndex + 1} edited',
                       ))),
                     );
                   }
                 } else {
                   speak(_s('Neplatná hodnota', 'Invalid value'));
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(_s('Neplatná hodnota', 'Invalid value'))),
-                    );
-                  }
                 }
               },
               child: Text(_l10n.confirmAction),
@@ -3216,23 +3301,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            final valueCounts = _getStatsValueCounts();
+            final currentSetName = _statsSets[_currentStatsSetIndex].name;
+            final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
             final totalCount = _statsMemory.length;
             final totalCountForm = _getStatsCountForm(totalCount);
-            final currentSetName = _statsSets[_currentStatsSetIndex].name;
-            final rowsSpeech = valueCounts.entries
-                .map((entry) {
-                  final value = _formatSpokenNumber(entry.key);
-                  final count = entry.value;
-                  return '$value, $count ${_getStatsOccurrenceCountForm(count)}';
-                })
-                .join('; ');
-            final spokenSummary = _s(
-              'Statistická paměť, sada $currentSetName. Obsahuje $totalCount $totalCountForm. '
-              'Hodnoty a počty výskytů: $rowsSpeech.',
-              'Statistics memory, set $currentSetName. Contains $totalCount $totalCountForm. '
-              'Values and occurrence counts: $rowsSpeech.',
-            );
+            final records = List<StatisticsRecord>.from(_statsMemory);
+
+            String spokenSummary;
+            if (records.isEmpty) {
+              spokenSummary = _s(
+                'Statistická paměť sady $currentSetName je prázdná.',
+                'Statistics memory for set $currentSetName is empty.',
+              );
+            } else {
+              final fieldsSummary = fieldNames.asMap().entries.map((fe) {
+                final vals = records.map((r) => _formatSpokenNumber(r.values[fe.key])).join('; ');
+                return '${fe.value}: $vals';
+              }).join('. ');
+              spokenSummary = _s(
+                'Statistická paměť, sada $currentSetName. Obsahuje $totalCount $totalCountForm. '
+                'Pole: $fieldsSummary.',
+                'Statistics memory, set $currentSetName. Contains $totalCount $totalCountForm. '
+                'Fields: $fieldsSummary.',
+              );
+            }
 
             return AlertDialog(
               title: Semantics(
@@ -3266,112 +3358,99 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             ),
                           ),
                           const Divider(height: 8),
-                          Semantics(
-                            label: l10n.statsTotalSemantics(
-                              totalCount,
-                              totalCountForm,
-                              valueCounts.length,
-                            ),
-                            child: ExcludeSemantics(
-                              child: Text(
-                                '${l10n.statsTotalValues(totalCount)}\n'
-                                '${l10n.statsDistinctValues(valueCounts.length)}',
-                              ),
+                          ExcludeSemantics(
+                            child: Text(
+                              _s('Záznamů: $totalCount, Polí: ${fieldNames.length}', 'Records: $totalCount, Fields: ${fieldNames.length}'),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          Semantics(
-                            header: true,
-                            label: l10n.statsColumnsLabel,
-                            child: ExcludeSemantics(
-                              child: DefaultTextStyle.merge(
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                child: Row(
-                                  children: [
-                                    Expanded(flex: 2, child: Text(l10n.statsValue)),
-                                    Expanded(
-                                      flex: 1,
-                                      child: Text(
-                                        l10n.statsOccurrenceCount,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Text(
-                                        _s('Akce', 'Actions'),
-                                        textAlign: TextAlign.right,
-                                      ),
-                                    ),
-                                  ],
+                          if (records.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Semantics(
+                              header: true,
+                              label: _s('Sloupce: číslo, ${fieldNames.join(', ')}', 'Columns: number, ${fieldNames.join(', ')}'),
+                              child: ExcludeSemantics(
+                                child: DefaultTextStyle.merge(
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  child: _buildMemoryHeaderRow(fieldNames),
                                 ),
                               ),
                             ),
-                          ),
-                          const Divider(height: 16),
-                          ...valueCounts.entries.map((entry) {
-                            final value = _formatNumber(entry.key);
-                            final spokenValue = _formatSpokenNumber(entry.key);
-                            final count = entry.value;
+                            const Divider(height: 16),
+                            ...records.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final record = entry.value;
+                              final spokenValues = record.values
+                                  .asMap()
+                                  .entries
+                                  .map((ve) => '${fieldNames[ve.key]}: ${_formatSpokenNumber(ve.value)}')
+                                  .join(', ');
 
-                            return Semantics(
-                              container: true,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 2,
-                                      child: Semantics(
-                                        label: l10n.statsRowSemantics(count, spokenValue),
-                                        child: ExcludeSemantics(child: Text(value)),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 1,
-                                      child: ExcludeSemantics(
-                                        child: Text(
-                                          '$count',
-                                          textAlign: TextAlign.center,
+                              final rowLabel = _s(
+                                'Záznam ${index + 1}: $spokenValues',
+                                'Record ${index + 1}: $spokenValues',
+                              );
+                              return Semantics(
+                                container: true,
+                                label: rowLabel,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      ExcludeSemantics(
+                                        child: SizedBox(
+                                          width: 28,
+                                          child: Text(
+                                            '${index + 1}',
+                                            style: const TextStyle(fontSize: 12),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.end,
-                                        children: [
-                                          IconButton(
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            icon: const Icon(Icons.edit, size: 22, color: Colors.blue),
-                                            tooltip: _s('Upravit hodnotu $spokenValue', 'Edit value $spokenValue'),
-                                            onPressed: () => _showEditStatsValueDialog(entry.key, dialogContext, setStateDialog),
+                                      ...record.values.asMap().entries.map((ve) {
+                                        return Expanded(
+                                          child: ExcludeSemantics(
+                                            child: Text(
+                                              _formatNumber(ve.value),
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(fontSize: 13),
+                                            ),
                                           ),
-                                          const SizedBox(width: 12),
-                                          IconButton(
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            icon: const Icon(Icons.remove_circle_outline, size: 22, color: Colors.orange),
-                                            tooltip: _s('Odebrat jeden výskyt hodnoty $spokenValue', 'Remove one occurrence of $spokenValue'),
-                                            onPressed: () => _removeOneStatsValue(entry.key, setStateDialog, dialogContext),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          IconButton(
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            icon: const Icon(Icons.delete, size: 22, color: Colors.red),
-                                            tooltip: _s('Smazat všechny výskyty hodnoty $spokenValue', 'Delete all occurrences of $spokenValue'),
-                                            onPressed: () => _removeAllStatsValue(entry.key, setStateDialog, dialogContext),
-                                          ),
-                                        ],
+                                        );
+                                      }),
+                                      Semantics(
+                                        label: rowLabel,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                                              tooltip: _s(
+                                                'Upravit záznam ${index + 1}',
+                                                'Edit record ${index + 1}',
+                                              ),
+                                              onPressed: () => _showEditStatsRecordDialog(index, dialogContext, setStateDialog),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                                              tooltip: _s(
+                                                'Smazat záznam ${index + 1}',
+                                                'Delete record ${index + 1}',
+                                              ),
+                                              onPressed: () => _removeStatsRecord(index, setStateDialog, dialogContext),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          }),
+                              );
+                            }),
+                          ],
                         ],
                       ),
                     ),
@@ -3402,181 +3481,260 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
+  Widget _buildMemoryHeaderRow(List<String> fieldNames) {
+    return Row(
+      children: [
+        const SizedBox(
+          width: 28,
+          child: Text('#', style: TextStyle(fontSize: 12)),
+        ),
+        ...fieldNames.map((name) => Expanded(
+              child: Text(
+                name,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13),
+              ),
+            )),
+        SizedBox(
+          width: 72,
+          child: Text(
+            _s('Akce', 'Actions'),
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showStatisticsSummaryDialog() {
     final l10n = _l10n;
-    final snapshot = _computeStatisticsSnapshot();
-    if (snapshot == null) {
-      speak(l10n.statsMemoryEmpty);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.statsMemoryEmpty)),
-        );
-      }
-      return;
-    }
-
-    final currentSetName = _statsSets[_currentStatsSetIndex].name;
-    final allValues = _statsMemory
-        .map((v) => _formatNumber(v))
-        .join(_isEnglish() ? ', ' : '; ');
-    final allValuesSpoken = _statsMemory
-        .map((v) => _formatSpokenNumber(v))
-        .join(_isEnglish() ? ', ' : '; ');
-
-    final modeText = snapshot.modeExists
-        ? snapshot.modes.map((m) => _formatNumber(m)).join('; ')
-        : l10n.statsModeNone;
-    final modeSpoken = snapshot.modeExists
-        ? snapshot.modes.map((m) => _formatSpokenNumber(m)).join(_s(' a ', ' and '))
-        : l10n.statsModeNone;
-
-    final cvText = snapshot.cv == null
-        ? 'Err'
-        : '${_formatNumber(snapshot.cv!)} %';
-    final cvSpoken = snapshot.cv == null
-        ? _s('nelze vypočítat', 'cannot calculate')
-        : '${_formatSpokenNumber(snapshot.cv!)} ${_s('procent', 'percent')}';
-
-    final statRows = <MapEntry<String, String>>[
-      MapEntry(l10n.statsMean, _formatNumber(snapshot.mean)),
-      MapEntry(l10n.statsSum, _formatNumber(snapshot.sum)),
-      MapEntry(l10n.statsVariance, _formatNumber(snapshot.variance)),
-      MapEntry(l10n.statsStdDev, _formatNumber(snapshot.sd)),
-      MapEntry(l10n.statsMedian, _formatNumber(snapshot.median)),
-      MapEntry(l10n.statsMode, modeText),
-      MapEntry(l10n.statsCv, cvText),
-    ];
-
-    final spokenSummary = _s(
-      'Statistický souhrn pro sadu $currentSetName. Všechny hodnoty: $allValuesSpoken. '
-      'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
-      'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
-      'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
-      'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
-      'Medián: ${_formatSpokenNumber(snapshot.median)}. '
-      'Modus: $modeSpoken. '
-      'Variační koeficient: $cvSpoken.',
-      'Statistics summary for set $currentSetName. All values: $allValuesSpoken. '
-      'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
-      'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
-      'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
-      'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
-      'Median: ${_formatSpokenNumber(snapshot.median)}. '
-      'Mode: $modeSpoken. '
-      'Coefficient of variation: $cvSpoken.',
-    );
+    final fieldNames = _statsSets.isNotEmpty
+        ? _statsSets[_currentStatsSetIndex].fieldNames
+        : <String>['Hodnota'];
 
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: Semantics(
-            header: true,
-            child: Text(l10n.statsSummaryTitle),
-          ),
-          content: Focus(
-            autofocus: true,
-            onFocusChange: (hasFocus) {
-              if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
-            },
-            child: SizedBox(
-              width: double.maxFinite,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 420),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Semantics(
-                        label: l10n.statsCurrentSetLabel(currentSetName),
-                        child: ExcludeSemantics(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 12.0),
-                            child: Text(
-                              l10n.statsCurrentSetLabel(currentSetName),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        int localFieldIndex = _selectedFieldIndex;
+
+        return StatefulBuilder(
+          builder: (context, setSummaryState) {
+            final snapshot = _computeStatisticsSnapshot(localFieldIndex);
+            if (snapshot == null) {
+              speak(l10n.statsMemoryEmpty);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l10n.statsMemoryEmpty)),
+                );
+              }
+              Navigator.pop(dialogContext);
+              return const SizedBox.shrink();
+            }
+            final currentSetName = _statsSets[_currentStatsSetIndex].name;
+            final selectedFieldName = fieldNames[localFieldIndex];
+            final allValues = _getFieldValues(localFieldIndex)
+                .map((v) => _formatNumber(v))
+                .join(_isEnglish() ? ', ' : '; ');
+            final allValuesSpoken = _getFieldValues(localFieldIndex)
+                .map((v) => _formatSpokenNumber(v))
+                .join(_isEnglish() ? ', ' : '; ');
+
+            final modeText = snapshot.modeExists
+                ? snapshot.modes.map((m) => _formatNumber(m)).join('; ')
+                : l10n.statsModeNone;
+            final modeSpoken = snapshot.modeExists
+                ? snapshot.modes.map((m) => _formatSpokenNumber(m)).join(_s(' a ', ' and '))
+                : l10n.statsModeNone;
+
+            final cvText = snapshot.cv == null
+                ? 'Err'
+                : '${_formatNumber(snapshot.cv!)} %';
+            final cvSpoken = snapshot.cv == null
+                ? _s('nelze vypočítat', 'cannot calculate')
+                : '${_formatSpokenNumber(snapshot.cv!)} ${_s('procent', 'percent')}';
+
+            final statRows = <MapEntry<String, String>>[
+              MapEntry(l10n.statsMean, _formatNumber(snapshot.mean)),
+              MapEntry(l10n.statsSum, _formatNumber(snapshot.sum)),
+              MapEntry(l10n.statsVariance, _formatNumber(snapshot.variance)),
+              MapEntry(l10n.statsStdDev, _formatNumber(snapshot.sd)),
+              MapEntry(l10n.statsMedian, _formatNumber(snapshot.median)),
+              MapEntry(l10n.statsMode, modeText),
+              MapEntry(l10n.statsCv, cvText),
+            ];
+
+            final spokenSummary = _s(
+              'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. '
+              'Všechny hodnoty: $allValuesSpoken. '
+              'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
+              'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
+              'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
+              'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
+              'Medián: ${_formatSpokenNumber(snapshot.median)}. '
+              'Modus: $modeSpoken. '
+              'Variační koeficient: $cvSpoken.',
+              'Statistics summary for set $currentSetName, field $selectedFieldName. '
+              'All values: $allValuesSpoken. '
+              'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
+              'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
+              'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
+              'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
+              'Median: ${_formatSpokenNumber(snapshot.median)}. '
+              'Mode: $modeSpoken. '
+              'Coefficient of variation: $cvSpoken.',
+            );
+
+            return AlertDialog(
+              title: Semantics(
+                header: true,
+                child: Text(l10n.statsSummaryTitle),
+              ),
+              content: Focus(
+                autofocus: true,
+                onFocusChange: (hasFocus) {
+                  if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
+                },
+                child: SizedBox(
+                  width: double.maxFinite,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 420),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Semantics(
+                            label: l10n.statsCurrentSetLabel(currentSetName),
+                            child: ExcludeSemantics(
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Text(
+                                  l10n.statsCurrentSetLabel(currentSetName),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const Divider(height: 8),
-                      Semantics(
-                        header: true,
-                        label: l10n.statsAllValuesSection,
-                        child: ExcludeSemantics(
-                          child: Text(
-                            l10n.statsAllValuesSection,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Semantics(
-                        label: _s(
-                          'Všechny hodnoty: $allValuesSpoken',
-                          'All values: $allValuesSpoken',
-                        ),
-                        child: ExcludeSemantics(child: Text(allValues)),
-                      ),
-                      const SizedBox(height: 16),
-                      Semantics(
-                        header: true,
-                        label: l10n.statsComputedSection,
-                        child: ExcludeSemantics(
-                          child: Text(
-                            l10n.statsComputedSection,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...statRows.map((row) {
-                        final spokenValue = row.value.replaceAll('.', ',');
-                        return Semantics(
-                          container: true,
-                          label: '${row.key}: $spokenValue',
-                          child: ExcludeSemantics(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
+                          if (fieldNames.length > 1) ...[
+                            const SizedBox(height: 4),
+                            Semantics(
+                              label: _s(
+                                'Pole: ${fieldNames[localFieldIndex]}',
+                                'Field: ${fieldNames[localFieldIndex]}',
+                              ),
                               child: Row(
                                 children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: Text(row.key),
+                                  ExcludeSemantics(
+                                    child: Text(_s('Pole: ', 'Field: ')),
                                   ),
+                                  const SizedBox(width: 8),
                                   Expanded(
-                                    flex: 2,
-                                    child: Text(
-                                      row.value,
-                                      textAlign: TextAlign.right,
+                                    child: DropdownButton<int>(
+                                      value: localFieldIndex,
+                                      isExpanded: true,
+                                      underline: const SizedBox(),
+                                      items: List.generate(fieldNames.length, (i) {
+                                        return DropdownMenuItem(
+                                          value: i,
+                                          child: Text(fieldNames[i]),
+                                        );
+                                      }),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          localFieldIndex = val;
+                                          setSummaryState(() {});
+                                          speak(_s(
+                                            'Vybráno pole ${fieldNames[val]}',
+                                            'Selected field ${fieldNames[val]}',
+                                          ));
+                                        }
+                                      },
                                     ),
                                   ),
                                 ],
                               ),
                             ),
+                          ],
+                          const Divider(height: 8),
+                          Semantics(
+                            header: true,
+                            label: l10n.statsAllValuesSection,
+                            child: ExcludeSemantics(
+                              child: Text(
+                                l10n.statsAllValuesSection,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
                           ),
-                        );
-                      }),
-                    ],
+                          const SizedBox(height: 8),
+                          Semantics(
+                            label: _s(
+                              'Všechny hodnoty pole $selectedFieldName: $allValuesSpoken',
+                              'All values of field $selectedFieldName: $allValuesSpoken',
+                            ),
+                            child: ExcludeSemantics(child: Text(allValues)),
+                          ),
+                          const SizedBox(height: 16),
+                          Semantics(
+                            header: true,
+                            label: l10n.statsComputedSection,
+                            child: ExcludeSemantics(
+                              child: Text(
+                                l10n.statsComputedSection,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ...statRows.map((row) {
+                            final spokenValue = row.value.replaceAll('.', ',');
+                            return Semantics(
+                              container: true,
+                              label: '${row.key}: $spokenValue',
+                              child: ExcludeSemantics(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 3,
+                                        child: Text(row.key),
+                                      ),
+                                      Expanded(
+                                        flex: 2,
+                                        child: Text(
+                                          row.value,
+                                          textAlign: TextAlign.right,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _showStatsSetsDialog();
-              },
-              child: Text(l10n.statsSetsManage),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10n.close),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _showStatsSetsDialog();
+                  },
+                  child: Text(l10n.statsSetsManage),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(l10n.close),
+                ),
+              ],
+            );
+          },
         );
       },
     ).then((_) {
@@ -3613,7 +3771,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           itemBuilder: (ctx, index) {
                             final set = _statsSets[index];
                             final isCurrent = index == _currentStatsSetIndex;
-                            final count = set.data.length;
+                            final count = set.records.length;
                             final countForm = _getStatsCountForm(count);
                             final titleText = '${set.name} ($count $countForm)';
 
@@ -3752,54 +3910,121 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  void _showCreateStatsSetDialog(BuildContext context, VoidCallback onUpdated, {List<double>? valuesToRepeat}) {
+  void _showCreateStatsSetDialog(BuildContext context, VoidCallback onUpdated, {List<StatisticsRecord>? recordsToRepeat}) {
     final l10n = _l10n;
     final defaultName = l10n.statsSetDefaultName(_statsSets.length + 1);
     final controller = TextEditingController(text: defaultName);
+    final fieldControllers = <TextEditingController>[TextEditingController(text: 'Hodnota')];
 
     showDialog<void>(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          title: Text(l10n.statsSetsCreate),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: l10n.statsSetNameLabel,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(l10n.cancel),
-            ),
-            TextButton(
-              onPressed: () {
-                final newName = controller.text.trim();
-                if (newName.isNotEmpty) {
-                  setState(() {
-                    _statsSets.add(StatisticsSet(name: newName, data: []));
-                    _currentStatsSetIndex = _statsSets.length - 1;
-                  });
-                  _saveStatsData();
-                  onUpdated();
-                  Navigator.pop(ctx);
-                  
-                  if (valuesToRepeat != null) {
-                    speak(_s(
-                      'Sada $newName vytvořena. Nyní můžete zadat počet opakování pro vložení hodnot.',
-                      'Set $newName created. You can now enter the number of repetitions to insert the values.',
-                    ));
-                    _showRepeatDialog(valuesToRepeat);
-                  } else {
-                    speak(l10n.statsSetCreatedAnnouncement(newName));
-                  }
-                }
-              },
-              child: Text(l10n.confirmAction),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(l10n.statsSetsCreate),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: l10n.statsSetNameLabel,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(_s('Názvy polí:', 'Field names:'),
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...List.generate(fieldControllers.length, (i) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: fieldControllers[i],
+                                decoration: InputDecoration(
+                                  labelText: '${_s("Pole", "Field")} ${i + 1}',
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                ),
+                              ),
+                            ),
+                            if (fieldControllers.length > 1)
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle, color: Colors.red, size: 20),
+                                tooltip: _s('Odebrat pole ${i + 1}', 'Remove field ${i + 1}'),
+                                onPressed: () {
+                                  setDialogState(() {
+                                    fieldControllers[i].dispose();
+                                    fieldControllers.removeAt(i);
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                    TextButton.icon(
+                      icon: const Icon(Icons.add, size: 18),
+                      label: Text(_s('Přidat pole', 'Add field')),
+                      onPressed: () {
+                        setDialogState(() {
+                          fieldControllers.add(TextEditingController(
+                              text: _s('Pole ${fieldControllers.length + 1}', 'Field ${fieldControllers.length + 1}')));
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(l10n.cancel),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final newName = controller.text.trim();
+                    if (newName.isNotEmpty) {
+                      final fieldNames = fieldControllers
+                          .map((c) => c.text.trim())
+                          .where((n) => n.isNotEmpty)
+                          .toList();
+                      if (fieldNames.isEmpty) fieldNames.add('Hodnota');
+                      setState(() {
+                        _statsSets.add(StatisticsSet(
+                          name: newName,
+                          fieldNames: fieldNames,
+                          records: [],
+                        ));
+                        _currentStatsSetIndex = _statsSets.length - 1;
+                        _selectedFieldIndex = 0;
+                      });
+                      _saveStatsData();
+                      onUpdated();
+                      Navigator.pop(ctx);
+                      
+                      if (recordsToRepeat != null) {
+                        speak(_s(
+                          'Sada $newName vytvořena. Nyní můžete zadat počet opakování pro vložení hodnot.',
+                          'Set $newName created. You can now enter the number of repetitions to insert the values.',
+                        ));
+                        _showRepeatDialog(recordsToRepeat);
+                      } else {
+                        speak(l10n.statsSetCreatedAnnouncement(newName));
+                      }
+                    }
+                  },
+                  child: Text(l10n.confirmAction),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -4224,29 +4449,33 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     speak(question);
   }
 
-  void _addValuesToStats(List<double> values, int count) {
+  void _addValuesToStats(List<StatisticsRecord> records, int count) {
     setState(() {
       for (int i = 0; i < count; i++) {
-        _statsMemory.addAll(values);
+        _statsMemory.addAll(records.map((r) => r.copyWith()));
       }
-      _lastAddedBatch = List.from(values);
+      _lastAddedBatch =
+          records.map((r) => StatisticsRecord(values: List.from(r.values))).toList();
       display = '';
       _cursorPosition = 0;
     });
     _saveStatsData();
 
     final setName = _statsSets[_currentStatsSetIndex].name;
-    final int totalAdded = values.length * count;
+    final int totalAdded = records.length * count;
+    final int fieldCount = _currentFieldCount;
     String spoken;
 
-    if (totalAdded > 3) {
+    if (totalAdded > 3 || fieldCount > 1) {
       spoken = _s(
-        'Přidáno $totalAdded hodnot do sady $setName. V paměti je celkem ${_statsMemory.length} ${_getStatsCountForm(_statsMemory.length)}.',
-        'Added $totalAdded values to set $setName. Memory now contains ${_statsMemory.length} ${_getStatsCountForm(_statsMemory.length)}.',
+        'Přidáno $totalAdded záznamů do sady $setName. V paměti je celkem ${_statsMemory.length} ${_getStatsCountForm(_statsMemory.length)}.',
+        'Added $totalAdded records to set $setName. Memory now contains ${_statsMemory.length} ${_getStatsCountForm(_statsMemory.length)}.',
       );
     } else {
-      String valuesStr = values
-          .map((v) => _formatNumber(v).replaceAll('.', ',') + ';')
+      String valuesStr = records
+          .map((r) => r.values
+              .map((v) => _formatNumber(v).replaceAll('.', ','))
+              .join(';'))
           .join(' ');
       String countForm = _getStatsCountForm(_statsMemory.length);
 
@@ -4266,7 +4495,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  void _showRepeatDialog(List<double> values) {
+  void _showRepeatDialog(List<StatisticsRecord> records) {
     final l10n = _l10n;
     TextEditingController controller = TextEditingController(text: '1');
 
@@ -4291,7 +4520,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           TextButton(
             onPressed: () {
               int count = int.tryParse(controller.text) ?? 1;
-              _addValuesToStats(values, count);
+              _addValuesToStats(records, count);
               Navigator.pop(context);
             },
             child: Text(l10n.confirmAction),
@@ -4308,20 +4537,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         'No statistics set created. Enter a name for a new set first.',
       ));
       
-      List<double>? valuesToRepeat;
+      List<StatisticsRecord>? recordsToRepeat;
       if (display.isNotEmpty) {
         try {
-          valuesToRepeat = display
-              .split(';')
-              .where((s) => s.trim().isNotEmpty)
-              .map((s) => double.parse(s.trim().replaceAll(',', '.')))
-              .toList();
+          recordsToRepeat = _parseDisplayToRecords(display);
         } catch (_) {}
       }
       
       _showCreateStatsSetDialog(context, () {
         _handleMultipleStatisticsAddition();
-      }, valuesToRepeat: valuesToRepeat);
+      }, recordsToRepeat: recordsToRepeat);
       return;
     }
     if (display.isEmpty) {
@@ -4332,13 +4557,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return;
     }
     try {
-      List<double> valuesToAdd = display
-          .split(';')
-          .where((s) => s.trim().isNotEmpty)
-          .map((s) => double.parse(s.trim().replaceAll(',', '.')))
-          .toList();
+      final recordsToAdd = _parseDisplayToRecords(display);
 
-      if (valuesToAdd.isEmpty) {
+      if (recordsToAdd.isEmpty) {
         speak(_s(
           'Žádná platná čísla k uložení.',
           'No valid numbers to store.',
@@ -4346,7 +4567,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return;
       }
 
-      _showRepeatDialog(valuesToAdd);
+      _showRepeatDialog(recordsToAdd);
     } catch (e) {
       speak(_s(
         'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
@@ -4559,11 +4780,55 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(8.0),
                         color: Colors.blue.withOpacity(0.1),
-                        child: Text(
-                          parent._l10n.statsCurrentSetLabel(parent._statsSets[parent._currentStatsSetIndex].name) +
-                              ' (${parent._statsMemory.length} ${parent._getStatsCountForm(parent._statsMemory.length)})',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
+                        child: Column(
+                          children: [
+                            Text(
+                              parent._l10n.statsCurrentSetLabel(parent._statsSets[parent._currentStatsSetIndex].name) +
+                                  ' (${parent._statsMemory.length} ${parent._getStatsCountForm(parent._statsMemory.length)})',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                            if (parent._currentFieldCount > 1)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Semantics(
+                                  label: parent._s(
+                                    'Pole: ${parent._statsSets[parent._currentStatsSetIndex].fieldNames[parent._selectedFieldIndex]}',
+                                    'Field: ${parent._statsSets[parent._currentStatsSetIndex].fieldNames[parent._selectedFieldIndex]}',
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ExcludeSemantics(
+                                        child: Text(parent._s('Pole: ', 'Field: '), style: const TextStyle(fontSize: 12)),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      DropdownButton<int>(
+                                        value: parent._selectedFieldIndex,
+                                        underline: const SizedBox(),
+                                        isDense: true,
+                                        style: const TextStyle(fontSize: 12, color: Colors.black),
+                                        items: List.generate(parent._currentFieldCount, (i) {
+                                          return DropdownMenuItem(
+                                            value: i,
+                                            child: Text(parent._statsSets[parent._currentStatsSetIndex].fieldNames[i]),
+                                          );
+                                        }),
+                                        onChanged: (val) {
+                                          if (val != null) {
+                                            parent.setState(() => parent._selectedFieldIndex = val);
+                                            parent.speak(parent._s(
+                                              'Vybráno pole ${parent._statsSets[parent._currentStatsSetIndex].fieldNames[val]}',
+                                              'Selected field ${parent._statsSets[parent._currentStatsSetIndex].fieldNames[val]}',
+                                            ));
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     )
@@ -4600,7 +4865,7 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                     runSpacing: 4,
                     children: [
                       'MEAN', 'SD', 'VAR', 'SUM',
-                      'MED', 'MODE', 'CV'
+                      'MED', 'MODE', 'CV', 'WMEAN'
                     ].map((b) {
                       return SizedBox(
                         width: (MediaQuery.of(ctx).size.width - 80) / 4,
@@ -4622,7 +4887,9 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                       parent.speak(parent._s('Žádná data v poslední dávce.', 'No data in the last batch.'), force: true);
                     } else {
                       String valuesStr = parent._lastAddedBatch
-                          .map((v) => parent._formatNumber(v).replaceAll('.', ',') + ';')
+                          .map((r) => r.values
+                              .map((v) => parent._formatNumber(v).replaceAll('.', ','))
+                              .join(';'))
                           .join(' ');
                       parent.speak(parent._s(
                         'Poslední vložená data: $valuesStr',
