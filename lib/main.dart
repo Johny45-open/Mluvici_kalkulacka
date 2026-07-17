@@ -10,6 +10,8 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'update_checker.dart';
 
 void main() async {
@@ -2005,18 +2007,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
       final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
 
-      String? outputPath = await FilePicker.platform.saveFile(
-        dialogTitle: _l10n.backupData,
-        fileName: 'kalkulacka_zaloha.json',
-        type: FileType.custom,
-        allowedExtensions: ['json'],
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/kalkulacka_zaloha.json');
+      await file.writeAsString(jsonStr);
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          subject: _l10n.backupData,
+        ),
       );
 
-      if (outputPath != null) {
-        await File(outputPath).writeAsString(jsonStr);
-        speak(_l10n.backupSuccess, force: true);
-      }
+      speak(_l10n.backupSuccess, force: true);
     } catch (e) {
+      debugPrint('Chyba při vytváření zálohy: $e');
       speak('Chyba při vytváření zálohy', force: true);
     }
   }
@@ -2066,6 +2070,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       setState(() {});
       speak(_l10n.restoreSuccess, force: true);
     } catch (e) {
+      debugPrint('Chyba při obnově dat: $e');
       speak('Chyba při obnově dat', force: true);
     }
   }
