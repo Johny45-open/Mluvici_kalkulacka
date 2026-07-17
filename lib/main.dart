@@ -166,8 +166,11 @@ class CalculatorScreen extends StatefulWidget {
   State<CalculatorScreen> createState() => _CalculatorScreenState();
 }
 
-class _CalculatorScreenState extends State<CalculatorScreen> {
+class _CalculatorScreenState extends State<CalculatorScreen>
+    with WidgetsBindingObserver {
   static const String _currentAppVersion = '1.0.0+1';
+  static const MethodChannel _accessibilityChannel =
+      MethodChannel('com.example.mluvici_kalkulacka/accessibility');
 
   final FlutterTts tts = FlutterTts();
   final FocusNode _mainFocusNode = FocusNode();
@@ -188,6 +191,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   double _speechRate = 0.5;
   double _speechVolume = 1.0;
   ScreenReaderMode _screenReaderMode = ScreenReaderMode.auto;
+  bool _accessibleNavigation = false;
   String? _ttsEngine;
   int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
 
@@ -896,6 +900,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshAccessibilityState();
     _initTts();
     _loadSettings();
     _loadHistory();
@@ -910,8 +916,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mainFocusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAccessibilityFeatures() {
+    _refreshAccessibilityState();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshAccessibilityState();
+    }
   }
 
   Future<void> _checkForUpdates() async {
@@ -1034,6 +1053,26 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return _getModeSpeechNameForL10n(mode, _l10n);
   }
 
+  Future<void> _refreshAccessibilityState() async {
+    try {
+      final result = await _accessibilityChannel.invokeMethod<bool>(
+        'isTalkBackEnabled',
+      );
+      if (result != null && mounted) {
+        setState(() {
+          _accessibleNavigation = result;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _accessibleNavigation = WidgetsBinding.instance
+              .platformDispatcher.accessibilityFeatures.accessibleNavigation;
+        });
+      }
+    }
+  }
+
   bool get _isScreenReaderActive {
     switch (_screenReaderMode) {
       case ScreenReaderMode.on:
@@ -1041,7 +1080,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       case ScreenReaderMode.off:
         return false;
       case ScreenReaderMode.auto:
-        return MediaQuery.of(context).accessibleNavigation;
+        return _accessibleNavigation;
     }
   }
 
@@ -3810,7 +3849,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final l10n = _l10n;
     final value = _lastNumericValue;
     if (value == null) {
-      speak(l10n.infoNoResult, force: true);
+      speak(l10n.infoNoResult);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.infoNoResult)),
@@ -3926,7 +3965,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 autofocus: true,
                 onFocusChange: (hasFocus) {
                   if (hasFocus && !_isScreenReaderActive) {
-                    speak(spokenText, force: true);
+                    speak(spokenText);
                   }
                 },
                 child: _applyDialogSize(
@@ -3985,7 +4024,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       'Read all information aloud'),
                   button: true,
                   child: TextButton(
-                    onPressed: () => speak(spokenText, force: true),
+                    onPressed: () => speak(spokenText),
                     child: Text(l10n.infoRead),
                   ),
                 ),
