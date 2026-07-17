@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'update_checker.dart';
 
 void main() async {
@@ -207,7 +208,7 @@ class CalculatorScreen extends StatefulWidget {
 
 class _CalculatorScreenState extends State<CalculatorScreen>
     with WidgetsBindingObserver {
-  static const String _currentAppVersion = '1.0.0+1';
+  late final String _currentAppVersion;
   static const MethodChannel _accessibilityChannel =
       MethodChannel('com.example.mluvici_kalkulacka/accessibility');
 
@@ -936,12 +937,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _loadSettings();
     _loadHistory();
     _loadStatsData();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _mainFocusNode.requestFocus();
-        _checkForUpdates();
-      }
-    });
+    _initAppVersion();
+  }
+
+  Future<void> _initAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    _currentAppVersion = '${info.version}+${info.buildNumber}';
+    if (mounted) {
+      _mainFocusNode.requestFocus();
+      _checkForUpdates();
+    }
   }
 
   @override
