@@ -949,6 +949,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return;
     }
 
+    await _showUpdateDialog(release);
+  }
+
+  Future<void> _showUpdateDialog(GitHubReleaseInfo release) async {
     setState(() {
       _updateDialogShown = true;
     });
@@ -4390,7 +4394,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 );
                 if (mounted) {
                   if (release != null) {
-                    _checkForUpdates();
+                    _showUpdateDialog(release);
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Aplikace je aktuální.')),

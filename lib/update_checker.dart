@@ -82,33 +82,44 @@ class GitHubReleaseChecker {
     required String repo,
     required String currentVersion,
   }) async {
-    final uri = Uri.https('api.github.com', '/repos/$owner/$repo/releases/latest');
-    final response = await _client.get(
-      uri,
-      headers: {
-        'Accept': 'application/vnd.github+json',
-        'User-Agent': 'MluviciKalkulackaApp', // GitHub vyžaduje identifikaci klienta
-      },
-    );
-
-    if (response.statusCode != 200) {
-      debugPrint(
-        'Failed to check for updates: ${response.statusCode} ${response.body}',
+    try {
+      final uri = Uri.https('api.github.com', '/repos/$owner/$repo/releases/latest');
+      final response = await _client.get(
+        uri,
+        headers: {
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': 'MluviciKalkulackaApp',
+        },
       );
+
+      if (response.statusCode != 200) {
+        debugPrint(
+          'Failed to check for updates: ${response.statusCode} ${response.body}',
+        );
+        return null;
+      }
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final tagName = (json['tag_name'] as String?) ?? '';
+      if (tagName.isEmpty) {
+        debugPrint('GitHub release has empty tag_name');
+        return null;
+      }
+
+      final release = GitHubReleaseInfo(
+        tagName: tagName,
+        htmlUrl: json['html_url'] as String?,
+        body: json['body'] as String?,
+      );
+
+      if (release.isNewerThan(currentVersion)) {
+        return release;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error checking for updates: $e');
       return null;
     }
-
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
-    final release = GitHubReleaseInfo(
-      tagName: (json['tag_name'] as String?) ?? '',
-      htmlUrl: json['html_url'] as String?,
-      body: json['body'] as String?,
-    );
-
-    if (release.isNewerThan(currentVersion)) {
-      return release;
-    }
-
-    return null;
   }
 }
