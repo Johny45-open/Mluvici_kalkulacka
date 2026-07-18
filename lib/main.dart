@@ -5235,20 +5235,27 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
   bool _isExpanded = false;
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ListTile(
-          title: Text(
-            widget.title,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+    return Semantics(
+      container: true,
+      label: widget.title,
+      child: Column(
+        children: [
+          Semantics(
+            label: _isExpanded ? 'Sbalit ${widget.title}' : 'Rozbalit ${widget.title}',
+            child: ListTile(
+              title: Text(
+                widget.title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              trailing: Icon(
+                _isExpanded ? Icons.expand_less : Icons.expand_more,
+              ),
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+            ),
           ),
-          trailing: Icon(
-            _isExpanded ? Icons.expand_less : Icons.expand_more,
-          ),
-          onTap: () => setState(() => _isExpanded = !_isExpanded),
-        ),
-        if (_isExpanded) ...widget.children,
-      ],
+          if (_isExpanded) ...widget.children,
+        ],
+      ),
     );
   }
 }
@@ -6497,102 +6504,122 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Nastavení přístupnosti'),
+      title: Semantics(header: true, child: const Text('Nastavení přístupnosti')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  widget.parent.setState(
-                    () => widget.parent._useSixteenSegment =
-                        !widget.parent._useSixteenSegment,
-                  );
-                  widget.parent._saveSettings();
-                });
-                widget.parent.speak(
-                  widget.parent._useSixteenSegment
-                      ? 'Zapnut 16-segmentový displej'
-                      : 'Zapnut 7-segmentový displej',
-                );
-              },
-              child: Text(
-                'Displej: ${widget.parent._useSixteenSegment ? '16-segmentový' : '7-segmentový'}',
-              ),
-            ),
-            const Divider(),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  widget.parent.setState(
-                    () => widget.parent.ttsEnabled = !widget.parent.ttsEnabled,
-                  );
-                  widget.parent._saveSettings();
-                });
-                widget.parent.speak(
-                  widget.parent.ttsEnabled ? 'Hlas zapnut' : 'Hlas vypnut',
-                );
-              },
-              child: Text(
-                'Hlasový výstup: ${widget.parent.ttsEnabled ? 'Zapnuto' : 'Vypnuto'}',
-              ),
-            ),
-            const Divider(),
-            const Text('Režim čtečky obrazovky'),
-            const SizedBox(height: 8),
-            SegmentedButton<ScreenReaderMode>(
-              segments: const [
-                ButtonSegment(value: ScreenReaderMode.auto, label: Text('Auto')),
-                ButtonSegment(value: ScreenReaderMode.on, label: Text('Zapnuto')),
-                ButtonSegment(value: ScreenReaderMode.off, label: Text('Vypnuto')),
-              ],
-              selected: {widget.parent._screenReaderMode},
-              onSelectionChanged: (Set<ScreenReaderMode> selected) {
-                final mode = selected.first;
-                setState(() {
-                  widget.parent.setState(() {
-                    widget.parent._screenReaderMode = mode;
+            Semantics(
+              label: 'Přepnutí typu displeje',
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    widget.parent.setState(
+                      () => widget.parent._useSixteenSegment =
+                          !widget.parent._useSixteenSegment,
+                    );
+                    widget.parent._saveSettings();
                   });
-                  widget.parent._saveSettings();
-                });
-                widget.parent.speak(
-                  mode == ScreenReaderMode.auto
-                      ? 'Režim čtečky: automaticky'
-                      : mode == ScreenReaderMode.on
-                          ? 'Režim čtečky obrazovky zapnut'
-                          : 'Režim čtečky obrazovky vypnut',
-                );
-              },
-            ),
-            const Divider(),
-            ElevatedButton(
-              onPressed: () {
-                widget.parent._showTtsEngineDialog();
-              },
-              child: Text(
-                'Engine: ${widget.parent._ttsEngine ?? 'Výchozí'}',
+                  widget.parent.speak(
+                    widget.parent._useSixteenSegment
+                        ? 'Zapnut 16-segmentový displej'
+                        : 'Zapnut 7-segmentový displej',
+                  );
+                },
+                child: Text(
+                  'Displej: ${widget.parent._useSixteenSegment ? '16-segmentový' : '7-segmentový'}',
+                ),
               ),
             ),
             const Divider(),
-            ElevatedButton(
-              onPressed: () {
-                // Pokud je null nebo 1, nastavíme na 0 (DMS). Pokud je 0, nastavíme na 1 (Desetinné).
-                final current = widget.parent._inverseFormatPreference ?? 1;
-                final newFormat = (current == 0) ? 1 : 0;
-                
-                widget.parent._saveInversePreference(newFormat);
-                
-                widget.parent.speak(
-                  newFormat == 0
-                      ? 'Formát nastaven na stupně, minuty a sekundy'
-                      : 'Formát nastaven na desetinné stupně',
-                );
-                // Vynucené překreslení dialogu
-                setState(() {});
-              },
-              child: Text(
-                'Úhly: ${(widget.parent._inverseFormatPreference == 0) ? 'DMS' : 'Desetinné'}',
+            Semantics(
+              label: 'Přepnutí hlasového výstupu',
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    widget.parent.setState(
+                      () => widget.parent.ttsEnabled = !widget.parent.ttsEnabled,
+                    );
+                    widget.parent._saveSettings();
+                  });
+                  widget.parent.speak(
+                    widget.parent.ttsEnabled ? 'Hlas zapnut' : 'Hlas vypnut',
+                  );
+                },
+                child: Text(
+                  'Hlasový výstup: ${widget.parent.ttsEnabled ? 'Zapnuto' : 'Vypnuto'}',
+                ),
+              ),
+            ),
+            const Divider(),
+            Semantics(
+              container: true,
+              label: 'Režim čtečky obrazovky',
+              child: Column(
+                children: [
+                  const Text('Režim čtečky obrazovky'),
+                  const SizedBox(height: 8),
+                  SegmentedButton<ScreenReaderMode>(
+                    segments: const [
+                      ButtonSegment(value: ScreenReaderMode.auto, label: Text('Auto')),
+                      ButtonSegment(value: ScreenReaderMode.on, label: Text('Zapnuto')),
+                      ButtonSegment(value: ScreenReaderMode.off, label: Text('Vypnuto')),
+                    ],
+                    selected: {widget.parent._screenReaderMode},
+                    onSelectionChanged: (Set<ScreenReaderMode> selected) {
+                      final mode = selected.first;
+                      setState(() {
+                        widget.parent.setState(() {
+                          widget.parent._screenReaderMode = mode;
+                        });
+                        widget.parent._saveSettings();
+                      });
+                      widget.parent.speak(
+                        mode == ScreenReaderMode.auto
+                            ? 'Režim čtečky: automaticky'
+                            : mode == ScreenReaderMode.on
+                                ? 'Režim čtečky obrazovky zapnut'
+                                : 'Režim čtečky obrazovky vypnut',
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
+            Semantics(
+              label: 'Nastavení hlasového engine',
+              child: ElevatedButton(
+                onPressed: () {
+                  widget.parent._showTtsEngineDialog();
+                },
+                child: Text(
+                  'Engine: ${widget.parent._ttsEngine ?? 'Výchozí'}',
+                ),
+              ),
+            ),
+            const Divider(),
+            Semantics(
+              label: 'Přepnutí formátu úhlů',
+              child: ElevatedButton(
+                onPressed: () {
+                  // Pokud je null nebo 1, nastavíme na 0 (DMS). Pokud je 0, nastavíme na 1 (Desetinné).
+                  final current = widget.parent._inverseFormatPreference ?? 1;
+                  final newFormat = (current == 0) ? 1 : 0;
+                  
+                  widget.parent._saveInversePreference(newFormat);
+                  
+                  widget.parent.speak(
+                    newFormat == 0
+                        ? 'Formát nastaven na stupně, minuty a sekundy'
+                        : 'Formát nastaven na desetinné stupně',
+                  );
+                  // Vynucené překreslení dialogu
+                  setState(() {});
+                },
+                child: Text(
+                  'Úhly: ${(widget.parent._inverseFormatPreference == 0) ? 'DMS' : 'Desetinné'}',
+                ),
               ),
             ),
             const Divider(),
