@@ -207,5 +207,33 @@
         "type": "String"
       }
     }
-  }
+  },
+  "statsHelpTitle": "Nápověda ke statistice",
+  "statsHelpButton": "Nápověda k ovládání",
+  "statsHelpText": "=== NÁPOVĚDA KE STATISTICE ===\n\nTLAČÍTKA NA KLÁVESNICI:\n\nSETS – Správa statistických sad. Umožňuje vytvořit novou sadu, přejmenovat ji, smazat nebo přepínat mezi sadami.\n\nM+ (krátké stisknutí) – Přidá zadanou hodnotu (nebo více hodnot oddělených středníkem) do aktivní sady.\n\nM+ (dlouhé stisknutí) – Přidá hodnoty a umožní zadat počet opakování pro hromadné vložení stejných dat.\n\nMC – Smaže všechna data v aktivní sadě.\n\nMR – Zobrazí všechna uložená data v editovatelném seznamu.\n\nSTATS – Zobrazí statistický souhrn pro vybrané pole: průměr, součet, rozptyl, směrodatnou odchylku, medián, modus a variační koeficient.\n\n; (středník) – Oddělovač hodnot při zadávání více hodnot najednou (např. 5;10;15).\n\nPOKROČILÉ FUNKCE (dostupné z tlačítka se seznamem v horní liště):\n\nMEAN – Aritmetický průměr všech hodnot.\nSD – Směrodatná odchylka (míra rozptylu hodnot kolem průměru).\nVAR – Rozptyl (průměrná čtvercová odchylka od průměru).\nSUM – Součet všech hodnot.\nMED – Medián (prostřední hodnota seřazených dat).\nMODE – Modus (nejčastější hodnota).\nCV – Variační koeficient (SD v procentech průměru).\nWMEAN – Vážený průměr (vyžaduje 2 pole: hodnoty a váhy).\n\nPOLÍ V SADĚ:\n\nKaždá sada může mít více polí (např. \"Hodnota\" a \"Váha\"). Při vytváření sady (SETS → Vytvořit novou sadu) přidáš další pole tlačítkem \"Přidat pole\". Poté můžeš přepínat, pro které pole se statistiky počítají – buď v dialogu STATS, nebo v Pokročilých funkcích.\n\nVÁŽENÝ PRŮMĚR (WMEAN):\n\nVyžaduje sadu s alespoň 2 poli. Pole 0 = hodnoty, pole 1 = váhy. Postup: 1) Vytvoř sadu se 2 poli (např. \"Hodnota\" a \"Váha\"). 2) Zadávej hodnoty a váhy oddělené středníkem, např. \"80;2\" (hodnota 80 s váhou 2). 3) Po zadání všech dat klepni v Pokročilých funkcích na WMEAN. 4) Aplikace vypočte: (hodnota1 × váha1 + hodnota2 × váha2 + ...) / (váha1 + váha2 + ...).\n\nTIPY:\n- Lze vytvářet více sad pro různé skupiny dat.\n- Každá sada může mít více polí (např. hodnoty, váhy).\n- Nová sada se vytvoří automaticky při prvním vložení dat.\n- Data se automaticky ukládají do paměti telefonu.",
+  "statsHelpKeyboardSection": "Tlačítka na klávesnici",
+  "statsHelpAdvancedSection": "Pokročilé funkce",
+  "statsHelpFieldsSection": "Pole v sadě",
+  "statsHelpWeightedMeanSection": "Vážený průměr (WMEAN)",
+  "statsHelpTipsSection": "Tipy",
+  "statsHelpKeyboardSets": "SETS – Správa statistických sad. Umožňuje vytvořit novou sadu, přejmenovat ji, smazat nebo přepínat mezi sadami.",
+  "statsHelpKeyboardMPlus": "M+ (krátké stisknutí) – Přidá zadanou hodnotu (nebo více hodnot oddělených středníkem) do aktivní sady. Dlouhé stisknutí – Přidá hodnoty a umožní zadat počet opakování pro hromadné vložení stejných dat.",
+  "statsHelpKeyboardMc": "MC – Smaže všechna data v aktivní sadě.",
+  "statsHelpKeyboardMr": "MR – Zobrazí všechna uložená data v editovatelném seznamu.",
+  "statsHelpKeyboardStats": "STATS – Zobrazí statistický souhrn pro vybrané pole: průměr, součet, rozptyl, směrodatnou odchylku, medián, modus a variační koeficient.",
+  "statsHelpKeyboardSemicolon": "; (středník) – Oddělovač hodnot při zadávání více hodnot najednou (např. 5;10;15).",
+  "statsHelpAdvancedMean": "MEAN – Aritmetický průměr všech hodnot.",
+  "statsHelpAdvancedSd": "SD – Směrodatná odchylka (míra rozptylu hodnot kolem průměru).",
+  "statsHelpAdvancedVar": "VAR – Rozptyl (průměrná čtvercová odchylka od průměru).",
+  "statsHelpAdvancedSum": "SUM – Součet všech hodnot.",
+  "statsHelpAdvancedMed": "MED – Medián (prostřední hodnota seřazených dat).",
+  "statsHelpAdvancedMode": "MODE – Modus (nejčastější hodnota).",
+  "statsHelpAdvancedCv": "CV – Variační koeficient (SD v procentech průměru).",
+  "statsHelpAdvancedWmean": "WMEAN – Vážený průměr (vyžaduje 2 pole: hodnoty a váhy).",
+  "statsHelpFieldsDesc": "Každá sada může mít více polí (např. \"Hodnota\" a \"Váha\"). Při vytváření sady (SETS → Vytvořit novou sadu) přidáš další pole tlačítkem \"Přidat pole\". Poté můžeš přepínat, pro které pole se statistiky počítají – buď v dialogu STATS, nebo v Pokročilých funkcích.",
+  "statsHelpWeightedMeanDesc": "Vyžaduje sadu s alespoň 2 poli. Pole 0 = hodnoty, pole 1 = váhy.\\n\\nPostup:\\n1) Vytvoř sadu se 2 poli (např. \"Hodnota\" a \"Váha\").\\n2) Zadávej hodnoty a váhy oddělené středníkem, např. \"80;2\" (hodnota 80 s váhou 2).\\n3) Po zadání všech dat klepni v Pokročilých funkcích na WMEAN.\\n4) Aplikace vypočte: (hodnota1 × váha1 + hodnota2 × váha2 + ...) / (váha1 + váha2 + ...).",
+  "statsHelpTip1": "Lze vytvářet více sad pro různé skupiny dat.",
+  "statsHelpTip2": "Každá sada může mít více polí (např. hodnoty, váhy).",
+  "statsHelpTip3": "Nová sada se vytvoří automaticky při prvním vložení dat.",
+  "statsHelpTip4": "Data se automaticky ukládají do paměti telefonu."
 }

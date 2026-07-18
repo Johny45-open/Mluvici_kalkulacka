@@ -605,6 +605,174 @@ abstract class AppLocalizations {
   /// **'Active set: {name}'**
   String statsCurrentSetLabel(String name);
 
+  /// No description provided for @statsHelpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics Help'**
+  String get statsHelpTitle;
+
+  /// No description provided for @statsHelpButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Help with controls'**
+  String get statsHelpButton;
+
+  /// No description provided for @statsHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'...'**
+  String get statsHelpText;
+
+  /// No description provided for @statsHelpKeyboardSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard buttons'**
+  String get statsHelpKeyboardSection;
+
+  /// No description provided for @statsHelpAdvancedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced functions'**
+  String get statsHelpAdvancedSection;
+
+  /// No description provided for @statsHelpFieldsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Fields in a set'**
+  String get statsHelpFieldsSection;
+
+  /// No description provided for @statsHelpWeightedMeanSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Weighted mean (WMEAN)'**
+  String get statsHelpWeightedMeanSection;
+
+  /// No description provided for @statsHelpTipsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Tips'**
+  String get statsHelpTipsSection;
+
+  /// No description provided for @statsHelpKeyboardSets.
+  ///
+  /// In en, this message translates to:
+  /// **'SETS – Manage statistics sets...'**
+  String get statsHelpKeyboardSets;
+
+  /// No description provided for @statsHelpKeyboardMPlus.
+  ///
+  /// In en, this message translates to:
+  /// **'M+ ...'**
+  String get statsHelpKeyboardMPlus;
+
+  /// No description provided for @statsHelpKeyboardMc.
+  ///
+  /// In en, this message translates to:
+  /// **'MC ...'**
+  String get statsHelpKeyboardMc;
+
+  /// No description provided for @statsHelpKeyboardMr.
+  ///
+  /// In en, this message translates to:
+  /// **'MR ...'**
+  String get statsHelpKeyboardMr;
+
+  /// No description provided for @statsHelpKeyboardStats.
+  ///
+  /// In en, this message translates to:
+  /// **'STATS ...'**
+  String get statsHelpKeyboardStats;
+
+  /// No description provided for @statsHelpKeyboardSemicolon.
+  ///
+  /// In en, this message translates to:
+  /// **'; ...'**
+  String get statsHelpKeyboardSemicolon;
+
+  /// No description provided for @statsHelpAdvancedMean.
+  ///
+  /// In en, this message translates to:
+  /// **'MEAN ...'**
+  String get statsHelpAdvancedMean;
+
+  /// No description provided for @statsHelpAdvancedSd.
+  ///
+  /// In en, this message translates to:
+  /// **'SD ...'**
+  String get statsHelpAdvancedSd;
+
+  /// No description provided for @statsHelpAdvancedVar.
+  ///
+  /// In en, this message translates to:
+  /// **'VAR ...'**
+  String get statsHelpAdvancedVar;
+
+  /// No description provided for @statsHelpAdvancedSum.
+  ///
+  /// In en, this message translates to:
+  /// **'SUM ...'**
+  String get statsHelpAdvancedSum;
+
+  /// No description provided for @statsHelpAdvancedMed.
+  ///
+  /// In en, this message translates to:
+  /// **'MED ...'**
+  String get statsHelpAdvancedMed;
+
+  /// No description provided for @statsHelpAdvancedMode.
+  ///
+  /// In en, this message translates to:
+  /// **'MODE ...'**
+  String get statsHelpAdvancedMode;
+
+  /// No description provided for @statsHelpAdvancedCv.
+  ///
+  /// In en, this message translates to:
+  /// **'CV ...'**
+  String get statsHelpAdvancedCv;
+
+  /// No description provided for @statsHelpAdvancedWmean.
+  ///
+  /// In en, this message translates to:
+  /// **'WMEAN ...'**
+  String get statsHelpAdvancedWmean;
+
+  /// No description provided for @statsHelpFieldsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Each set can have multiple fields...'**
+  String get statsHelpFieldsDesc;
+
+  /// No description provided for @statsHelpWeightedMeanDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Requires a set with at least 2 fields...'**
+  String get statsHelpWeightedMeanDesc;
+
+  /// No description provided for @statsHelpTip1.
+  ///
+  /// In en, this message translates to:
+  /// **'Create multiple sets...'**
+  String get statsHelpTip1;
+
+  /// No description provided for @statsHelpTip2.
+  ///
+  /// In en, this message translates to:
+  /// **'Each set can have multiple fields...'**
+  String get statsHelpTip2;
+
+  /// No description provided for @statsHelpTip3.
+  ///
+  /// In en, this message translates to:
+  /// **'A new set is created automatically on first data entry.'**
+  String get statsHelpTip3;
+
+  /// No description provided for @statsHelpTip4.
+  ///
+  /// In en, this message translates to:
+  /// **'Data is saved automatically to the device memory.'**
+  String get statsHelpTip4;
+
   /// No description provided for @backupData.
   ///
   /// In en, this message translates to:

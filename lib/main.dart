@@ -2254,6 +2254,107 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  void _showStatisticsHelpDialog() {
+    final l10n = _l10n;
+
+    Widget _section(String title, List<String> items) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            header: true,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+          ...items.map((t) => Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: Text(t),
+          )),
+        ],
+      );
+    }
+
+    final ttsText = l10n.statsHelpText;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Semantics(header: true, child: Text(l10n.statsHelpTitle)),
+        content: Semantics(
+          container: true,
+          label: ttsText,
+          liveRegion: true,
+          child: Focus(
+            autofocus: true,
+            onFocusChange: (hasFocus) {
+              if (hasFocus && !_isScreenReaderActive) speak(ttsText);
+            },
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _section(l10n.statsHelpKeyboardSection, [
+                    l10n.statsHelpKeyboardSets,
+                    l10n.statsHelpKeyboardMPlus,
+                    l10n.statsHelpKeyboardMc,
+                    l10n.statsHelpKeyboardMr,
+                    l10n.statsHelpKeyboardStats,
+                    l10n.statsHelpKeyboardSemicolon,
+                  ]),
+                  const Divider(),
+                  _section(l10n.statsHelpAdvancedSection, [
+                    l10n.statsHelpAdvancedMean,
+                    l10n.statsHelpAdvancedSd,
+                    l10n.statsHelpAdvancedVar,
+                    l10n.statsHelpAdvancedSum,
+                    l10n.statsHelpAdvancedMed,
+                    l10n.statsHelpAdvancedMode,
+                    l10n.statsHelpAdvancedCv,
+                    l10n.statsHelpAdvancedWmean,
+                  ]),
+                  const Divider(),
+                  _section(l10n.statsHelpFieldsSection, [
+                    l10n.statsHelpFieldsDesc,
+                  ]),
+                  const Divider(),
+                  _section(l10n.statsHelpWeightedMeanSection, [
+                    l10n.statsHelpWeightedMeanDesc,
+                  ]),
+                  const Divider(),
+                  _section(l10n.statsHelpTipsSection, [
+                    '• ${l10n.statsHelpTip1}',
+                    '• ${l10n.statsHelpTip2}',
+                    '• ${l10n.statsHelpTip3}',
+                    '• ${l10n.statsHelpTip4}',
+                  ]),
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.close),
+          ),
+        ],
+      ),
+    ).then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mainFocusNode.requestFocus();
+      });
+    });
+  }
+
   void _showPrecisionDialog(DisplayFormat format) {
     showDialog(
       context: context,
@@ -3521,11 +3622,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        int localFieldIndex = _selectedFieldIndex;
-
         return StatefulBuilder(
           builder: (context, setSummaryState) {
-            final snapshot = _computeStatisticsSnapshot(localFieldIndex);
+            final snapshot = _computeStatisticsSnapshot(_selectedFieldIndex);
             if (snapshot == null) {
               speak(l10n.statsMemoryEmpty);
               if (mounted) {
@@ -3537,11 +3636,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               return const SizedBox.shrink();
             }
             final currentSetName = _statsSets[_currentStatsSetIndex].name;
-            final selectedFieldName = fieldNames[localFieldIndex];
-            final allValues = _getFieldValues(localFieldIndex)
+            final selectedFieldName = fieldNames[_selectedFieldIndex];
+            final allValues = _getFieldValues(_selectedFieldIndex)
                 .map((v) => _formatNumber(v))
                 .join(_isEnglish() ? ', ' : '; ');
-            final allValuesSpoken = _getFieldValues(localFieldIndex)
+            final allValuesSpoken = _getFieldValues(_selectedFieldIndex)
                 .map((v) => _formatSpokenNumber(v))
                 .join(_isEnglish() ? ', ' : '; ');
 
@@ -3623,41 +3722,38 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           ),
                           if (fieldNames.length > 1) ...[
                             const SizedBox(height: 4),
-                            Semantics(
-                              label: _s(
-                                'Pole: ${fieldNames[localFieldIndex]}',
-                                'Field: ${fieldNames[localFieldIndex]}',
-                              ),
-                              child: Row(
-                                children: [
-                                  ExcludeSemantics(
-                                    child: Text(_s('Pole: ', 'Field: ')),
+                            InkWell(
+                              onTap: () {
+                                final nextIndex = (_selectedFieldIndex + 1) % fieldNames.length;
+                                setState(() => _selectedFieldIndex = nextIndex);
+                                setSummaryState(() {});
+                                speak(_s(
+                                  'Vybráno pole ${fieldNames[nextIndex]}',
+                                  'Selected field ${fieldNames[nextIndex]}',
+                                ));
+                              },
+                              child: Semantics(
+                                liveRegion: true,
+                                label: _s(
+                                  'Pole: ${fieldNames[_selectedFieldIndex]}',
+                                  'Field: ${fieldNames[_selectedFieldIndex]}',
+                                ),
+                                excludeSemantics: true,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                  child: Row(
+                                    children: [
+                                      Text(_s('Pole: ', 'Field: ')),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        fieldNames[_selectedFieldIndex],
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(Icons.swap_horiz, size: 14),
+                                    ],
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: DropdownButton<int>(
-                                      value: localFieldIndex,
-                                      isExpanded: true,
-                                      underline: const SizedBox(),
-                                      items: List.generate(fieldNames.length, (i) {
-                                        return DropdownMenuItem(
-                                          value: i,
-                                          child: Text(fieldNames[i]),
-                                        );
-                                      }),
-                                      onChanged: (val) {
-                                        if (val != null) {
-                                          localFieldIndex = val;
-                                          setSummaryState(() {});
-                                          speak(_s(
-                                            'Vybráno pole ${fieldNames[val]}',
-                                            'Selected field ${fieldNames[val]}',
-                                          ));
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ],
@@ -3827,7 +3923,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   setStateDialog(() {
                                     _currentStatsSetIndex = index;
                                   });
-                                  setState(() {});
+                                  setState(() {
+                                    if (_selectedFieldIndex >= _currentFieldCount) {
+                                      _selectedFieldIndex = 0;
+                                    }
+                                  });
                                   final announcement = l10n.statsSetSelectedAnnouncement(
                                     set.name,
                                     count,
@@ -4779,6 +4879,12 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  ElevatedButton.icon(
+                    onPressed: () => parent._showStatisticsHelpDialog(),
+                    icon: const Icon(Icons.help_outline, size: 18),
+                    label: Text(parent._l10n.statsHelpButton),
+                  ),
+                  const SizedBox(height: 8),
                   if (parent._hasStatsSet)
                     Semantics(
                       label: parent._l10n.statsCurrentSetLabel(parent._statsSets[parent._currentStatsSetIndex].name),
@@ -4796,41 +4902,45 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                             if (parent._currentFieldCount > 1)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
-                                child: Semantics(
-                                  label: parent._s(
-                                    'Pole: ${parent._statsSets[parent._currentStatsSetIndex].fieldNames[parent._selectedFieldIndex]}',
-                                    'Field: ${parent._statsSets[parent._currentStatsSetIndex].fieldNames[parent._selectedFieldIndex]}',
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ExcludeSemantics(
-                                        child: Text(parent._s('Pole: ', 'Field: '), style: const TextStyle(fontSize: 12)),
+                                child: StatefulBuilder(
+                                  builder: (ctx, setLocalState) {
+                                    final fieldNames = parent._statsSets[parent._currentStatsSetIndex].fieldNames;
+                                    return InkWell(
+                                      onTap: () {
+                                        final nextIndex = (parent._selectedFieldIndex + 1) % parent._currentFieldCount;
+                                        parent.setState(() => parent._selectedFieldIndex = nextIndex);
+                                        setLocalState(() {});
+                                        parent.speak(parent._s(
+                                          'Vybráno pole ${fieldNames[nextIndex]}',
+                                          'Selected field ${fieldNames[nextIndex]}',
+                                        ));
+                                      },
+                                      child: Semantics(
+                                        liveRegion: true,
+                                        label: parent._s(
+                                          'Pole: ${fieldNames[parent._selectedFieldIndex]}',
+                                          'Field: ${fieldNames[parent._selectedFieldIndex]}',
+                                        ),
+                                        excludeSemantics: true,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(parent._s('Pole: ', 'Field: '), style: const TextStyle(fontSize: 12)),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                fieldNames[parent._selectedFieldIndex],
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Icon(Icons.swap_horiz, size: 14),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                      const SizedBox(width: 4),
-                                      DropdownButton<int>(
-                                        value: parent._selectedFieldIndex,
-                                        underline: const SizedBox(),
-                                        isDense: true,
-                                        style: const TextStyle(fontSize: 12, color: Colors.black),
-                                        items: List.generate(parent._currentFieldCount, (i) {
-                                          return DropdownMenuItem(
-                                            value: i,
-                                            child: Text(parent._statsSets[parent._currentStatsSetIndex].fieldNames[i]),
-                                          );
-                                        }),
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            parent.setState(() => parent._selectedFieldIndex = val);
-                                            parent.speak(parent._s(
-                                              'Vybráno pole ${parent._statsSets[parent._currentStatsSetIndex].fieldNames[val]}',
-                                              'Selected field ${parent._statsSets[parent._currentStatsSetIndex].fieldNames[val]}',
-                                            ));
-                                          }
-                                        },
-                                      ),
-                                    ],
-                                  ),
+                                    );
+                                  },
                                 ),
                               ),
                           ],
@@ -6552,39 +6662,54 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
             ),
             const Divider(),
-            Semantics(
-              container: true,
-              label: 'Režim čtečky obrazovky',
-              child: Column(
-                children: [
-                  const Text('Režim čtečky obrazovky'),
-                  const SizedBox(height: 8),
-                  SegmentedButton<ScreenReaderMode>(
-                    segments: const [
-                      ButtonSegment(value: ScreenReaderMode.auto, label: Text('Auto')),
-                      ButtonSegment(value: ScreenReaderMode.on, label: Text('Zapnuto')),
-                      ButtonSegment(value: ScreenReaderMode.off, label: Text('Vypnuto')),
-                    ],
-                    selected: {widget.parent._screenReaderMode},
-                    onSelectionChanged: (Set<ScreenReaderMode> selected) {
-                      final mode = selected.first;
-                      setState(() {
-                        widget.parent.setState(() {
-                          widget.parent._screenReaderMode = mode;
-                        });
-                        widget.parent._saveSettings();
-                      });
-                      widget.parent.speak(
-                        mode == ScreenReaderMode.auto
-                            ? 'Režim čtečky: automaticky'
-                            : mode == ScreenReaderMode.on
-                                ? 'Režim čtečky obrazovky zapnut'
-                                : 'Režim čtečky obrazovky vypnut',
-                      );
-                    },
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  label: 'Režim čtečky obrazovky',
+                  child: ExcludeSemantics(
+                    child: const Text('Režim čtečky obrazovky'),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<ScreenReaderMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ScreenReaderMode.auto,
+                      label: Text('Auto'),
+                      tooltip: 'Automaticky podle čtečky',
+                    ),
+                    ButtonSegment(
+                      value: ScreenReaderMode.on,
+                      label: Text('Zapnuto'),
+                      tooltip: 'Režim čtečky obrazovky zapnut',
+                    ),
+                    ButtonSegment(
+                      value: ScreenReaderMode.off,
+                      label: Text('Vypnuto'),
+                      tooltip: 'Režim čtečky obrazovky vypnut',
+                    ),
+                  ],
+                  selected: {widget.parent._screenReaderMode},
+                  onSelectionChanged: (Set<ScreenReaderMode> selected) {
+                    final mode = selected.first;
+                    setState(() {
+                      widget.parent.setState(() {
+                        widget.parent._screenReaderMode = mode;
+                      });
+                      widget.parent._saveSettings();
+                    });
+                    widget.parent.speak(
+                      mode == ScreenReaderMode.auto
+                          ? 'Režim čtečky: automaticky'
+                          : mode == ScreenReaderMode.on
+                              ? 'Režim čtečky obrazovky zapnut'
+                              : 'Režim čtečky obrazovky vypnut',
+                    );
+                  },
+                ),
+              ],
             ),
             const Divider(),
             Semantics(
@@ -6623,301 +6748,352 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
             ),
             const Divider(),
-            Semantics(
-              container: true,
-              label: 'Výběr motivu aplikace',
-              child: Column(
-                children: [
-                  const Text('Motiv aplikace'),
-                  const SizedBox(height: 8),
-                  SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text('Systém'),
-                  icon: Icon(Icons.brightness_auto),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  label: 'Výběr motivu aplikace',
+                  child: ExcludeSemantics(
+                    child: const Text('Motiv aplikace'),
+                  ),
                 ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text('Světlý'),
-                  icon: Icon(Icons.light_mode),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text('Tmavý'),
-                  icon: Icon(Icons.dark_mode),
+                const SizedBox(height: 8),
+                SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      label: Text('Systém'),
+                      icon: Icon(Icons.brightness_auto),
+                      tooltip: 'Systémový motiv',
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      label: Text('Světlý'),
+                      icon: Icon(Icons.light_mode),
+                      tooltip: 'Světlý motiv',
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      label: Text('Tmavý'),
+                      icon: Icon(Icons.dark_mode),
+                      tooltip: 'Tmavý motiv',
+                    ),
+                  ],
+                  selected: {widget.parent.widget.themeMode},
+                  onSelectionChanged: (Set<ThemeMode> selection) {
+                    ThemeMode mode = selection.first;
+                    widget.parent.widget.onThemeModeChanged(mode);
+                    String modeName = 'systémový';
+                    if (mode == ThemeMode.light) modeName = 'světlý';
+                    if (mode == ThemeMode.dark) modeName = 'tmavý';
+                    widget.parent.speak('Motiv nastaven na $modeName');
+                    setState(() {});
+                  },
                 ),
               ],
-              selected: {widget.parent.widget.themeMode},
-              onSelectionChanged: (Set<ThemeMode> selection) {
-                ThemeMode mode = selection.first;
-                widget.parent.widget.onThemeModeChanged(mode);
-                String modeName = 'systémový';
-                if (mode == ThemeMode.light) modeName = 'světlý';
-                if (mode == ThemeMode.dark) modeName = 'tmavý';
-                widget.parent.speak('Motiv nastaven na $modeName');
-                setState(() {});
-              },
             ),
-                  ],
-                ),
-              ),
             const SizedBox(height: 16),
 
             // Velikost dialogů
-            Semantics(
-              container: true,
-              label: widget.parent._l10n.dialogSizeSetting,
-              child: Column(
-                children: [
-                  Text(widget.parent._l10n.dialogSizeSetting),
-                  const SizedBox(height: 8),
-                  SegmentedButton<DialogSize>(
-                    segments: [
-                      ButtonSegment(
-                        value: DialogSize.compact,
-                        label: Text(widget.parent._l10n.dialogSizeCompact),
-                        icon: const Icon(Icons.phone_android),
-                      ),
-                      ButtonSegment(
-                        value: DialogSize.wide,
-                        label: Text(widget.parent._l10n.dialogSizeWide),
-                        icon: const Icon(Icons.phone_iphone),
-                      ),
-                      ButtonSegment(
-                        value: DialogSize.fullscreen,
-                        label: Text(widget.parent._l10n.dialogSizeFullscreen),
-                        icon: const Icon(Icons.fullscreen),
-                      ),
-                    ],
-                    selected: {widget.parent._dialogSize},
-                    onSelectionChanged: (Set<DialogSize> selected) {
-                      final size = selected.first;
-                      setState(() {
-                        widget.parent.setState(() {
-                          widget.parent._dialogSize = size;
-                        });
-                        widget.parent._saveSettings();
-                      });
-                      String sizeName = widget.parent._l10n.dialogSizeCompact;
-                      if (size == DialogSize.wide) {
-                        sizeName = widget.parent._l10n.dialogSizeWide;
-                      } else if (size == DialogSize.fullscreen) {
-                        sizeName = widget.parent._l10n.dialogSizeFullscreen;
-                      }
-                      widget.parent.speak(
-                        '${widget.parent._l10n.dialogSizeSetting}: $sizeName',
-                      );
-                    },
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  label: widget.parent._l10n.dialogSizeSetting,
+                  child: ExcludeSemantics(
+                    child: Text(widget.parent._l10n.dialogSizeSetting),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<DialogSize>(
+                  segments: [
+                    ButtonSegment(
+                      value: DialogSize.compact,
+                      label: Text(widget.parent._l10n.dialogSizeCompact),
+                      icon: const Icon(Icons.phone_android),
+                      tooltip: widget.parent._l10n.dialogSizeCompact,
+                    ),
+                    ButtonSegment(
+                      value: DialogSize.wide,
+                      label: Text(widget.parent._l10n.dialogSizeWide),
+                      icon: const Icon(Icons.phone_iphone),
+                      tooltip: widget.parent._l10n.dialogSizeWide,
+                    ),
+                    ButtonSegment(
+                      value: DialogSize.fullscreen,
+                      label: Text(widget.parent._l10n.dialogSizeFullscreen),
+                      icon: const Icon(Icons.fullscreen),
+                      tooltip: widget.parent._l10n.dialogSizeFullscreen,
+                    ),
+                  ],
+                  selected: {widget.parent._dialogSize},
+                  onSelectionChanged: (Set<DialogSize> selected) {
+                    final size = selected.first;
+                    setState(() {
+                      widget.parent.setState(() {
+                        widget.parent._dialogSize = size;
+                      });
+                      widget.parent._saveSettings();
+                    });
+                    String sizeName = widget.parent._l10n.dialogSizeCompact;
+                    if (size == DialogSize.wide) {
+                      sizeName = widget.parent._l10n.dialogSizeWide;
+                    } else if (size == DialogSize.fullscreen) {
+                      sizeName = widget.parent._l10n.dialogSizeFullscreen;
+                    }
+                    widget.parent.speak(
+                      '${widget.parent._l10n.dialogSizeSetting}: $sizeName',
+                    );
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
-            // Seskupená Rychlost
-            Semantics(
-              container: true,
-              label: 'Ovládání zoomu horního řádku',
-              child: Column(
-                children: [
-                  const Text('Zoom horního řádku'),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Semantics(
-                        label: 'Zmenšit zoom',
+            Column(
+              children: [
+                Semantics(
+                  header: true,
+                  label: 'Ovládání zoomu horního řádku',
+                  child: ExcludeSemantics(
+                    child: const Text('Zoom horního řádku'),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Semantics(
+                      container: true,
+                      label: 'Zmenšit zoom horního řádku',
                         child: ElevatedButton(
                           onPressed: () => _adjustDotMatrixZoom(-0.1),
-                          child: const Text('-'),
+                          child: ExcludeSemantics(child: const Text('-')),
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          '${(widget.parent._dotMatrixZoom * 100).toInt()}%',
+                        child: Semantics(
+                          container: true,
+                          label: 'Hodnota zoomu: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
+                          child: ExcludeSemantics(
+                            child: Text(
+                              '${(widget.parent._dotMatrixZoom * 100).toInt()}%',
+                            ),
+                          ),
                         ),
                       ),
                       Semantics(
-                        label: 'Zvětšit zoom',
+                        container: true,
+                        label: 'Zvětšit zoom horního řádku',
                         child: ElevatedButton(
                           onPressed: () => _adjustDotMatrixZoom(0.1),
-                          child: const Text('+'),
+                          child: ExcludeSemantics(child: const Text('+')),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+              ],
             ),
             const SizedBox(height: 16),
-            Semantics(
-              container: true,
-              label: 'Ovládání zoomu dolního řádku',
-              child: Column(
-                children: [
-                  const Text('Zoom dolního řádku'),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Semantics(
-                        label: 'Zmenšit zoom',
+            Column(
+              children: [
+                Semantics(
+                  header: true,
+                  label: 'Ovládání zoomu dolního řádku',
+                  child: ExcludeSemantics(
+                    child: const Text('Zoom dolního řádku'),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Semantics(
+                      container: true,
+                      label: 'Zmenšit zoom dolního řádku',
                         child: ElevatedButton(
                           onPressed: () => _adjustResultZoom(-0.1),
-                          child: const Text('-'),
+                          child: ExcludeSemantics(child: const Text('-')),
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          '${(widget.parent._resultZoom * 100).toInt()}%',
+                        child: Semantics(
+                          container: true,
+                          label: 'Hodnota zoomu: ${(widget.parent._resultZoom * 100).toInt()} %',
+                          child: ExcludeSemantics(
+                            child: Text(
+                              '${(widget.parent._resultZoom * 100).toInt()}%',
+                            ),
+                          ),
                         ),
                       ),
                       Semantics(
-                        label: 'Zvětšit zoom',
+                        container: true,
+                        label: 'Zvětšit zoom dolního řádku',
                         child: ElevatedButton(
                           onPressed: () => _adjustResultZoom(0.1),
-                          child: const Text('+'),
+                          child: ExcludeSemantics(child: const Text('+')),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+              ],
             ),
             const SizedBox(height: 16),
-            // Seskupená Rychlost
-            Semantics(
-              container: true,
-              label: 'Ovládání rychlosti hlasu',
-              child: Column(
-                children: [
-                  const Text('Rychlost hlasu'),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Semantics(
-                        label: 'Snížit rychlost',
+            Column(
+              children: [
+                Semantics(
+                  header: true,
+                  label: 'Ovládání rychlosti hlasu',
+                  child: ExcludeSemantics(
+                    child: const Text('Rychlost hlasu'),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Semantics(
+                      container: true,
+                      label: 'Snížit rychlost',
                         child: ElevatedButton(
                           onPressed: () => _adjustSpeechRate(-0.1),
-                          child: const Text('-'),
+                          child: ExcludeSemantics(child: const Text('-')),
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          '${(widget.parent._speechRate * 100).toInt()}%',
+                        child: Semantics(
+                          container: true,
+                          label: 'Aktuální rychlost: ${(widget.parent._speechRate * 100).toInt()} %',
+                          child: ExcludeSemantics(
+                            child: Text(
+                              '${(widget.parent._speechRate * 100).toInt()}%',
+                            ),
+                          ),
                         ),
                       ),
                       Semantics(
+                        container: true,
                         label: 'Zvýšit rychlost',
                         child: ElevatedButton(
                           onPressed: () => _adjustSpeechRate(0.1),
-                          child: const Text('+'),
+                          child: ExcludeSemantics(child: const Text('+')),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+              ],
             ),
             const SizedBox(height: 16),
 
-            // Seskupená Hlasitost
-            Semantics(
-              container: true,
-              label: 'Ovládání hlasitosti',
-              child: Column(
-                children: [
-                  const Text('Hlasitost'),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Semantics(
-                        label: 'Snížit hlasitost',
+            Column(
+              children: [
+                Semantics(
+                  header: true,
+                  label: 'Ovládání hlasitosti',
+                  child: ExcludeSemantics(
+                    child: const Text('Hlasitost'),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Semantics(
+                      container: true,
+                      label: 'Snížit hlasitost',
                         child: ElevatedButton(
                           onPressed: () => _adjustSpeechVolume(-0.1),
-                          child: const Text('-'),
+                          child: ExcludeSemantics(child: const Text('-')),
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          '${(widget.parent._speechVolume * 100).toInt()}%',
+                        child: Semantics(
+                          container: true,
+                          label: 'Aktuální hlasitost: ${(widget.parent._speechVolume * 100).toInt()} %',
+                          child: ExcludeSemantics(
+                            child: Text(
+                              '${(widget.parent._speechVolume * 100).toInt()}%',
+                            ),
+                          ),
                         ),
                       ),
                       Semantics(
+                        container: true,
                         label: 'Zvýšit hlasitost',
                         child: ElevatedButton(
                           onPressed: () => _adjustSpeechVolume(0.1),
-                          child: const Text('+'),
+                          child: ExcludeSemantics(child: const Text('+')),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+              ],
             ),
             const SizedBox(height: 16),
             const Divider(),
-            Semantics(
-              container: true,
-              label: 'Záloha a obnova dat',
-              child: Column(
-                children: [
-                  const Text('Správa dat'),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Semantics(
-                        label: 'Zálohovat data',
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.backup),
-                          onPressed: () {
-                            widget.parent._exportBackup();
-                            Navigator.pop(context);
-                          },
-                          label: const Text('Zálohovat'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Semantics(
-                        label: 'Obnovit data',
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.restore),
-                          onPressed: () async {
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('Potvrzení'),
-                                content: Text(
-                                  widget.parent._l10n.restoreConfirm,
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('NE'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    child: const Text('ANO'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirmed == true) {
-                              widget.parent._importBackup();
-                              if (context.mounted) Navigator.pop(context);
-                            }
-                          },
-                          label: const Text('Obnovit'),
-                        ),
-                      ),
-                    ],
+            Column(
+              children: [
+                Semantics(
+                  header: true,
+                  label: 'Záloha a obnova dat',
+                  child: ExcludeSemantics(
+                    child: const Text('Správa dat'),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Semantics(
+                      label: 'Zálohovat data',
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.backup),
+                        onPressed: () {
+                          widget.parent._exportBackup();
+                          Navigator.pop(context);
+                        },
+                        label: const Text('Zálohovat'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Semantics(
+                      label: 'Obnovit data',
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.restore),
+                        onPressed: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Potvrzení'),
+                              content: Text(
+                                widget.parent._l10n.restoreConfirm,
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('NE'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('ANO'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) {
+                            widget.parent._importBackup();
+                            if (context.mounted) Navigator.pop(context);
+                          }
+                        },
+                        label: const Text('Obnovit'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
