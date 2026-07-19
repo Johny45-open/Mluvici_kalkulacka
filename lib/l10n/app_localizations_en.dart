@@ -203,6 +203,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsComputedSection => 'Computed statistics';
 
   @override
+  String get statsN => 'N';
+
+  @override
   String get statsMean => 'Mean';
 
   @override

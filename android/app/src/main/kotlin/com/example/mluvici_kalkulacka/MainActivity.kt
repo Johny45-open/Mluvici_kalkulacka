@@ -2,7 +2,6 @@ package com.example.mluvici_kalkulacka
 
 import android.content.Context
 import android.content.Intent
-import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -24,7 +23,7 @@ class MainActivity : FlutterActivity() {
         }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, TTS_SETTINGS_CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "openTtsSettings") {
-                val intent = Intent(Settings.ACTION_TEXT_TO_SPEECH_SETTINGS)
+                val intent = Intent("android.settings.TEXT_TO_SPEECH_SETTINGS")
                 startActivity(intent)
                 result.success(true)
             } else {

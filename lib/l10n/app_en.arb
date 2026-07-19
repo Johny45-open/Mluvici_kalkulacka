@@ -60,6 +60,7 @@
   "statsRepeatLabel": "Insert count",
   "statsAllValuesSection": "All values in memory",
   "statsComputedSection": "Computed statistics",
+  "statsN": "N",
   "statsMean": "Mean",
   "statsSum": "Sum",
   "statsVariance": "Variance",

@@ -203,6 +203,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsComputedSection => 'Vypočtené statistiky';
 
   @override
+  String get statsN => 'Počet hodnot';
+
+  @override
   String get statsMean => 'Průměr';
 
   @override

@@ -109,6 +109,7 @@
   "statsRepeatLabel": "Počet vložení",
   "statsAllValuesSection": "Všechny hodnoty v paměti",
   "statsComputedSection": "Vypočtené statistiky",
+  "statsN": "Počet hodnot",
   "statsMean": "Průměr",
   "statsSum": "Součet",
   "statsVariance": "Rozptyl",

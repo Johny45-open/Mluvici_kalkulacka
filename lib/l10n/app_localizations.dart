@@ -455,6 +455,12 @@ abstract class AppLocalizations {
   /// **'Computed statistics'**
   String get statsComputedSection;
 
+  /// No description provided for @statsN.
+  ///
+  /// In en, this message translates to:
+  /// **'N'**
+  String get statsN;
+
   /// No description provided for @statsMean.
   ///
   /// In en, this message translates to:

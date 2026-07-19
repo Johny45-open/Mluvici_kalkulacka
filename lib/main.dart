@@ -120,6 +120,7 @@ class _StatisticsSnapshot {
   final bool modeExists;
   final double? cv;
   final double? wmean;
+  final Map<double, int> frequencies;
 
   const _StatisticsSnapshot({
     required this.sum,
@@ -132,6 +133,7 @@ class _StatisticsSnapshot {
     required this.modeExists,
     required this.cv,
     this.wmean,
+    required this.frequencies,
   });
 }
 
@@ -158,17 +160,20 @@ class StatisticsRecord {
 class StatisticsSet {
   String name;
   final List<String> fieldNames;
+  final List<String?> fieldUnits;
   final List<StatisticsRecord> records;
 
   StatisticsSet({
     required this.name,
     required this.fieldNames,
     required this.records,
-  });
+    List<String?>? fieldUnits,
+  }) : fieldUnits = fieldUnits ?? List.filled(fieldNames.length, null);
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'fieldNames': fieldNames,
+        'fieldUnits': fieldUnits,
         'records': records.map((r) => r.toJson()).toList(),
       };
 
@@ -184,9 +189,14 @@ class StatisticsSet {
             data.map((v) => StatisticsRecord(values: [v])).toList(),
       );
     }
+    final fieldNames = (json['fieldNames'] as List).cast<String>();
+    final fieldUnits = json['fieldUnits'] != null
+        ? (json['fieldUnits'] as List).map((e) => e as String?).toList()
+        : List<String?>.filled(fieldNames.length, null);
     return StatisticsSet(
       name: json['name'] as String,
-      fieldNames: (json['fieldNames'] as List).cast<String>(),
+      fieldNames: fieldNames,
+      fieldUnits: fieldUnits,
       records: (json['records'] as List)
           .map((e) => StatisticsRecord.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -323,6 +333,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'bar': 100000.0,
       'atm': 101325.0,
       'psi': 6894.76,
+    },
+    'Čas': {
+      's': 1.0,
+      'min': 60.0,
+      'h': 3600.0,
+      'd': 86400.0,
     },
   };
 
@@ -535,6 +551,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         'libry na čtvereční palec',
       ],
     },
+    's': {
+      'base': 'sekunda',
+      'z': 'sekund',
+      'na': 'sekundy',
+      'forms': ['sekunda', 'sekundy', 'sekund', 'sekundy'],
+    },
+    'min': {
+      'base': 'minuta',
+      'z': 'minut',
+      'na': 'minuty',
+      'forms': ['minuta', 'minuty', 'minut', 'minuty'],
+    },
+    'h': {
+      'base': 'hodina',
+      'z': 'hodin',
+      'na': 'hodiny',
+      'forms': ['hodina', 'hodiny', 'hodin', 'hodiny'],
+    },
+    'd': {
+      'base': 'den',
+      'z': 'dní',
+      'na': 'dny',
+      'forms': ['den', 'dny', 'dní', 'dne'],
+    },
   };
 
   String _selectedUnitCategory = 'Délka';
@@ -725,6 +765,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         .where((e) => e.value == maxCount)
         .map((e) => e.key)
         .toList();
+    final sortedEntries = counts.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final frequencies = Map<double, int>.fromIterable(
+      sortedEntries,
+      key: (e) => e.key,
+      value: (e) => e.value,
+    );
 
     double? wmean;
     if (_currentFieldCount >= 2) {
@@ -750,6 +797,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       modeExists: modeExists,
       cv: mean == 0 ? null : (sd / mean) * 100,
       wmean: wmean,
+      frequencies: frequencies,
     );
   }
 
@@ -3057,9 +3105,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
           String resStr = '0';
           String spoken = '';
-          final fieldLabelSpoken = _currentFieldCount > 1
-              ? _s(' pro pole ${fieldNames[_selectedFieldIndex]}', ' for field ${fieldNames[_selectedFieldIndex]}')
+          final fieldUnit = _statsSets.isNotEmpty && _selectedFieldIndex < _statsSets[_currentStatsSetIndex].fieldUnits.length
+              ? _statsSets[_currentStatsSetIndex].fieldUnits[_selectedFieldIndex]
+              : null;
+          final fieldUnitSpoken = fieldUnit != null
+              ? _s(' v ${_getUnitSpeech(fieldUnit, context: 'z')}', ' in ${_getUnitSpeech(fieldUnit)}')
               : '';
+          final fieldLabelSpoken = _currentFieldCount > 1
+              ? _s(' pro pole ${fieldNames[_selectedFieldIndex]}$fieldUnitSpoken', ' for field ${fieldNames[_selectedFieldIndex]}$fieldUnitSpoken')
+              : fieldUnitSpoken;
 
           if (label == 'MEAN') {
             resStr = _formatNumber(snapshot.mean);
@@ -3552,7 +3606,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _showEditStatsRecordDialog(int recordIndex, BuildContext dialogContext, StateSetter setStateDialog) {
     final record = _statsMemory[recordIndex];
-    final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
+    final currentSet = _statsSets[_currentStatsSetIndex];
+    final fieldNames = currentSet.fieldNames;
+    final fieldUnits = currentSet.fieldUnits;
     final controllers = record.values
         .map((v) => TextEditingController(text: _formatNumber(v).replaceAll(',', '.')))
         .toList();
@@ -3566,15 +3622,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: List.generate(fieldNames.length, (i) {
+                final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
+                final label = unitCode != null ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})' : fieldNames[i];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Semantics(
-                    label: '${fieldNames[i]} (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                    label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
                     child: TextField(
                       controller: controllers[i],
                       keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                       decoration: InputDecoration(
-                        labelText: '${fieldNames[i]} (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                        labelText: label,
                         isDense: true,
                       ),
                     ),
@@ -3642,8 +3700,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            final currentSetName = _statsSets[_currentStatsSetIndex].name;
-            final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
+            final currentSet = _statsSets[_currentStatsSetIndex];
+            final currentSetName = currentSet.name;
+            final fieldNames = currentSet.fieldNames;
+            final fieldUnits = currentSet.fieldUnits;
             final totalCount = _statsMemory.length;
             final totalCountForm = _getStatsCountForm(totalCount);
             final records = List<StatisticsRecord>.from(_statsMemory);
@@ -3656,7 +3716,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               );
             } else {
               final fieldsSummary = fieldNames.asMap().entries.map((fe) {
-                final vals = records.map((r) => _formatSpokenNumber(r.values[fe.key])).join('; ');
+                final unitCode = fe.key < fieldUnits.length ? fieldUnits[fe.key] : null;
+                final vals = records.map((r) {
+                  final v = _formatSpokenNumber(r.values[fe.key]);
+                  final u = unitCode != null ? ' ${_getUnitSpeech(unitCode, value: r.values[fe.key])}' : '';
+                  return '$v$u';
+                }).join('; ');
                 return '${fe.value}: $vals';
               }).join('. ');
               spokenSummary = _s(
@@ -3716,7 +3781,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               child: ExcludeSemantics(
                                 child: DefaultTextStyle.merge(
                                   style: const TextStyle(fontWeight: FontWeight.bold),
-                                  child: _buildMemoryHeaderRow(fieldNames),
+                                  child: _buildMemoryHeaderRow(fieldNames, fieldUnits),
                                 ),
                               ),
                             ),
@@ -3727,7 +3792,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               final spokenValues = record.values
                                   .asMap()
                                   .entries
-                                  .map((ve) => '${fieldNames[ve.key]}: ${_formatSpokenNumber(ve.value)}')
+                                  .map((ve) {
+                                    final unitCode = ve.key < fieldUnits.length ? fieldUnits[ve.key] : null;
+                                    final unitStr = unitCode != null
+                                        ? ' ${_getUnitSpeech(unitCode, value: ve.value)}'
+                                        : '';
+                                    return '${fieldNames[ve.key]}: ${_formatSpokenNumber(ve.value)}$unitStr';
+                                  })
                                   .join(', ');
 
                               final rowLabel = _s(
@@ -3751,10 +3822,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                         ),
                                       ),
                                       ...record.values.asMap().entries.map((ve) {
+                                        final unitCode = ve.key < fieldUnits.length ? fieldUnits[ve.key] : null;
+                                        final unitStr = unitCode != null
+                                            ? ' ${_getUnitSpeech(unitCode, value: ve.value)}'
+                                            : '';
                                         return Expanded(
                                           child: ExcludeSemantics(
                                             child: Text(
-                                              _formatNumber(ve.value),
+                                              '${_formatNumber(ve.value)}$unitStr',
                                               textAlign: TextAlign.center,
                                               style: const TextStyle(fontSize: 13),
                                             ),
@@ -3827,20 +3902,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
-  Widget _buildMemoryHeaderRow(List<String> fieldNames) {
+  Widget _buildMemoryHeaderRow(List<String> fieldNames, [List<String?>? fieldUnits]) {
     return Row(
       children: [
         const SizedBox(
           width: 28,
           child: Text('#', style: TextStyle(fontSize: 12)),
         ),
-        ...fieldNames.map((name) => Expanded(
-              child: Text(
-                name,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13),
-              ),
-            )),
+        ...fieldNames.asMap().entries.map((e) {
+          final name = e.value;
+          final unitCode = fieldUnits != null && e.key < fieldUnits.length ? fieldUnits[e.key] : null;
+          final label = unitCode != null ? '$name (${_getUnitSpeech(unitCode)})' : name;
+          return Expanded(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13),
+            ),
+          );
+        }),
         SizedBox(
           width: 72,
           child: Text(
@@ -3877,12 +3957,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             }
             final currentSetName = _statsSets[_currentStatsSetIndex].name;
             final selectedFieldName = fieldNames[_selectedFieldIndex];
-            final allValues = _getFieldValues(_selectedFieldIndex)
-                .map((v) => _formatNumber(v))
+            final fieldUnit = _statsSets.isNotEmpty && _selectedFieldIndex < _statsSets[_currentStatsSetIndex].fieldUnits.length
+                ? _statsSets[_currentStatsSetIndex].fieldUnits[_selectedFieldIndex]
+                : null;
+            final rawValues = _getFieldValues(_selectedFieldIndex);
+            final allValues = rawValues
+                .map((v) {
+                  final numStr = _formatNumber(v);
+                  final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: v)}' : '';
+                  return '$numStr$unitStr';
+                })
                 .join(_isEnglish() ? ', ' : '; ');
-            final allValuesSpoken = _getFieldValues(_selectedFieldIndex)
-                .map((v) => _formatSpokenNumber(v))
+            final allValuesSpoken = rawValues
+                .map((v) {
+                  final numStr = _formatSpokenNumber(v);
+                  final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: v)}' : '';
+                  return '$numStr$unitStr';
+                })
                 .join(_isEnglish() ? ', ' : '; ');
+            final dataCount = rawValues.length;
 
             final modeText = snapshot.modeExists
                 ? snapshot.modes.map((m) => _formatNumber(m)).join('; ')
@@ -3906,6 +3999,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 : _formatSpokenNumber(snapshot.wmean!);
 
             final statRows = <MapEntry<String, String>>[
+              MapEntry(l10n.statsN, dataCount.toString()),
               MapEntry(l10n.statsMean, _formatNumber(snapshot.mean)),
               if (snapshot.wmean != null)
                 MapEntry(l10n.statsWeightedMean, wmeanText!),
@@ -3917,9 +4011,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               MapEntry(l10n.statsCv, cvText),
             ];
 
+            final frequencySpoken = snapshot.frequencies.entries.map((e) {
+              final valStr = _formatSpokenNumber(e.key);
+              final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: e.key)}' : '';
+              return _s(
+                '$valStr$unitStr se vyskytuje ${e.value} krát',
+                '$valStr$unitStr occurs ${e.value} times',
+              );
+            }).join(_s('; ', '; '));
+
             String spokenSummary = _s(
               'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. '
+              'Počet hodnot: $dataCount. '
               'Všechny hodnoty: $allValuesSpoken. '
+              'Počet výskytů: $frequencySpoken. '
               'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
               'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
               'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
@@ -3928,7 +4033,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               'Modus: $modeSpoken. '
               'Variační koeficient: $cvSpoken.',
               'Statistics summary for set $currentSetName, field $selectedFieldName. '
+              'Count: $dataCount. '
               'All values: $allValuesSpoken. '
+              'Occurrences: $frequencySpoken. '
               'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
               'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
               'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
@@ -3995,8 +4102,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               child: Semantics(
                                 liveRegion: true,
                                 label: _s(
-                                  'Pole: ${fieldNames[_selectedFieldIndex]}',
-                                  'Field: ${fieldNames[_selectedFieldIndex]}',
+                                  'Pole: ${fieldNames[_selectedFieldIndex]}${fieldUnit != null ? ', ${_getUnitSpeech(fieldUnit)}' : ''}',
+                                  'Field: ${fieldNames[_selectedFieldIndex]}${fieldUnit != null ? ', ${_getUnitSpeech(fieldUnit)}' : ''}',
                                 ),
                                 excludeSemantics: true,
                                 child: Padding(
@@ -4009,6 +4116,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                         fieldNames[_selectedFieldIndex],
                                         style: const TextStyle(fontWeight: FontWeight.bold),
                                       ),
+                                      if (fieldUnit != null) ...[
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '(${_getUnitSpeech(fieldUnit)})',
+                                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                        ),
+                                      ],
                                       const SizedBox(width: 4),
                                       Icon(Icons.swap_horiz, size: 14),
                                     ],
@@ -4036,6 +4150,52 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             ),
                             child: ExcludeSemantics(child: Text(allValues)),
                           ),
+                          if (snapshot.frequencies.length > 1 ||
+                              snapshot.frequencies.entries.first.value > 1) ...[
+                            const SizedBox(height: 16),
+                            Semantics(
+                              header: true,
+                              label: l10n.statsOccurrenceCount,
+                              child: ExcludeSemantics(
+                                child: Text(
+                                  l10n.statsOccurrenceCount,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ...snapshot.frequencies.entries.map((e) {
+                              final valStr = _formatNumber(e.key);
+                              final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: e.key)}' : '';
+                              final countStr = _s(
+                                '$e.value×',
+                                '$e.value×',
+                              );
+                              return Semantics(
+                                container: true,
+                                label: _s(
+                                  'Hodnota $valStr$unitStr, počet výskytů: ${e.value}',
+                                  'Value $valStr$unitStr, occurrences: ${e.value}',
+                                ),
+                                child: ExcludeSemantics(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 2),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text('$valStr$unitStr'),
+                                        ),
+                                        Text(
+                                          countStr,
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
                           const SizedBox(height: 16),
                           Semantics(
                             header: true,
@@ -4137,9 +4297,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             final countForm = _getStatsCountForm(count);
                             final titleText = '${set.name} ($count $countForm)';
 
+                            final fieldsLabel = set.fieldNames.asMap().entries.map((e) {
+                              final unitCode = e.key < set.fieldUnits.length ? set.fieldUnits[e.key] : null;
+                              final name = e.value;
+                              return unitCode != null ? '$name, ${_getUnitSpeech(unitCode)}' : name;
+                            }).join(', ');
                             final semanticsLabel = isCurrent
-                                ? '${set.name}, $count $countForm, vybráno jako aktivní sada.'
-                                : '${set.name}, $count $countForm. Poklepáním vyberete jako aktivní sadu.';
+                                ? '${set.name}, $count $countForm. Pole: $fieldsLabel. Vybráno jako aktivní sada.'
+                                : '${set.name}, $count $countForm. Pole: $fieldsLabel. Poklepáním vyberete jako aktivní sadu.';
+
+                            final fieldsText = set.fieldNames.asMap().entries.map((e) {
+                              final unitCode = e.key < set.fieldUnits.length ? set.fieldUnits[e.key] : null;
+                              return unitCode != null
+                                  ? '${e.value} (${_getUnitSpeech(unitCode)})'
+                                  : e.value;
+                            }).join(', ');
 
                             return Semantics(
                               container: true,
@@ -4153,6 +4325,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                     style: TextStyle(
                                       fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
                                     ),
+                                  ),
+                                ),
+                                subtitle: ExcludeSemantics(
+                                  child: Text(
+                                    fieldsText,
+                                    style: const TextStyle(fontSize: 12),
                                   ),
                                 ),
                                 trailing: Row(
@@ -4279,11 +4457,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  List<String> get _statsFieldUnitOptions {
+    final units = <String>['--'];
+    for (final category in _unitCategories.keys) {
+      units.addAll(_unitCategories[category]!.keys);
+    }
+    return units;
+  }
+
+  String _getUnitOptionLabel(String unitCode) {
+    if (unitCode == '--') return _s('-- bez jednotky --', '-- no unit --');
+    final speech = _unitSpeechData[unitCode];
+    if (speech != null) return '$unitCode (${speech['base']})';
+    return unitCode;
+  }
+
   void _showCreateStatsSetDialog(BuildContext context, VoidCallback onUpdated, {List<StatisticsRecord>? recordsToRepeat}) {
     final l10n = _l10n;
     final defaultName = l10n.statsSetDefaultName(_statsSets.length + 1);
     final controller = TextEditingController(text: defaultName);
     final fieldControllers = <TextEditingController>[TextEditingController(text: 'Hodnota')];
+    final fieldUnitValues = <String>['--'];
 
     showDialog<void>(
       context: context,
@@ -4308,7 +4502,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text(_s('Názvy polí:', 'Field names:'),
+                    Text(_s('Názvy a jednotky polí:', 'Field names and units:'),
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     ...List.generate(fieldControllers.length, (i) {
@@ -4317,6 +4511,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         child: Row(
                           children: [
                             Expanded(
+                              flex: 3,
                               child: Semantics(
                                 label: '${_s("Pole", "Field")} ${i + 1}',
                                 child: TextField(
@@ -4329,6 +4524,37 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              flex: 2,
+                              child: Semantics(
+                                label: _s('Jednotka pole ${i + 1}', 'Unit for field ${i + 1}'),
+                                child: DropdownButtonFormField<String>(
+                                  value: fieldUnitValues[i],
+                                  isDense: true,
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                  ),
+                                  items: _statsFieldUnitOptions.map((u) {
+                                    return DropdownMenuItem(
+                                      value: u,
+                                      child: Text(
+                                        _getUnitOptionLabel(u),
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setDialogState(() {
+                                        fieldUnitValues[i] = val;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
                             if (fieldControllers.length > 1)
                               IconButton(
                                 icon: const Icon(Icons.remove_circle, color: Colors.red, size: 20),
@@ -4336,6 +4562,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 onPressed: () {
                                   setDialogState(() {
                                     fieldControllers[i].dispose();
+                                    fieldUnitValues.removeAt(i);
                                     fieldControllers.removeAt(i);
                                   });
                                 },
@@ -4351,6 +4578,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         setDialogState(() {
                           fieldControllers.add(TextEditingController(
                               text: _s('Pole ${fieldControllers.length + 1}', 'Field ${fieldControllers.length + 1}')));
+                          fieldUnitValues.add('--');
                         });
                       },
                     ),
@@ -4371,10 +4599,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           .where((n) => n.isNotEmpty)
                           .toList();
                       if (fieldNames.isEmpty) fieldNames.add('Hodnota');
+                      final fieldUnits = List<String?>.generate(
+                        fieldNames.length,
+                        (i) {
+                          final unit = i < fieldUnitValues.length ? fieldUnitValues[i] : '--';
+                          return unit == '--' ? null : unit;
+                        },
+                      );
                       setState(() {
                         _statsSets.add(StatisticsSet(
                           name: newName,
                           fieldNames: fieldNames,
+                          fieldUnits: fieldUnits,
                           records: [],
                         ));
                         _currentStatsSetIndex = _statsSets.length - 1;
