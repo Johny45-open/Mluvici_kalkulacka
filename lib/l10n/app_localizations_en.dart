@@ -224,6 +224,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsCv => 'Coefficient of variation';
 
   @override
+  String get statsWeightedMean => 'Weighted mean';
+
+  @override
   String get statsModeNone => 'No mode';
 
   @override

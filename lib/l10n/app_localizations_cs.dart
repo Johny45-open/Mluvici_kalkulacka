@@ -224,6 +224,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsCv => 'Variační koeficient';
 
   @override
+  String get statsWeightedMean => 'Vážený průměr';
+
+  @override
   String get statsModeNone => 'Modus neexistuje';
 
   @override

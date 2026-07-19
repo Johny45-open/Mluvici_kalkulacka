@@ -119,6 +119,7 @@ class _StatisticsSnapshot {
   final int modeOccurrenceCount;
   final bool modeExists;
   final double? cv;
+  final double? wmean;
 
   const _StatisticsSnapshot({
     required this.sum,
@@ -130,6 +131,7 @@ class _StatisticsSnapshot {
     required this.modeOccurrenceCount,
     required this.modeExists,
     required this.cv,
+    this.wmean,
   });
 }
 
@@ -716,6 +718,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         .map((e) => e.key)
         .toList();
 
+    double? wmean;
+    if (_currentFieldCount >= 2) {
+      final values = _getFieldValues(0);
+      final weights = _getFieldValues(1);
+      double sumW = 0;
+      double sumVW = 0;
+      for (int i = 0; i < values.length; i++) {
+        sumVW += values[i] * weights[i];
+        sumW += weights[i];
+      }
+      if (sumW != 0) wmean = sumVW / sumW;
+    }
+
     return _StatisticsSnapshot(
       sum: sum,
       mean: mean,
@@ -726,6 +741,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       modeOccurrenceCount: maxCount,
       modeExists: modeExists,
       cv: mean == 0 ? null : (sd / mean) * 100,
+      wmean: wmean,
     );
   }
 
@@ -2572,16 +2588,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       _addValuesToStats(recordsToAdd, 1);
     } catch (e) {
-      speak(_s(
-        'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
-        'Error storing to statistics memory. Check the data format.',
-      ));
+      final msg = e is FormatException
+          ? e.message
+          : _s(
+              'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
+              'Error storing to statistics memory. Check the data format.',
+            );
+      speak(msg);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_s(
-            'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
-            'Error storing to statistics memory. Check the data format.',
-          ))),
+          SnackBar(content: Text(msg)),
         );
       }
     }
@@ -3658,8 +3674,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ? _s('nelze vypočítat', 'cannot calculate')
                 : '${_formatSpokenNumber(snapshot.cv!)} ${_s('procent', 'percent')}';
 
+            final wmeanText = snapshot.wmean == null
+                ? null
+                : _formatNumber(snapshot.wmean!);
+            final wmeanSpoken = snapshot.wmean == null
+                ? null
+                : _formatSpokenNumber(snapshot.wmean!);
+
             final statRows = <MapEntry<String, String>>[
               MapEntry(l10n.statsMean, _formatNumber(snapshot.mean)),
+              if (snapshot.wmean != null)
+                MapEntry(l10n.statsWeightedMean, wmeanText!),
               MapEntry(l10n.statsSum, _formatNumber(snapshot.sum)),
               MapEntry(l10n.statsVariance, _formatNumber(snapshot.variance)),
               MapEntry(l10n.statsStdDev, _formatNumber(snapshot.sd)),
@@ -3668,7 +3693,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               MapEntry(l10n.statsCv, cvText),
             ];
 
-            final spokenSummary = _s(
+            String spokenSummary = _s(
               'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. '
               'Všechny hodnoty: $allValuesSpoken. '
               'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
@@ -3688,6 +3713,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               'Mode: $modeSpoken. '
               'Coefficient of variation: $cvSpoken.',
             );
+            if (snapshot.wmean != null) {
+              final fieldNamesForWmean = _statsSets[_currentStatsSetIndex].fieldNames;
+              spokenSummary += _s(
+                ' Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}).',
+                ' Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}).',
+              );
+            }
 
             return AlertDialog(
               title: Semantics(
@@ -4674,10 +4706,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       _showRepeatDialog(recordsToAdd);
     } catch (e) {
-      speak(_s(
-        'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
-        'Error storing to statistics memory. Check the data format.',
-      ));
+      speak(e is FormatException
+          ? e.message
+          : _s(
+              'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
+              'Error storing to statistics memory. Check the data format.',
+            ));
     }
   }
 

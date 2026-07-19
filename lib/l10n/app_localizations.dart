@@ -497,6 +497,12 @@ abstract class AppLocalizations {
   /// **'Coefficient of variation'**
   String get statsCv;
 
+  /// No description provided for @statsWeightedMean.
+  ///
+  /// In en, this message translates to:
+  /// **'Weighted mean'**
+  String get statsWeightedMean;
+
   /// No description provided for @statsModeNone.
   ///
   /// In en, this message translates to:
