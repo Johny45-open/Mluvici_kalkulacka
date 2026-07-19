@@ -1264,6 +1264,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _handleButtonPressed("ANS");
       } else if (event.logicalKey == LogicalKeyboardKey.keyD) {
         _insertDegree();
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.keyM) {
+        if (_currentMode == CalculatorMode.statistics) {
+          if (isShift) {
+            _handleMultipleStatisticsAddition();
+          } else {
+            _addSingleValueToStats();
+          }
+        } else {
+          _handleButtonPressed('M+');
+        }
       } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
         _insertMinute();
       } else if (char != null) {
@@ -2701,8 +2711,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }) {
     String descriptiveName = semanticLabel ?? _getButtonName(label);
     if (label == 'M+' && _currentMode == CalculatorMode.statistics) {
-      descriptiveName +=
-          ', krátký stisk pro přidání hodnoty, dlouhý stisk pro zadání opakování';
+      descriptiveName += _isEnglish()
+          ? ', tap to add value, long press to set repetition'
+          : ', krátký stisk pro přidání hodnoty, dlouhý stisk pro zadání opakování';
+      descriptiveName += _isEnglish()
+          ? '. Shortcut Ctrl+M to add, Ctrl+Shift+M for repetition'
+          : '. Klávesová zkratka Ctrl+M pro přidání, Ctrl+Shift+M pro opakování';
     }
 
     final theme = Theme.of(context);
