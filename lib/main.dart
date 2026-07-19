@@ -2714,9 +2714,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       descriptiveName += _isEnglish()
           ? ', tap to add value, long press to set repetition'
           : ', krátký stisk pro přidání hodnoty, dlouhý stisk pro zadání opakování';
-      descriptiveName += _isEnglish()
-          ? '. Shortcut Ctrl+M to add, Ctrl+Shift+M for repetition'
-          : '. Klávesová zkratka Ctrl+M pro přidání, Ctrl+Shift+M pro opakování';
+      if (Platform.isWindows) {
+        descriptiveName += _isEnglish()
+            ? '. Shortcut Ctrl+M to add, Ctrl+Shift+M for repetition'
+            : '. Klávesová zkratka Ctrl+M pro přidání, Ctrl+Shift+M pro opakování';
+      }
     }
 
     final theme = Theme.of(context);
