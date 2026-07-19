@@ -3352,12 +3352,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               children: List.generate(fieldNames.length, (i) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: TextField(
-                    controller: controllers[i],
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                    decoration: InputDecoration(
-                      labelText: '${fieldNames[i]} (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
-                      isDense: true,
+                  child: Semantics(
+                    label: '${fieldNames[i]} (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                    child: TextField(
+                      controller: controllers[i],
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                      decoration: InputDecoration(
+                        labelText: '${fieldNames[i]} (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                        isDense: true,
+                      ),
                     ),
                   ),
                 );
@@ -4024,11 +4027,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (ctx) {
         return AlertDialog(
           title: Text(l10n.statsSetsRename),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: l10n.statsSetNameLabel,
+          content: Semantics(
+            label: l10n.statsSetNameLabel,
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: l10n.statsSetNameLabel,
+              ),
             ),
           ),
           actions: [
@@ -4075,11 +4081,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextField(
-                      controller: controller,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: l10n.statsSetNameLabel,
+                    Semantics(
+                      label: l10n.statsSetNameLabel,
+                      child: TextField(
+                        controller: controller,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: l10n.statsSetNameLabel,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -4092,12 +4101,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         child: Row(
                           children: [
                             Expanded(
-                              child: TextField(
-                                controller: fieldControllers[i],
-                                decoration: InputDecoration(
-                                  labelText: '${_s("Pole", "Field")} ${i + 1}',
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              child: Semantics(
+                                label: '${_s("Pole", "Field")} ${i + 1}',
+                                child: TextField(
+                                  controller: fieldControllers[i],
+                                  decoration: InputDecoration(
+                                    labelText: '${_s("Pole", "Field")} ${i + 1}',
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  ),
                                 ),
                               ),
                             ),
@@ -6718,20 +6730,29 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 ),
                 const SizedBox(height: 8),
                 SegmentedButton<ScreenReaderMode>(
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: ScreenReaderMode.auto,
-                      label: Text('Auto'),
+                      label: Semantics(
+                        label: 'Automaticky podle čtečky',
+                        child: ExcludeSemantics(child: Text('Auto')),
+                      ),
                       tooltip: 'Automaticky podle čtečky',
                     ),
                     ButtonSegment(
                       value: ScreenReaderMode.on,
-                      label: Text('Zapnuto'),
+                      label: Semantics(
+                        label: 'Režim čtečky obrazovky zapnut',
+                        child: ExcludeSemantics(child: Text('Zapnuto')),
+                      ),
                       tooltip: 'Režim čtečky obrazovky zapnut',
                     ),
                     ButtonSegment(
                       value: ScreenReaderMode.off,
-                      label: Text('Vypnuto'),
+                      label: Semantics(
+                        label: 'Režim čtečky obrazovky vypnut',
+                        child: ExcludeSemantics(child: Text('Vypnuto')),
+                      ),
                       tooltip: 'Režim čtečky obrazovky vypnut',
                     ),
                   ],
@@ -6804,22 +6825,31 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 ),
                 const SizedBox(height: 8),
                 SegmentedButton<ThemeMode>(
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: ThemeMode.system,
-                      label: Text('Systém'),
+                      label: Semantics(
+                        label: 'Systémový motiv',
+                        child: ExcludeSemantics(child: Text('Systém')),
+                      ),
                       icon: Icon(Icons.brightness_auto),
                       tooltip: 'Systémový motiv',
                     ),
                     ButtonSegment(
                       value: ThemeMode.light,
-                      label: Text('Světlý'),
+                      label: Semantics(
+                        label: 'Světlý motiv',
+                        child: ExcludeSemantics(child: Text('Světlý')),
+                      ),
                       icon: Icon(Icons.light_mode),
                       tooltip: 'Světlý motiv',
                     ),
                     ButtonSegment(
                       value: ThemeMode.dark,
-                      label: Text('Tmavý'),
+                      label: Semantics(
+                        label: 'Tmavý motiv',
+                        child: ExcludeSemantics(child: Text('Tmavý')),
+                      ),
                       icon: Icon(Icons.dark_mode),
                       tooltip: 'Tmavý motiv',
                     ),
@@ -6855,19 +6885,28 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   segments: [
                     ButtonSegment(
                       value: DialogSize.compact,
-                      label: Text(widget.parent._l10n.dialogSizeCompact),
+                      label: Semantics(
+                        label: widget.parent._l10n.dialogSizeCompact,
+                        child: ExcludeSemantics(child: Text(widget.parent._l10n.dialogSizeCompact)),
+                      ),
                       icon: const Icon(Icons.phone_android),
                       tooltip: widget.parent._l10n.dialogSizeCompact,
                     ),
                     ButtonSegment(
                       value: DialogSize.wide,
-                      label: Text(widget.parent._l10n.dialogSizeWide),
+                      label: Semantics(
+                        label: widget.parent._l10n.dialogSizeWide,
+                        child: ExcludeSemantics(child: Text(widget.parent._l10n.dialogSizeWide)),
+                      ),
                       icon: const Icon(Icons.phone_iphone),
                       tooltip: widget.parent._l10n.dialogSizeWide,
                     ),
                     ButtonSegment(
                       value: DialogSize.fullscreen,
-                      label: Text(widget.parent._l10n.dialogSizeFullscreen),
+                      label: Semantics(
+                        label: widget.parent._l10n.dialogSizeFullscreen,
+                        child: ExcludeSemantics(child: Text(widget.parent._l10n.dialogSizeFullscreen)),
+                      ),
                       icon: const Icon(Icons.fullscreen),
                       tooltip: widget.parent._l10n.dialogSizeFullscreen,
                     ),
