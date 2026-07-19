@@ -235,6 +235,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ScreenReaderMode _screenReaderMode = ScreenReaderMode.auto;
   bool _accessibleNavigation = false;
   String? _ttsEngine;
+  Map<String, String>? _ttsVoice;
+  String? _ttsVoiceName;
   int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
 
   DialogSize _dialogSize = DialogSize.compact;
@@ -688,6 +690,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (_lastTtsLocale == lang) return;
     _lastTtsLocale = lang;
     tts.setLanguage(lang);
+    if (_ttsVoice != null) {
+      _ttsVoice = null;
+      _ttsVoiceName = null;
+      tts.clearVoice();
+      _saveSettings();
+    }
   }
 
   _StatisticsSnapshot? _computeStatisticsSnapshot([int fieldIndex = -1]) {
@@ -1070,6 +1078,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _lastTtsLocale = locale.languageCode == 'en' ? 'en-US' : 'cs-CZ';
       if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
       await tts.setLanguage(_lastTtsLocale!);
+      if (_ttsVoice != null) await tts.setVoice(_ttsVoice!);
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
       if (_sayWelcome) {
@@ -1950,6 +1959,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _speechRate = prefs.getDouble('speechRate') ?? 0.5;
       _speechVolume = prefs.getDouble('speechVolume') ?? 1.0;
       _ttsEngine = prefs.getString('ttsEngine');
+      final ttsVoiceJson = prefs.getString('ttsVoice');
+      if (ttsVoiceJson != null) {
+        try {
+          final voiceMap = Map<String, dynamic>.from(jsonDecode(ttsVoiceJson));
+          _ttsVoice = voiceMap.cast<String, String>();
+          _ttsVoiceName = voiceMap['name'] as String?;
+        } catch (e) {
+          _ttsVoice = null;
+          _ttsVoiceName = null;
+        }
+      } else {
+        _ttsVoice = null;
+        _ttsVoiceName = null;
+      }
       _inverseFormatPreference = prefs.getInt('inverseFormatPreference');
       final savedMode = prefs.getInt('screenReaderModeState');
       if (savedMode != null) {
@@ -1967,6 +1990,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await tts.setSpeechRate(_speechRate);
     await tts.setVolume(_speechVolume);
     if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
+    if (_ttsVoice != null) await tts.setVoice(_ttsVoice!);
   }
 
   void _saveSettings() async {
@@ -1981,6 +2005,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setDouble('speechRate', _speechRate);
     await prefs.setDouble('speechVolume', _speechVolume);
     if (_ttsEngine != null) await prefs.setString('ttsEngine', _ttsEngine!);
+    if (_ttsVoice != null) {
+      await prefs.setString('ttsVoice', jsonEncode(_ttsVoice));
+    } else {
+      await prefs.remove('ttsVoice');
+    }
     await prefs.setInt('screenReaderModeState', _screenReaderMode.index);
     await prefs.setInt('dialogSize', _dialogSize.index);
   }
@@ -2172,6 +2201,41 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  void _openTtsSystemSettings() async {
+    try {
+      if (Platform.isAndroid) {
+        const channel = MethodChannel('com.example.mluvici_kalkulacka/tts_settings');
+        await channel.invokeMethod('openTtsSettings');
+      } else if (Platform.isWindows) {
+        await launchUrl(Uri.parse('ms-settings:speech'));
+      }
+    } catch (e) {
+      debugPrint('openTtsSettings Error: $e');
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Semantics(header: true, child: const Text('Chyba')),
+          content: Focus(
+            autofocus: true,
+            child: Semantics(
+              label: 'Nelze otevřít systémové nastavení TTS.',
+              child: const Text(
+                'Nelze otevřít systémové nastavení TTS.',
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   void _showTtsEngineDialog() async {
     try {
       final engines = await tts.getEngines;
@@ -2223,6 +2287,158 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Zavřít'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _showTtsVoiceDialog() async {
+    try {
+      final voices = await tts.getVoices;
+      if (!mounted) return;
+
+      if (voices == null || voices is! List || voices.isEmpty) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Semantics(header: true, child: const Text('Info')),
+            content: Focus(
+              autofocus: true,
+              child: Semantics(
+                label: 'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                child: const Text(
+                  'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      final currentLang = _isEnglish() ? 'en-US' : 'cs-CZ';
+      final filteredVoices = voices.cast<Map<dynamic, dynamic>>()
+          .where((v) => v['locale'] == currentLang)
+          .toList();
+
+      if (filteredVoices.isEmpty) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Semantics(header: true, child: const Text('Info')),
+            content: Focus(
+              autofocus: true,
+              child: Semantics(
+                label: 'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                child: const Text(
+                  'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Vybrat hlas'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: filteredVoices.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return ListTile(
+                    title: const Text('Výchozí'),
+                    selected: _ttsVoice == null,
+                    onTap: () {
+                      setState(() {
+                        _ttsVoice = null;
+                        _ttsVoiceName = null;
+                      });
+                      _saveSettings();
+                      tts.clearVoice();
+                      Navigator.pop(context);
+                    },
+                  );
+                }
+                final voice = filteredVoices[index - 1];
+                final name = voice['name']?.toString() ?? '';
+                String label = name;
+                final quality = voice['quality']?.toString();
+                final gender = voice['gender']?.toString();
+                if (quality != null && quality.isNotEmpty) {
+                  label += ' ($quality';
+                  if (gender != null && gender.isNotEmpty) {
+                    label += ', $gender';
+                  }
+                  label += ')';
+                } else if (gender != null && gender.isNotEmpty) {
+                  label += ' ($gender)';
+                }
+                final isSelected = _ttsVoice?['name'] == name &&
+                    _ttsVoice?['locale'] == voice['locale'];
+                return ListTile(
+                  title: Text(label),
+                  selected: isSelected,
+                  onTap: () {
+                    final voiceMap = <String, String>{
+                      'name': name,
+                      'locale': voice['locale']?.toString() ?? '',
+                    };
+                    setState(() {
+                      _ttsVoice = voiceMap;
+                      _ttsVoiceName = name;
+                    });
+                    _saveSettings();
+                    tts.setVoice(voiceMap);
+                    Navigator.pop(context);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('TTS Voice Error: $e');
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Semantics(header: true, child: const Text('Chyba')),
+          content: Focus(
+            autofocus: true,
+            child: Semantics(
+              label: 'Výběr hlasu není na tomto zařízení nebo verzi aplikace podporován.',
+              child: const Text(
+                'Výběr hlasu není na tomto zařízení nebo verzi aplikace podporován.',
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
             ),
           ],
         ),
@@ -6785,6 +7001,28 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 },
                 child: Text(
                   'Engine: ${widget.parent._ttsEngine ?? 'Výchozí'}',
+                ),
+              ),
+            ),
+            const Divider(),
+            Semantics(
+              label: 'Otevřít systémové nastavení TTS',
+              child: ElevatedButton(
+                onPressed: () {
+                  widget.parent._openTtsSystemSettings();
+                },
+                child: const Text('Nastavení TTS'),
+              ),
+            ),
+            const Divider(),
+            Semantics(
+              label: 'Nastavení hlasu',
+              child: ElevatedButton(
+                onPressed: () {
+                  widget.parent._showTtsVoiceDialog();
+                },
+                child: Text(
+                  'Hlas: ${widget.parent._ttsVoiceName ?? 'Výchozí'}',
                 ),
               ),
             ),
