@@ -3453,15 +3453,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 header: true,
                 child: Text(l10n.statsMemoryTitle),
               ),
-              content: Focus(
-                autofocus: true,
-                onFocusChange: (hasFocus) {
-                  if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
-                },
-                child: SizedBox(
-                  width: double.maxFinite,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 400),
+              content: Semantics(
+                container: true,
+                label: spokenSummary,
+                liveRegion: true,
+                child: Focus(
+                  autofocus: true,
+                  onFocusChange: (hasFocus) {
+                    if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
+                  },
+                  child: SizedBox(
+                    width: double.maxFinite,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 400),
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -3578,6 +3582,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ),
                   ),
                 ),
+              ),
               ),
               actions: [
                 TextButton(
@@ -3726,15 +3731,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 header: true,
                 child: Text(l10n.statsSummaryTitle),
               ),
-              content: Focus(
-                autofocus: true,
-                onFocusChange: (hasFocus) {
-                  if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
-                },
-                child: SizedBox(
-                  width: double.maxFinite,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 420),
+              content: Semantics(
+                container: true,
+                label: spokenSummary,
+                liveRegion: true,
+                child: Focus(
+                  autofocus: true,
+                  onFocusChange: (hasFocus) {
+                    if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
+                  },
+                  child: SizedBox(
+                    width: double.maxFinite,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 420),
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -3852,6 +3861,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ),
                   ),
                 ),
+              ),
               ),
               actions: [
                 TextButton(
