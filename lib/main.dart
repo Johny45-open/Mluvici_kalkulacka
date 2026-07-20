@@ -1266,16 +1266,34 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _insertDegree();
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.keyM) {
         if (_currentMode == CalculatorMode.statistics) {
-          if (isShift) {
-            _handleMultipleStatisticsAddition();
-          } else {
-            _addSingleValueToStats();
-          }
+          _handleMultipleStatisticsAddition();
         } else {
           _handleButtonPressed('M+');
         }
       } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
-        _insertMinute();
+        if (_currentMode == CalculatorMode.statistics) {
+          _addSingleValueToStats();
+        } else {
+          _insertMinute();
+        }
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit1) {
+        _changeMode(CalculatorMode.basic);
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit2) {
+        _changeMode(CalculatorMode.scientific);
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit3) {
+        _changeMode(CalculatorMode.statistics);
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit4) {
+        _changeMode(CalculatorMode.electrician);
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit5) {
+        _changeMode(CalculatorMode.unitConversion);
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.comma) {
+        _showAccessibilityDialog();
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.tab) {
+        if (isShift) {
+          _cycleMode(-1);
+        } else {
+          _cycleMode(1);
+        }
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
         if (RegExp(r'''[0-9.+\-*/^%()eE°'"a-zA-Z]''').hasMatch(toAppend)) {
@@ -2003,6 +2021,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     speak(speech);
   }
 
+  void _cycleMode(int direction) {
+    final values = CalculatorMode.values;
+    final currentIndex = values.indexOf(_currentMode);
+    final newIndex = (currentIndex + direction) % values.length;
+    _changeMode(values[newIndex]);
+  }
+
   void _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -2716,8 +2741,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           : ', krátký stisk pro přidání hodnoty, dlouhý stisk pro zadání opakování';
       if (Platform.isWindows) {
         descriptiveName += _isEnglish()
-            ? '. Shortcut Ctrl+M to add, Ctrl+Shift+M for repetition'
-            : '. Klávesová zkratka Ctrl+M pro přidání, Ctrl+Shift+M pro opakování';
+            ? '. Press M to add, Ctrl+M for repetition'
+            : '. Stiskněte M pro přidání, Ctrl+M pro opakování';
       }
     }
 
@@ -4953,7 +4978,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   container: true,
                   child: const Text('Historie je prázdná.'),
                 )
-              : ListView.builder(
+              : SizedBox(
+                  width: double.maxFinite,
+                  child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: _history.length,
                   itemBuilder: (context, index) {
@@ -5002,6 +5029,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       ),
                     );
                   },
+                ),
                 ),
         ),
         actions: [
