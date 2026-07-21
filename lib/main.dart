@@ -1069,6 +1069,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Dostupná aktualizace'),
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        semanticLabel: 'Dostupná aktualizace',
         title: Semantics(header: true, child: Text('Dostupná aktualizace')),
         content: Semantics(
           label: 'Je dostupná nová verze ${release.normalizedVersion}. Vaše verze je $_currentAppVersion.',
@@ -2194,7 +2195,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _importBackup() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
         withData: true,
@@ -2248,6 +2249,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Vítejte'),
       barrierDismissible: false,
       builder: (context) => AlertDialog(
+        semanticLabel: 'Vítejte',
         title: Semantics(header: true, child: Text('Vítejte')),
         content: Text(
           'Vyberte požadovanou úroveň usnadnění. Toto nastavení můžete kdykoliv změnit v nastavení.',
@@ -2307,6 +2309,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
+          semanticLabel: 'Chyba',
           title: Semantics(header: true, child: const Text('Chyba')),
           content: Focus(
             autofocus: true,
@@ -2337,6 +2340,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Vybrat TTS engine'),
         builder: (context) => AlertDialog(
+          semanticLabel: 'Vybrat TTS engine',
           title: const Text('Vybrat TTS engine'),
           content: SizedBox(
             width: double.maxFinite,
@@ -2367,6 +2371,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
+          semanticLabel: 'Chyba',
           title: Semantics(header: true, child: const Text('Chyba')),
           content: Focus(
             autofocus: true,
@@ -2399,6 +2404,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           context: context,
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
+            semanticLabel: 'Info',
             title: Semantics(header: true, child: const Text('Info')),
             content: Focus(
               autofocus: true,
@@ -2431,6 +2437,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           context: context,
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
+            semanticLabel: 'Info',
             title: Semantics(header: true, child: const Text('Info')),
             content: Focus(
               autofocus: true,
@@ -2456,6 +2463,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Vybrat hlas'),
         builder: (context) => AlertDialog(
+          semanticLabel: 'Vybrat hlas',
           title: const Text('Vybrat hlas'),
           content: SizedBox(
             width: double.maxFinite,
@@ -2523,6 +2531,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
+          semanticLabel: 'Chyba',
           title: Semantics(header: true, child: const Text('Chyba')),
           content: Focus(
             autofocus: true,
@@ -2559,6 +2568,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: RouteSettings(name: l10n.helpTitle),
       builder: (context) => AlertDialog(
+        semanticLabel: l10n.helpTitle,
         title: Semantics(header: true, child: Text(l10n.helpTitle)),
         content: Focus(
           autofocus: true,
@@ -2619,6 +2629,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: RouteSettings(name: l10n.statsHelpTitle),
       builder: (context) => AlertDialog(
+        semanticLabel: l10n.statsHelpTitle,
         title: Semantics(header: true, child: Text(l10n.statsHelpTitle)),
         content: Semantics(
           container: true,
@@ -2692,6 +2703,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Nastavení přesnosti'),
       builder: (context) => AlertDialog(
+        semanticLabel: 'Nastavení přesnosti',
         title: Semantics(header: true, child: Text('Nastavení přesnosti')),
         content: Wrap(
           spacing: 8,
@@ -3678,6 +3690,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: _s('Upravit záznam ${recordIndex + 1}', 'Edit record ${recordIndex + 1}')),
       builder: (ctx) {
         return AlertDialog(
+          semanticLabel: _s('Upravit záznam ${recordIndex + 1}', 'Edit record ${recordIndex + 1}'),
           title: Text(_s('Upravit záznam ${recordIndex + 1}', 'Edit record ${recordIndex + 1}')),
           content: SingleChildScrollView(
             child: Column(
@@ -3795,6 +3808,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             }
 
             return AlertDialog(
+              semanticLabel: l10n.statsMemoryTitle,
               title: Semantics(
                 header: true,
                 child: Text(l10n.statsMemoryTitle),
@@ -4116,6 +4130,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             }
 
             return AlertDialog(
+              semanticLabel: l10n.statsSummaryTitle,
               title: Semantics(
                 header: true,
                 child: Text(l10n.statsSummaryTitle),
@@ -4339,6 +4354,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
+              semanticLabel: l10n.statsSetsTitle,
               title: Semantics(
                 header: true,
                 child: Text(l10n.statsSetsTitle),
@@ -4485,6 +4501,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: l10n.statsSetsRename),
       builder: (ctx) {
         return AlertDialog(
+          semanticLabel: l10n.statsSetsRename,
           title: Text(l10n.statsSetsRename),
           content: Semantics(
             label: l10n.statsSetNameLabel,
@@ -4551,6 +4568,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
+              semanticLabel: l10n.statsSetsCreate,
               title: Text(l10n.statsSetsCreate),
               content: SingleChildScrollView(
                 child: Column(
@@ -4835,6 +4853,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (ctx, setDialogState) {
             bool isInfoFullscreen = currentSize == DialogSize.fullscreen;
             return AlertDialog(
+              semanticLabel: l10n.numberInfo,
               title: Semantics(
                 header: true,
                 child: Row(
@@ -4998,6 +5017,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Historie výpočtů'),
       builder: (context) => AlertDialog(
+        semanticLabel: 'Historie výpočtů',
         title: Semantics(header: true, child: const Text('Historie výpočtů')),
         content: _applyDialogSize(
           _history.isEmpty
@@ -5087,6 +5107,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Potvrzení'),
       builder: (context) => AlertDialog(
+        semanticLabel: 'Potvrzení',
         title: Semantics(header: true, child: Text('Potvrzení')),
         content: Focus(
           autofocus: true,
@@ -5186,6 +5207,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: RouteSettings(name: l10n.statsRepeatTitle),
       builder: (context) => AlertDialog(
+        semanticLabel: l10n.statsRepeatTitle,
         title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
         content: Semantics(
           label: l10n.statsRepeatHint,
@@ -5894,6 +5916,7 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      semanticLabel: 'Pokročilé funkce',
       title: Semantics(header: true, child: const Text('Pokročilé funkce')),
       content: SizedBox(
         width: double.maxFinite,
@@ -7195,6 +7218,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      semanticLabel: 'Nastavení přístupnosti',
       title: Semantics(header: true, child: const Text('Nastavení přístupnosti')),
       content: SingleChildScrollView(
         child: Column(
@@ -7698,6 +7722,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                             context: context,
                             routeSettings: const RouteSettings(name: 'Potvrzení'),
                             builder: (ctx) => AlertDialog(
+                              semanticLabel: 'Potvrzení',
                               title: const Text('Potvrzení'),
                               content: Text(
                                 widget.parent._l10n.restoreConfirm,
