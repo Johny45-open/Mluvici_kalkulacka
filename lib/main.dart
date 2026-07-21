@@ -1066,6 +1066,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     await showDialog<void>(
       context: context,
+      routeSettings: const RouteSettings(name: 'Dostupná aktualizace'),
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         title: Semantics(header: true, child: Text('Dostupná aktualizace')),
@@ -1106,8 +1107,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 final url = release.htmlUrl;
                 if (url != null) {
                   final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri);
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Nelze otevřít prohlížeč: $e')),
+                    );
                   }
                 }
               },
@@ -2239,6 +2245,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showInitialAccessibilityDialog() {
     showDialog(
       context: context,
+      routeSettings: const RouteSettings(name: 'Vítejte'),
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Semantics(header: true, child: Text('Vítejte')),
@@ -2280,6 +2287,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showAccessibilityDialog() {
     showDialog(
       context: context,
+      routeSettings: const RouteSettings(name: 'Nastavení přístupnosti'),
       builder: (context) => _AccessibilityDialog(parent: this),
     );
   }
@@ -2297,6 +2305,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (!mounted) return;
       showDialog(
         context: context,
+        routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
           title: Semantics(header: true, child: const Text('Chyba')),
           content: Focus(
@@ -2326,6 +2335,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       showDialog(
         context: context,
+        routeSettings: const RouteSettings(name: 'Vybrat TTS engine'),
         builder: (context) => AlertDialog(
           title: const Text('Vybrat TTS engine'),
           content: SizedBox(
@@ -2355,6 +2365,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (!mounted) return;
       showDialog(
         context: context,
+        routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
           title: Semantics(header: true, child: const Text('Chyba')),
           content: Focus(
@@ -2386,6 +2397,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (!mounted) return;
         showDialog(
           context: context,
+          routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
             title: Semantics(header: true, child: const Text('Info')),
             content: Focus(
@@ -2417,6 +2429,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (!mounted) return;
         showDialog(
           context: context,
+          routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
             title: Semantics(header: true, child: const Text('Info')),
             content: Focus(
@@ -2441,6 +2454,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       showDialog(
         context: context,
+        routeSettings: const RouteSettings(name: 'Vybrat hlas'),
         builder: (context) => AlertDialog(
           title: const Text('Vybrat hlas'),
           content: SizedBox(
@@ -2507,6 +2521,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (!mounted) return;
       showDialog(
         context: context,
+        routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
           title: Semantics(header: true, child: const Text('Chyba')),
           content: Focus(
@@ -2542,6 +2557,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     showDialog(
       context: context,
+      routeSettings: RouteSettings(name: l10n.helpTitle),
       builder: (context) => AlertDialog(
         title: Semantics(header: true, child: Text(l10n.helpTitle)),
         content: Focus(
@@ -2601,6 +2617,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     showDialog(
       context: context,
+      routeSettings: RouteSettings(name: l10n.statsHelpTitle),
       builder: (context) => AlertDialog(
         title: Semantics(header: true, child: Text(l10n.statsHelpTitle)),
         content: Semantics(
@@ -2673,6 +2690,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showPrecisionDialog(DisplayFormat format) {
     showDialog(
       context: context,
+      routeSettings: const RouteSettings(name: 'Nastavení přesnosti'),
       builder: (context) => AlertDialog(
         title: Semantics(header: true, child: Text('Nastavení přesnosti')),
         content: Wrap(
@@ -3600,6 +3618,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showAdvancedFunctionsDialog() {
     showDialog(
       context: context,
+      routeSettings: const RouteSettings(name: 'Pokročilé funkce'),
       builder: (context) => _AdvancedFunctionsDialog(parent: this),
     );
   }
@@ -3656,6 +3675,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     showDialog<void>(
       context: dialogContext,
+      routeSettings: RouteSettings(name: _s('Upravit záznam ${recordIndex + 1}', 'Edit record ${recordIndex + 1}')),
       builder: (ctx) {
         return AlertDialog(
           title: Text(_s('Upravit záznam ${recordIndex + 1}', 'Edit record ${recordIndex + 1}')),
@@ -3738,6 +3758,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     showDialog<void>(
       context: context,
+      routeSettings: RouteSettings(name: _l10n.statsMemoryTitle),
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
@@ -3982,6 +4003,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     showDialog<void>(
       context: context,
+      routeSettings: RouteSettings(name: l10n.statsSummaryTitle),
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setSummaryState) {
@@ -4312,6 +4334,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     showDialog<void>(
       context: context,
+      routeSettings: RouteSettings(name: l10n.statsSetsTitle),
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
@@ -4459,6 +4482,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     showDialog<void>(
       context: context,
+      routeSettings: RouteSettings(name: l10n.statsSetsRename),
       builder: (ctx) {
         return AlertDialog(
           title: Text(l10n.statsSetsRename),
@@ -4522,6 +4546,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     showDialog<void>(
       context: context,
+      routeSettings: RouteSettings(name: l10n.statsSetsCreate),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -4803,6 +4828,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     showDialog<void>(
       context: context,
+      routeSettings: RouteSettings(name: l10n.numberInfo),
       builder: (dialogContext) {
         DialogSize currentSize = _dialogSize;
         return StatefulBuilder(
@@ -4970,6 +4996,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showHistoryDialog() {
     showDialog(
       context: context,
+      routeSettings: const RouteSettings(name: 'Historie výpočtů'),
       builder: (context) => AlertDialog(
         title: Semantics(header: true, child: const Text('Historie výpočtů')),
         content: _applyDialogSize(
@@ -5058,6 +5085,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String question = 'Opravdu chcete smazat celou historii výpočtů?';
     showDialog(
       context: context,
+      routeSettings: const RouteSettings(name: 'Potvrzení'),
       builder: (context) => AlertDialog(
         title: Semantics(header: true, child: Text('Potvrzení')),
         content: Focus(
@@ -5156,6 +5184,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     showDialog(
       context: context,
+      routeSettings: RouteSettings(name: l10n.statsRepeatTitle),
       builder: (context) => AlertDialog(
         title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
         content: Semantics(
@@ -7667,6 +7696,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         onPressed: () async {
                           final confirmed = await showDialog<bool>(
                             context: context,
+                            routeSettings: const RouteSettings(name: 'Potvrzení'),
                             builder: (ctx) => AlertDialog(
                               title: const Text('Potvrzení'),
                               content: Text(
