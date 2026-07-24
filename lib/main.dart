@@ -1242,6 +1242,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final isControl = HardwareKeyboard.instance.isControlPressed;
       final isShift = HardwareKeyboard.instance.isShiftPressed;
 
+      // Když je aktivní screen reader (NVDA, JAWS, TalkBack),
+      // jednoznakové klávesy (S, C, T, A, P, atd.) se předávají čtečce.
+      // Zpracovávají se pouze Ctrl+ kombinace, čísla, operátory a navigační klávesy.
+      if (_isScreenReaderActive && char != null && !isControl) {
+        final String singleChar = char.toUpperCase();
+        // Povolit číslice, desetinnou tečku a operátory + - * / ^ %
+        if (RegExp(r'^[0-9.+\-*/^%]$').hasMatch(singleChar)) {
+          _handleButtonPressed(singleChar, silent: true);
+          return;
+        }
+        // Všechny ostatní jednoznakové klávesy nechat projít do screen readeru
+        return;
+      }
+
       if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.numpadEnter) {
         calculateResult();
@@ -2350,15 +2364,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               itemCount: engines.length,
               itemBuilder: (context, index) {
                 final engine = engines[index].toString();
-                return ListTile(
-                  title: Text(engine),
-                  selected: _ttsEngine == engine,
-                  onTap: () {
-                    setState(() => _ttsEngine = engine);
-                    _saveSettings();
-                    tts.setEngine(engine);
-                    Navigator.pop(context);
-                  },
+                final isSelected = _ttsEngine == engine;
+                return Semantics(
+                  container: true,
+                  label: '${_s("Engine", "Engine")}: $engine${isSelected ? _s(", vybráno", ", selected") : ""}',
+                  selected: isSelected,
+                  child: ListTile(
+                    title: Text(engine),
+                    selected: isSelected,
+                    onTap: () {
+                      setState(() => _ttsEngine = engine);
+                      _saveSettings();
+                      tts.setEngine(engine);
+                      Navigator.pop(context);
+                    },
+                  ),
                 );
               },
             ),
@@ -2473,18 +2493,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               itemCount: filteredVoices.length + 1,
               itemBuilder: (context, index) {
                 if (index == 0) {
-                  return ListTile(
-                    title: const Text('Výchozí'),
-                    selected: _ttsVoice == null,
-                    onTap: () {
-                      setState(() {
-                        _ttsVoice = null;
-                        _ttsVoiceName = null;
-                      });
-                      _saveSettings();
-                      tts.clearVoice();
-                      Navigator.pop(context);
-                    },
+                  final isSelected = _ttsVoice == null;
+                  return Semantics(
+                    container: true,
+                    label: '${_s("Výchozí hlas", "Default voice")}${isSelected ? _s(", vybráno", ", selected") : ""}',
+                    selected: isSelected,
+                    child: ListTile(
+                      title: const Text('Výchozí'),
+                      selected: isSelected,
+                      onTap: () {
+                        setState(() {
+                          _ttsVoice = null;
+                          _ttsVoiceName = null;
+                        });
+                        _saveSettings();
+                        tts.clearVoice();
+                        Navigator.pop(context);
+                      },
+                    ),
                   );
                 }
                 final voice = filteredVoices[index - 1];
@@ -2503,22 +2529,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 }
                 final isSelected = _ttsVoice?['name'] == name &&
                     _ttsVoice?['locale'] == voice['locale'];
-                return ListTile(
-                  title: Text(label),
+                return Semantics(
+                  container: true,
+                  label: '${_s("Hlas", "Voice")}: $label${isSelected ? _s(", vybráno", ", selected") : ""}',
                   selected: isSelected,
-                  onTap: () {
-                    final voiceMap = <String, String>{
-                      'name': name,
-                      'locale': voice['locale']?.toString() ?? '',
-                    };
-                    setState(() {
-                      _ttsVoice = voiceMap;
-                      _ttsVoiceName = name;
-                    });
-                    _saveSettings();
-                    tts.setVoice(voiceMap);
-                    Navigator.pop(context);
-                  },
+                  child: ListTile(
+                    title: Text(label),
+                    selected: isSelected,
+                    onTap: () {
+                      final voiceMap = <String, String>{
+                        'name': name,
+                        'locale': voice['locale']?.toString() ?? '',
+                      };
+                      setState(() {
+                        _ttsVoice = voiceMap;
+                        _ttsVoiceName = name;
+                      });
+                      _saveSettings();
+                      tts.setVoice(voiceMap);
+                      Navigator.pop(context);
+                    },
+                  ),
                 );
               },
             ),
@@ -2779,23 +2810,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final textScale = MediaQuery.textScalerOf(context).textScaleFactor;
 
     Widget buttonBody = Container(
-      margin: const EdgeInsets.all(2),
+      margin: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: color ?? (isDark ? Colors.grey[800] : Colors.grey[300]),
         borderRadius: BorderRadius.zero,
-        border: Border.all(color: Colors.black26, width: 0.5),
+        border: Border.all(color: Colors.black54, width: 0.5),
       ),
       alignment: Alignment.center,
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: ExcludeSemantics(
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 20 * _fontSizeMultiplier,
+              fontSize: 20 * _fontSizeMultiplier * textScale,
               fontWeight: FontWeight.bold,
               color: color != null
                   ? Colors.white
@@ -3554,11 +3586,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     return Padding(
       padding: const EdgeInsets.all(2),
-      child: Column(
-        children: rows.map((row) {
-          return Expanded(
-            child: Row(
-              children: row.map((b) {
+      child: FocusTraversalGroup(
+        child: Column(
+          children: rows.map((row) {
+            return Expanded(
+              child: FocusTraversalGroup(
+                child: Row(
+                  children: row.map((b) {
                 Color? color;
                 if (['/', '*', '-', '+'].contains(b)) {
                   color = Colors.blue;
@@ -3594,14 +3628,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 );
               }).toList(),
             ),
-          );
-        }).toList(),
-      ),
-    );
+          ),
+        );
+      }).toList(),
+    ),
+  ),
+);
   }
 
   Widget _buildModeSelector() {
-    return Container(
+    return Semantics(
+      label: _s('Přepínač režimů', 'Mode selector'),
+      container: true,
+      child: Container(
       height: 48,
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: SingleChildScrollView(
@@ -3610,20 +3649,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         child: Row(
           children: CalculatorMode.values.map((mode) {
             String label = _getModeName(mode);
+            final isSelected = _currentMode == mode;
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: ChoiceChip(
-                label: Text(label),
-                selected: _currentMode == mode,
-                onSelected: (s) {
-                  if (s) {
-                    _changeMode(mode);
-                  }
-                },
+              child: Semantics(
+                label: '$label${isSelected ? _s(', vybráno', ', selected') : ''}',
+                selected: isSelected,
+                child: ChoiceChip(
+                  label: Text(label),
+                  selected: isSelected,
+                  onSelected: (s) {
+                    if (s) {
+                      _changeMode(mode);
+                    }
+                  },
+                ),
               ),
             );
           }).toList(),
         ),
+      ),
       ),
     );
   }
@@ -5401,11 +5446,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           liveRegion: true,
                           label: l10n.displayLabel,
                           hint: l10n.displayHint,
-                          value: display.isEmpty
-                              ? l10n.displayEmpty
-                              : display.replaceAll('.', ','),
-                          // Pokud běží TalkBack, vnitřní prvky sémantiku nepotřebují, přečte je tento Semantics widget
-                          explicitChildNodes: !_isScreenReaderActive,
+                          value: '${_getModeName(_currentMode)}. ${display.isEmpty ? (_hasResult ? _lastResult.replaceAll('.', ',') : l10n.displayEmpty) : display.replaceAll('.', ',')}',
+                          onTap: () {
+                            _mainFocusNode.requestFocus();
+                            speak(display.isEmpty
+                                ? (_hasResult ? _lastResult.replaceAll('.', ',') : l10n.displayEmpty)
+                                : display.replaceAll('.', ','));
+                          },
+                          // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
+                          // a vše se přečte z tohoto Semantics widgetu
                           child: Column(
                             children: [
                               Align(
@@ -5634,30 +5683,32 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: parent._selectedUnitCategory,
-                    decoration: const InputDecoration(labelText: 'Kategorie'),
-                    items: parent._unitCategories.keys
-                        .map(
-                          (cat) =>
-                              DropdownMenuItem(value: cat, child: Text(cat)),
-                        )
-                        .toList(),
-                    onChanged: (val) {
-                      // ignore: invalid_use_of_protected_member
-                      parent.setState(() {
-                        parent._selectedUnitCategory = val!;
-                        parent._unitFrom =
-                            parent._unitCategories[val]!.keys.first;
-                        parent._unitTo = parent._unitCategories[val]!.keys
-                            .elementAt(1);
-                      });
-                      parent.speak('Kategorie $val');
-                    },
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
+DropdownButtonFormField<String>(
+                  initialValue: parent._selectedUnitCategory,
+                  decoration: const InputDecoration(labelText: 'Kategorie'),
+                  items: parent._unitCategories.keys
+                      .map(
+                        (cat) =>
+                            DropdownMenuItem(value: cat, child: Text(cat)),
+                      )
+                      .toList(),
+                  onChanged: (val) {
+                    // ignore: invalid_use_of_protected_member
+                    parent.setState(() {
+                      parent._selectedUnitCategory = val!;
+                      parent._unitFrom =
+                          parent._unitCategories[val]!.keys.first;
+                      parent._unitTo = parent._unitCategories[val]!.keys
+                          .elementAt(1);
+                    });
+                    parent.speak('Kategorie $val');
+                  },
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(
+                        label: parent._s('Převod z jednotky', 'Convert from unit'),
                         child: DropdownButtonFormField<String>(
                           initialValue: parent._unitFrom,
                           decoration: const InputDecoration(labelText: 'Z'),
@@ -5680,8 +5731,11 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                           },
                         ),
                       ),
-                      const Icon(Icons.arrow_forward),
-                      Expanded(
+                    ),
+                    const Icon(Icons.arrow_forward),
+                    Expanded(
+                      child: Semantics(
+                        label: parent._s('Převod na jednotku', 'Convert to unit'),
                         child: DropdownButtonFormField<String>(
                           initialValue: parent._unitTo,
                           decoration: const InputDecoration(labelText: 'Na'),
@@ -5704,6 +5758,7 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
                           },
                         ),
                       ),
+                    ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -5955,7 +6010,9 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
       child: Column(
         children: [
           Semantics(
-            label: _isExpanded ? 'Sbalit ${widget.title}' : 'Rozbalit ${widget.title}',
+            button: true,
+            expanded: _isExpanded,
+            label: '${_isExpanded ? 'Sbalit' : 'Rozbalit'} ${widget.title}',
             child: ListTile(
               title: Text(
                 widget.title,
@@ -5991,7 +6048,7 @@ class CustomSegmentDisplay extends StatelessWidget {
     this.characterSpacing = 8,
     this.isSixteenSegment = false,
     this.enabledColor = Colors.redAccent,
-    this.disabledColor = const Color(0x0DFF5252),
+    this.disabledColor = const Color(0x30FF5252),
   });
 
   @override
@@ -7074,7 +7131,7 @@ class CustomDotMatrixDisplay extends StatelessWidget {
     this.ledSize = 3.0,
     this.ledSpacing = 1.0,
     this.enabledColor = Colors.redAccent,
-    this.disabledColor = const Color(0x0DFF5252),
+    this.disabledColor = const Color(0x30FF5252),
   });
 
   @override

@@ -120,6 +120,8 @@ class GitHubReleaseChecker {
     } catch (e) {
       debugPrint('Error checking for updates: $e');
       return null;
+    } finally {
+      _client.close();
     }
   }
 }
