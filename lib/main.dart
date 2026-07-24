@@ -276,6 +276,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   int _currentStatsSetIndex = 0;
   int _selectedFieldIndex = 0;
   List<StatisticsRecord> _lastAddedBatch = [];
+  bool _statsSummaryInitialized = false;
 
   bool get _hasStatsSet => _statsSets.isNotEmpty;
 
@@ -4010,6 +4011,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showStatisticsSummaryDialog() {
+    _statsSummaryInitialized = false;
     final l10n = _l10n;
     final fieldNames = _statsSets.isNotEmpty
         ? _statsSets[_currentStatsSetIndex].fieldNames
@@ -4129,6 +4131,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               );
             }
 
+            if (!_statsSummaryInitialized) {
+              _statsSummaryInitialized = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && !_isScreenReaderActive) speak(spokenSummary);
+              });
+            }
+
             return AlertDialog(
               semanticLabel: l10n.statsSummaryTitle,
               title: Semantics(
@@ -4139,12 +4148,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 container: true,
                 label: spokenSummary,
                 liveRegion: true,
-                child: Focus(
-                  autofocus: true,
-                  onFocusChange: (hasFocus) {
-                    if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
-                  },
-                  child: SizedBox(
+                child: SizedBox(
                     width: double.maxFinite,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 420),
@@ -4245,10 +4249,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             ...snapshot.frequencies.entries.map((e) {
                               final valStr = _formatNumber(e.key);
                               final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: e.key)}' : '';
-                              final countStr = _s(
-                                '$e.value×',
-                                '$e.value×',
-                              );
+                              final countStr = '${e.value}×';
                               return Semantics(
                                 container: true,
                                 label: _s(
@@ -4318,7 +4319,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ),
                   ),
                 ),
-              ),
               ),
               actions: [
                 TextButton(
@@ -5726,7 +5726,7 @@ class _AdvancedFunctionsDialog extends StatelessWidget {
       );
     }
 
-    if (parent._currentMode != CalculatorMode.statistics) {
+    if (parent._currentMode == CalculatorMode.scientific) {
       sections.add(
         _CollapsibleSection(
           title: 'Goniometrie',
