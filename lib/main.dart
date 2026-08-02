@@ -109,6 +109,15 @@ class _ElectricianInputException implements Exception {
   String toString() => message;
 }
 
+class _MathDomainException implements Exception {
+  final String message;
+
+  const _MathDomainException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class _StatisticsSnapshot {
   final double sum;
   final double mean;
@@ -230,6 +239,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   int _cursorPosition = 0;
   String _lastResult = '0.';
   CalculatorMode _currentMode = CalculatorMode.scientific;
+  CalculatorMode _defaultMode = CalculatorMode.scientific;
 
   bool ttsEnabled = true;
   bool _updateDialogShown = false;
@@ -694,6 +704,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } else {
       return 'hodnot';
     }
+  }
+
+  String _statsEmptyMessage() {
+    if (_statsSets.isEmpty) {
+      return _s(
+        'Není vytvořena žádná statistická sada.',
+        'No statistics set created.',
+      );
+    }
+    final setName = _statsSets[_currentStatsSetIndex].name;
+    return _s(
+      'Statistická sada "$setName" je prázdná. Přidejte data pomocí tlačítka M plus.',
+      'Statistics set "$setName" is empty. Add data using the M+ button.',
+    );
   }
 
   AppLocalizations get _l10n => AppLocalizations.of(context)!;
@@ -1433,7 +1457,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       if (_currentMode == CalculatorMode.statistics) {
         if (_statsMemory.isEmpty) {
-          speak(_l10n.statsMemoryEmptyHint);
+          speak(_statsEmptyMessage());
           return;
         }
         List<double> data = List.from(_statsMemory);
@@ -1530,6 +1554,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       String msg =
           'Výrazu nerozumím, zkuste zkontrolovat závorky nebo znaménka';
       if (e is _ElectricianInputException) {
+        msg = e.message;
+      } else if (e is _MathDomainException) {
         msg = e.message;
       } else {
         String errStr = e.toString().toLowerCase();
@@ -1700,7 +1726,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
       processed = processed.replaceAllMapped(
         RegExp(r'_TAN_\((.+)\)'),
-        (m) => 'tan(${m[1]}*($PI_VAL/180))',
+        (m) {
+          final arg = m[1]!;
+          // Tangens není definovaný pro 90° + k*180°. Díky chybě plovoucí
+          // řádové čárky by jinak vrátil obrovské číslo místo chyby.
+          final argDegrees = _evaluateExpression(arg);
+          final normalized = ((argDegrees % 180) + 180) % 180;
+          if ((normalized - 90).abs() < 1e-9) {
+            throw _MathDomainException(_s(
+              'Tangens není definovaný pro ${_formatNumber(argDegrees)} stupňů.',
+              'Tangent is not defined for ${_formatNumber(argDegrees)} degrees.',
+            ));
+          }
+          return 'tan($arg*($PI_VAL/180))';
+        },
       );
 
       // Pro asin, acos, atan: ZMĚNA na arcsin, arccos, arctan pro knihovnu math_expressions!
@@ -1868,8 +1907,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String _formatAsDMS(double value) {
     double absVal = value.abs();
     double totalSeconds = absVal * 3600;
-    int wholeSeconds = totalSeconds.floor();
-    double fracSeconds = totalSeconds - wholeSeconds;
+    // Normalizace zaokrouhlovacích artefaktů plovoucí řádové čárky,
+    // aby např. ASIN(0,5) bylo 30°0'0", nikoli 29°59'60".
+    double roundedTotal = totalSeconds.roundToDouble();
+    int wholeSeconds;
+    double fracSeconds;
+    if ((totalSeconds - roundedTotal).abs() < 1e-6) {
+      wholeSeconds = roundedTotal.toInt();
+      fracSeconds = 0.0;
+    } else {
+      wholeSeconds = totalSeconds.floor();
+      fracSeconds = totalSeconds - wholeSeconds;
+    }
     int s = wholeSeconds % 60;
     int totalMinutes = wholeSeconds ~/ 60;
     int m = totalMinutes % 60;
@@ -2034,11 +2083,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       display = '';
     });
     String speech = _l10n.switchedToMode(_getModeSpeechName(mode));
-    if (mode == CalculatorMode.statistics && !_hasStatsSet) {
-      speech += '. ' + _s(
-        'Zatím nemáte vytvořenou žádnou statistickou sadu. Vytvořte ji stisknutím tlačítka SETS.',
-        'You have no statistical sets created yet. Create one by pressing the SETS button.'
-      );
+    if (mode == CalculatorMode.statistics) {
+      if (!_hasStatsSet) {
+        speech += '. ' + _s(
+          'Zatím nemáte vytvořenou žádnou statistickou sadu. Vytvořte ji stisknutím tlačítka SETS.',
+          'You have no statistical sets created yet. Create one by pressing the SETS button.'
+        );
+      } else if (_statsMemory.isEmpty) {
+        final setName = _statsSets[_currentStatsSetIndex].name;
+        speech += '. ' + _s(
+          'Aktivní sada "$setName" je prázdná. Přidejte data pomocí tlačítka M plus.',
+          'The active set "$setName" is empty. Add data using the M+ button.'
+        );
+      }
     }
     speak(speech);
   }
@@ -2079,6 +2136,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _ttsVoiceName = null;
       }
       _inverseFormatPreference = prefs.getInt('inverseFormatPreference');
+      final savedDefaultMode = prefs.getInt('defaultMode');
+      if (savedDefaultMode != null &&
+          savedDefaultMode >= 0 &&
+          savedDefaultMode < CalculatorMode.values.length) {
+        _defaultMode = CalculatorMode.values[savedDefaultMode];
+        _currentMode = _defaultMode;
+      }
       final savedMode = prefs.getInt('screenReaderModeState');
       if (savedMode != null) {
         _screenReaderMode = ScreenReaderMode.values[savedMode];
@@ -2117,6 +2181,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     await prefs.setInt('screenReaderModeState', _screenReaderMode.index);
     await prefs.setInt('dialogSize', _dialogSize.index);
+    await prefs.setInt('defaultMode', _defaultMode.index);
+  }
+
+  void _setDefaultMode(CalculatorMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('defaultMode', mode.index);
+    setState(() => _defaultMode = mode);
   }
 
   void _saveInversePreference(int val) async {
@@ -3093,10 +3164,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           return;
         }
         if (_statsMemory.isEmpty) {
-          speak(_l10n.statsMemoryEmpty);
+          speak(_statsEmptyMessage());
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_l10n.statsMemoryEmpty)),
+              SnackBar(content: Text(_statsEmptyMessage())),
             );
           }
         } else {
@@ -3120,10 +3191,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           return;
         }
         if (_statsMemory.isEmpty) {
-          speak(_l10n.statsMemoryEmptyHint);
+          speak(_statsEmptyMessage());
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_l10n.statsMemoryEmptyHint)),
+              SnackBar(content: Text(_statsEmptyMessage())),
             );
           }
         } else {
@@ -3156,7 +3227,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (_currentMode == CalculatorMode.statistics) {
         try {
           if (_statsMemory.isEmpty) {
-            speak(_l10n.statsMemoryEmptyHint);
+            speak(_statsEmptyMessage());
             return;
           }
 
@@ -3712,10 +3783,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     }
     if (_statsMemory.isEmpty) {
-      speak(_l10n.statsMemoryEmpty);
+      speak(_statsEmptyMessage());
       if (mounted) {
         ScaffoldMessenger.of(dialogContext).showSnackBar(
-          SnackBar(content: Text(_l10n.statsMemoryEmpty)),
+          SnackBar(content: Text(_statsEmptyMessage())),
         );
       }
       Navigator.pop(dialogContext);
@@ -3828,6 +3899,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             final totalCount = _statsMemory.length;
             final totalCountForm = _getStatsCountForm(totalCount);
             final records = List<StatisticsRecord>.from(_statsMemory);
+            final freqFieldIndex =
+                _selectedFieldIndex < fieldNames.length ? _selectedFieldIndex : 0;
+            final freqSnapshot =
+                records.isNotEmpty ? _computeStatisticsSnapshot(freqFieldIndex) : null;
+            final showFrequencies = freqSnapshot != null &&
+                (freqSnapshot.frequencies.length > 1 ||
+                    freqSnapshot.frequencies.entries.first.value > 1);
 
             String spokenSummary;
             if (records.isEmpty) {
@@ -3851,6 +3929,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 'Statistics memory, set $currentSetName. Contains $totalCount $totalCountForm. '
                 'Fields: $fieldsSummary.',
               );
+              if (showFrequencies) {
+                final freqUnit = freqFieldIndex < fieldUnits.length
+                    ? fieldUnits[freqFieldIndex]
+                    : null;
+                final frequencySpoken = freqSnapshot.frequencies.entries.map((e) {
+                  final valStr = _formatSpokenNumber(e.key);
+                  final unitStr = freqUnit != null
+                      ? ' ${_getUnitSpeech(freqUnit, value: e.key)}'
+                      : '';
+                  return _s(
+                    '$valStr$unitStr se vyskytuje ${e.value} krát',
+                    '$valStr$unitStr occurs ${e.value} times',
+                  );
+                }).join(_s('; ', '; '));
+                spokenSummary += _s(
+                  ' Počet výskytů pole ${fieldNames[freqFieldIndex]}: $frequencySpoken.',
+                  ' Occurrences for field ${fieldNames[freqFieldIndex]}: $frequencySpoken.',
+                );
+              }
             }
 
             return AlertDialog(
@@ -3993,6 +4090,66 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               );
                             }),
                           ],
+                          if (showFrequencies) ...[
+                            const SizedBox(height: 16),
+                            Semantics(
+                              header: true,
+                              label: l10n.statsOccurrenceCount,
+                              child: ExcludeSemantics(
+                                child: Text(
+                                  l10n.statsOccurrenceCount,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Semantics(
+                              label: _s(
+                                'Počet výskytů pole ${fieldNames[freqFieldIndex]}',
+                                'Occurrences for field ${fieldNames[freqFieldIndex]}',
+                              ),
+                              child: ExcludeSemantics(
+                                child: Text(
+                                  '${l10n.statsOccurrenceCount} — ${fieldNames[freqFieldIndex]}',
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            ...freqSnapshot.frequencies.entries.map((e) {
+                              final valStr = _formatNumber(e.key);
+                              final freqUnit = freqFieldIndex < fieldUnits.length
+                                  ? fieldUnits[freqFieldIndex]
+                                  : null;
+                              final unitStr = freqUnit != null
+                                  ? ' ${_getUnitSpeech(freqUnit, value: e.key)}'
+                                  : '';
+                              final countStr = '${e.value}×';
+                              return Semantics(
+                                container: true,
+                                label: _s(
+                                  'Hodnota $valStr$unitStr, počet výskytů: ${e.value}',
+                                  'Value $valStr$unitStr, occurrences: ${e.value}',
+                                ),
+                                child: ExcludeSemantics(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 2),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text('$valStr$unitStr'),
+                                        ),
+                                        Text(
+                                          countStr,
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
                         ],
                       ),
                     ),
@@ -4055,6 +4212,66 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  String _buildStatsSummarySpeech(int fieldIndex) {
+    final snapshot = _computeStatisticsSnapshot(fieldIndex);
+    if (snapshot == null) return '';
+    final currentSetName = _statsSets[_currentStatsSetIndex].name;
+    final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
+    final selectedFieldName = fieldNames[fieldIndex];
+    final fieldUnit = fieldIndex < _statsSets[_currentStatsSetIndex].fieldUnits.length
+        ? _statsSets[_currentStatsSetIndex].fieldUnits[fieldIndex]
+        : null;
+    final rawValues = _getFieldValues(fieldIndex);
+    final allValuesSpoken = rawValues
+        .map((v) {
+          final numStr = _formatSpokenNumber(v);
+          final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: v)}' : '';
+          return '$numStr$unitStr';
+        })
+        .join(_isEnglish() ? ', ' : '; ');
+    final dataCount = rawValues.length;
+    final modeSpoken = snapshot.modeExists
+        ? snapshot.modes.map((m) => _formatSpokenNumber(m)).join(_s(' a ', ' and '))
+        : _l10n.statsModeNone;
+    final cvSpoken = snapshot.cv == null
+        ? _s('nelze vypočítat', 'cannot calculate')
+        : '${_formatSpokenNumber(snapshot.cv!)} ${_s('procent', 'percent')}';
+    final wmeanSpoken = snapshot.wmean == null
+        ? null
+        : _formatSpokenNumber(snapshot.wmean!);
+
+    String spokenSummary = _s(
+      'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. '
+      'Počet hodnot: $dataCount. '
+      'Všechny hodnoty: $allValuesSpoken. '
+      'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
+      'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
+      'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
+      'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
+      'Medián: ${_formatSpokenNumber(snapshot.median)}. '
+      'Modus: $modeSpoken. '
+      'Variační koeficient: $cvSpoken.',
+      'Statistics summary for set $currentSetName, field $selectedFieldName. '
+      'Count: $dataCount. '
+      'All values: $allValuesSpoken. '
+      'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
+      'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
+      'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
+      'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
+      'Median: ${_formatSpokenNumber(snapshot.median)}. '
+      'Mode: $modeSpoken. '
+      'Coefficient of variation: $cvSpoken.',
+    );
+    if (snapshot.wmean != null) {
+      final fieldNamesForWmean = _statsSets[_currentStatsSetIndex].fieldNames;
+      spokenSummary += _s(
+        ' Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}).',
+        ' Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}).',
+      );
+    }
+    return spokenSummary;
+  }
+
   void _showStatisticsSummaryDialog() {
     _statsSummaryInitialized = false;
     final l10n = _l10n;
@@ -4070,10 +4287,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (context, setSummaryState) {
             final snapshot = _computeStatisticsSnapshot(_selectedFieldIndex);
             if (snapshot == null) {
-              speak(l10n.statsMemoryEmpty);
+              speak(_statsEmptyMessage());
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.statsMemoryEmpty)),
+                  SnackBar(content: Text(_statsEmptyMessage())),
                 );
               }
               Navigator.pop(dialogContext);
@@ -4104,23 +4321,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             final modeText = snapshot.modeExists
                 ? snapshot.modes.map((m) => _formatNumber(m)).join('; ')
                 : l10n.statsModeNone;
-            final modeSpoken = snapshot.modeExists
-                ? snapshot.modes.map((m) => _formatSpokenNumber(m)).join(_s(' a ', ' and '))
-                : l10n.statsModeNone;
 
             final cvText = snapshot.cv == null
                 ? 'Err'
                 : '${_formatNumber(snapshot.cv!)} %';
-            final cvSpoken = snapshot.cv == null
-                ? _s('nelze vypočítat', 'cannot calculate')
-                : '${_formatSpokenNumber(snapshot.cv!)} ${_s('procent', 'percent')}';
 
             final wmeanText = snapshot.wmean == null
                 ? null
                 : _formatNumber(snapshot.wmean!);
-            final wmeanSpoken = snapshot.wmean == null
-                ? null
-                : _formatSpokenNumber(snapshot.wmean!);
 
             final statRows = <MapEntry<String, String>>[
               MapEntry(l10n.statsN, dataCount.toString()),
@@ -4135,46 +4343,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               MapEntry(l10n.statsCv, cvText),
             ];
 
-            final frequencySpoken = snapshot.frequencies.entries.map((e) {
-              final valStr = _formatSpokenNumber(e.key);
-              final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: e.key)}' : '';
-              return _s(
-                '$valStr$unitStr se vyskytuje ${e.value} krát',
-                '$valStr$unitStr occurs ${e.value} times',
-              );
-            }).join(_s('; ', '; '));
-
-            String spokenSummary = _s(
-              'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. '
-              'Počet hodnot: $dataCount. '
-              'Všechny hodnoty: $allValuesSpoken. '
-              'Počet výskytů: $frequencySpoken. '
-              'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
-              'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
-              'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
-              'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
-              'Medián: ${_formatSpokenNumber(snapshot.median)}. '
-              'Modus: $modeSpoken. '
-              'Variační koeficient: $cvSpoken.',
-              'Statistics summary for set $currentSetName, field $selectedFieldName. '
-              'Count: $dataCount. '
-              'All values: $allValuesSpoken. '
-              'Occurrences: $frequencySpoken. '
-              'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
-              'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
-              'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
-              'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
-              'Median: ${_formatSpokenNumber(snapshot.median)}. '
-              'Mode: $modeSpoken. '
-              'Coefficient of variation: $cvSpoken.',
-            );
-            if (snapshot.wmean != null) {
-              final fieldNamesForWmean = _statsSets[_currentStatsSetIndex].fieldNames;
-              spokenSummary += _s(
-                ' Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}).',
-                ' Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}).',
-              );
-            }
+            final spokenSummary = _buildStatsSummarySpeech(_selectedFieldIndex);
 
             if (!_statsSummaryInitialized) {
               _statsSummaryInitialized = true;
@@ -4219,12 +4388,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             InkWell(
                               onTap: () {
                                 final nextIndex = (_selectedFieldIndex + 1) % fieldNames.length;
+                                final nextSummary = _buildStatsSummarySpeech(nextIndex);
                                 setState(() => _selectedFieldIndex = nextIndex);
                                 setSummaryState(() {});
                                 speak(_s(
-                                  'Vybráno pole ${fieldNames[nextIndex]}',
-                                  'Selected field ${fieldNames[nextIndex]}',
-                                ));
+                                  'Vybráno pole ${fieldNames[nextIndex]}. ',
+                                  'Selected field ${fieldNames[nextIndex]}. ',
+                                ) + nextSummary);
                               },
                               child: Semantics(
                                 liveRegion: true,
@@ -4277,49 +4447,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             ),
                             child: ExcludeSemantics(child: Text(allValues)),
                           ),
-                          if (snapshot.frequencies.length > 1 ||
-                              snapshot.frequencies.entries.first.value > 1) ...[
-                            const SizedBox(height: 16),
-                            Semantics(
-                              header: true,
-                              label: l10n.statsOccurrenceCount,
-                              child: ExcludeSemantics(
-                                child: Text(
-                                  l10n.statsOccurrenceCount,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            ...snapshot.frequencies.entries.map((e) {
-                              final valStr = _formatNumber(e.key);
-                              final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: e.key)}' : '';
-                              final countStr = '${e.value}×';
-                              return Semantics(
-                                container: true,
-                                label: _s(
-                                  'Hodnota $valStr$unitStr, počet výskytů: ${e.value}',
-                                  'Value $valStr$unitStr, occurrences: ${e.value}',
-                                ),
-                                child: ExcludeSemantics(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 2),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text('$valStr$unitStr'),
-                                        ),
-                                        Text(
-                                          countStr,
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ],
                           const SizedBox(height: 16),
                           Semantics(
                             header: true,
@@ -4462,6 +4589,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
+                                      icon: const Icon(Icons.view_list),
+                                      tooltip: _s('Upravit pole', 'Edit fields'),
+                                      onPressed: () {
+                                        _showEditStatsSetDialog(context, index, () {
+                                          setStateDialog(() {});
+                                          setState(() {});
+                                        });
+                                      },
+                                    ),
+                                    IconButton(
                                       icon: const Icon(Icons.edit),
                                       tooltip: l10n.statsSetsRename,
                                       onPressed: () {
@@ -4579,6 +4716,193 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               child: Text(l10n.confirmAction),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showEditStatsSetDialog(BuildContext context, int index, VoidCallback onUpdated) {
+    final l10n = _l10n;
+    final set = _statsSets[index];
+
+    final fieldNameControllers = <TextEditingController>[
+      for (var i = 0; i < set.fieldNames.length; i++)
+        TextEditingController(text: set.fieldNames[i]),
+    ];
+    final fieldUnitValues = <String>[
+      for (var i = 0; i < set.fieldUnits.length; i++)
+        set.fieldUnits[i] ?? '--',
+    ];
+
+    void commitChanges(StateSetter setDialogState) {
+      setState(() {
+        for (var i = 0; i < set.fieldNames.length; i++) {
+          final trimmed = fieldNameControllers[i].text.trim();
+          if (trimmed.isNotEmpty) {
+            set.fieldNames[i] = trimmed;
+          }
+          set.fieldUnits[i] =
+              fieldUnitValues[i] == '--' ? null : fieldUnitValues[i];
+        }
+        if (_selectedFieldIndex >= set.fieldNames.length) {
+          _selectedFieldIndex = 0;
+        }
+      });
+      _saveStatsData();
+      _statsSummaryInitialized = false;
+      setDialogState(() {});
+      onUpdated();
+    }
+
+    showDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: _s('Upravit pole', 'Edit fields')),
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              semanticLabel: _s('Upravit pole sady ${set.name}', 'Edit fields of set ${set.name}'),
+              title: Semantics(
+                header: true,
+                child: Text(_s('Pole sady', 'Fields of set') + ' "${set.name}"'),
+              ),
+              content: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 380),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...List.generate(set.fieldNames.length, (i) {
+                        final isLast = set.fieldNames.length == 1;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Semantics(
+                                  label: _s('Název pole', 'Field name') + ' ${i + 1}',
+                                  child: TextField(
+                                    controller: fieldNameControllers[i],
+                                    decoration: InputDecoration(
+                                      labelText: _s('Pole', 'Field') + ' ${i + 1}',
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                                    onChanged: (_) {
+                                      commitChanges(setDialogState);
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                flex: 2,
+                                child: Semantics(
+                                  label: _s('Jednotka pole', 'Unit for field') + ' ${i + 1}',
+                                  child: DropdownButtonFormField<String>(
+                                    value: fieldUnitValues[i],
+                                    isDense: true,
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                    ),
+                                    items: _statsFieldUnitOptions.map((u) {
+                                      return DropdownMenuItem(
+                                        value: u,
+                                        child: Text(
+                                          _getUnitOptionLabel(u),
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        fieldUnitValues[i] = val;
+                                        commitChanges(setDialogState);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle, color: Colors.red, size: 20),
+                                tooltip: _s('Smazat pole', 'Delete field') + ' ${i + 1}',
+                                onPressed: isLast
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          fieldNameControllers.removeAt(i).dispose();
+                                          fieldUnitValues.removeAt(i);
+                                          set.fieldNames.removeAt(i);
+                                          set.fieldUnits.removeAt(i);
+                                          for (final record in set.records) {
+                                            if (i < record.values.length) {
+                                              record.values.removeAt(i);
+                                            }
+                                          }
+                                          if (_selectedFieldIndex >= set.fieldNames.length) {
+                                            _selectedFieldIndex = 0;
+                                          }
+                                        });
+                                        _saveStatsData();
+                                        _statsSummaryInitialized = false;
+                                        onUpdated();
+                                        setDialogState(() {});
+                                        speak(_s('Pole smazáno.', 'Field deleted.'));
+                                      },
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      TextButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(_s('Přidat pole', 'Add field')),
+                        onPressed: () {
+                          final newIndex = set.fieldNames.length;
+                          setState(() {
+                            set.fieldNames
+                                .add(_s('Pole ${newIndex + 1}', 'Field ${newIndex + 1}'));
+                            set.fieldUnits.add(null);
+                            fieldNameControllers
+                                .add(TextEditingController(text: set.fieldNames.last));
+                            fieldUnitValues.add('--');
+                            for (final record in set.records) {
+                              record.values.add(0.0);
+                            }
+                          });
+                          _saveStatsData();
+                          _statsSummaryInitialized = false;
+                          onUpdated();
+                          setDialogState(() {});
+                          speak(_s(
+                            'Pole přidáno. Stávajícím záznamům byla doplněna hodnota 0.',
+                            'Field added. Existing records were filled with value 0.',
+                          ));
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    for (final c in fieldNameControllers) {
+                      c.dispose();
+                    }
+                    Navigator.pop(dialogContext);
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) _mainFocusNode.requestFocus();
+                    });
+                  },
+                  child: Text(l10n.close),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -7492,6 +7816,59 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     widget.parent.speak('Motiv nastaven na $modeName');
                     setState(() {});
                   },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Výchozí režim po spuštění
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  label: widget.parent._s(
+                    'Výchozí režim po spuštění',
+                    'Default mode on startup',
+                  ),
+                  child: ExcludeSemantics(
+                    child: Text(
+                      widget.parent._s(
+                        'Výchozí režim po spuštění',
+                        'Default mode on startup',
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SegmentedButton<CalculatorMode>(
+                    showSelectedIcon: false,
+                    segments: CalculatorMode.values.map((mode) {
+                      final modeName = widget.parent._getModeName(mode);
+                      return ButtonSegment(
+                        value: mode,
+                        label: Semantics(
+                          label: modeName,
+                          child: ExcludeSemantics(child: Text(modeName)),
+                        ),
+                        tooltip: modeName,
+                      );
+                    }).toList(),
+                    selected: {widget.parent._defaultMode},
+                    onSelectionChanged: (Set<CalculatorMode> selected) {
+                      final mode = selected.first;
+                      widget.parent._setDefaultMode(mode);
+                      widget.parent.speak(
+                        widget.parent._s(
+                          'Výchozí režim nastaven na ${widget.parent._getModeSpeechName(mode)}',
+                          'Default mode set to ${widget.parent._getModeSpeechName(mode)}',
+                        ),
+                      );
+                      setState(() {});
+                    },
+                  ),
                 ),
               ],
             ),
