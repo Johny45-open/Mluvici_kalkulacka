@@ -706,6 +706,35 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  bool _statsRecordsEqual(StatisticsRecord a, StatisticsRecord b) {
+    if (a.values.length != b.values.length) return false;
+    for (int i = 0; i < a.values.length; i++) {
+      if (a.values[i] != b.values[i]) return false;
+    }
+    return true;
+  }
+
+  List<List<int>> _groupStatsRecords(List<StatisticsRecord> records) {
+    final groups = <List<int>>[];
+    final reps = <StatisticsRecord>[];
+    for (int i = 0; i < records.length; i++) {
+      int? match;
+      for (int g = 0; g < groups.length; g++) {
+        if (_statsRecordsEqual(reps[g], records[i])) {
+          match = g;
+          break;
+        }
+      }
+      if (match == null) {
+        groups.add([i]);
+        reps.add(records[i]);
+      } else {
+        groups[match].add(i);
+      }
+    }
+    return groups;
+  }
+
   String _statsEmptyMessage() {
     if (_statsSets.isEmpty) {
       return _s(
@@ -3761,25 +3790,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
-  void _removeStatsRecord(int index, StateSetter setStateDialog, BuildContext dialogContext) {
+  void _removeStatsRecord(List<int> indices, StateSetter setStateDialog, BuildContext dialogContext) {
     setState(() {
-      _statsSets[_currentStatsSetIndex].records.removeAt(index);
+      final sorted = List<int>.from(indices)..sort((a, b) => b.compareTo(a));
+      for (final idx in sorted) {
+        _statsSets[_currentStatsSetIndex].records.removeAt(idx);
+      }
       if (_selectedFieldIndex >= _currentFieldCount) {
         _selectedFieldIndex = 0;
       }
     });
     _saveStatsData();
     setStateDialog(() {});
-    speak(_s(
-      'Odebrán záznam ${index + 1}',
-      'Removed record ${index + 1}',
-    ));
+    final removedMsg = indices.length > 1
+        ? _s(
+            'Odebráno ${indices.length} ${_getStatsCountForm(indices.length)}',
+            'Removed ${indices.length} ${_getStatsCountForm(indices.length)}',
+          )
+        : _s(
+            'Odebrán záznam ${indices.first + 1}',
+            'Removed record ${indices.first + 1}',
+          );
+    speak(removedMsg);
     if (mounted) {
       ScaffoldMessenger.of(dialogContext).showSnackBar(
-        SnackBar(content: Text(_s(
-          'Odebrán záznam ${index + 1}',
-          'Removed record ${index + 1}',
-        ))),
+        SnackBar(content: Text(removedMsg)),
       );
     }
     if (_statsMemory.isEmpty) {
@@ -3793,7 +3828,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  void _showEditStatsRecordDialog(int recordIndex, BuildContext dialogContext, StateSetter setStateDialog) {
+  void _showEditStatsRecordDialog(List<int> recordIndices, BuildContext dialogContext, StateSetter setStateDialog) {
+    final recordIndex = recordIndices.first;
     final record = _statsMemory[recordIndex];
     final currentSet = _statsSets[_currentStatsSetIndex];
     final fieldNames = currentSet.fieldNames;
@@ -3853,22 +3889,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 }
                 if (valid) {
                   setState(() {
-                    _statsSets[_currentStatsSetIndex].records[recordIndex] =
-                        StatisticsRecord(values: newValues);
+                    for (final idx in recordIndices) {
+                      _statsSets[_currentStatsSetIndex].records[idx] =
+                          StatisticsRecord(values: newValues);
+                    }
                   });
                   _saveStatsData();
                   setStateDialog(() {});
                   Navigator.pop(ctx);
-                  speak(_s(
-                    'Záznam ${recordIndex + 1} upraven',
-                    'Record ${recordIndex + 1} edited',
-                  ));
+                  final editedMsg = recordIndices.length > 1
+                      ? _s(
+                          'Záznam ${recordIndex + 1} upraven. Změněno ${recordIndices.length} ${_getStatsCountForm(recordIndices.length)}.',
+                          'Record ${recordIndex + 1} edited. Changed ${recordIndices.length} ${_getStatsCountForm(recordIndices.length)}.',
+                        )
+                      : _s(
+                          'Záznam ${recordIndex + 1} upraven',
+                          'Record ${recordIndex + 1} edited',
+                        );
+                  speak(editedMsg);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(_s(
-                        'Záznam ${recordIndex + 1} upraven',
-                        'Record ${recordIndex + 1} edited',
-                      ))),
+                      SnackBar(content: Text(editedMsg)),
                     );
                   }
                 } else {
@@ -3899,6 +3940,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             final totalCount = _statsMemory.length;
             final totalCountForm = _getStatsCountForm(totalCount);
             final records = List<StatisticsRecord>.from(_statsMemory);
+            final groups = _groupStatsRecords(records);
             final freqFieldIndex =
                 _selectedFieldIndex < fieldNames.length ? _selectedFieldIndex : 0;
             final freqSnapshot =
@@ -3916,11 +3958,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             } else {
               final fieldsSummary = fieldNames.asMap().entries.map((fe) {
                 final unitCode = fe.key < fieldUnits.length ? fieldUnits[fe.key] : null;
-                final vals = records.map((r) {
+                final vals = groups.map((g) {
+                  final r = records[g.first];
                   final v = _formatSpokenNumber(r.values[fe.key]);
                   final u = unitCode != null ? ' ${_getUnitSpeech(unitCode, value: r.values[fe.key])}' : '';
-                  return '$v$u';
-                }).join('; ');
+                  final countPart = g.length > 1
+                      ? _s(' ${g.length} ${_getStatsCountForm(g.length)}', ' ${g.length} ${_getStatsCountForm(g.length)}')
+                      : '';
+                  return '$v$u$countPart';
+                }).join(_s('; ', '; '));
                 return '${fe.value}: $vals';
               }).join('. ');
               spokenSummary = _s(
@@ -3996,7 +4042,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             const SizedBox(height: 12),
                             Semantics(
                               header: true,
-                              label: _s('Sloupce: číslo, ${fieldNames.join(', ')}', 'Columns: number, ${fieldNames.join(', ')}'),
+                              label: _s(
+                                'Sloupce: číslo, ${fieldNames.join(', ')}, počet',
+                                'Columns: number, ${fieldNames.join(', ')}, count',
+                              ),
                               child: ExcludeSemantics(
                                 child: DefaultTextStyle.merge(
                                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -4005,9 +4054,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               ),
                             ),
                             const Divider(height: 16),
-                            ...records.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final record = entry.value;
+                            ...groups.asMap().entries.map((gEntry) {
+                              final groupIndex = gEntry.key;
+                              final group = gEntry.value;
+                              final record = records[group.first];
+                              final count = group.length;
                               final spokenValues = record.values
                                   .asMap()
                                   .entries
@@ -4021,8 +4072,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   .join(', ');
 
                               final rowLabel = _s(
-                                'Záznam ${index + 1}: $spokenValues',
-                                'Record ${index + 1}: $spokenValues',
+                                'Záznam ${groupIndex + 1}: $spokenValues. Počet výskytů: $count',
+                                'Record ${groupIndex + 1}: $spokenValues. Occurrences: $count',
                               );
                               return Semantics(
                                 container: true,
@@ -4035,7 +4086,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                         child: SizedBox(
                                           width: 28,
                                           child: Text(
-                                            '${index + 1}',
+                                            '${groupIndex + 1}',
                                             style: const TextStyle(fontSize: 12),
                                           ),
                                         ),
@@ -4055,6 +4106,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                           ),
                                         );
                                       }),
+                                      Expanded(
+                                        child: ExcludeSemantics(
+                                          child: Text(
+                                            '$count×',
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(fontSize: 13),
+                                          ),
+                                        ),
+                                      ),
                                       Semantics(
                                         label: rowLabel,
                                         child: Row(
@@ -4065,10 +4125,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                               constraints: const BoxConstraints(),
                                               icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
                                               tooltip: _s(
-                                                'Upravit záznam ${index + 1}',
-                                                'Edit record ${index + 1}',
+                                                'Upravit záznam ${groupIndex + 1}',
+                                                'Edit record ${groupIndex + 1}',
                                               ),
-                                              onPressed: () => _showEditStatsRecordDialog(index, dialogContext, setStateDialog),
+                                              onPressed: () => _showEditStatsRecordDialog(group, dialogContext, setStateDialog),
                                             ),
                                             const SizedBox(width: 4),
                                             IconButton(
@@ -4076,75 +4136,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                               constraints: const BoxConstraints(),
                                               icon: const Icon(Icons.delete, size: 20, color: Colors.red),
                                               tooltip: _s(
-                                                'Smazat záznam ${index + 1}',
-                                                'Delete record ${index + 1}',
+                                                'Smazat záznam ${groupIndex + 1}',
+                                                'Delete record ${groupIndex + 1}',
                                               ),
-                                              onPressed: () => _removeStatsRecord(index, setStateDialog, dialogContext),
+                                              onPressed: () => _removeStatsRecord(group, setStateDialog, dialogContext),
                                             ),
                                           ],
                                         ),
                                       ),
                                     ],
-                                  ),
-                                ),
-                              );
-                            }),
-                          ],
-                          if (showFrequencies) ...[
-                            const SizedBox(height: 16),
-                            Semantics(
-                              header: true,
-                              label: l10n.statsOccurrenceCount,
-                              child: ExcludeSemantics(
-                                child: Text(
-                                  l10n.statsOccurrenceCount,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Semantics(
-                              label: _s(
-                                'Počet výskytů pole ${fieldNames[freqFieldIndex]}',
-                                'Occurrences for field ${fieldNames[freqFieldIndex]}',
-                              ),
-                              child: ExcludeSemantics(
-                                child: Text(
-                                  '${l10n.statsOccurrenceCount} — ${fieldNames[freqFieldIndex]}',
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            ...freqSnapshot.frequencies.entries.map((e) {
-                              final valStr = _formatNumber(e.key);
-                              final freqUnit = freqFieldIndex < fieldUnits.length
-                                  ? fieldUnits[freqFieldIndex]
-                                  : null;
-                              final unitStr = freqUnit != null
-                                  ? ' ${_getUnitSpeech(freqUnit, value: e.key)}'
-                                  : '';
-                              final countStr = '${e.value}×';
-                              return Semantics(
-                                container: true,
-                                label: _s(
-                                  'Hodnota $valStr$unitStr, počet výskytů: ${e.value}',
-                                  'Value $valStr$unitStr, occurrences: ${e.value}',
-                                ),
-                                child: ExcludeSemantics(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 2),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text('$valStr$unitStr'),
-                                        ),
-                                        Text(
-                                          countStr,
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
-                                    ),
                                   ),
                                 ),
                               );
@@ -4200,6 +4200,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             ),
           );
         }),
+        Expanded(
+          child: Text(
+            _s('Počet', 'Count'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
         SizedBox(
           width: 72,
           child: Text(
