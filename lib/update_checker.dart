@@ -27,6 +27,22 @@ class GitHubReleaseInfo {
     return body!.trim().replaceAll('\r\n', '\n');
   }
 
+  String get plainTextBody {
+    final text = shortBody;
+    if (text.isEmpty) {
+      return '';
+    }
+
+    // Odstranění markdown syntaxe, aby se text dal přečíst hlasem.
+    return text
+        .replaceAll(RegExp(r'^#{1,6}\s*', multiLine: true), '')
+        .replaceAll(RegExp(r'^\s*[-*]\s+', multiLine: true), '')
+        .replaceAll(RegExp(r'\*\*(.+?)\*\*', multiLine: true), r'$1')
+        .replaceAll(RegExp(r'\*(.+?)\*', multiLine: true), r'$1')
+        .replaceAll('`', '')
+        .replaceAll('_', '');
+  }
+
   String get releaseSummary {
     final text = shortBody;
     if (text.isEmpty) {
@@ -77,6 +93,13 @@ class GitHubReleaseChecker {
 
   final http.Client _client;
 
+  static Map<String, String> _headers() {
+    return {
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'MluviciKalkulackaApp',
+    };
+  }
+
   Future<GitHubReleaseInfo?> checkForUpdates({
     required String owner,
     required String repo,
@@ -84,13 +107,7 @@ class GitHubReleaseChecker {
   }) async {
     try {
       final uri = Uri.https('api.github.com', '/repos/$owner/$repo/releases/latest');
-      final response = await _client.get(
-        uri,
-        headers: {
-          'Accept': 'application/vnd.github+json',
-          'User-Agent': 'MluviciKalkulackaApp',
-        },
-      );
+      final response = await _client.get(uri, headers: _headers());
 
       if (response.statusCode != 200) {
         debugPrint(
@@ -106,11 +123,7 @@ class GitHubReleaseChecker {
         return null;
       }
 
-      final release = GitHubReleaseInfo(
-        tagName: tagName,
-        htmlUrl: json['html_url'] as String?,
-        body: json['body'] as String?,
-      );
+      final release = _releaseFromJson(json);
 
       if (release.isNewerThan(currentVersion)) {
         return release;
@@ -120,8 +133,50 @@ class GitHubReleaseChecker {
     } catch (e) {
       debugPrint('Error checking for updates: $e');
       return null;
-    } finally {
-      _client.close();
     }
+  }
+
+  Future<List<GitHubReleaseInfo>> fetchRecentReleases({
+    required String owner,
+    required String repo,
+    int perPage = 10,
+  }) async {
+    try {
+      final uri = Uri.https(
+        'api.github.com',
+        '/repos/$owner/$repo/releases',
+        {'per_page': '$perPage'},
+      );
+      final response = await _client.get(uri, headers: _headers());
+
+      if (response.statusCode != 200) {
+        debugPrint(
+          'Failed to fetch recent releases: ${response.statusCode} ${response.body}',
+        );
+        return [];
+      }
+
+      final json = jsonDecode(response.body) as List<dynamic>;
+      final releases = json
+          .whereType<Map<String, dynamic>>()
+          .map(_releaseFromJson)
+          .toList();
+      return releases;
+    } catch (e) {
+      debugPrint('Error fetching recent releases: $e');
+      return [];
+    }
+  }
+
+  static GitHubReleaseInfo _releaseFromJson(Map<String, dynamic> json) {
+    return GitHubReleaseInfo(
+      tagName: (json['tag_name'] as String?) ?? '',
+      htmlUrl: json['html_url'] as String?,
+      body: json['body'] as String?,
+    );
+  }
+
+  void close() {
+    _client.close();
   }
 }

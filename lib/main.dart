@@ -240,6 +240,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String _lastResult = '0.';
   CalculatorMode _currentMode = CalculatorMode.scientific;
   CalculatorMode _defaultMode = CalculatorMode.scientific;
+  List<int> _modeUsageCounts = List<int>.filled(CalculatorMode.values.length, 0);
+  int _totalModeSwitches = 0;
+  bool _newsLoading = false;
+  List<GitHubReleaseInfo> _recentReleases = [];
+  String? _lastSeenNewsVersion;
+  int? _lastSuggestedMode;
 
   bool ttsEnabled = true;
   bool _updateDialogShown = false;
@@ -1072,7 +1078,55 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (mounted) {
       _mainFocusNode.requestFocus();
       _checkForUpdates();
+      _checkForNews();
     }
+  }
+
+  String get _currentNumericVersion {
+    return _currentAppVersion.split('+').first;
+  }
+
+  Future<void> _checkForNews() async {
+    if (!mounted || _updateDialogShown) {
+      return;
+    }
+    if (_lastSeenNewsVersion == null) {
+      return;
+    }
+    final currentNumeric = _currentNumericVersion;
+    if (_lastSeenNewsVersion == currentNumeric) {
+      return;
+    }
+
+    await _markNewsSeen(currentNumeric);
+
+    final checker = GitHubReleaseChecker();
+    final releases = await checker.fetchRecentReleases(
+      owner: 'Johny45-open',
+      repo: 'Mluvici_kalkulacka',
+      perPage: 10,
+    );
+    checker.close();
+    if (!mounted) return;
+
+    final currentRelease = _findReleaseForVersion(releases, currentNumeric);
+    if (currentRelease == null) {
+      return;
+    }
+
+    await _showNewsDialog(initialFocusVersion: currentRelease);
+  }
+
+  GitHubReleaseInfo? _findReleaseForVersion(
+    List<GitHubReleaseInfo> releases,
+    String numericVersion,
+  ) {
+    for (final release in releases) {
+      if (release.normalizedVersion == numericVersion) {
+        return release;
+      }
+    }
+    return null;
   }
 
   @override
@@ -1180,6 +1234,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  Future<void> _showNewsDialog({GitHubReleaseInfo? initialFocusVersion}) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Novinky'),
+      builder: (dialogContext) => _NewsDialog(
+        parent: this,
+        initialFocusVersion: initialFocusVersion,
+      ),
+    );
+  }
+
   void _initTts() async {
     try {
       final locale = WidgetsBinding.instance.platformDispatcher.locale;
@@ -1202,9 +1269,76 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     Future.delayed(const Duration(milliseconds: 1000), () async {
       final prefs = await SharedPreferences.getInstance();
-      if (!prefs.containsKey('accessibilityType'))
+      if (!prefs.containsKey('accessibilityType')) {
         _showInitialAccessibilityDialog();
+      }
+      if (!prefs.containsKey('modeQuestionAsked')) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) _showInitialModeDialog();
+        });
+      }
     });
+  }
+
+  void _showInitialModeDialog() {
+    speak(
+      _s(
+        'Jaký režim nejčastěji používáte?',
+        'Which mode do you use most often?',
+      ),
+    );
+    showDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Výběr režimu'),
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        semanticLabel: _s(
+          'Jaký režim nejčastěji používáte?',
+          'Which mode do you use most often?',
+        ),
+        title: Semantics(
+          header: true,
+          child: Text(
+            _s(
+              'Jaký režim nejčastěji používáte?',
+              'Which mode do you use most often?',
+            ),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: CalculatorMode.values.map((mode) {
+            final modeName = _getModeName(mode);
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Semantics(
+                label: '$modeName',
+                child: ElevatedButton(
+                  onPressed: () {
+                    _setDefaultMode(mode);
+                    setState(() => _currentMode = mode);
+                    SharedPreferences.getInstance().then((prefs) {
+                      prefs.setBool('modeQuestionAsked', true);
+                    });
+                    Navigator.of(dialogContext).pop();
+                    speak(
+                      _s(
+                        'Výchozí režim nastaven na $modeName',
+                        'Default mode set to $modeName',
+                      ),
+                    );
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) _mainFocusNode.requestFocus();
+                    });
+                  },
+                  child: Text(modeName),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
   }
 
   String _getModeName(CalculatorMode mode) {
@@ -2111,6 +2245,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _currentMode = mode;
       display = '';
     });
+    _modeUsageCounts[mode.index]++;
+    _totalModeSwitches++;
+    _saveModeUsage();
+    _maybeSuggestFavoriteMode();
     String speech = _l10n.switchedToMode(_getModeSpeechName(mode));
     if (mode == CalculatorMode.statistics) {
       if (!_hasStatsSet) {
@@ -2134,6 +2272,100 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final currentIndex = values.indexOf(_currentMode);
     final newIndex = (currentIndex + direction) % values.length;
     _changeMode(values[newIndex]);
+  }
+
+  void _maybeSuggestFavoriteMode() {
+    if (!mounted || _totalModeSwitches < 20) {
+      return;
+    }
+
+    int topIndex = 0;
+    for (var i = 1; i < _modeUsageCounts.length; i++) {
+      if (_modeUsageCounts[i] > _modeUsageCounts[topIndex]) {
+        topIndex = i;
+      }
+    }
+
+    final topCount = _modeUsageCounts[topIndex];
+    if (topIndex == _defaultMode.index || topCount <= 0) {
+      return;
+    }
+
+    final sortedCounts = List<int>.from(_modeUsageCounts)
+      ..sort((a, b) => b.compareTo(a));
+    final secondCount = sortedCounts.length > 1 ? sortedCounts[1] : 0;
+
+    final clearlyAhead = topCount >= (_totalModeSwitches * 0.4) &&
+        topCount >= secondCount * 2;
+
+    if (!clearlyAhead || _lastSuggestedMode == topIndex) {
+      return;
+    }
+
+    _showFavoriteModeSuggestionDialog(CalculatorMode.values[topIndex]);
+  }
+
+  void _showFavoriteModeSuggestionDialog(CalculatorMode mode) {
+    final modeName = _getModeName(mode);
+    _saveSuggestedMode(mode.index);
+    showDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Nejpoužívanější režim'),
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        semanticLabel: _s(
+          'Nejpoužívanější režim',
+          'Most used mode',
+        ),
+        title: Semantics(
+          header: true,
+          child: Text(_s('Nejpoužívanější režim', 'Most used mode')),
+        ),
+        content: Focus(
+          autofocus: true,
+          child: Semantics(
+            label: _s(
+              'Nejvíce používáte režim $modeName. Chcete ho nastavit jako výchozí režim po spuštění?',
+              'You most often use the $modeName. Do you want to set it as the default mode on startup?',
+            ),
+            child: Text(
+              _s(
+                'Nejvíce používáte režim $modeName.\nChcete ho nastavit jako výchozí režim po spuštění?',
+                'You most often use the $modeName.\nDo you want to set it as the default mode on startup?',
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _saveSuggestedMode(mode.index);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _mainFocusNode.requestFocus();
+              });
+            },
+            child: Text(_s('Ne', 'No')),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _setDefaultMode(mode);
+              speak(
+                _s(
+                  'Výchozí režim nastaven na $modeName',
+                  'Default mode set to $modeName',
+                ),
+              );
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _mainFocusNode.requestFocus();
+              });
+            },
+            child: Text(_s('Ano, nastavit', 'Yes, set it')),
+          ),
+        ],
+      ),
+    );
   }
 
   void _loadSettings() async {
@@ -2184,6 +2416,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (savedDialogSize != null) {
         _dialogSize = DialogSize.values[savedDialogSize];
       }
+      final savedUsageJson = prefs.getString('modeUsageCounts');
+      if (savedUsageJson != null) {
+        try {
+          final counts = (jsonDecode(savedUsageJson) as List<dynamic>)
+              .map((e) => e is int ? e : int.tryParse('$e') ?? 0)
+              .toList();
+          while (counts.length < CalculatorMode.values.length) {
+            counts.add(0);
+          }
+          _modeUsageCounts =
+              List<int>.from(counts.sublist(0, CalculatorMode.values.length));
+        } catch (e) {
+          _modeUsageCounts =
+              List<int>.filled(CalculatorMode.values.length, 0);
+        }
+      }
+      _totalModeSwitches = _modeUsageCounts.fold(0, (a, b) => a + b);
+      _lastSeenNewsVersion = prefs.getString('lastSeenNewsVersion');
+      final savedSuggestedMode = prefs.getInt('lastSuggestedMode');
+      if (savedSuggestedMode != null &&
+          savedSuggestedMode >= 0 &&
+          savedSuggestedMode < CalculatorMode.values.length) {
+        _lastSuggestedMode = savedSuggestedMode;
+      }
     });
     await tts.setSpeechRate(_speechRate);
     await tts.setVolume(_speechVolume);
@@ -2217,6 +2473,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('defaultMode', mode.index);
     setState(() => _defaultMode = mode);
+  }
+
+  Future<void> _saveModeUsage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('modeUsageCounts', jsonEncode(_modeUsageCounts));
+  }
+
+  Future<void> _markNewsSeen(String version) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('lastSeenNewsVersion', version);
+    _lastSeenNewsVersion = version;
+  }
+
+  Future<void> _saveSuggestedMode(int modeIndex) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('lastSuggestedMode', modeIndex);
+    _lastSuggestedMode = modeIndex;
   }
 
   void _saveInversePreference(int val) async {
@@ -5702,16 +5975,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   repo: 'Mluvici_kalkulacka',
                   currentVersion: _currentAppVersion,
                 );
+                checker.close();
                 if (mounted) {
                   if (release != null) {
                     _showUpdateDialog(release);
                   } else {
+                    speak('Aplikace je aktuální.');
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Aplikace je aktuální.')),
                     );
                   }
                 }
               },
+            ),
+            IconButton(
+              icon: const Icon(Icons.campaign),
+              tooltip: _s('Novinky', 'What is new'),
+              onPressed: () => _showNewsDialog(),
             ),
             IconButton(
               icon: const Icon(Icons.info_outline),
@@ -7593,6 +7873,263 @@ class _CustomDotMatrixPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class _NewsDialog extends StatefulWidget {
+  final _CalculatorScreenState parent;
+  final GitHubReleaseInfo? initialFocusVersion;
+
+  const _NewsDialog({required this.parent, this.initialFocusVersion});
+
+  @override
+  State<_NewsDialog> createState() => _NewsDialogState();
+}
+
+class _NewsDialogState extends State<_NewsDialog> {
+  bool _loading = true;
+  String? _error;
+  List<GitHubReleaseInfo> _releases = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReleases();
+  }
+
+  Future<void> _loadReleases() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final checker = GitHubReleaseChecker();
+    final releases = await checker.fetchRecentReleases(
+      owner: 'Johny45-open',
+      repo: 'Mluvici_kalkulacka',
+      perPage: 10,
+    );
+    checker.close();
+    if (!mounted) return;
+
+    setState(() {
+      _loading = false;
+      _releases = releases;
+      if (releases.isEmpty) {
+        _error = widget.parent._s(
+          'Novinky se nepodařilo načíst. Zkontrolujte připojení k internetu.',
+          'News could not be loaded. Check your internet connection.',
+        );
+      }
+    });
+
+    final focused = widget.initialFocusVersion;
+    if (focused != null && releases.isNotEmpty) {
+      final matching = _findVersion(releases, focused.normalizedVersion);
+      if (matching != null && matching.plainTextBody.isNotEmpty) {
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) {
+            widget.parent.speak(
+              widget.parent._s(
+                'Novinky v této verzi. ${matching.plainTextBody}',
+                'What is new in this version. ${matching.plainTextBody}',
+              ),
+              force: true,
+            );
+          }
+        });
+      }
+    }
+  }
+
+  GitHubReleaseInfo? _findVersion(
+    List<GitHubReleaseInfo> releases,
+    String normalizedVersion,
+  ) {
+    for (final release in releases) {
+      if (release.normalizedVersion == normalizedVersion) {
+        return release;
+      }
+    }
+    return null;
+  }
+
+  void _readRelease(GitHubReleaseInfo release) {
+    final text = release.plainTextBody;
+    if (text.isEmpty) {
+      widget.parent.speak(
+        widget.parent._s(
+          'Tato verze nemá zveřejněné novinky.',
+          'This version has no published release notes.',
+        ),
+        force: true,
+      );
+      return;
+    }
+    widget.parent.speak(
+      widget.parent._s(
+        'Verze ${release.normalizedVersion}. $text',
+        'Version ${release.normalizedVersion}. $text',
+      ),
+      force: true,
+    );
+  }
+
+  void _readAll() {
+    if (_releases.isEmpty) {
+      widget.parent.speak(
+        widget.parent._s('Nemám co přečíst.', 'There is nothing to read.'),
+        force: true,
+      );
+      return;
+    }
+    final buffer = StringBuffer();
+    for (final release in _releases) {
+      buffer.write(
+        '${widget.parent._s('Verze', 'Version')} ${release.normalizedVersion}. ',
+      );
+      buffer.write(release.plainTextBody);
+      buffer.write('. ');
+    }
+    widget.parent.speak(buffer.toString(), force: true);
+  }
+
+  Widget _buildReleaseTile(GitHubReleaseInfo release) {
+    final body = release.plainTextBody;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Semantics(
+          header: true,
+          child: Text(
+            'Verze ${release.normalizedVersion}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (body.isEmpty)
+          Text(
+            widget.parent._s(
+              'Bez popisu novinek.',
+              'No release notes.',
+            ),
+          )
+        else
+          Text(body),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Semantics(
+            label: widget.parent._s(
+              'Přečíst novinky verze ${release.normalizedVersion}',
+              'Read release notes of version ${release.normalizedVersion}',
+            ),
+            child: ElevatedButton.icon(
+              onPressed: () => _readRelease(release),
+              icon: const Icon(Icons.volume_up),
+              label: Text(widget.parent._s('Přečíst novinky', 'Read news')),
+            ),
+          ),
+        ),
+        const Divider(),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      semanticLabel: widget.parent._s('Novinky', 'What is new'),
+      title: Semantics(
+        header: true,
+        child: Text(widget.parent._s('Novinky', 'What is new')),
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _loading
+            ? const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : _error != null
+                ? Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Semantics(
+                      label: _error,
+                      child: Text(_error!),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Semantics(
+                            label: widget.parent._s(
+                              'Přečíst všechny novinky',
+                              'Read all release notes',
+                            ),
+                            child: FilledButton.icon(
+                              onPressed: _readAll,
+                              icon: const Icon(Icons.volume_up),
+                              label: Text(
+                                widget.parent._s(
+                                  'Přečíst vše',
+                                  'Read all',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (widget.initialFocusVersion != null) ...[
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              widget.parent._s(
+                                'Co je nového v této verzi',
+                                'What is new in this version',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildReleaseTile(widget.initialFocusVersion!),
+                          const SizedBox(height: 8),
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              widget.parent._s(
+                                'Starší verze',
+                                'Older versions',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        ..._releases
+                            .where((release) =>
+                                widget.initialFocusVersion == null ||
+                                release.normalizedVersion !=
+                                    widget.initialFocusVersion!.normalizedVersion)
+                            .map(_buildReleaseTile),
+                      ],
+                    ),
+                  ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(widget.parent._s('Zavřít', 'Close')),
+        ),
+      ],
+    );
+  }
 }
 
 class _AccessibilityDialog extends StatefulWidget {
