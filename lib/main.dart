@@ -880,6 +880,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'WMEAN': ['Vážený průměr', 'Weighted mean'],
       ';': ['Oddělovač dat', 'Data separator'],
       'SETS': ['Správa sad', 'Manage sets'],
+      'PCT': ['Kolik procent', 'What percent'],
+      '%': ['Procenta', 'Percent'],
+      'DEL': ['Smazat poslední', 'Delete last'],
     };
     if (localized.containsKey(label)) {
       final pair = localized[label]!;
@@ -1947,6 +1950,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         closeCount--;
       }
     }
+
+    // PROCENTA: % jako postfixový operátor "/100"
+    processed = processed.replaceAllMapped(
+      RegExp(r'((?:\d+(?:\.\d+)?)|\))%'),
+      (m) {
+        final n = m[1]!;
+        return n == ')' ? '$n/100' : '($n/100)';
+      },
+    );
 
     debugPrint("Parsing expression: $processed");
 
@@ -3180,6 +3192,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             : '. Stiskněte M pro přidání, Ctrl+M pro opakování';
       }
     }
+    if (label == 'PCT') {
+      descriptiveName += _isEnglish()
+          ? '. Enter value and whole separated by a semicolon, e.g. 30;200.'
+          : '. Zadejte hodnotu a celek oddělené středníkem, např. 30;200.';
+    }
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -3821,8 +3838,64 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
     } else if (label == '\u03C0') {
       append(label, silent: silent);
+    } else if (label == 'PCT') {
+      _calculatePercentOf();
     } else {
       append(label, silent: silent);
+    }
+  }
+
+  void _calculatePercentOf() {
+    if (display.isEmpty) {
+      speak(_s(
+        'Displej je prázdný. Zadejte hodnotu a celek oddělené středníkem, např. 30;200.',
+        'Display is empty. Enter value and whole separated by a semicolon, e.g. 30;200.',
+      ), force: true);
+      return;
+    }
+    final originalDisplay = display;
+    final parts = display
+        .split(';')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.length != 2) {
+      speak(_s(
+        'Zadejte dvě hodnoty oddělené středníkem: hodnota;celek.',
+        'Enter two values separated by a semicolon: value;whole.',
+      ), force: true);
+      return;
+    }
+    try {
+      final value = _evaluateExpression(parts[0]);
+      final whole = _evaluateExpression(parts[1]);
+      if (whole == 0) {
+        speak(_s(
+          'Celek nesmí být nula.',
+          'The whole must not be zero.',
+        ), force: true);
+        return;
+      }
+      final percent = value / whole * 100;
+      final resStr = _formatNumber(percent);
+      final spoken = _s(
+        '${_formatSpokenNumber(value)} je ${_formatSpokenNumber(percent)} procent z ${_formatSpokenNumber(whole)}',
+        '${_formatSpokenNumber(value)} is ${_formatSpokenNumber(percent)} percent of ${_formatSpokenNumber(whole)}',
+      );
+      setState(() {
+        _lastResult = resStr;
+        _hasResult = true;
+        display = resStr;
+        _cursorPosition = display.length;
+        _lastNumericValue = percent;
+      });
+      speak(spoken, force: true);
+      _addToHistory('PCT($originalDisplay)', resStr);
+    } catch (e) {
+      speak(_s(
+        'Chyba výpočtu procent. Zkontrolujte zadané hodnoty.',
+        'Percentage calculation error. Check the entered values.',
+      ), force: true);
     }
   }
 
@@ -3850,6 +3923,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'DEL',
           '0',
           '.',
+          '%',
           '=',
         ];
         break;
@@ -3874,6 +3948,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           '0',
           '.',
           'EXP',
+          '%',
+          'DEL',
           '=',
         ];
         break;
@@ -6445,6 +6521,7 @@ DropdownButtonFormField<String>(
                     '\'→°',
                     'ANS',
                     'ABS',
+                    'PCT',
                   ].map((b) {
                     return SizedBox(
                       width: (MediaQuery.of(ctx).size.width - 80) / 4,
