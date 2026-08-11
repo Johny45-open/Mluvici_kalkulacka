@@ -714,6 +714,61 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     },
   };
 
+  final Map<String, Map<String, String>> _unitSpeechDataEn = {
+    'm': {'base': 'meter', 'plural': 'meters'},
+    'km': {'base': 'kilometer', 'plural': 'kilometers'},
+    'cm': {'base': 'centimeter', 'plural': 'centimeters'},
+    'mm': {'base': 'millimeter', 'plural': 'millimeters'},
+    'mi': {'base': 'mile', 'plural': 'miles'},
+    'yd': {'base': 'yard', 'plural': 'yards'},
+    'ft': {'base': 'foot', 'plural': 'feet'},
+    'in': {'base': 'inch', 'plural': 'inches'},
+    'kg': {'base': 'kilogram', 'plural': 'kilograms'},
+    'g': {'base': 'gram', 'plural': 'grams'},
+    'mg': {'base': 'milligram', 'plural': 'milligrams'},
+    't': {'base': 'tonne', 'plural': 'tonnes'},
+    'lb': {'base': 'pound', 'plural': 'pounds'},
+    'oz': {'base': 'ounce', 'plural': 'ounces'},
+    'm²': {'base': 'square meter', 'plural': 'square meters'},
+    'km²': {'base': 'square kilometer', 'plural': 'square kilometers'},
+    'ha': {'base': 'hectare', 'plural': 'hectares'},
+    'cm²': {'base': 'square centimeter', 'plural': 'square centimeters'},
+    'akr': {'base': 'acre', 'plural': 'acres'},
+    'l': {'base': 'liter', 'plural': 'liters'},
+    'ml': {'base': 'milliliter', 'plural': 'milliliters'},
+    'm³': {'base': 'cubic meter', 'plural': 'cubic meters'},
+    'gal': {'base': 'gallon', 'plural': 'gallons'},
+    'pt': {'base': 'pint', 'plural': 'pints'},
+    'Pa': {'base': 'pascal', 'plural': 'pascals'},
+    'hPa': {'base': 'hectopascal', 'plural': 'hectopascals'},
+    'kPa': {'base': 'kilopascal', 'plural': 'kilopascals'},
+    'bar': {'base': 'bar', 'plural': 'bars'},
+    'atm': {'base': 'atmosphere', 'plural': 'atmospheres'},
+    'psi': {'base': 'psi', 'plural': 'psi'},
+    's': {'base': 'second', 'plural': 'seconds'},
+    'min': {'base': 'minute', 'plural': 'minutes'},
+    'h': {'base': 'hour', 'plural': 'hours'},
+    'd': {'base': 'day', 'plural': 'days'},
+    'V': {'base': 'volt', 'plural': 'volts'},
+    'mV': {'base': 'millivolt', 'plural': 'millivolts'},
+    'µV': {'base': 'microvolt', 'plural': 'microvolts'},
+    'kV': {'base': 'kilovolt', 'plural': 'kilovolts'},
+    'MV': {'base': 'megavolt', 'plural': 'megavolts'},
+    'A': {'base': 'ampere', 'plural': 'amperes'},
+    'mA': {'base': 'milliampere', 'plural': 'milliamperes'},
+    'µA': {'base': 'microampere', 'plural': 'microamperes'},
+    'kA': {'base': 'kiloampere', 'plural': 'kiloamperes'},
+    'Ω': {'base': 'ohm', 'plural': 'ohms'},
+    'mΩ': {'base': 'milliohm', 'plural': 'milliohms'},
+    'kΩ': {'base': 'kilohm', 'plural': 'kilohms'},
+    'MΩ': {'base': 'megohm', 'plural': 'megohms'},
+    'W': {'base': 'watt', 'plural': 'watts'},
+    'mW': {'base': 'milliwatt', 'plural': 'milliwatts'},
+    'kW': {'base': 'kilowatt', 'plural': 'kilowatts'},
+    'MW': {'base': 'megawatt', 'plural': 'megawatts'},
+    'GW': {'base': 'gigawatt', 'plural': 'gigawatts'},
+  };
+
   String _selectedUnitCategory = 'Délka';
   String _unitFrom = 'm';
   String _unitTo = 'km';
@@ -722,76 +777,79 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _isRecallMode = false;
   bool _hasResult = false;
 
-  final Map<String, String> _buttonNames = {
-    'SIN': 'Sinus',
-    'COS': 'Kosinus',
-    'TAN': 'Tangens',
-    'ASIN': 'Arkus sinus',
-    'ACOS': 'Arkus kosinus',
-    'ATAN': 'Arkus tangens',
-    'ABS': 'Absolutní hodnota',
-    '°→\'': 'Převod na DMS',
-    '\'→°': 'Převod na stupně',
-    'DMS': 'Vložit DMS',
-    '=': 'Rovná se',
-    '/': 'Lomeno',
-    '*': 'Krát',
-    '-': 'Mínus',
-    '+': 'Plus',
-    '(': 'Závorka otevřená',
-    ')': 'Závorka zavřená',
-    '.': 'Tečka',
-    '^': 'Mocnina',
-    '√': 'Odmocnina',
-    'ⁿ√': 'En-tá odmocnina',
-    'x²': 'Na druhou',
-    'x³': 'Na třetí',
-    '∛': 'Třetí odmocnina',
-    '1/x': 'Převrácená hodnota',
-    'LOG': 'Logaritmus',
-    'LN': 'Přirozený logaritmus',
-    'X': 'Proměnná X',
-    'Y': 'Proměnná Y',
-    'A': 'Proměnná A',
-    'B': 'Proměnná B',
-    'D': 'Proměnná D',
-    'E': 'Proměnná E',
-    'F': 'Proměnná F',
-    'M': 'Proměnná M',
-    'ANS': 'Poslední výsledek',
-    'STO': 'Uložit do paměti',
-    'DEL': 'Smazat poslední',
-    'RCL': 'Vyvolat z paměti',
-    'CLR': 'Smazat celou paměť',
-    'C': 'Smazat displej',
-    'DEG': 'Stupně',
-    'RAD': 'Radiány',
-    '%': 'Procenta',
-    'SD': 'Směrodatná odchylka',
-    'VAR': 'Rozptyl',
-    'MEAN': 'Průměr',
-    'STATS': 'Statistický souhrn',
-    'M+': 'Přidat do statistické paměti',
-    'MC': 'Smazat statistickou paměť',
-    'MR': 'Vyvolat ze statistické paměti',
-    'MED': 'Medián',
-    'MODE': 'Modus',
-    'CV': 'Variační koeficient',
-    'SUM': 'Součet hodnot',
-    ';': 'Oddělovač dat',
-    '!': 'Faktoriál',
-    '(-)': 'Záporné číslo se závorkou',
-    'EXP': 'krát deset na',
-    'OHM_V': 'Napětí',
-    'OHM_I': 'Proud',
-    'OHM_R': 'Odpor',
-    'PWR_P': 'Výkon',
-    'PAR': 'Paralelně',
-    'SER': 'Sériově',
-    'Hz': 'Hertz',
-    'μ': 'Mikro',
-    'n': 'Nano',
-    'p': 'Piko',
+  final Map<String, List<String>> _buttonNames = {
+    'SIN': ['Sinus', 'Sine'],
+    'COS': ['Kosinus', 'Cosine'],
+    'TAN': ['Tangens', 'Tangent'],
+    'ASIN': ['Arkus sinus', 'Arcsine'],
+    'ACOS': ['Arkus kosinus', 'Arccosine'],
+    'ATAN': ['Arkus tangens', 'Arctangent'],
+    'ABS': ['Absolutní hodnota', 'Absolute value'],
+    '°→\'': ['Převod na DMS', 'Convert to DMS'],
+    '\'→°': ['Převod na stupně', 'Convert to degrees'],
+    'DMS': ['Vložit DMS', 'Insert DMS'],
+    '=': ['Rovná se', 'Equals'],
+    '/': ['Lomeno', 'Over'],
+    '*': ['Krát', 'Times'],
+    '-': ['Mínus', 'Minus'],
+    '+': ['Plus', 'Plus'],
+    '(': ['Závorka otevřená', 'Open parenthesis'],
+    ')': ['Závorka zavřená', 'Close parenthesis'],
+    '.': ['Tečka', 'Decimal point'],
+    '^': ['Mocnina', 'Power'],
+    '√': ['Odmocnina', 'Square root'],
+    'ⁿ√': ['En-tá odmocnina', 'Nth root'],
+    'x²': ['Na druhou', 'Squared'],
+    'x³': ['Na třetí', 'Cubed'],
+    '∛': ['Třetí odmocnina', 'Cube root'],
+    '1/x': ['Převrácená hodnota', 'Reciprocal'],
+    'LOG': ['Logaritmus', 'Logarithm'],
+    'LN': ['Přirozený logaritmus', 'Natural logarithm'],
+    'X': ['Proměnná X', 'Variable X'],
+    'Y': ['Proměnná Y', 'Variable Y'],
+    'A': ['Proměnná A', 'Variable A'],
+    'B': ['Proměnná B', 'Variable B'],
+    'D': ['Proměnná D', 'Variable D'],
+    'E': ['Proměnná E', 'Variable E'],
+    'F': ['Proměnná F', 'Variable F'],
+    'M': ['Proměnná M', 'Variable M'],
+    'ANS': ['Poslední výsledek', 'Last answer'],
+    'STO': ['Uložit do paměti', 'Store in memory'],
+    'DEL': ['Smazat poslední', 'Delete last'],
+    'RCL': ['Vyvolat z paměti', 'Recall from memory'],
+    'CLR': ['Smazat celou paměť', 'Clear memory'],
+    'C': ['Smazat displej', 'Clear display'],
+    'DEG': ['Stupně', 'Degrees'],
+    'RAD': ['Radiány', 'Radians'],
+    '%': ['Procenta', 'Percent'],
+    'SD': ['Směrodatná odchylka', 'Standard deviation'],
+    'VAR': ['Rozptyl', 'Variance'],
+    'MEAN': ['Průměr', 'Mean'],
+    'STATS': ['Statistický souhrn', 'Statistics summary'],
+    'M+': ['Přidat do statistické paměti', 'Add to statistics memory'],
+    'MC': ['Smazat statistickou paměť', 'Clear statistics memory'],
+    'MR': ['Vyvolat ze statistické paměti', 'Recall statistics memory'],
+    'MED': ['Medián', 'Median'],
+    'MODE': ['Modus', 'Mode'],
+    'CV': ['Variační koeficient', 'Coefficient of variation'],
+    'WMEAN': ['Vážený průměr', 'Weighted mean'],
+    'SETS': ['Správa sad', 'Manage sets'],
+    'PCT': ['Kolik procent', 'What percent'],
+    'SUM': ['Součet hodnot', 'Sum of values'],
+    ';': ['Oddělovač dat', 'Data separator'],
+    '!': ['Faktoriál', 'Factorial'],
+    '(-)': ['Záporné číslo se závorkou', 'Negative in parentheses'],
+    'EXP': ['krát deset na', 'times ten to'],
+    'OHM_V': ['Napětí', 'Voltage'],
+    'OHM_I': ['Proud', 'Current'],
+    'OHM_R': ['Odpor', 'Resistance'],
+    'PWR_P': ['Výkon', 'Power'],
+    'PAR': ['Paralelně', 'In parallel'],
+    'SER': ['Sériově', 'In series'],
+    'Hz': ['Hertz', 'Hertz'],
+    'μ': ['Mikro', 'Micro'],
+    'n': ['Nano', 'Nano'],
+    'p': ['Piko', 'Pico'],
   };
 
   double _factorial(int n) {
@@ -982,30 +1040,38 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _formatNumber(value).replaceAll('.', ',');
 
   String _getButtonName(String label) {
-    const localized = {
-      'SD': ['Směrodatná odchylka', 'Standard deviation'],
-      'VAR': ['Rozptyl', 'Variance'],
-      'MEAN': ['Průměr', 'Mean'],
-      'STATS': ['Statistický souhrn', 'Statistics summary'],
-      'M+': ['Přidat do statistické paměti', 'Add to statistics memory'],
-      'MC': ['Smazat statistickou paměť', 'Clear statistics memory'],
-      'MR': ['Vyvolat ze statistické paměti', 'Recall statistics memory'],
-      'MED': ['Medián', 'Median'],
-      'MODE': ['Modus', 'Mode'],
-      'CV': ['Variační koeficient', 'Coefficient of variation'],
-      'SUM': ['Součet hodnot', 'Sum of values'],
-      'WMEAN': ['Vážený průměr', 'Weighted mean'],
-      ';': ['Oddělovač dat', 'Data separator'],
-      'SETS': ['Správa sad', 'Manage sets'],
-      'PCT': ['Kolik procent', 'What percent'],
-      '%': ['Procenta', 'Percent'],
-      'DEL': ['Smazat poslední', 'Delete last'],
-    };
-    if (localized.containsKey(label)) {
-      final pair = localized[label]!;
+    final pair = _buttonNames[label];
+    if (pair != null) {
       return _isEnglish() ? pair[1] : pair[0];
     }
-    return _buttonNames[label] ?? label;
+    return label;
+  }
+
+  String _getCategorySpeech(String category) {
+    switch (category) {
+      case 'Délka':
+        return _s('Délka', 'Length');
+      case 'Hmotnost':
+        return _s('Hmotnost', 'Mass');
+      case 'Plocha':
+        return _s('Plocha', 'Area');
+      case 'Objem':
+        return _s('Objem', 'Volume');
+      case 'Tlak':
+        return _s('Tlak', 'Pressure');
+      case 'Čas':
+        return _s('Čas', 'Time');
+      case 'Napětí':
+        return _s('Napětí', 'Voltage');
+      case 'Proud':
+        return _s('Proud', 'Current');
+      case 'Odpor':
+        return _s('Odpor', 'Resistance');
+      case 'Výkon':
+        return _s('Výkon', 'Power');
+      default:
+        return category;
+    }
   }
 
   ElectricianCalculation? _electricianCalculationFromButton(String label) {
@@ -2344,6 +2410,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     double? value,
     String context = 'base',
   }) {
+    if (_isEnglish()) {
+      final en = _unitSpeechDataEn[unitCode];
+      if (en == null) {
+        return unitCode;
+      }
+      if (value != null) {
+        return value.abs() == 1 ? en['base']! : en['plural']!;
+      }
+      return context == 'base' ? en['base']! : en['plural']!;
+    }
     final data = _unitSpeechData[unitCode];
     if (data == null) {
       return unitCode;
@@ -5845,9 +5921,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   String _getUnitOptionLabel(String unitCode) {
     if (unitCode == '--') return _s('-- bez jednotky --', '-- no unit --');
-    final speech = _unitSpeechData[unitCode];
-    if (speech != null) return '$unitCode (${speech['base']})';
-    return unitCode;
+    return '$unitCode (${_getUnitSpeech(unitCode)})';
   }
 
   void _showCreateStatsSetDialog(
@@ -7074,14 +7148,17 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                     ),
                     items: parent._unitCategories.keys
                         .map(
-                          (cat) =>
-                              DropdownMenuItem(value: cat, child: Text(cat)),
+                          (cat) => DropdownMenuItem(
+                            value: cat,
+                            child: Text(parent._getCategorySpeech(cat)),
+                          ),
                         )
                         .toList(),
                     onChanged: (val) {
+                      if (val == null) return;
                       // ignore: invalid_use_of_protected_member
                       parent.setState(() {
-                        parent._selectedUnitCategory = val!;
+                        parent._selectedUnitCategory = val;
                         parent._unitFrom =
                             parent._unitCategories[val]!.keys.first;
                         parent._unitTo = parent._unitCategories[val]!.keys
@@ -7089,7 +7166,10 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                       });
                       setState(() {});
                       parent.speak(
-                        parent._s('Kategorie $val', 'Category $val'),
+                        parent._s(
+                          'Kategorie ${parent._getCategorySpeech(val)}',
+                          'Category ${parent._getCategorySpeech(val)}',
+                        ),
                       );
                     },
                   ),
@@ -7103,7 +7183,9 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                           ),
                           child: DropdownButtonFormField<String>(
                             initialValue: parent._unitFrom,
-                            decoration: const InputDecoration(labelText: 'Z'),
+                            decoration: InputDecoration(
+                              labelText: parent._s('Z', 'From'),
+                            ),
                             items: parent
                                 ._unitCategories[parent._selectedUnitCategory]!
                                 .keys
@@ -7137,7 +7219,9 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                           ),
                           child: DropdownButtonFormField<String>(
                             initialValue: parent._unitTo,
-                            decoration: const InputDecoration(labelText: 'Na'),
+                            decoration: InputDecoration(
+                              labelText: parent._s('Na', 'To'),
+                            ),
                             items: parent
                                 ._unitCategories[parent._selectedUnitCategory]!
                                 .keys
