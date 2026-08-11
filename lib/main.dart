@@ -2408,6 +2408,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'Aktivní sada "$setName" je prázdná. Přidejte data pomocí tlačítka M plus.',
           'The active set "$setName" is empty. Add data using the M+ button.'
         );
+      } else {
+        final set = _statsSets[_currentStatsSetIndex];
+        final count = _statsMemory.length;
+        final countForm = _getStatsCountForm(count);
+        final fieldsLabel = set.fieldNames.asMap().entries.map((e) {
+          final unitCode = e.key < set.fieldUnits.length
+              ? set.fieldUnits[e.key]
+              : null;
+          return unitCode != null
+              ? '${e.value}, ${_getUnitSpeech(unitCode)}'
+              : e.value;
+        }).join(', ');
+        speech += '. ' + _s(
+          'Aktivní sada "${set.name}" obsahuje $count $countForm. Pole: $fieldsLabel.',
+          'The active set "${set.name}" contains $count $countForm. Fields: $fieldsLabel.'
+        );
       }
     }
     speak(speech);
