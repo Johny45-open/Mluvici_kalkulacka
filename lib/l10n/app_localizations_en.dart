@@ -227,9 +227,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsCv => 'Coefficient of variation';
 
   @override
-  String get statsWeightedMean => 'Weighted mean';
-
-  @override
   String get statsModeNone => 'No mode';
 
   @override
@@ -306,7 +303,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsHelpButton => 'Help with controls';
 
   @override
-  String get statsHelpText => '=== STATISTICS HELP ===\n\nKEYBOARD BUTTONS:\n\nSETS – Manage statistics sets. Create, rename, delete or switch between sets.\n\nM+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set.\n\nM+ (long press) – Add values and specify a repeat count for bulk insertion.\n\nMC – Clear all data in the active set.\n\nMR – Show all stored data in an editable list.\n\nSTATS – Show the statistics summary for the selected field: mean, sum, variance, standard deviation, median, mode and coefficient of variation.\n\n; (semicolon) – Separator for multiple values (e.g. 5;10;15).\n\nADVANCED FUNCTIONS (available from the list button in the top bar):\n\nMEAN – Arithmetic mean of all values.\nSD – Standard deviation (measure of dispersion around the mean).\nVAR – Variance (average squared deviation from the mean).\nSUM – Sum of all values.\nMED – Median (middle value of sorted data).\nMODE – Mode (most frequent value).\nCV – Coefficient of variation (SD as percentage of the mean).\nWMEAN – Weighted mean (requires 2 fields: values and weights).\n\nFIELDS IN A SET:\n\nEach set can have multiple fields (e.g. "Value" and "Weight"). When creating a set (SETS → Create new set) you can add fields using the "Add field" button. You can then switch which field statistics are calculated for – either in the STATS dialog or in Advanced Functions.\n\nWEIGHTED MEAN (WMEAN):\n\nRequires a set with at least 2 fields. Field 0 = values, field 1 = weights. Steps: 1) Create a set with 2 fields (e.g. "Value" and "Weight"). 2) Enter values and weights separated by a semicolon, e.g. "80;2" (value 80 with weight 2). 3) After entering all data, tap WMEAN in Advanced Functions. 4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).\n\nTIPS:\n- Create multiple sets for different data groups.\n- Each set can have multiple fields (e.g. values, weights).\n- A new set is created automatically on first data entry.\n- Data is saved automatically to the device memory.';
+  String get statsHelpText => '=== STATISTICS HELP ===\n\nKEYBOARD BUTTONS:\n\nSETS – Manage statistics sets. Create, rename, delete or switch between sets.\n\nM+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set.\n\nM+ (long press) – Add values and specify a repeat count for bulk insertion.\n\nMC – Clear all data in the active set.\n\nMR – Show all stored data in an editable list.\n\nSTATS – Show the statistics summary for the selected field: mean, sum, variance, standard deviation, median, mode and coefficient of variation.\n\n; (semicolon) – Separator for multiple values (e.g. 5;10;15).\n\nADVANCED FUNCTIONS (available from the list button in the top bar):\n\nMEAN – Arithmetic mean of all values.\nSD – Standard deviation (measure of dispersion around the mean).\nVAR – Variance (average squared deviation from the mean).\nSUM – Sum of all values.\nMED – Median (middle value of sorted data).\nMODE – Mode (most frequent value).\nCV – Coefficient of variation (SD as percentage of the mean).\nWMEAN – Weighted mean (requires 2 fields: values and weights).\n\nFIELDS IN A SET:\n\nEach set can have multiple fields (e.g. \"Value\" and \"Weight\"). When creating a set (SETS → Create new set) you can add fields using the \"Add field\" button. You can then switch which field statistics are calculated for – either in the STATS dialog or in Advanced Functions.\n\nWEIGHTED MEAN (WMEAN):\n\nRequires a set with at least 2 fields. Field 0 = values, field 1 = weights. Steps: 1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\"). 2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2). 3) After entering all data, tap WMEAN in Advanced Functions. 4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).\n\nTIPS:\n- Create multiple sets for different data groups.\n- Each set can have multiple fields (e.g. values, weights).\n- A new set is created automatically on first data entry.\n- Data is saved automatically to the device memory.';
 
   @override
   String get statsHelpKeyboardSection => 'Keyboard buttons';
@@ -366,10 +363,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsHelpAdvancedWmean => 'WMEAN – Weighted mean (requires 2 fields: values and weights).';
 
   @override
-  String get statsHelpFieldsDesc => 'Each set can have multiple fields (e.g. "Value" and "Weight"). When creating a set (SETS → Create new set) you can add fields using the "Add field" button. You can then switch which field statistics are calculated for – either in the STATS dialog or in Advanced Functions.';
+  String get statsHelpFieldsDesc => 'Each set can have multiple fields (e.g. \"Value\" and \"Weight\"). When creating a set (SETS → Create new set) you can add fields using the \"Add field\" button. You can then switch which field statistics are calculated for – either in the STATS dialog or in Advanced Functions.';
 
   @override
-  String get statsHelpWeightedMeanDesc => 'Requires a set with at least 2 fields. Field 0 = values, field 1 = weights.\n\nSteps:\n1) Create a set with 2 fields (e.g. "Value" and "Weight").\n2) Enter values and weights separated by a semicolon, e.g. "80;2" (value 80 with weight 2).\n3) After entering all data, tap WMEAN in Advanced Functions.\n4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).';
+  String get statsHelpWeightedMeanDesc => 'Requires a set with at least 2 fields. Field 0 = values, field 1 = weights.\\n\\nSteps:\\n1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\").\\n2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2).\\n3) After entering all data, tap WMEAN in Advanced Functions.\\n4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).';
 
   @override
   String get statsHelpTip1 => 'Create multiple sets for different data groups.';
@@ -384,6 +381,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsHelpTip4 => 'Data is saved automatically to the device memory.';
 
   @override
+  String get statsWeightedMean => 'Weighted mean';
+
+  @override
   String get backupData => 'Backup data';
 
   @override
@@ -396,8 +396,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get restoreSuccess => 'Data restored';
 
   @override
-  String get restoreConfirm =>
-      'Are you sure you want to restore all data from backup?';
+  String get restoreConfirm => 'Are you sure you want to restore all data from backup?';
 
   @override
   String get numberInfo => 'Number Info';
@@ -443,4 +442,448 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dialogSizeFullscreen => 'Full screen';
+
+  @override
+  String get voiceOn => 'Voice on';
+
+  @override
+  String get voiceOff => 'Voice off';
+
+  @override
+  String get cleared => 'Clear';
+
+  @override
+  String get deleted => 'Deleted';
+
+  @override
+  String get historyCleared => 'History cleared';
+
+  @override
+  String get appIsCurrent => 'The app is up to date.';
+
+  @override
+  String get degreesUnit => 'degrees';
+
+  @override
+  String get minutesUnit => 'minutes';
+
+  @override
+  String get secondsUnit => 'seconds';
+
+  @override
+  String get piSpoken => 'pi';
+
+  @override
+  String get minusWord => 'minus';
+
+  @override
+  String get timesTenTo => 'times ten to the';
+
+  @override
+  String get expressionNotUnderstood => 'I don\'t understand the expression, please check the parentheses or signs';
+
+  @override
+  String get cannotDivideByZero => 'Cannot divide by zero';
+
+  @override
+  String get valueOutOfRange => 'Value is outside the valid range of the function';
+
+  @override
+  String resultIs(String value) {
+    return 'The result is $value';
+  }
+
+  @override
+  String get conversionError => 'Conversion error';
+
+  @override
+  String unitConverted(String from, String to, String value, String toUnit) {
+    return 'Converted from $from to $to. The result is $value $toUnit';
+  }
+
+  @override
+  String get backupError => 'Error creating the backup';
+
+  @override
+  String get restoreError => 'Error restoring the data';
+
+  @override
+  String decimalPlacesSet(int count) {
+    return 'Set to $count decimal places';
+  }
+
+  @override
+  String savedToVariable(String name) {
+    return 'Saved to variable $name';
+  }
+
+  @override
+  String recalledFromVariable(String name, String value) {
+    return 'Recalled from variable $name: $value';
+  }
+
+  @override
+  String variableName(String name) {
+    return 'Variable $name';
+  }
+
+  @override
+  String get selectMemory => 'Select memory';
+
+  @override
+  String get selectMemoryRecall => 'Select a memory to recall';
+
+  @override
+  String get memoryCleared => 'Memory cleared';
+
+  @override
+  String insertedValue(String value) {
+    return 'Inserted $value';
+  }
+
+  @override
+  String inverseResult(String name) {
+    return 'Inverse $name of the result';
+  }
+
+  @override
+  String resultOf(String name) {
+    return '$name of the result';
+  }
+
+  @override
+  String get standardDisplaySet => 'Standard display set';
+
+  @override
+  String get segment16On => '16-segment display on';
+
+  @override
+  String get segment7On => '7-segment display on';
+
+  @override
+  String get screenReaderAuto => 'Screen reader mode: automatic';
+
+  @override
+  String get screenReaderOn => 'Screen reader mode on';
+
+  @override
+  String get screenReaderOff => 'Screen reader mode off';
+
+  @override
+  String get angleFormatDms => 'Angle format set to degrees, minutes and seconds';
+
+  @override
+  String get angleFormatDecimal => 'Angle format set to decimal degrees';
+
+  @override
+  String themeSet(String mode) {
+    return 'Theme set to $mode';
+  }
+
+  @override
+  String get themeSystem => 'system';
+
+  @override
+  String get themeLight => 'light';
+
+  @override
+  String get themeDark => 'dark';
+
+  @override
+  String zoomUpperPct(int percent) {
+    return 'Upper line zoom $percent percent';
+  }
+
+  @override
+  String zoomLowerPct(int percent) {
+    return 'Lower line zoom $percent percent';
+  }
+
+  @override
+  String speechRatePct(int percent) {
+    return 'Speech rate $percent percent';
+  }
+
+  @override
+  String volumePct(int percent) {
+    return 'Volume $percent percent';
+  }
+
+  @override
+  String categorySelected(String category) {
+    return 'Category $category';
+  }
+
+  @override
+  String fromUnitSelected(String unit) {
+    return 'From unit $unit';
+  }
+
+  @override
+  String toUnitSelected(String unit) {
+    return 'To unit $unit';
+  }
+
+  @override
+  String get calcNameVoltage => 'voltage';
+
+  @override
+  String get calcNameCurrent => 'current';
+
+  @override
+  String get calcNameResistance => 'resistance';
+
+  @override
+  String get calcInputVoltage => 'current and resistance';
+
+  @override
+  String get calcInputCurrent => 'voltage and resistance';
+
+  @override
+  String get calcInputResistance => 'voltage and current';
+
+  @override
+  String calcIntro(String name, String input) {
+    return 'Calculate $name. Enter $input separated by semicolons.';
+  }
+
+  @override
+  String elecResult(String name, String value, String unit) {
+    return '$name is $value $unit';
+  }
+
+  @override
+  String get elecTwoValuesError => 'Enter two values separated by semicolons.';
+
+  @override
+  String get elecFormatError => 'The values entered in electrical mode are not in a valid numeric format.';
+
+  @override
+  String get elecInvalidResult => 'The electrical calculation result is not a valid number.';
+
+  @override
+  String get formatDms => 'Format set to degrees, minutes and seconds.';
+
+  @override
+  String get formatDecimalDegrees => 'Format set to decimal degrees.';
+
+  @override
+  String get errorSegment => 'ERROR';
+
+  @override
+  String get confirmationTitle => 'Confirmation';
+
+  @override
+  String get yesConfirmHistory => 'Yes, confirm clearing the entire calculation history';
+
+  @override
+  String get noCancelHistory => 'No, cancel and keep the history';
+
+  @override
+  String get precisionTitle => 'Precision settings';
+
+  @override
+  String get updateAvailableTitle => 'Update available';
+
+  @override
+  String newVersionSemantics(String version, String current) {
+    return 'A new version $version is available. Your version is $current.';
+  }
+
+  @override
+  String newVersionText(String version, String current) {
+    return 'A new version $version is available.\n\nYour version: $current';
+  }
+
+  @override
+  String get whatIsNew => 'What is new:';
+
+  @override
+  String get later => 'Later';
+
+  @override
+  String get showRelease => 'Show release';
+
+  @override
+  String cannotOpenBrowser(String error) {
+    return 'Cannot open browser: $error';
+  }
+
+  @override
+  String get checkForUpdates => 'Check for updates';
+
+  @override
+  String get sectionTrigonometry => 'Trigonometry';
+
+  @override
+  String get sectionFunctions => 'Functions';
+
+  @override
+  String get sectionMemory => 'Memory';
+
+  @override
+  String get sectionDisplay => 'Display';
+
+  @override
+  String get collapse => 'Collapse';
+
+  @override
+  String get expand => 'Expand';
+
+  @override
+  String get convertButton => 'CONVERT';
+
+  @override
+  String get standardDisplayLabel => 'Standard display';
+
+  @override
+  String get fixedDecimalLabel => 'Display with a fixed number of decimal places';
+
+  @override
+  String get scientificNotationLabel => 'Scientific notation';
+
+  @override
+  String get engineeringNotationLabel => 'Engineering notation';
+
+  @override
+  String get categoryLabel => 'Category';
+
+  @override
+  String get fromLabel => 'From';
+
+  @override
+  String get toLabel => 'To';
+
+  @override
+  String get segment16Name => '16-segment';
+
+  @override
+  String get segment7Name => '7-segment';
+
+  @override
+  String get switchDisplayType => 'Switch display type';
+
+  @override
+  String get toggleVoiceOutput => 'Toggle voice output';
+
+  @override
+  String get enabledState => 'On';
+
+  @override
+  String get disabledState => 'Off';
+
+  @override
+  String get screenReaderSection => 'Screen reader mode';
+
+  @override
+  String get screenReaderAutoLabel => 'Automatic based on screen reader';
+
+  @override
+  String get ttsEngineSettings => 'Text-to-speech engine settings';
+
+  @override
+  String engineLabel(String engine) {
+    return 'Engine: $engine';
+  }
+
+  @override
+  String get defaultEngine => 'Default';
+
+  @override
+  String get openTtsSystemSettings => 'Open system TTS settings';
+
+  @override
+  String get ttsSettingsButton => 'TTS settings';
+
+  @override
+  String get voiceSettings => 'Voice settings';
+
+  @override
+  String voiceLabel(String voice) {
+    return 'Voice: $voice';
+  }
+
+  @override
+  String get toggleAngleFormat => 'Toggle angle format';
+
+  @override
+  String get themeSectionLabel => 'Choose app theme';
+
+  @override
+  String get themeTitle => 'App theme';
+
+  @override
+  String get themeSystemLabel => 'System theme';
+
+  @override
+  String get themeLightLabel => 'Light theme';
+
+  @override
+  String get themeDarkLabel => 'Dark theme';
+
+  @override
+  String get defaultStartupMode => 'Default mode on startup';
+
+  @override
+  String get zoomUpperControls => 'Upper line zoom controls';
+
+  @override
+  String get zoomLowerControls => 'Lower line zoom controls';
+
+  @override
+  String get decreaseUpperZoom => 'Decrease upper line zoom';
+
+  @override
+  String get increaseUpperZoom => 'Increase upper line zoom';
+
+  @override
+  String get decreaseLowerZoom => 'Decrease lower line zoom';
+
+  @override
+  String get increaseLowerZoom => 'Increase lower line zoom';
+
+  @override
+  String zoomValuePct(int value) {
+    return 'Zoom value: $value %';
+  }
+
+  @override
+  String get speechRateControls => 'Speech rate controls';
+
+  @override
+  String get decreaseSpeechRate => 'Decrease speech rate';
+
+  @override
+  String get increaseSpeechRate => 'Increase speech rate';
+
+  @override
+  String speechRateValue(int value) {
+    return 'Current speech rate: $value %';
+  }
+
+  @override
+  String get volumeControls => 'Volume controls';
+
+  @override
+  String get decreaseVolume => 'Decrease volume';
+
+  @override
+  String get increaseVolume => 'Increase volume';
+
+  @override
+  String volumeValue(int value) {
+    return 'Current volume: $value %';
+  }
+
+  @override
+  String get dataManagementSection => 'Data backup and restore';
+
+  @override
+  String get dataManagementTitle => 'Data management';
+
+  @override
+  String get yesShort => 'YES';
+
+  @override
+  String get noShort => 'NO';
 }

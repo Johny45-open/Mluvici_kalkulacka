@@ -503,12 +503,6 @@ abstract class AppLocalizations {
   /// **'Coefficient of variation'**
   String get statsCv;
 
-  /// No description provided for @statsWeightedMean.
-  ///
-  /// In en, this message translates to:
-  /// **'Weighted mean'**
-  String get statsWeightedMean;
-
   /// No description provided for @statsModeNone.
   ///
   /// In en, this message translates to:
@@ -632,7 +626,7 @@ abstract class AppLocalizations {
   /// No description provided for @statsHelpText.
   ///
   /// In en, this message translates to:
-  /// **'...'**
+  /// **'=== STATISTICS HELP ===\n\nKEYBOARD BUTTONS:\n\nSETS – Manage statistics sets. Create, rename, delete or switch between sets.\n\nM+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set.\n\nM+ (long press) – Add values and specify a repeat count for bulk insertion.\n\nMC – Clear all data in the active set.\n\nMR – Show all stored data in an editable list.\n\nSTATS – Show the statistics summary for the selected field: mean, sum, variance, standard deviation, median, mode and coefficient of variation.\n\n; (semicolon) – Separator for multiple values (e.g. 5;10;15).\n\nADVANCED FUNCTIONS (available from the list button in the top bar):\n\nMEAN – Arithmetic mean of all values.\nSD – Standard deviation (measure of dispersion around the mean).\nVAR – Variance (average squared deviation from the mean).\nSUM – Sum of all values.\nMED – Median (middle value of sorted data).\nMODE – Mode (most frequent value).\nCV – Coefficient of variation (SD as percentage of the mean).\nWMEAN – Weighted mean (requires 2 fields: values and weights).\n\nFIELDS IN A SET:\n\nEach set can have multiple fields (e.g. \"Value\" and \"Weight\"). When creating a set (SETS → Create new set) you can add fields using the \"Add field\" button. You can then switch which field statistics are calculated for – either in the STATS dialog or in Advanced Functions.\n\nWEIGHTED MEAN (WMEAN):\n\nRequires a set with at least 2 fields. Field 0 = values, field 1 = weights. Steps: 1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\"). 2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2). 3) After entering all data, tap WMEAN in Advanced Functions. 4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).\n\nTIPS:\n- Create multiple sets for different data groups.\n- Each set can have multiple fields (e.g. values, weights).\n- A new set is created automatically on first data entry.\n- Data is saved automatically to the device memory.'**
   String get statsHelpText;
 
   /// No description provided for @statsHelpKeyboardSection.
@@ -668,109 +662,109 @@ abstract class AppLocalizations {
   /// No description provided for @statsHelpKeyboardSets.
   ///
   /// In en, this message translates to:
-  /// **'SETS – Manage statistics sets...'**
+  /// **'SETS – Manage statistics sets. Create, rename, delete or switch between sets.'**
   String get statsHelpKeyboardSets;
 
   /// No description provided for @statsHelpKeyboardMPlus.
   ///
   /// In en, this message translates to:
-  /// **'M+ ...'**
+  /// **'M+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set. Long press – Add values and specify a repeat count for bulk insertion.'**
   String get statsHelpKeyboardMPlus;
 
   /// No description provided for @statsHelpKeyboardMc.
   ///
   /// In en, this message translates to:
-  /// **'MC ...'**
+  /// **'MC – Clear all data in the active set.'**
   String get statsHelpKeyboardMc;
 
   /// No description provided for @statsHelpKeyboardMr.
   ///
   /// In en, this message translates to:
-  /// **'MR ...'**
+  /// **'MR – Show all stored data in an editable list.'**
   String get statsHelpKeyboardMr;
 
   /// No description provided for @statsHelpKeyboardStats.
   ///
   /// In en, this message translates to:
-  /// **'STATS ...'**
+  /// **'STATS – Show the statistics summary for the selected field: mean, sum, variance, standard deviation, median, mode and coefficient of variation.'**
   String get statsHelpKeyboardStats;
 
   /// No description provided for @statsHelpKeyboardSemicolon.
   ///
   /// In en, this message translates to:
-  /// **'; ...'**
+  /// **'; (semicolon) – Separator for multiple values (e.g. 5;10;15).'**
   String get statsHelpKeyboardSemicolon;
 
   /// No description provided for @statsHelpAdvancedMean.
   ///
   /// In en, this message translates to:
-  /// **'MEAN ...'**
+  /// **'MEAN – Arithmetic mean of all values.'**
   String get statsHelpAdvancedMean;
 
   /// No description provided for @statsHelpAdvancedSd.
   ///
   /// In en, this message translates to:
-  /// **'SD ...'**
+  /// **'SD – Standard deviation (measure of dispersion around the mean).'**
   String get statsHelpAdvancedSd;
 
   /// No description provided for @statsHelpAdvancedVar.
   ///
   /// In en, this message translates to:
-  /// **'VAR ...'**
+  /// **'VAR – Variance (average squared deviation from the mean).'**
   String get statsHelpAdvancedVar;
 
   /// No description provided for @statsHelpAdvancedSum.
   ///
   /// In en, this message translates to:
-  /// **'SUM ...'**
+  /// **'SUM – Sum of all values.'**
   String get statsHelpAdvancedSum;
 
   /// No description provided for @statsHelpAdvancedMed.
   ///
   /// In en, this message translates to:
-  /// **'MED ...'**
+  /// **'MED – Median (middle value of sorted data).'**
   String get statsHelpAdvancedMed;
 
   /// No description provided for @statsHelpAdvancedMode.
   ///
   /// In en, this message translates to:
-  /// **'MODE ...'**
+  /// **'MODE – Mode (most frequent value).'**
   String get statsHelpAdvancedMode;
 
   /// No description provided for @statsHelpAdvancedCv.
   ///
   /// In en, this message translates to:
-  /// **'CV ...'**
+  /// **'CV – Coefficient of variation (SD as percentage of the mean).'**
   String get statsHelpAdvancedCv;
 
   /// No description provided for @statsHelpAdvancedWmean.
   ///
   /// In en, this message translates to:
-  /// **'WMEAN ...'**
+  /// **'WMEAN – Weighted mean (requires 2 fields: values and weights).'**
   String get statsHelpAdvancedWmean;
 
   /// No description provided for @statsHelpFieldsDesc.
   ///
   /// In en, this message translates to:
-  /// **'Each set can have multiple fields...'**
+  /// **'Each set can have multiple fields (e.g. \"Value\" and \"Weight\"). When creating a set (SETS → Create new set) you can add fields using the \"Add field\" button. You can then switch which field statistics are calculated for – either in the STATS dialog or in Advanced Functions.'**
   String get statsHelpFieldsDesc;
 
   /// No description provided for @statsHelpWeightedMeanDesc.
   ///
   /// In en, this message translates to:
-  /// **'Requires a set with at least 2 fields...'**
+  /// **'Requires a set with at least 2 fields. Field 0 = values, field 1 = weights.\\n\\nSteps:\\n1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\").\\n2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2).\\n3) After entering all data, tap WMEAN in Advanced Functions.\\n4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).'**
   String get statsHelpWeightedMeanDesc;
 
   /// No description provided for @statsHelpTip1.
   ///
   /// In en, this message translates to:
-  /// **'Create multiple sets...'**
+  /// **'Create multiple sets for different data groups.'**
   String get statsHelpTip1;
 
   /// No description provided for @statsHelpTip2.
   ///
   /// In en, this message translates to:
-  /// **'Each set can have multiple fields...'**
+  /// **'Each set can have multiple fields (e.g. values, weights).'**
   String get statsHelpTip2;
 
   /// No description provided for @statsHelpTip3.
@@ -784,6 +778,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Data is saved automatically to the device memory.'**
   String get statsHelpTip4;
+
+  /// No description provided for @statsWeightedMean.
+  ///
+  /// In en, this message translates to:
+  /// **'Weighted mean'**
+  String get statsWeightedMean;
 
   /// No description provided for @backupData.
   ///
@@ -836,7 +836,7 @@ abstract class AppLocalizations {
   /// No description provided for @infoDms.
   ///
   /// In en, this message translates to:
-  /// **'DMS'**
+  /// **'DMS (degrees/minutes/seconds)'**
   String get infoDms;
 
   /// No description provided for @infoPercentage.
@@ -904,6 +904,786 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Full screen'**
   String get dialogSizeFullscreen;
+
+  /// No description provided for @voiceOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice on'**
+  String get voiceOn;
+
+  /// No description provided for @voiceOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice off'**
+  String get voiceOff;
+
+  /// No description provided for @cleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get cleared;
+
+  /// No description provided for @deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get deleted;
+
+  /// No description provided for @historyCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'History cleared'**
+  String get historyCleared;
+
+  /// No description provided for @appIsCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'The app is up to date.'**
+  String get appIsCurrent;
+
+  /// No description provided for @degreesUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'degrees'**
+  String get degreesUnit;
+
+  /// No description provided for @minutesUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'minutes'**
+  String get minutesUnit;
+
+  /// No description provided for @secondsUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'seconds'**
+  String get secondsUnit;
+
+  /// No description provided for @piSpoken.
+  ///
+  /// In en, this message translates to:
+  /// **'pi'**
+  String get piSpoken;
+
+  /// No description provided for @minusWord.
+  ///
+  /// In en, this message translates to:
+  /// **'minus'**
+  String get minusWord;
+
+  /// No description provided for @timesTenTo.
+  ///
+  /// In en, this message translates to:
+  /// **'times ten to the'**
+  String get timesTenTo;
+
+  /// No description provided for @expressionNotUnderstood.
+  ///
+  /// In en, this message translates to:
+  /// **'I don\'t understand the expression, please check the parentheses or signs'**
+  String get expressionNotUnderstood;
+
+  /// No description provided for @cannotDivideByZero.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot divide by zero'**
+  String get cannotDivideByZero;
+
+  /// No description provided for @valueOutOfRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Value is outside the valid range of the function'**
+  String get valueOutOfRange;
+
+  /// No description provided for @resultIs.
+  ///
+  /// In en, this message translates to:
+  /// **'The result is {value}'**
+  String resultIs(String value);
+
+  /// No description provided for @conversionError.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversion error'**
+  String get conversionError;
+
+  /// No description provided for @unitConverted.
+  ///
+  /// In en, this message translates to:
+  /// **'Converted from {from} to {to}. The result is {value} {toUnit}'**
+  String unitConverted(String from, String to, String value, String toUnit);
+
+  /// No description provided for @backupError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error creating the backup'**
+  String get backupError;
+
+  /// No description provided for @restoreError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error restoring the data'**
+  String get restoreError;
+
+  /// No description provided for @decimalPlacesSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set to {count} decimal places'**
+  String decimalPlacesSet(int count);
+
+  /// No description provided for @savedToVariable.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to variable {name}'**
+  String savedToVariable(String name);
+
+  /// No description provided for @recalledFromVariable.
+  ///
+  /// In en, this message translates to:
+  /// **'Recalled from variable {name}: {value}'**
+  String recalledFromVariable(String name, String value);
+
+  /// No description provided for @variableName.
+  ///
+  /// In en, this message translates to:
+  /// **'Variable {name}'**
+  String variableName(String name);
+
+  /// No description provided for @selectMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Select memory'**
+  String get selectMemory;
+
+  /// No description provided for @selectMemoryRecall.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a memory to recall'**
+  String get selectMemoryRecall;
+
+  /// No description provided for @memoryCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory cleared'**
+  String get memoryCleared;
+
+  /// No description provided for @insertedValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Inserted {value}'**
+  String insertedValue(String value);
+
+  /// No description provided for @inverseResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Inverse {name} of the result'**
+  String inverseResult(String name);
+
+  /// No description provided for @resultOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} of the result'**
+  String resultOf(String name);
+
+  /// No description provided for @standardDisplaySet.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard display set'**
+  String get standardDisplaySet;
+
+  /// No description provided for @segment16On.
+  ///
+  /// In en, this message translates to:
+  /// **'16-segment display on'**
+  String get segment16On;
+
+  /// No description provided for @segment7On.
+  ///
+  /// In en, this message translates to:
+  /// **'7-segment display on'**
+  String get segment7On;
+
+  /// No description provided for @screenReaderAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen reader mode: automatic'**
+  String get screenReaderAuto;
+
+  /// No description provided for @screenReaderOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen reader mode on'**
+  String get screenReaderOn;
+
+  /// No description provided for @screenReaderOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen reader mode off'**
+  String get screenReaderOff;
+
+  /// No description provided for @angleFormatDms.
+  ///
+  /// In en, this message translates to:
+  /// **'Angle format set to degrees, minutes and seconds'**
+  String get angleFormatDms;
+
+  /// No description provided for @angleFormatDecimal.
+  ///
+  /// In en, this message translates to:
+  /// **'Angle format set to decimal degrees'**
+  String get angleFormatDecimal;
+
+  /// No description provided for @themeSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme set to {mode}'**
+  String themeSet(String mode);
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'system'**
+  String get themeSystem;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'light'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'dark'**
+  String get themeDark;
+
+  /// No description provided for @zoomUpperPct.
+  ///
+  /// In en, this message translates to:
+  /// **'Upper line zoom {percent} percent'**
+  String zoomUpperPct(int percent);
+
+  /// No description provided for @zoomLowerPct.
+  ///
+  /// In en, this message translates to:
+  /// **'Lower line zoom {percent} percent'**
+  String zoomLowerPct(int percent);
+
+  /// No description provided for @speechRatePct.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech rate {percent} percent'**
+  String speechRatePct(int percent);
+
+  /// No description provided for @volumePct.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume {percent} percent'**
+  String volumePct(int percent);
+
+  /// No description provided for @categorySelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Category {category}'**
+  String categorySelected(String category);
+
+  /// No description provided for @fromUnitSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'From unit {unit}'**
+  String fromUnitSelected(String unit);
+
+  /// No description provided for @toUnitSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'To unit {unit}'**
+  String toUnitSelected(String unit);
+
+  /// No description provided for @calcNameVoltage.
+  ///
+  /// In en, this message translates to:
+  /// **'voltage'**
+  String get calcNameVoltage;
+
+  /// No description provided for @calcNameCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'current'**
+  String get calcNameCurrent;
+
+  /// No description provided for @calcNameResistance.
+  ///
+  /// In en, this message translates to:
+  /// **'resistance'**
+  String get calcNameResistance;
+
+  /// No description provided for @calcInputVoltage.
+  ///
+  /// In en, this message translates to:
+  /// **'current and resistance'**
+  String get calcInputVoltage;
+
+  /// No description provided for @calcInputCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'voltage and resistance'**
+  String get calcInputCurrent;
+
+  /// No description provided for @calcInputResistance.
+  ///
+  /// In en, this message translates to:
+  /// **'voltage and current'**
+  String get calcInputResistance;
+
+  /// No description provided for @calcIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculate {name}. Enter {input} separated by semicolons.'**
+  String calcIntro(String name, String input);
+
+  /// No description provided for @elecResult.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is {value} {unit}'**
+  String elecResult(String name, String value, String unit);
+
+  /// No description provided for @elecTwoValuesError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter two values separated by semicolons.'**
+  String get elecTwoValuesError;
+
+  /// No description provided for @elecFormatError.
+  ///
+  /// In en, this message translates to:
+  /// **'The values entered in electrical mode are not in a valid numeric format.'**
+  String get elecFormatError;
+
+  /// No description provided for @elecInvalidResult.
+  ///
+  /// In en, this message translates to:
+  /// **'The electrical calculation result is not a valid number.'**
+  String get elecInvalidResult;
+
+  /// No description provided for @formatDms.
+  ///
+  /// In en, this message translates to:
+  /// **'Format set to degrees, minutes and seconds.'**
+  String get formatDms;
+
+  /// No description provided for @formatDecimalDegrees.
+  ///
+  /// In en, this message translates to:
+  /// **'Format set to decimal degrees.'**
+  String get formatDecimalDegrees;
+
+  /// No description provided for @errorSegment.
+  ///
+  /// In en, this message translates to:
+  /// **'ERROR'**
+  String get errorSegment;
+
+  /// No description provided for @confirmationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmation'**
+  String get confirmationTitle;
+
+  /// No description provided for @yesConfirmHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, confirm clearing the entire calculation history'**
+  String get yesConfirmHistory;
+
+  /// No description provided for @noCancelHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'No, cancel and keep the history'**
+  String get noCancelHistory;
+
+  /// No description provided for @precisionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Precision settings'**
+  String get precisionTitle;
+
+  /// No description provided for @updateAvailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get updateAvailableTitle;
+
+  /// No description provided for @newVersionSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version {version} is available. Your version is {current}.'**
+  String newVersionSemantics(String version, String current);
+
+  /// No description provided for @newVersionText.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version {version} is available.\n\nYour version: {current}'**
+  String newVersionText(String version, String current);
+
+  /// No description provided for @whatIsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'What is new:'**
+  String get whatIsNew;
+
+  /// No description provided for @later.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get later;
+
+  /// No description provided for @showRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Show release'**
+  String get showRelease;
+
+  /// No description provided for @cannotOpenBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot open browser: {error}'**
+  String cannotOpenBrowser(String error);
+
+  /// No description provided for @checkForUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get checkForUpdates;
+
+  /// No description provided for @sectionTrigonometry.
+  ///
+  /// In en, this message translates to:
+  /// **'Trigonometry'**
+  String get sectionTrigonometry;
+
+  /// No description provided for @sectionFunctions.
+  ///
+  /// In en, this message translates to:
+  /// **'Functions'**
+  String get sectionFunctions;
+
+  /// No description provided for @sectionMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get sectionMemory;
+
+  /// No description provided for @sectionDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get sectionDisplay;
+
+  /// No description provided for @collapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get collapse;
+
+  /// No description provided for @expand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand'**
+  String get expand;
+
+  /// No description provided for @convertButton.
+  ///
+  /// In en, this message translates to:
+  /// **'CONVERT'**
+  String get convertButton;
+
+  /// No description provided for @standardDisplayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard display'**
+  String get standardDisplayLabel;
+
+  /// No description provided for @fixedDecimalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Display with a fixed number of decimal places'**
+  String get fixedDecimalLabel;
+
+  /// No description provided for @scientificNotationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scientific notation'**
+  String get scientificNotationLabel;
+
+  /// No description provided for @engineeringNotationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Engineering notation'**
+  String get engineeringNotationLabel;
+
+  /// No description provided for @categoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get categoryLabel;
+
+  /// No description provided for @fromLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get fromLabel;
+
+  /// No description provided for @toLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get toLabel;
+
+  /// No description provided for @segment16Name.
+  ///
+  /// In en, this message translates to:
+  /// **'16-segment'**
+  String get segment16Name;
+
+  /// No description provided for @segment7Name.
+  ///
+  /// In en, this message translates to:
+  /// **'7-segment'**
+  String get segment7Name;
+
+  /// No description provided for @switchDisplayType.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch display type'**
+  String get switchDisplayType;
+
+  /// No description provided for @toggleVoiceOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle voice output'**
+  String get toggleVoiceOutput;
+
+  /// No description provided for @enabledState.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get enabledState;
+
+  /// No description provided for @disabledState.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get disabledState;
+
+  /// No description provided for @screenReaderSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen reader mode'**
+  String get screenReaderSection;
+
+  /// No description provided for @screenReaderAutoLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic based on screen reader'**
+  String get screenReaderAutoLabel;
+
+  /// No description provided for @ttsEngineSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Text-to-speech engine settings'**
+  String get ttsEngineSettings;
+
+  /// No description provided for @engineLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Engine: {engine}'**
+  String engineLabel(String engine);
+
+  /// No description provided for @defaultEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultEngine;
+
+  /// No description provided for @openTtsSystemSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open system TTS settings'**
+  String get openTtsSystemSettings;
+
+  /// No description provided for @ttsSettingsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'TTS settings'**
+  String get ttsSettingsButton;
+
+  /// No description provided for @voiceSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice settings'**
+  String get voiceSettings;
+
+  /// No description provided for @voiceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice: {voice}'**
+  String voiceLabel(String voice);
+
+  /// No description provided for @toggleAngleFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle angle format'**
+  String get toggleAngleFormat;
+
+  /// No description provided for @themeSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose app theme'**
+  String get themeSectionLabel;
+
+  /// No description provided for @themeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App theme'**
+  String get themeTitle;
+
+  /// No description provided for @themeSystemLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System theme'**
+  String get themeSystemLabel;
+
+  /// No description provided for @themeLightLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Light theme'**
+  String get themeLightLabel;
+
+  /// No description provided for @themeDarkLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark theme'**
+  String get themeDarkLabel;
+
+  /// No description provided for @defaultStartupMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Default mode on startup'**
+  String get defaultStartupMode;
+
+  /// No description provided for @zoomUpperControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Upper line zoom controls'**
+  String get zoomUpperControls;
+
+  /// No description provided for @zoomLowerControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Lower line zoom controls'**
+  String get zoomLowerControls;
+
+  /// No description provided for @decreaseUpperZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease upper line zoom'**
+  String get decreaseUpperZoom;
+
+  /// No description provided for @increaseUpperZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase upper line zoom'**
+  String get increaseUpperZoom;
+
+  /// No description provided for @decreaseLowerZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease lower line zoom'**
+  String get decreaseLowerZoom;
+
+  /// No description provided for @increaseLowerZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase lower line zoom'**
+  String get increaseLowerZoom;
+
+  /// No description provided for @zoomValuePct.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom value: {value} %'**
+  String zoomValuePct(int value);
+
+  /// No description provided for @speechRateControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech rate controls'**
+  String get speechRateControls;
+
+  /// No description provided for @decreaseSpeechRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease speech rate'**
+  String get decreaseSpeechRate;
+
+  /// No description provided for @increaseSpeechRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase speech rate'**
+  String get increaseSpeechRate;
+
+  /// No description provided for @speechRateValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Current speech rate: {value} %'**
+  String speechRateValue(int value);
+
+  /// No description provided for @volumeControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume controls'**
+  String get volumeControls;
+
+  /// No description provided for @decreaseVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease volume'**
+  String get decreaseVolume;
+
+  /// No description provided for @increaseVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase volume'**
+  String get increaseVolume;
+
+  /// No description provided for @volumeValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Current volume: {value} %'**
+  String volumeValue(int value);
+
+  /// No description provided for @dataManagementSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Data backup and restore'**
+  String get dataManagementSection;
+
+  /// No description provided for @dataManagementTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data management'**
+  String get dataManagementTitle;
+
+  /// No description provided for @yesShort.
+  ///
+  /// In en, this message translates to:
+  /// **'YES'**
+  String get yesShort;
+
+  /// No description provided for @noShort.
+  ///
+  /// In en, this message translates to:
+  /// **'NO'**
+  String get noShort;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

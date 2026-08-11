@@ -236,5 +236,372 @@
   "statsHelpTip1": "Lze vytvářet více sad pro různé skupiny dat.",
   "statsHelpTip2": "Každá sada může mít více polí (např. hodnoty, váhy).",
   "statsHelpTip3": "Nová sada se vytvoří automaticky při prvním vložení dat.",
-  "statsHelpTip4": "Data se automaticky ukládají do paměti telefonu."
+  "statsHelpTip4": "Data se automaticky ukládají do paměti telefonu.",
+  "statsWeightedMean": "Vážený průměr",
+  "backupData": "Zálohovat data",
+  "restoreData": "Obnovit data",
+  "backupSuccess": "Záloha vytvořena",
+  "restoreSuccess": "Data obnovena",
+  "restoreConfirm": "Opravdu chcete obnovit všechna data ze zálohy?",
+  "numberInfo": "Info o čísle",
+  "infoValue": "Hodnota",
+  "infoFraction": "Zlomek",
+  "infoDms": "DMS (stupně/minuty/vteřiny)",
+  "infoPercentage": "Procenta",
+  "infoPrimeFactors": "Rozklad na prvočísla",
+  "infoDivisors": "Dělitele",
+  "infoRead": "PŘEČÍST",
+  "infoNoResult": "Nejprve vypočítejte výsledek.",
+  "infoNotInteger": "Pouze pro celá kladná čísla",
+  "infoNotApplicable": "nedostupné",
+  "dialogSizeSetting": "Velikost dialogů",
+  "dialogSizeCompact": "Kompaktní",
+  "dialogSizeWide": "Široký",
+  "dialogSizeFullscreen": "Celá obrazovka",
+  "voiceOn": "Hlas zapnut",
+  "voiceOff": "Hlas vypnut",
+  "cleared": "Vymazat",
+  "deleted": "Smazáno",
+  "historyCleared": "Historie smazána",
+  "appIsCurrent": "Aplikace je aktuální.",
+  "degreesUnit": "stupňů",
+  "minutesUnit": "minut",
+  "secondsUnit": "sekund",
+  "piSpoken": "pí",
+  "minusWord": "mínus",
+  "timesTenTo": "krát deset na",
+  "expressionNotUnderstood": "Výrazu nerozumím, zkuste zkontrolovat závorky nebo znaménka",
+  "cannotDivideByZero": "Nulou nelze dělit",
+  "valueOutOfRange": "Hodnota je mimo povolený rozsah funkce",
+  "resultIs": "Výsledek je {value}",
+  "@resultIs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "conversionError": "Chyba převodu",
+  "unitConverted": "Převedeno z {from} na {to}. Výsledek je {value} {toUnit}",
+  "@unitConverted": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      },
+      "toUnit": {
+        "type": "String"
+      }
+    }
+  },
+  "backupError": "Chyba při vytváření zálohy",
+  "restoreError": "Chyba při obnově dat",
+  "decimalPlacesSet": "Nastaveno {count} desetinných míst",
+  "@decimalPlacesSet": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savedToVariable": "Uloženo do proměnné {name}",
+  "@savedToVariable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "recalledFromVariable": "Vyvoláno z proměnné {name}: {value}",
+  "@recalledFromVariable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "variableName": "Proměnná {name}",
+  "@variableName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "selectMemory": "Vyberte paměť",
+  "selectMemoryRecall": "Vyberte paměť pro vyvolání",
+  "memoryCleared": "Paměť smazána",
+  "insertedValue": "Vloženo {value}",
+  "@insertedValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "inverseResult": "Inverzní {name} z výsledku",
+  "@inverseResult": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "resultOf": "{name} z výsledku",
+  "@resultOf": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "standardDisplaySet": "Nastaveno standardní zobrazení",
+  "segment16On": "Zapnut 16-segmentový displej",
+  "segment7On": "Zapnut 7-segmentový displej",
+  "screenReaderAuto": "Režim čtečky: automaticky",
+  "screenReaderOn": "Režim čtečky obrazovky zapnut",
+  "screenReaderOff": "Režim čtečky obrazovky vypnut",
+  "angleFormatDms": "Formát nastaven na stupně, minuty a sekundy",
+  "angleFormatDecimal": "Formát nastaven na desetinné stupně",
+  "themeSet": "Motiv nastaven na {mode}",
+  "@themeSet": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "themeSystem": "systémový",
+  "themeLight": "světlý",
+  "themeDark": "tmavý",
+  "zoomUpperPct": "Zoom horního řádku {percent} procent",
+  "@zoomUpperPct": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "zoomLowerPct": "Zoom dolního řádku {percent} procent",
+  "@zoomLowerPct": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "speechRatePct": "Rychlost {percent} procent",
+  "@speechRatePct": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "volumePct": "Hlasitost {percent} procent",
+  "@volumePct": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "categorySelected": "Kategorie {category}",
+  "@categorySelected": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "fromUnitSelected": "Z jednotky {unit}",
+  "@fromUnitSelected": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "toUnitSelected": "Na jednotku {unit}",
+  "@toUnitSelected": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "calcNameVoltage": "napětí",
+  "calcNameCurrent": "proud",
+  "calcNameResistance": "odpor",
+  "calcInputVoltage": "proud a odpor",
+  "calcInputCurrent": "napětí a odpor",
+  "calcInputResistance": "napětí a proud",
+  "calcIntro": "Výpočet {name}. Zadejte {input} oddělené středníkem.",
+  "@calcIntro": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "input": {
+        "type": "String"
+      }
+    }
+  },
+  "elecResult": "{name} je {value} {unit}",
+  "@elecResult": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "elecTwoValuesError": "Zadejte dvě hodnoty oddělené středníkem.",
+  "elecFormatError": "Zadané hodnoty v elektro režimu nemají platný číselný formát.",
+  "elecInvalidResult": "Výsledek elektro výpočtu není platné číslo.",
+  "formatDms": "Formát nastaven na stupně, minuty a sekundy.",
+  "formatDecimalDegrees": "Formát nastaven na desetinné stupně.",
+  "errorSegment": "CHYBA",
+  "confirmationTitle": "Potvrzení",
+  "yesConfirmHistory": "Ano, potvrdit smazání celé historie výpočtů",
+  "noCancelHistory": "Ne, zrušit smazání a ponechat historii",
+  "precisionTitle": "Nastavení přesnosti",
+  "updateAvailableTitle": "Dostupná aktualizace",
+  "newVersionSemantics": "Je dostupná nová verze {version}. Vaše verze je {current}.",
+  "@newVersionSemantics": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "newVersionText": "Je dostupná nová verze {version}.\n\nVaše verze: {current}",
+  "@newVersionText": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "whatIsNew": "Co je nového:",
+  "later": "Později",
+  "showRelease": "Zobrazit release",
+  "cannotOpenBrowser": "Nelze otevřít prohlížeč: {error}",
+  "@cannotOpenBrowser": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "checkForUpdates": "Zkontrolovat aktualizace",
+  "sectionTrigonometry": "Goniometrie",
+  "sectionFunctions": "Funkce",
+  "sectionMemory": "Paměť",
+  "sectionDisplay": "Zobrazení",
+  "collapse": "Sbalit",
+  "expand": "Rozbalit",
+  "convertButton": "PŘEVÉST",
+  "standardDisplayLabel": "Standardní zobrazení",
+  "fixedDecimalLabel": "Zobrazení s pevným počtem desetinných míst",
+  "scientificNotationLabel": "Vědecký zápis",
+  "engineeringNotationLabel": "Inženýrský zápis",
+  "categoryLabel": "Kategorie",
+  "fromLabel": "Z",
+  "toLabel": "Na",
+  "segment16Name": "16-segmentový",
+  "segment7Name": "7-segmentový",
+  "switchDisplayType": "Přepnutí typu displeje",
+  "toggleVoiceOutput": "Přepnutí hlasového výstupu",
+  "enabledState": "Zapnuto",
+  "disabledState": "Vypnuto",
+  "screenReaderSection": "Režim čtečky obrazovky",
+  "screenReaderAutoLabel": "Automaticky podle čtečky",
+  "ttsEngineSettings": "Nastavení hlasového engine",
+  "engineLabel": "Engine: {engine}",
+  "@engineLabel": {
+    "placeholders": {
+      "engine": {
+        "type": "String"
+      }
+    }
+  },
+  "defaultEngine": "Výchozí",
+  "openTtsSystemSettings": "Otevřít systémové nastavení TTS",
+  "ttsSettingsButton": "Nastavení TTS",
+  "voiceSettings": "Nastavení hlasu",
+  "voiceLabel": "Hlas: {voice}",
+  "@voiceLabel": {
+    "placeholders": {
+      "voice": {
+        "type": "String"
+      }
+    }
+  },
+  "toggleAngleFormat": "Přepnutí formátu úhlů",
+  "themeSectionLabel": "Výběr motivu aplikace",
+  "themeTitle": "Motiv aplikace",
+  "themeSystemLabel": "Systémový motiv",
+  "themeLightLabel": "Světlý motiv",
+  "themeDarkLabel": "Tmavý motiv",
+  "defaultStartupMode": "Výchozí režim po spuštění",
+  "zoomUpperControls": "Ovládání zoomu horního řádku",
+  "zoomLowerControls": "Ovládání zoomu dolního řádku",
+  "decreaseUpperZoom": "Zmenšit zoom horního řádku",
+  "increaseUpperZoom": "Zvětšit zoom horního řádku",
+  "decreaseLowerZoom": "Zmenšit zoom dolního řádku",
+  "increaseLowerZoom": "Zvětšit zoom dolního řádku",
+  "zoomValuePct": "Hodnota zoomu: {value} %",
+  "@zoomValuePct": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "speechRateControls": "Ovládání rychlosti hlasu",
+  "decreaseSpeechRate": "Snížit rychlost",
+  "increaseSpeechRate": "Zvýšit rychlost",
+  "speechRateValue": "Aktuální rychlost: {value} %",
+  "@speechRateValue": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "volumeControls": "Ovládání hlasitosti",
+  "decreaseVolume": "Snížit hlasitost",
+  "increaseVolume": "Zvýšit hlasitost",
+  "volumeValue": "Aktuální hlasitost: {value} %",
+  "@volumeValue": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "dataManagementSection": "Záloha a obnova dat",
+  "dataManagementTitle": "Správa dat",
+  "yesShort": "ANO",
+  "noShort": "NE"
 }

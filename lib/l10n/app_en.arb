@@ -164,5 +164,372 @@
   "statsHelpTip1": "Create multiple sets for different data groups.",
   "statsHelpTip2": "Each set can have multiple fields (e.g. values, weights).",
   "statsHelpTip3": "A new set is created automatically on first data entry.",
-  "statsHelpTip4": "Data is saved automatically to the device memory."
+  "statsHelpTip4": "Data is saved automatically to the device memory.",
+  "statsWeightedMean": "Weighted mean",
+  "backupData": "Backup data",
+  "restoreData": "Restore data",
+  "backupSuccess": "Backup created",
+  "restoreSuccess": "Data restored",
+  "restoreConfirm": "Are you sure you want to restore all data from backup?",
+  "numberInfo": "Number Info",
+  "infoValue": "Value",
+  "infoFraction": "Fraction",
+  "infoDms": "DMS (degrees/minutes/seconds)",
+  "infoPercentage": "Percentage",
+  "infoPrimeFactors": "Prime factors",
+  "infoDivisors": "Divisors",
+  "infoRead": "READ ALOUD",
+  "infoNoResult": "Calculate a result first.",
+  "infoNotInteger": "Positive integers only",
+  "infoNotApplicable": "N/A",
+  "dialogSizeSetting": "Dialog size",
+  "dialogSizeCompact": "Compact",
+  "dialogSizeWide": "Wide",
+  "dialogSizeFullscreen": "Full screen",
+  "voiceOn": "Voice on",
+  "voiceOff": "Voice off",
+  "cleared": "Clear",
+  "deleted": "Deleted",
+  "historyCleared": "History cleared",
+  "appIsCurrent": "The app is up to date.",
+  "degreesUnit": "degrees",
+  "minutesUnit": "minutes",
+  "secondsUnit": "seconds",
+  "piSpoken": "pi",
+  "minusWord": "minus",
+  "timesTenTo": "times ten to the",
+  "expressionNotUnderstood": "I don't understand the expression, please check the parentheses or signs",
+  "cannotDivideByZero": "Cannot divide by zero",
+  "valueOutOfRange": "Value is outside the valid range of the function",
+  "resultIs": "The result is {value}",
+  "@resultIs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "conversionError": "Conversion error",
+  "unitConverted": "Converted from {from} to {to}. The result is {value} {toUnit}",
+  "@unitConverted": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      },
+      "toUnit": {
+        "type": "String"
+      }
+    }
+  },
+  "backupError": "Error creating the backup",
+  "restoreError": "Error restoring the data",
+  "decimalPlacesSet": "Set to {count} decimal places",
+  "@decimalPlacesSet": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savedToVariable": "Saved to variable {name}",
+  "@savedToVariable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "recalledFromVariable": "Recalled from variable {name}: {value}",
+  "@recalledFromVariable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "variableName": "Variable {name}",
+  "@variableName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "selectMemory": "Select memory",
+  "selectMemoryRecall": "Select a memory to recall",
+  "memoryCleared": "Memory cleared",
+  "insertedValue": "Inserted {value}",
+  "@insertedValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "inverseResult": "Inverse {name} of the result",
+  "@inverseResult": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "resultOf": "{name} of the result",
+  "@resultOf": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "standardDisplaySet": "Standard display set",
+  "segment16On": "16-segment display on",
+  "segment7On": "7-segment display on",
+  "screenReaderAuto": "Screen reader mode: automatic",
+  "screenReaderOn": "Screen reader mode on",
+  "screenReaderOff": "Screen reader mode off",
+  "angleFormatDms": "Angle format set to degrees, minutes and seconds",
+  "angleFormatDecimal": "Angle format set to decimal degrees",
+  "themeSet": "Theme set to {mode}",
+  "@themeSet": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "themeSystem": "system",
+  "themeLight": "light",
+  "themeDark": "dark",
+  "zoomUpperPct": "Upper line zoom {percent} percent",
+  "@zoomUpperPct": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "zoomLowerPct": "Lower line zoom {percent} percent",
+  "@zoomLowerPct": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "speechRatePct": "Speech rate {percent} percent",
+  "@speechRatePct": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "volumePct": "Volume {percent} percent",
+  "@volumePct": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "categorySelected": "Category {category}",
+  "@categorySelected": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "fromUnitSelected": "From unit {unit}",
+  "@fromUnitSelected": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "toUnitSelected": "To unit {unit}",
+  "@toUnitSelected": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "calcNameVoltage": "voltage",
+  "calcNameCurrent": "current",
+  "calcNameResistance": "resistance",
+  "calcInputVoltage": "current and resistance",
+  "calcInputCurrent": "voltage and resistance",
+  "calcInputResistance": "voltage and current",
+  "calcIntro": "Calculate {name}. Enter {input} separated by semicolons.",
+  "@calcIntro": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "input": {
+        "type": "String"
+      }
+    }
+  },
+  "elecResult": "{name} is {value} {unit}",
+  "@elecResult": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "elecTwoValuesError": "Enter two values separated by semicolons.",
+  "elecFormatError": "The values entered in electrical mode are not in a valid numeric format.",
+  "elecInvalidResult": "The electrical calculation result is not a valid number.",
+  "formatDms": "Format set to degrees, minutes and seconds.",
+  "formatDecimalDegrees": "Format set to decimal degrees.",
+  "errorSegment": "ERROR",
+  "confirmationTitle": "Confirmation",
+  "yesConfirmHistory": "Yes, confirm clearing the entire calculation history",
+  "noCancelHistory": "No, cancel and keep the history",
+  "precisionTitle": "Precision settings",
+  "updateAvailableTitle": "Update available",
+  "newVersionSemantics": "A new version {version} is available. Your version is {current}.",
+  "@newVersionSemantics": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "newVersionText": "A new version {version} is available.\n\nYour version: {current}",
+  "@newVersionText": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "whatIsNew": "What is new:",
+  "later": "Later",
+  "showRelease": "Show release",
+  "cannotOpenBrowser": "Cannot open browser: {error}",
+  "@cannotOpenBrowser": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "checkForUpdates": "Check for updates",
+  "sectionTrigonometry": "Trigonometry",
+  "sectionFunctions": "Functions",
+  "sectionMemory": "Memory",
+  "sectionDisplay": "Display",
+  "collapse": "Collapse",
+  "expand": "Expand",
+  "convertButton": "CONVERT",
+  "standardDisplayLabel": "Standard display",
+  "fixedDecimalLabel": "Display with a fixed number of decimal places",
+  "scientificNotationLabel": "Scientific notation",
+  "engineeringNotationLabel": "Engineering notation",
+  "categoryLabel": "Category",
+  "fromLabel": "From",
+  "toLabel": "To",
+  "segment16Name": "16-segment",
+  "segment7Name": "7-segment",
+  "switchDisplayType": "Switch display type",
+  "toggleVoiceOutput": "Toggle voice output",
+  "enabledState": "On",
+  "disabledState": "Off",
+  "screenReaderSection": "Screen reader mode",
+  "screenReaderAutoLabel": "Automatic based on screen reader",
+  "ttsEngineSettings": "Text-to-speech engine settings",
+  "engineLabel": "Engine: {engine}",
+  "@engineLabel": {
+    "placeholders": {
+      "engine": {
+        "type": "String"
+      }
+    }
+  },
+  "defaultEngine": "Default",
+  "openTtsSystemSettings": "Open system TTS settings",
+  "ttsSettingsButton": "TTS settings",
+  "voiceSettings": "Voice settings",
+  "voiceLabel": "Voice: {voice}",
+  "@voiceLabel": {
+    "placeholders": {
+      "voice": {
+        "type": "String"
+      }
+    }
+  },
+  "toggleAngleFormat": "Toggle angle format",
+  "themeSectionLabel": "Choose app theme",
+  "themeTitle": "App theme",
+  "themeSystemLabel": "System theme",
+  "themeLightLabel": "Light theme",
+  "themeDarkLabel": "Dark theme",
+  "defaultStartupMode": "Default mode on startup",
+  "zoomUpperControls": "Upper line zoom controls",
+  "zoomLowerControls": "Lower line zoom controls",
+  "decreaseUpperZoom": "Decrease upper line zoom",
+  "increaseUpperZoom": "Increase upper line zoom",
+  "decreaseLowerZoom": "Decrease lower line zoom",
+  "increaseLowerZoom": "Increase lower line zoom",
+  "zoomValuePct": "Zoom value: {value} %",
+  "@zoomValuePct": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "speechRateControls": "Speech rate controls",
+  "decreaseSpeechRate": "Decrease speech rate",
+  "increaseSpeechRate": "Increase speech rate",
+  "speechRateValue": "Current speech rate: {value} %",
+  "@speechRateValue": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "volumeControls": "Volume controls",
+  "decreaseVolume": "Decrease volume",
+  "increaseVolume": "Increase volume",
+  "volumeValue": "Current volume: {value} %",
+  "@volumeValue": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "dataManagementSection": "Data backup and restore",
+  "dataManagementTitle": "Data management",
+  "yesShort": "YES",
+  "noShort": "NO"
 }

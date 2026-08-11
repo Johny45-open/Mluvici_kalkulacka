@@ -151,13 +151,13 @@ class StatisticsRecord {
 
   StatisticsRecord({required this.values});
 
-  Map<String, dynamic> toJson() => {
-        'values': values,
-      };
+  Map<String, dynamic> toJson() => {'values': values};
 
   factory StatisticsRecord.fromJson(Map<String, dynamic> json) {
     return StatisticsRecord(
-      values: (json['values'] as List).map((e) => (e as num).toDouble()).toList(),
+      values: (json['values'] as List)
+          .map((e) => (e as num).toDouble())
+          .toList(),
     );
   }
 
@@ -180,11 +180,11 @@ class StatisticsSet {
   }) : fieldUnits = fieldUnits ?? List.filled(fieldNames.length, null);
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'fieldNames': fieldNames,
-        'fieldUnits': fieldUnits,
-        'records': records.map((r) => r.toJson()).toList(),
-      };
+    'name': name,
+    'fieldNames': fieldNames,
+    'fieldUnits': fieldUnits,
+    'records': records.map((r) => r.toJson()).toList(),
+  };
 
   factory StatisticsSet.fromJson(Map<String, dynamic> json) {
     if (json.containsKey('data')) {
@@ -194,8 +194,7 @@ class StatisticsSet {
       return StatisticsSet(
         name: json['name'] as String,
         fieldNames: ['Hodnota'],
-        records:
-            data.map((v) => StatisticsRecord(values: [v])).toList(),
+        records: data.map((v) => StatisticsRecord(values: [v])).toList(),
       );
     }
     final fieldNames = (json['fieldNames'] as List).cast<String>();
@@ -230,8 +229,9 @@ class CalculatorScreen extends StatefulWidget {
 class _CalculatorScreenState extends State<CalculatorScreen>
     with WidgetsBindingObserver {
   late final String _currentAppVersion;
-  static const MethodChannel _accessibilityChannel =
-      MethodChannel('com.example.mluvici_kalkulacka/accessibility');
+  static const MethodChannel _accessibilityChannel = MethodChannel(
+    'com.example.mluvici_kalkulacka/accessibility',
+  );
 
   final FlutterTts tts = FlutterTts();
   final FocusNode _mainFocusNode = FocusNode();
@@ -240,10 +240,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String _lastResult = '0.';
   CalculatorMode _currentMode = CalculatorMode.scientific;
   CalculatorMode _defaultMode = CalculatorMode.scientific;
-  List<int> _modeUsageCounts = List<int>.filled(CalculatorMode.values.length, 0);
+  List<int> _modeUsageCounts = List<int>.filled(
+    CalculatorMode.values.length,
+    0,
+  );
   int _totalModeSwitches = 0;
-  bool _newsLoading = false;
-  List<GitHubReleaseInfo> _recentReleases = [];
   String? _lastSeenNewsVersion;
   int? _lastSuggestedMode;
 
@@ -351,12 +352,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'atm': 101325.0,
       'psi': 6894.76,
     },
-    'Čas': {
-      's': 1.0,
-      'min': 60.0,
-      'h': 3600.0,
-      'd': 86400.0,
-    },
+    'Čas': {'s': 1.0, 'min': 60.0, 'h': 3600.0, 'd': 86400.0},
     'Napětí': {
       'V': 1.0,
       'mV': 0.001,
@@ -364,18 +360,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'kV': 1000.0,
       'MV': 1000000.0,
     },
-    'Proud': {
-      'A': 1.0,
-      'mA': 0.001,
-      'µA': 0.000001,
-      'kA': 1000.0,
-    },
-    'Odpor': {
-      'Ω': 1.0,
-      'mΩ': 0.001,
-      'kΩ': 1000.0,
-      'MΩ': 1000000.0,
-    },
+    'Proud': {'A': 1.0, 'mA': 0.001, 'µA': 0.000001, 'kA': 1000.0},
+    'Odpor': {'Ω': 1.0, 'mΩ': 0.001, 'kΩ': 1000.0, 'MΩ': 1000000.0},
     'Výkon': {
       'W': 1.0,
       'mW': 0.001,
@@ -900,10 +886,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   String _s(String cs, String en) => _isEnglish() ? en : cs;
 
-  String _getModeSpeechNameForL10n(
-    CalculatorMode mode,
-    AppLocalizations l10n,
-  ) {
+  String _getModeSpeechNameForL10n(CalculatorMode mode, AppLocalizations l10n) {
     switch (mode) {
       case CalculatorMode.basic:
         return l10n.modeSpeechBasic;
@@ -1041,11 +1024,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String _getElectricianCalculationName(ElectricianCalculation calculation) {
     switch (calculation) {
       case ElectricianCalculation.voltage:
-        return 'napětí';
+        return _l10n.calcNameVoltage;
       case ElectricianCalculation.current:
-        return 'proud';
+        return _l10n.calcNameCurrent;
       case ElectricianCalculation.resistance:
-        return 'odpor';
+        return _l10n.calcNameResistance;
     }
   }
 
@@ -1063,11 +1046,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String _getElectricianInputDescription(ElectricianCalculation calculation) {
     switch (calculation) {
       case ElectricianCalculation.voltage:
-        return 'proud a odpor';
+        return _l10n.calcInputVoltage;
       case ElectricianCalculation.current:
-        return 'napětí a odpor';
+        return _l10n.calcInputCurrent;
       case ElectricianCalculation.resistance:
-        return 'napětí a proud';
+        return _l10n.calcInputResistance;
     }
   }
 
@@ -1081,6 +1064,48 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final absValue = value.abs();
     final isWholeNumber = absValue == absValue.roundToDouble();
     final wholeValue = absValue.toInt();
+
+    if (_isEnglish()) {
+      String unit;
+      switch (calculation) {
+        case ElectricianCalculation.voltage:
+          unit = 'volt';
+          break;
+        case ElectricianCalculation.current:
+          unit = 'ampere';
+          break;
+        case ElectricianCalculation.resistance:
+          unit = 'ohm';
+          break;
+      }
+      switch (prefix) {
+        case 'mili':
+          unit = 'milli$unit';
+          break;
+        case 'mikro':
+          unit = 'micro$unit';
+          break;
+        case 'nano':
+          unit = 'nano$unit';
+          break;
+        case 'piko':
+          unit = 'pico$unit';
+          break;
+        case 'kilo':
+          unit = 'kilo$unit';
+          break;
+        case 'mega':
+          unit = 'mega$unit';
+          break;
+        case 'giga':
+          unit = 'giga$unit';
+          break;
+      }
+      if (isWholeNumber && wholeValue == 1) {
+        return unit;
+      }
+      return '${unit}s';
+    }
 
     String unit = '';
     switch (calculation) {
@@ -1096,18 +1121,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
 
     // Aplikace prefixu na základní jednotku
-    if (prefix == 'mili') unit = 'mili${unit == 'ohm' ? 'ohm' : unit}';
-    else if (prefix == 'mikro') unit = 'mikro${unit == 'ohm' ? 'ohm' : unit}';
-    else if (prefix == 'nano') unit = 'nano${unit == 'ohm' ? 'ohm' : unit}';
-    else if (prefix == 'piko') unit = 'piko${unit == 'ohm' ? 'ohm' : unit}';
-    else if (prefix == 'kilo') unit = 'kilo${unit == 'ohm' ? 'ohm' : unit}';
-    else if (prefix == 'mega') unit = 'mega${unit == 'ohm' ? 'ohm' : unit}';
-    else if (prefix == 'giga') unit = 'giga${unit == 'ohm' ? 'ohm' : unit}';
+    if (prefix == 'mili')
+      unit = 'mili${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'mikro')
+      unit = 'mikro${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'nano')
+      unit = 'nano${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'piko')
+      unit = 'piko${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'kilo')
+      unit = 'kilo${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'mega')
+      unit = 'mega${unit == 'ohm' ? 'ohm' : unit}';
+    else if (prefix == 'giga')
+      unit = 'giga${unit == 'ohm' ? 'ohm' : unit}';
 
     // Gramatické tvary
     if (isWholeNumber && wholeValue == 1) {
-       // Základní jednotka, např. 1 volt, 1 kiloampér
-       return unit;
+      // Základní jednotka, např. 1 volt, 1 kiloampér
+      return unit;
     }
 
     if (isWholeNumber && wholeValue >= 2 && wholeValue <= 4) {
@@ -1131,25 +1163,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
     final calculationName = _getElectricianCalculationName(calculation);
     final inputDescription = _getElectricianInputDescription(calculation);
-    speak(
-      'Výpočet $calculationName. Zadejte $inputDescription oddělené středníkem.',
-    );
+    speak(_l10n.calcIntro(calculationName, inputDescription));
   }
 
   List<double> _parseElectricianInputValues(String input) {
     final parts = input.split(';');
     if (parts.length != 2 || parts.any((part) => part.trim().isEmpty)) {
-      throw const _ElectricianInputException(
-        'Zadejte dvě hodnoty oddělené středníkem.',
-      );
+      throw _ElectricianInputException(_l10n.elecTwoValuesError);
     }
 
     try {
       return parts.map((part) => _evaluateExpression(part.trim())).toList();
     } catch (e) {
-      throw const _ElectricianInputException(
-        'Zadané hodnoty v elektro režimu nemají platný číselný formát.',
-      );
+      throw _ElectricianInputException(_l10n.elecFormatError);
     }
   }
 
@@ -1190,9 +1216,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return null;
     }
 
-    final baseLabel = _buttonNames[label] ?? label;
+    final baseLabel = _getButtonName(label);
     if (calculation == _selectedElectricianCalculation) {
-      return '$baseLabel, vybráno';
+      return '${baseLabel}, ${_s('vybráno', 'selected')}';
     }
     return baseLabel;
   }
@@ -1314,22 +1340,28 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Dostupná aktualizace'),
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        semanticLabel: 'Dostupná aktualizace',
-        title: Semantics(header: true, child: Text('Dostupná aktualizace')),
+        semanticLabel: _l10n.updateAvailableTitle,
+        title: Semantics(header: true, child: Text(_l10n.updateAvailableTitle)),
         content: Semantics(
-          label: 'Je dostupná nová verze ${release.normalizedVersion}. Vaše verze je $_currentAppVersion.',
+          label: _l10n.newVersionSemantics(
+            release.normalizedVersion,
+            _currentAppVersion,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Je dostupná nová verze ${release.normalizedVersion}.\n\nVaše verze: $_currentAppVersion',
+                _l10n.newVersionText(
+                  release.normalizedVersion,
+                  _currentAppVersion,
+                ),
               ),
               if (release.releaseSummary.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                const Text(
-                  'Co je nového:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                Text(
+                  _l10n.whatIsNew,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(release.releaseSummary),
@@ -1339,14 +1371,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
         actions: [
           Semantics(
-            label: 'Později, zavřít dialog bez aktualizace',
+            label: _l10n.later,
             child: TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Později'),
+              child: Text(_l10n.later),
             ),
           ),
           Semantics(
-            label: 'Zobrazit detail release na GitHubu',
+            label: _l10n.showRelease,
             child: FilledButton(
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
@@ -1358,12 +1390,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   } catch (e) {
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Nelze otevřít prohlížeč: $e')),
+                      SnackBar(
+                        content: Text(
+                          _s(
+                            'Nelze otevřít prohlížeč: $e',
+                            'Could not open browser: $e',
+                          ),
+                        ),
+                      ),
                     );
                   }
                 }
               },
-              child: const Text('Zobrazit release'),
+              child: Text(_l10n.showRelease),
             ),
           ),
         ],
@@ -1377,10 +1416,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await showDialog<void>(
       context: context,
       routeSettings: const RouteSettings(name: 'Novinky'),
-      builder: (dialogContext) => _NewsDialog(
-        parent: this,
-        initialFocusVersion: initialFocusVersion,
-      ),
+      builder: (dialogContext) =>
+          _NewsDialog(parent: this, initialFocusVersion: initialFocusVersion),
     );
   }
 
@@ -1396,9 +1433,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       await tts.setVolume(_speechVolume);
       if (_sayWelcome) {
         speak(
-          l10n.welcomeMessage(
-            _getModeSpeechNameForL10n(_currentMode, l10n),
-          ),
+          l10n.welcomeMessage(_getModeSpeechNameForL10n(_currentMode, l10n)),
         );
       }
     } catch (e) {
@@ -1510,8 +1545,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } catch (_) {
       if (mounted) {
         setState(() {
-          _accessibleNavigation = WidgetsBinding.instance
-              .platformDispatcher.accessibilityFeatures.accessibleNavigation;
+          _accessibleNavigation = WidgetsBinding
+              .instance
+              .platformDispatcher
+              .accessibilityFeatures
+              .accessibleNavigation;
         });
       }
     }
@@ -1531,7 +1569,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void speak(String text, {bool force = false}) async {
     // Pokud je aktivní čtečka, vypneme vlastní TTS kalkulačky,
     // pokud není vynuceno (např. systémové hlášení výsledku).
-    if (text.isEmpty || !ttsEnabled || !mounted || (_isScreenReaderActive && !force)) {
+    if (text.isEmpty ||
+        !ttsEnabled ||
+        !mounted ||
+        (_isScreenReaderActive && !force)) {
       return;
     }
     final now = DateTime.now();
@@ -1549,15 +1590,33 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   String _formatForSpeech(String text) {
-    String processed = text.replaceAll('.', ',').replaceAll('\u03C0', 'pí');
+    final l10n = _l10n;
+    String processed = text
+        .replaceAll('.', ',')
+        .replaceAll('\u03C0', l10n.piSpoken);
     processed = processed.replaceAllMapped(
       RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"),
       (m) {
         int exp = int.parse(m[3]!);
-        return '${m[1]} krát deset na ${m[2] == '-' ? 'mínus ' : ''}$exp';
+        return '${m[1]} ${l10n.timesTenTo} '
+            '${m[2] == '-' ? '${l10n.minusWord} ' : ''}$exp';
       },
     );
     return processed;
+  }
+
+  String _formatDmsSpeech(String dmsStr) {
+    if (_isEnglish()) {
+      return dmsStr
+          .replaceAll('°', ', degrees, ')
+          .replaceAll("'", ' minutes and ')
+          .replaceAll('"', ' seconds');
+    }
+    return dmsStr
+        .replaceAll('°', ' stupňů, ')
+        .replaceAll("'", ' minut a ')
+        .replaceAll('"', ' sekund')
+        .replaceAll('.', ',');
   }
 
   void _handleKeyboardInput(KeyEvent event) {
@@ -1651,7 +1710,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _insertDegree() {
     append('°', silent: true);
-    speak('stupňů');
+    speak(_l10n.degreesUnit);
   }
 
   void _insertMinute() {
@@ -1660,11 +1719,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (display.isNotEmpty &&
         lastDigit.hasMatch(display.substring(0, _cursorPosition))) {
       append("'", silent: true);
-      speak('minut');
+      speak(_l10n.minutesUnit);
       return;
     }
     append("'", silent: true);
-    speak('minut');
+    speak(_l10n.minutesUnit);
   }
 
   void backspace() {
@@ -1680,12 +1739,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _isRecallMode = false;
       _hasResult = false;
     });
-    speak('Vymazat');
+    speak(_l10n.cleared);
   }
 
   void append(String value, {bool silent = false}) {
     _insertAtCursor(value);
-    if (!silent) speak(_buttonNames[value] ?? value);
+    if (!silent) speak(_getButtonName(value));
   }
 
   void _handleMemoryVariable(String name) {
@@ -1699,25 +1758,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _isStoreMode = false;
       });
       _saveStatsData();
-      speak('Uloženo do proměnné $name');
+      speak(_l10n.savedToVariable(name));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Uloženo do proměnné $name')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_l10n.savedToVariable(name))));
       }
     } else if (_isRecallMode) {
       String valStr = _formatNumber(_memory[name]!).replaceAll('.', ',');
       append(_formatNumber(_memory[name]!), silent: true);
-      speak('Vyvoláno z proměnné $name: $valStr');
+      speak(_l10n.recalledFromVariable(name, valStr));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Vyvoláno z proměnné $name: $valStr')),
+          SnackBar(content: Text(_l10n.recalledFromVariable(name, valStr))),
         );
       }
       _isRecallMode = false;
     } else {
       append(name, silent: true);
-      speak('Proměnná $name');
+      speak(_l10n.variableName(name));
     }
   }
 
@@ -1742,7 +1801,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             display.substring(_cursorPosition);
         _cursorPosition--;
       });
-      speak('Smazáno');
+      speak(_l10n.deleted);
     }
   }
 
@@ -1777,13 +1836,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } else if (_currentMode == CalculatorMode.electrician) {
         final result = _calculateElectricianResult(display);
         if (!result.isFinite) {
-          throw const _ElectricianInputException(
-            'Výsledek elektro výpočtu není platné číslo.',
-          );
+          throw _ElectricianInputException(_l10n.elecInvalidResult);
         }
 
         final calculation = _selectedElectricianCalculation;
-        
+
         final scaledData = _getScaledValueAndPrefix(result);
         final scaledValue = scaledData['value'] as double;
         final prefix = scaledData['prefix'] as String;
@@ -1792,16 +1849,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         String formattedValue = _formatNumber(scaledValue);
         String unit = '';
         switch (calculation) {
-          case ElectricianCalculation.voltage: unit = 'V'; break;
-          case ElectricianCalculation.current: unit = 'A'; break;
-          case ElectricianCalculation.resistance: unit = '\u03A9'; break; // Omega symbol
+          case ElectricianCalculation.voltage:
+            unit = 'V';
+            break;
+          case ElectricianCalculation.current:
+            unit = 'A';
+            break;
+          case ElectricianCalculation.resistance:
+            unit = '\u03A9';
+            break; // Omega symbol
         }
         resStr = '$formattedValue $prefix$unit';
 
         final spokenResult = _formatSpokenNumber(scaledValue);
         final calculationName = _getElectricianCalculationName(calculation);
-        final unitSpeech = _getElectricianUnitSpeech(calculation, scaledValue, prefix);
-        spoken = '$calculationName je $spokenResult $unitSpeech';
+        final unitSpeech = _getElectricianUnitSpeech(
+          calculation,
+          scaledValue,
+          prefix,
+        );
+        spoken = _l10n.elecResult(calculationName, spokenResult, unitSpeech);
         currentExpression =
             '${_getElectricianHistoryName(calculation)}($display)';
         _lastNumericValue = result;
@@ -1834,10 +1901,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
 
         if (resStr.contains('°')) {
-          spoken =
-              'Výsledek je ${resStr.replaceAll('°', ' stupňů, ').replaceAll('\'', ' minut a ').replaceAll('"', ' sekund').replaceAll('.', ',')}';
+          spoken = _l10n.resultIs(_formatDmsSpeech(resStr));
         } else {
-          spoken = 'Výsledek je ${resStr.replaceAll('.', ',')}';
+          spoken = _l10n.resultIs(resStr.replaceAll('.', ','));
         }
       }
 
@@ -1851,8 +1917,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       speak(spoken, force: true);
       _addToHistory(currentExpression, resStr);
     } catch (e) {
-      String msg =
-          'Výrazu nerozumím, zkuste zkontrolovat závorky nebo znaménka';
+      String msg = _l10n.expressionNotUnderstood;
       if (e is _ElectricianInputException) {
         msg = e.message;
       } else if (e is _MathDomainException) {
@@ -1861,10 +1926,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         String errStr = e.toString().toLowerCase();
         if (errStr.contains('division by zero') ||
             errStr.contains('infinity')) {
-          msg = 'Nulou nelze dělit';
+          msg = _l10n.cannotDivideByZero;
         } else if (errStr.contains('range') ||
             errStr.contains('invalid argument')) {
-          msg = 'Hodnota je mimo povolený rozsah funkce';
+          msg = _l10n.valueOutOfRange;
         }
       }
 
@@ -2024,23 +2089,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         RegExp(r'_COS_\((.+)\)'),
         (m) => 'cos(${m[1]}*($PI_VAL/180))',
       );
-      processed = processed.replaceAllMapped(
-        RegExp(r'_TAN_\((.+)\)'),
-        (m) {
-          final arg = m[1]!;
-          // Tangens není definovaný pro 90° + k*180°. Díky chybě plovoucí
-          // řádové čárky by jinak vrátil obrovské číslo místo chyby.
-          final argDegrees = _evaluateExpression(arg);
-          final normalized = ((argDegrees % 180) + 180) % 180;
-          if ((normalized - 90).abs() < 1e-9) {
-            throw _MathDomainException(_s(
+      processed = processed.replaceAllMapped(RegExp(r'_TAN_\((.+)\)'), (m) {
+        final arg = m[1]!;
+        // Tangens není definovaný pro 90° + k*180°. Díky chybě plovoucí
+        // řádové čárky by jinak vrátil obrovské číslo místo chyby.
+        final argDegrees = _evaluateExpression(arg);
+        final normalized = ((argDegrees % 180) + 180) % 180;
+        if ((normalized - 90).abs() < 1e-9) {
+          throw _MathDomainException(
+            _s(
               'Tangens není definovaný pro ${_formatNumber(argDegrees)} stupňů.',
               'Tangent is not defined for ${_formatNumber(argDegrees)} degrees.',
-            ));
-          }
-          return 'tan($arg*($PI_VAL/180))';
-        },
-      );
+            ),
+          );
+        }
+        return 'tan($arg*($PI_VAL/180))';
+      });
 
       // Pro asin, acos, atan: ZMĚNA na arcsin, arccos, arctan pro knihovnu math_expressions!
       // Přidány otevírací závorky na začátek pro správnou vyváženost
@@ -2086,13 +2150,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
 
     // PROCENTA: % jako postfixový operátor "/100"
-    processed = processed.replaceAllMapped(
-      RegExp(r'((?:\d+(?:\.\d+)?)|\))%'),
-      (m) {
-        final n = m[1]!;
-        return n == ')' ? '$n/100' : '($n/100)';
-      },
-    );
+    processed = processed.replaceAllMapped(RegExp(r'((?:\d+(?:\.\d+)?)|\))%'), (
+      m,
+    ) {
+      final n = m[1]!;
+      return n == ')' ? '$n/100' : '($n/100)';
+    });
 
     debugPrint("Parsing expression: $processed");
 
@@ -2163,8 +2226,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (kNext > 10000) {
         break;
       }
-      hPrev = hCurr; hCurr = hNext;
-      kPrev = kCurr; kCurr = kNext;
+      hPrev = hCurr;
+      hCurr = hNext;
+      kPrev = kCurr;
+      kCurr = kNext;
       double approx = (intPart * kCurr + hCurr) / kCurr;
       if ((val - approx).abs() < 1e-10) {
         break;
@@ -2261,11 +2326,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _hasResult = true;
       });
       speak(
-        'Převedeno z ${_getUnitSpeech(_unitFrom, context: 'z')} na ${_getUnitSpeech(_unitTo, context: 'na')}. Výsledek je $resStr ${_getUnitSpeech(_unitTo, value: result)}',
+        _l10n.unitConverted(
+          _getUnitSpeech(_unitFrom, context: 'z'),
+          _getUnitSpeech(_unitTo, context: 'na'),
+          resStr,
+          _getUnitSpeech(_unitTo, value: result),
+        ),
         force: true,
       );
     } catch (e) {
-      speak('Chyba převodu', force: true);
+      speak(_l10n.conversionError, force: true);
     }
   }
 
@@ -2398,32 +2468,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String speech = _l10n.switchedToMode(_getModeSpeechName(mode));
     if (mode == CalculatorMode.statistics) {
       if (!_hasStatsSet) {
-        speech += '. ' + _s(
-          'Zatím nemáte vytvořenou žádnou statistickou sadu. Vytvořte ji stisknutím tlačítka SETS.',
-          'You have no statistical sets created yet. Create one by pressing the SETS button.'
-        );
+        speech +=
+            '. ' +
+            _s(
+              'Zatím nemáte vytvořenou žádnou statistickou sadu. Vytvořte ji stisknutím tlačítka SETS.',
+              'You have no statistical sets created yet. Create one by pressing the SETS button.',
+            );
       } else if (_statsMemory.isEmpty) {
         final setName = _statsSets[_currentStatsSetIndex].name;
-        speech += '. ' + _s(
-          'Aktivní sada "$setName" je prázdná. Přidejte data pomocí tlačítka M plus.',
-          'The active set "$setName" is empty. Add data using the M+ button.'
-        );
+        speech +=
+            '. ' +
+            _s(
+              'Aktivní sada "$setName" je prázdná. Přidejte data pomocí tlačítka M plus.',
+              'The active set "$setName" is empty. Add data using the M+ button.',
+            );
       } else {
         final set = _statsSets[_currentStatsSetIndex];
         final count = _statsMemory.length;
         final countForm = _getStatsCountForm(count);
-        final fieldsLabel = set.fieldNames.asMap().entries.map((e) {
-          final unitCode = e.key < set.fieldUnits.length
-              ? set.fieldUnits[e.key]
-              : null;
-          return unitCode != null
-              ? '${e.value}, ${_getUnitSpeech(unitCode)}'
-              : e.value;
-        }).join(', ');
-        speech += '. ' + _s(
-          'Aktivní sada "${set.name}" obsahuje $count $countForm. Pole: $fieldsLabel.',
-          'The active set "${set.name}" contains $count $countForm. Fields: $fieldsLabel.'
-        );
+        final fieldsLabel = set.fieldNames
+            .asMap()
+            .entries
+            .map((e) {
+              final unitCode = e.key < set.fieldUnits.length
+                  ? set.fieldUnits[e.key]
+                  : null;
+              return unitCode != null
+                  ? '${e.value}, ${_getUnitSpeech(unitCode)}'
+                  : e.value;
+            })
+            .join(', ');
+        speech +=
+            '. ' +
+            _s(
+              'Aktivní sada "${set.name}" obsahuje $count $countForm. Pole: $fieldsLabel.',
+              'The active set "${set.name}" contains $count $countForm. Fields: $fieldsLabel.',
+            );
       }
     }
     speak(speech);
@@ -2457,8 +2537,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ..sort((a, b) => b.compareTo(a));
     final secondCount = sortedCounts.length > 1 ? sortedCounts[1] : 0;
 
-    final clearlyAhead = topCount >= (_totalModeSwitches * 0.4) &&
-        topCount >= secondCount * 2;
+    final clearlyAhead =
+        topCount >= (_totalModeSwitches * 0.4) && topCount >= secondCount * 2;
 
     if (!clearlyAhead || _lastSuggestedMode == topIndex) {
       return;
@@ -2475,10 +2555,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Nejpoužívanější režim'),
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        semanticLabel: _s(
-          'Nejpoužívanější režim',
-          'Most used mode',
-        ),
+        semanticLabel: _s('Nejpoužívanější režim', 'Most used mode'),
         title: Semantics(
           header: true,
           child: Text(_s('Nejpoužívanější režim', 'Most used mode')),
@@ -2587,11 +2664,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           while (counts.length < CalculatorMode.values.length) {
             counts.add(0);
           }
-          _modeUsageCounts =
-              List<int>.from(counts.sublist(0, CalculatorMode.values.length));
+          _modeUsageCounts = List<int>.from(
+            counts.sublist(0, CalculatorMode.values.length),
+          );
         } catch (e) {
-          _modeUsageCounts =
-              List<int>.filled(CalculatorMode.values.length, 0);
+          _modeUsageCounts = List<int>.filled(CalculatorMode.values.length, 0);
         }
       }
       _totalModeSwitches = _modeUsageCounts.fold(0, (a, b) => a + b);
@@ -2665,7 +2742,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ttsEnabled = !ttsEnabled;
     });
     _saveSettings();
-    speak(ttsEnabled ? 'Hlas zapnut' : 'Hlas vypnut');
+    speak(ttsEnabled ? _l10n.voiceOn : _l10n.voiceOff);
   }
 
   void _loadHistory() async {
@@ -2689,7 +2766,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final memJson = prefs.getString('memoryVariables');
       if (memJson != null) {
         final decoded = jsonDecode(memJson) as Map<String, dynamic>;
-        decoded.forEach((key, value) => _memory[key] = (value as num).toDouble());
+        decoded.forEach(
+          (key, value) => _memory[key] = (value as num).toDouble(),
+        );
       }
     });
   }
@@ -2697,7 +2776,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _saveStatsData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-        'statsSets', jsonEncode(_statsSets.map((s) => s.toJson()).toList()));
+      'statsSets',
+      jsonEncode(_statsSets.map((s) => s.toJson()).toList()),
+    );
     await prefs.setInt('currentStatsSetIndex', _currentStatsSetIndex);
     await prefs.setString('memoryVariables', jsonEncode(_memory));
   }
@@ -2730,16 +2811,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       await file.writeAsString(jsonStr);
 
       await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          subject: _l10n.backupData,
-        ),
+        ShareParams(files: [XFile(file.path)], subject: _l10n.backupData),
       );
 
       speak(_l10n.backupSuccess, force: true);
     } catch (e) {
       debugPrint('Chyba při vytváření zálohy: $e');
-      speak('Chyba při vytváření zálohy', force: true);
+      speak(_l10n.backupError, force: true);
     }
   }
 
@@ -2778,7 +2856,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           await prefs.setDouble(entry.key, value);
         } else if (value is List) {
           await prefs.setStringList(
-              entry.key, value.map((e) => e.toString()).toList());
+            entry.key,
+            value.map((e) => e.toString()).toList(),
+          );
         }
       }
 
@@ -2789,7 +2869,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       speak(_l10n.restoreSuccess, force: true);
     } catch (e) {
       debugPrint('Chyba při obnově dat: $e');
-      speak('Chyba při obnově dat', force: true);
+      speak(_l10n.restoreError, force: true);
     }
   }
 
@@ -2799,10 +2879,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Vítejte'),
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        semanticLabel: 'Vítejte',
-        title: Semantics(header: true, child: Text('Vítejte')),
+        semanticLabel: _s('Vítejte', 'Welcome'),
+        title: Semantics(header: true, child: Text(_s('Vítejte', 'Welcome'))),
         content: Text(
-          'Vyberte požadovanou úroveň usnadnění. Toto nastavení můžete kdykoliv změnit v nastavení.',
+          _s(
+            'Vyberte požadovanou úroveň usnadnění. Toto nastavení můžete kdykoliv změnit v nastavení.',
+            'Select the desired accessibility level. You can change this at any time in the settings.',
+          ),
         ),
         actions: [
           TextButton(
@@ -2814,7 +2897,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 _mainFocusNode.requestFocus();
               });
             },
-            child: Text('STANDARDNÍ'),
+            child: Text(_s('STANDARDNÍ', 'STANDARD')),
           ),
           TextButton(
             autofocus: true,
@@ -2829,7 +2912,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 _mainFocusNode.requestFocus();
               });
             },
-            child: Text('PRO NEVIDOMÉ'),
+            child: Text(_s('PRO NEVIDOMÉ', 'FOR THE BLIND')),
           ),
         ],
       ),
@@ -2847,7 +2930,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _openTtsSystemSettings() async {
     try {
       if (Platform.isAndroid) {
-        const channel = MethodChannel('com.example.mluvici_kalkulacka/tts_settings');
+        const channel = MethodChannel(
+          'com.example.mluvici_kalkulacka/tts_settings',
+        );
         await channel.invokeMethod('openTtsSettings');
       } else if (Platform.isWindows) {
         await launchUrl(Uri.parse('ms-settings:speech'));
@@ -2859,14 +2944,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
-          semanticLabel: 'Chyba',
-          title: Semantics(header: true, child: const Text('Chyba')),
+          semanticLabel: _s('Chyba', 'Error'),
+          title: Semantics(header: true, child: Text(_s('Chyba', 'Error'))),
           content: Focus(
             autofocus: true,
             child: Semantics(
-              label: 'Nelze otevřít systémové nastavení TTS.',
-              child: const Text(
+              label: _s(
                 'Nelze otevřít systémové nastavení TTS.',
+                'Could not open system TTS settings.',
+              ),
+              child: Text(
+                _s(
+                  'Nelze otevřít systémové nastavení TTS.',
+                  'Could not open system TTS settings.',
+                ),
               ),
             ),
           ),
@@ -2902,7 +2993,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 final isSelected = _ttsEngine == engine;
                 return Semantics(
                   container: true,
-                  label: '${_s("Engine", "Engine")}: $engine${isSelected ? _s(", vybráno", ", selected") : ""}',
+                  label:
+                      '${_s("Engine", "Engine")}: $engine${isSelected ? _s(", vybráno", ", selected") : ""}',
                   selected: isSelected,
                   child: ListTile(
                     title: Text(engine),
@@ -2927,21 +3019,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
-          semanticLabel: 'Chyba',
-          title: Semantics(header: true, child: const Text('Chyba')),
+          semanticLabel: _s('Chyba', 'Error'),
+          title: Semantics(header: true, child: Text(_s('Chyba', 'Error'))),
           content: Focus(
             autofocus: true,
             child: Semantics(
-              label: 'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
-              child: const Text(
+              label: _s(
                 'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
+                'TTS engine selection is not supported on this device or app version.',
+              ),
+              child: Text(
+                _s(
+                  'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
+                  'TTS engine selection is not supported on this device or app version.',
+                ),
               ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Zavřít'),
+              child: Text(_s('Zavřít', 'Close')),
             ),
           ],
         ),
@@ -2960,21 +3058,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           context: context,
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
-            semanticLabel: 'Info',
-            title: Semantics(header: true, child: const Text('Info')),
+            semanticLabel: _s('Info', 'Info'),
+            title: Semantics(header: true, child: Text(_s('Info', 'Info'))),
             content: Focus(
               autofocus: true,
               child: Semantics(
-                label: 'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
-                child: const Text(
+                label: _s(
                   'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                  'No voices are available for the current language.',
+                ),
+                child: Text(
+                  _s(
+                    'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                    'No voices are available for the current language.',
+                  ),
                 ),
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(_s('OK', 'OK')),
               ),
             ],
           ),
@@ -2983,7 +3087,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
 
       final currentLang = _isEnglish() ? 'en-US' : 'cs-CZ';
-      final filteredVoices = voices.cast<Map<dynamic, dynamic>>()
+      final filteredVoices = voices
+          .cast<Map<dynamic, dynamic>>()
           .where((v) => v['locale'] == currentLang)
           .toList();
 
@@ -2993,21 +3098,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           context: context,
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
-            semanticLabel: 'Info',
-            title: Semantics(header: true, child: const Text('Info')),
+            semanticLabel: _s('Info', 'Info'),
+            title: Semantics(header: true, child: Text(_s('Info', 'Info'))),
             content: Focus(
               autofocus: true,
               child: Semantics(
-                label: 'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
-                child: const Text(
+                label: _s(
                   'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                  'No voices are available for the current language.',
+                ),
+                child: Text(
+                  _s(
+                    'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                    'No voices are available for the current language.',
+                  ),
                 ),
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(_s('OK', 'OK')),
               ),
             ],
           ),
@@ -3019,8 +3130,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Vybrat hlas'),
         builder: (context) => AlertDialog(
-          semanticLabel: 'Vybrat hlas',
-          title: const Text('Vybrat hlas'),
+          semanticLabel: _s('Vybrat hlas', 'Select voice'),
+          title: Text(_s('Vybrat hlas', 'Select voice')),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
@@ -3031,10 +3142,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   final isSelected = _ttsVoice == null;
                   return Semantics(
                     container: true,
-                    label: '${_s("Výchozí hlas", "Default voice")}${isSelected ? _s(", vybráno", ", selected") : ""}',
+                    label:
+                        '${_s("Výchozí hlas", "Default voice")}${isSelected ? _s(", vybráno", ", selected") : ""}',
                     selected: isSelected,
                     child: ListTile(
-                      title: const Text('Výchozí'),
+                      title: Text(_s('Výchozí', 'Default')),
                       selected: isSelected,
                       onTap: () {
                         setState(() {
@@ -3062,11 +3174,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 } else if (gender != null && gender.isNotEmpty) {
                   label += ' ($gender)';
                 }
-                final isSelected = _ttsVoice?['name'] == name &&
+                final isSelected =
+                    _ttsVoice?['name'] == name &&
                     _ttsVoice?['locale'] == voice['locale'];
                 return Semantics(
                   container: true,
-                  label: '${_s("Hlas", "Voice")}: $label${isSelected ? _s(", vybráno", ", selected") : ""}',
+                  label:
+                      '${_s("Hlas", "Voice")}: $label${isSelected ? _s(", vybráno", ", selected") : ""}',
                   selected: isSelected,
                   child: ListTile(
                     title: Text(label),
@@ -3098,21 +3212,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
-          semanticLabel: 'Chyba',
-          title: Semantics(header: true, child: const Text('Chyba')),
+          semanticLabel: _s('Chyba', 'Error'),
+          title: Semantics(header: true, child: Text(_s('Chyba', 'Error'))),
           content: Focus(
             autofocus: true,
             child: Semantics(
-              label: 'Výběr hlasu není na tomto zařízení nebo verzi aplikace podporován.',
-              child: const Text(
+              label: _s(
                 'Výběr hlasu není na tomto zařízení nebo verzi aplikace podporován.',
+                'Voice selection is not supported on this device or app version.',
+              ),
+              child: Text(
+                _s(
+                  'Výběr hlasu není na tomto zařízení nebo verzi aplikace podporován.',
+                  'Voice selection is not supported on this device or app version.',
+                ),
               ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
+              child: Text(_s('OK', 'OK')),
             ),
           ],
         ),
@@ -3182,10 +3302,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
             ),
           ),
-          ...items.map((t) => Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 4),
-            child: Text(t),
-          )),
+          ...items.map(
+            (t) => Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 4),
+              child: Text(t),
+            ),
+          ),
         ],
       );
     }
@@ -3270,8 +3392,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Nastavení přesnosti'),
       builder: (context) => AlertDialog(
-        semanticLabel: 'Nastavení přesnosti',
-        title: Semantics(header: true, child: Text('Nastavení přesnosti')),
+        semanticLabel: _l10n.precisionTitle,
+        title: Semantics(header: true, child: Text(_l10n.precisionTitle)),
         content: Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -3287,7 +3409,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     _lastResult = _formatNumber(_lastNumericValue!);
                   }
                 });
-                speak('Nastaveno $i desetinných míst');
+                speak(_l10n.decimalPlacesSet(i));
                 Navigator.pop(context);
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _mainFocusNode.requestFocus();
@@ -3305,7 +3427,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 _mainFocusNode.requestFocus();
               });
             },
-            child: Text('ZRUŠIT'),
+            child: Text(_l10n.cancel.toUpperCase()),
           ),
         ],
       ),
@@ -3385,7 +3507,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       onTap:
           onPressed ??
           () {
-              if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
+            if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
               if (!_isScreenReaderActive) speak(descriptiveName);
             }
             _handleButtonPressed(label);
@@ -3433,26 +3555,34 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       records.add(StatisticsRecord(values: parts.sublist(i, i + fieldCount)));
     }
     if (records.isEmpty || records.length * fieldCount != parts.length) {
-      throw FormatException(_s(
-        'Počet hodnot musí být násobkem počtu polí ($fieldCount).',
-        'Number of values must be a multiple of field count ($fieldCount).',
-      ));
+      throw FormatException(
+        _s(
+          'Počet hodnot musí být násobkem počtu polí ($fieldCount).',
+          'Number of values must be a multiple of field count ($fieldCount).',
+        ),
+      );
     }
     return records;
   }
 
   void _addSingleValueToStats() {
     if (!_hasStatsSet) {
-      speak(_s(
-        'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
-        'No statistics set created. Enter a name for a new set first.',
-      ));
+      speak(
+        _s(
+          'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
+          'No statistics set created. Enter a name for a new set first.',
+        ),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_s(
-            'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
-            'No statistics set created. Enter a name for a new set first.',
-          ))),
+          SnackBar(
+            content: Text(
+              _s(
+                'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
+                'No statistics set created. Enter a name for a new set first.',
+              ),
+            ),
+          ),
         );
       }
       _showCreateStatsSetDialog(context, () {
@@ -3461,16 +3591,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return;
     }
     if (display.isEmpty) {
-      speak(_s(
-        'Displej je prázdný. Zadejte číslo k uložení.',
-        'Display is empty. Enter a number to store.',
-      ));
+      speak(
+        _s(
+          'Displej je prázdný. Zadejte číslo k uložení.',
+          'Display is empty. Enter a number to store.',
+        ),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_s(
-            'Displej je prázdný. Zadejte číslo k uložení.',
-            'Display is empty. Enter a number to store.',
-          ))),
+          SnackBar(
+            content: Text(
+              _s(
+                'Displej je prázdný. Zadejte číslo k uložení.',
+                'Display is empty. Enter a number to store.',
+              ),
+            ),
+          ),
         );
       }
       return;
@@ -3479,16 +3615,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final recordsToAdd = _parseDisplayToRecords(display);
 
       if (recordsToAdd.isEmpty) {
-        speak(_s(
-          'Žádná platná čísla k uložení.',
-          'No valid numbers to store.',
-        ));
+        speak(
+          _s('Žádná platná čísla k uložení.', 'No valid numbers to store.'),
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_s(
-              'Žádná platná čísla k uložení.',
-              'No valid numbers to store.',
-            ))),
+            SnackBar(
+              content: Text(
+                _s(
+                  'Žádná platná čísla k uložení.',
+                  'No valid numbers to store.',
+                ),
+              ),
+            ),
           );
         }
         return;
@@ -3504,9 +3643,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             );
       speak(msg);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -3536,11 +3675,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           _cursorPosition = display.length;
           _hasResult = false;
           if (!silent) {
-            final name = _buttonNames[label] ?? label;
+            final name = _getButtonName(label);
             if (['ASIN', 'ACOS', 'ATAN'].contains(label)) {
-              speak('Inverzní $name z výsledku');
+              speak(_l10n.inverseResult(name));
             } else {
-              speak('$name z výsledku');
+              speak(_l10n.resultOf(name));
             }
           }
           alreadyHandled = true;
@@ -3582,10 +3721,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         // Pokud je vyvoláno zde (např. klávesnice), defaultně provedeme krátký stisk
         _addSingleValueToStats();
       } else {
-        speak(_s(
-          'Tlačítko M plus je dostupné pouze ve statistickém režimu.',
-          'The M+ button is available only in statistics mode.',
-        ));
+        speak(
+          _s(
+            'Tlačítko M plus je dostupné pouze ve statistickém režimu.',
+            'The M+ button is available only in statistics mode.',
+          ),
+        );
       }
     } else if (label == 'MC') {
       if (_currentMode == CalculatorMode.statistics) {
@@ -3593,7 +3734,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           speak(_s('Není vytvořena žádná sada.', 'No set created.'));
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_s('Není vytvořena žádná sada.', 'No set created.'))),
+              SnackBar(
+                content: Text(
+                  _s('Není vytvořena žádná sada.', 'No set created.'),
+                ),
+              ),
             );
           }
           return;
@@ -3603,23 +3748,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         });
         _saveStatsData();
         final setName = _statsSets[_currentStatsSetIndex].name;
-        speak(_s(
-          'Paměť sady $setName byla smazána.',
-          'Memory of set $setName was cleared.',
-        ));
+        speak(
+          _s(
+            'Paměť sady $setName byla smazána.',
+            'Memory of set $setName was cleared.',
+          ),
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_s(
-              'Paměť sady $setName byla smazána.',
-              'Memory of set $setName was cleared.',
-            ))),
+            SnackBar(
+              content: Text(
+                _s(
+                  'Paměť sady $setName byla smazána.',
+                  'Memory of set $setName was cleared.',
+                ),
+              ),
+            ),
           );
         }
       } else {
-        speak(_s(
-          'Tlačítko M C je dostupné pouze ve statistickém režimu.',
-          'The MC button is available only in statistics mode.',
-        ));
+        speak(
+          _s(
+            'Tlačítko M C je dostupné pouze ve statistickém režimu.',
+            'The MC button is available only in statistics mode.',
+          ),
+        );
       }
     } else if (label == 'MR') {
       if (_currentMode == CalculatorMode.statistics) {
@@ -3627,7 +3780,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           speak(_s('Není vytvořena žádná sada.', 'No set created.'));
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_s('Není vytvořena žádná sada.', 'No set created.'))),
+              SnackBar(
+                content: Text(
+                  _s('Není vytvořena žádná sada.', 'No set created.'),
+                ),
+              ),
             );
           }
           return;
@@ -3635,18 +3792,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (_statsMemory.isEmpty) {
           speak(_statsEmptyMessage());
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_statsEmptyMessage())),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(_statsEmptyMessage())));
           }
         } else {
           _showStatisticsMemoryDialog();
         }
       } else {
-        speak(_s(
-          'Tlačítko M R je dostupné pouze ve statistickém režimu.',
-          'The MR button is available only in statistics mode.',
-        ));
+        speak(
+          _s(
+            'Tlačítko M R je dostupné pouze ve statistickém režimu.',
+            'The MR button is available only in statistics mode.',
+          ),
+        );
       }
     } else if (label == 'STATS') {
       if (_currentMode == CalculatorMode.statistics) {
@@ -3654,7 +3813,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           speak(_s('Není vytvořena žádná sada.', 'No set created.'));
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_s('Není vytvořena žádná sada.', 'No set created.'))),
+              SnackBar(
+                content: Text(
+                  _s('Není vytvořena žádná sada.', 'No set created.'),
+                ),
+              ),
             );
           }
           return;
@@ -3662,27 +3825,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (_statsMemory.isEmpty) {
           speak(_statsEmptyMessage());
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_statsEmptyMessage())),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(_statsEmptyMessage())));
           }
         } else {
           _showStatisticsSummaryDialog();
         }
       } else {
-        speak(_s(
-          'Statistický souhrn je dostupný pouze ve statistickém režimu.',
-          'Statistics summary is available only in statistics mode.',
-        ));
+        speak(
+          _s(
+            'Statistický souhrn je dostupný pouze ve statistickém režimu.',
+            'Statistics summary is available only in statistics mode.',
+          ),
+        );
       }
     } else if (label == 'SETS') {
       if (_currentMode == CalculatorMode.statistics) {
         _showStatsSetsDialog();
       } else {
-        speak(_s(
-          'Správa sad je dostupná pouze ve statistickém režimu.',
-          'Manage sets is available only in statistics mode.',
-        ));
+        speak(
+          _s(
+            'Správa sad je dostupná pouze ve statistickém režimu.',
+            'Manage sets is available only in statistics mode.',
+          ),
+        );
       }
     } else if (_electricianCalculationFromButton(label) != null) {
       if (_currentMode == CalculatorMode.electrician) {
@@ -3692,7 +3859,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } else {
         append(label, silent: silent);
       }
-    } else if (['MEAN', 'SD', 'VAR', 'MED', 'MODE', 'CV', 'SUM', 'WMEAN'].contains(label)) {
+    } else if ([
+      'MEAN',
+      'SD',
+      'VAR',
+      'MED',
+      'MODE',
+      'CV',
+      'SUM',
+      'WMEAN',
+    ].contains(label)) {
       if (_currentMode == CalculatorMode.statistics) {
         try {
           if (_statsMemory.isEmpty) {
@@ -3704,10 +3880,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
           if (label == 'WMEAN') {
             if (_currentFieldCount < 2) {
-              speak(_s(
-                'Vážený průměr vyžaduje alespoň 2 pole (hodnoty a váhy).',
-                'Weighted mean requires at least 2 fields (values and weights).',
-              ));
+              speak(
+                _s(
+                  'Vážený průměr vyžaduje alespoň 2 pole (hodnoty a váhy).',
+                  'Weighted mean requires at least 2 fields (values and weights).',
+                ),
+              );
               return;
             }
             final values = _getFieldValues(0);
@@ -3719,19 +3897,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               sumW += weights[i];
             }
             if (sumW == 0) {
-              speak(_s(
-                'Součet vah je nulový, nelze vypočítat vážený průměr.',
-                'Sum of weights is zero, cannot calculate weighted mean.',
-              ));
+              speak(
+                _s(
+                  'Součet vah je nulový, nelze vypočítat vážený průměr.',
+                  'Sum of weights is zero, cannot calculate weighted mean.',
+                ),
+              );
               return;
             }
             final wmean = sumVW / sumW;
             final resStr = _formatNumber(wmean);
             final spoken = _s(
               'Vážený průměr z paměti je ${_formatSpokenNumber(wmean)} '
-              '(pole ${fieldNames[0]} váženo polem ${fieldNames[1]})',
+                  '(pole ${fieldNames[0]} váženo polem ${fieldNames[1]})',
               'Weighted mean from memory is ${_formatSpokenNumber(wmean)} '
-              '(field ${fieldNames[0]} weighted by field ${fieldNames[1]})',
+                  '(field ${fieldNames[0]} weighted by field ${fieldNames[1]})',
             );
             setState(() {
               _lastResult = resStr;
@@ -3749,14 +3929,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
           String resStr = '0';
           String spoken = '';
-          final fieldUnit = _statsSets.isNotEmpty && _selectedFieldIndex < _statsSets[_currentStatsSetIndex].fieldUnits.length
-              ? _statsSets[_currentStatsSetIndex].fieldUnits[_selectedFieldIndex]
+          final fieldUnit =
+              _statsSets.isNotEmpty &&
+                  _selectedFieldIndex <
+                      _statsSets[_currentStatsSetIndex].fieldUnits.length
+              ? _statsSets[_currentStatsSetIndex]
+                    .fieldUnits[_selectedFieldIndex]
               : null;
           final fieldUnitSpoken = fieldUnit != null
-              ? _s(' v ${_getUnitSpeech(fieldUnit, context: 'z')}', ' in ${_getUnitSpeech(fieldUnit)}')
+              ? _s(
+                  ' v ${_getUnitSpeech(fieldUnit, context: 'z')}',
+                  ' in ${_getUnitSpeech(fieldUnit)}',
+                )
               : '';
           final fieldLabelSpoken = _currentFieldCount > 1
-              ? _s(' pro pole ${fieldNames[_selectedFieldIndex]}$fieldUnitSpoken', ' for field ${fieldNames[_selectedFieldIndex]}$fieldUnitSpoken')
+              ? _s(
+                  ' pro pole ${fieldNames[_selectedFieldIndex]}$fieldUnitSpoken',
+                  ' for field ${fieldNames[_selectedFieldIndex]}$fieldUnitSpoken',
+                )
               : fieldUnitSpoken;
 
           if (label == 'MEAN') {
@@ -3791,7 +3981,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             );
           } else if (label == 'MODE') {
             if (!snapshot.modeExists) {
-              resStr = _formatNumber(_getFieldValues(_selectedFieldIndex).first);
+              resStr = _formatNumber(
+                _getFieldValues(_selectedFieldIndex).first,
+              );
               spoken = _s(
                 'Modus${fieldLabelSpoken} neexistuje, všechny hodnoty se vyskytují pouze jednou.',
                 'No mode${fieldLabelSpoken} exists, all values occur only once.',
@@ -3839,40 +4031,40 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           speak(spoken, force: true);
           _addToHistory('STATS($label)', resStr);
         } catch (e) {
-          speak(_s(
-            'Chyba statistického výpočtu.',
-            'Statistics calculation error.',
-          ), force: true);
+          speak(
+            _s('Chyba statistického výpočtu.', 'Statistics calculation error.'),
+            force: true,
+          );
         }
       } else {
         append(label, silent: silent);
       }
     } else if (label == 'STO') {
       _isStoreMode = true;
-      speak('Vyberte paměť');
+      speak(_l10n.selectMemory);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Vyberte paměť')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_l10n.selectMemory)));
       }
     } else if (label == 'RCL') {
       _isRecallMode = true;
-      speak('Vyberte paměť pro vyvolání');
+      speak(_l10n.selectMemoryRecall);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Vyberte paměť pro vyvolání')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_l10n.selectMemoryRecall)));
       }
     } else if (label == 'CLR') {
       setState(() {
         _memory.updateAll((key, value) => 0);
       });
       _saveStatsData();
-      speak('Paměť smazána');
+      speak(_l10n.memoryCleared);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Paměť smazána')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_l10n.memoryCleared)));
       }
     } else if (_memory.containsKey(label)) {
       _handleMemoryVariable(label);
@@ -3892,7 +4084,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'LN',
     ].contains(label)) {
       _insertAtCursor('$label(', cursorOffset: 0);
-      if (!silent) speak(_buttonNames[label] ?? label);
+      if (!silent) speak(_getButtonName(label));
     } else if (label == 'DMS') {
       // 1. Získat text PŘED kurzorem
       String textBefore = display.substring(0, _cursorPosition);
@@ -3909,13 +4101,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (trailingDigits == null && symbol != null) {
           // Jsme těsně za symbolem (např. "36°"), budeme ho cyklovat
           String nextSymbol = '°';
-          String spoken = 'stupňů';
+          String spoken = _l10n.degreesUnit;
           if (symbol == '°') {
             nextSymbol = "'";
-            spoken = 'minut';
+            spoken = _l10n.minutesUnit;
           } else if (symbol == "'") {
             nextSymbol = '"';
-            spoken = 'sekund';
+            spoken = _l10n.secondsUnit;
           }
 
           setState(() {
@@ -3928,14 +4120,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         } else {
           // Jsme za číslem (např. "36°25" nebo jen "36"), určíme co vložit
           String toInsert = '°';
-          String spoken = 'stupňů';
+          String spoken = _l10n.degreesUnit;
 
           if (symbol == '°') {
             toInsert = "'";
-            spoken = 'minut';
+            spoken = _l10n.minutesUnit;
           } else if (symbol == "'") {
             toInsert = '"';
-            spoken = 'sekund';
+            spoken = _l10n.secondsUnit;
           }
 
           append(toInsert, silent: true);
@@ -3944,7 +4136,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } else {
         // Nenalezeno žádné číslo před kurzorem, vložíme výchozí stupně
         append('°', silent: true);
-        speak('stupňů');
+        speak(_l10n.degreesUnit);
       }
     } else if (['°→\'', '\'→°'].contains(label)) {
       try {
@@ -3962,12 +4154,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = val;
           });
           // Formátování pro TTS: "12°34'5\"" -> "12 stupňů, 34 minut a 5 sekund"
-          String spokenDms = dmsStr
-              .replaceAll('°', ' stupňů, ')
-              .replaceAll("'", ' minut a ')
-              .replaceAll('"', ' sekund')
-              .replaceAll('.', ',');
-          speak('Výsledek je $spokenDms', force: true);
+          String spokenDms = _formatDmsSpeech(dmsStr);
+          speak(_l10n.resultIs(spokenDms), force: true);
         } else {
           // Převod na desetinné stupně
           String decimalStr = val
@@ -3981,10 +4169,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _cursorPosition = 0;
             _lastNumericValue = val;
           });
-          speak('Výsledek je ${decimalStr.replaceAll('.', ',')} stupňů', force: true);
+          speak(
+            _l10n.resultIs(
+              '${decimalStr.replaceAll('.', ',')} ${_l10n.degreesUnit}',
+            ),
+            force: true,
+          );
         }
       } catch (e) {
-        speak('Chyba při převodu', force: true);
+        speak(_l10n.conversionError, force: true);
       }
     } else if (label == '\u03C0') {
       append(label, silent: silent);
@@ -3997,10 +4190,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _calculatePercentOf() {
     if (display.isEmpty) {
-      speak(_s(
-        'Displej je prázdný. Zadejte hodnotu a celek oddělené středníkem, např. 30;200.',
-        'Display is empty. Enter value and whole separated by a semicolon, e.g. 30;200.',
-      ), force: true);
+      speak(
+        _s(
+          'Displej je prázdný. Zadejte hodnotu a celek oddělené středníkem, např. 30;200.',
+          'Display is empty. Enter value and whole separated by a semicolon, e.g. 30;200.',
+        ),
+        force: true,
+      );
       return;
     }
     final originalDisplay = display;
@@ -4010,20 +4206,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         .where((p) => p.isNotEmpty)
         .toList();
     if (parts.length != 2) {
-      speak(_s(
-        'Zadejte dvě hodnoty oddělené středníkem: hodnota;celek.',
-        'Enter two values separated by a semicolon: value;whole.',
-      ), force: true);
+      speak(
+        _s(
+          'Zadejte dvě hodnoty oddělené středníkem: hodnota;celek.',
+          'Enter two values separated by a semicolon: value;whole.',
+        ),
+        force: true,
+      );
       return;
     }
     try {
       final value = _evaluateExpression(parts[0]);
       final whole = _evaluateExpression(parts[1]);
       if (whole == 0) {
-        speak(_s(
-          'Celek nesmí být nula.',
-          'The whole must not be zero.',
-        ), force: true);
+        speak(
+          _s('Celek nesmí být nula.', 'The whole must not be zero.'),
+          force: true,
+        );
         return;
       }
       final percent = value / whole * 100;
@@ -4042,10 +4241,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       speak(spoken, force: true);
       _addToHistory('PCT($originalDisplay)', resStr);
     } catch (e) {
-      speak(_s(
-        'Chyba výpočtu procent. Zkontrolujte zadané hodnoty.',
-        'Percentage calculation error. Check the entered values.',
-      ), force: true);
+      speak(
+        _s(
+          'Chyba výpočtu procent. Zkontrolujte zadané hodnoty.',
+          'Percentage calculation error. Check the entered values.',
+        ),
+        force: true,
+      );
     }
   }
 
@@ -4192,47 +4394,56 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               child: FocusTraversalGroup(
                 child: Row(
                   children: row.map((b) {
-                Color? color;
-                if (['/', '*', '-', '+'].contains(b)) {
-                  color = Colors.blue;
-                } else if (b == 'C') {
-                  color = Colors.orange;
-                } else if (b == 'DEL') {
-                  color = Colors.redAccent;
-                } else if (b == '=') {
-                  color = Colors.green;
-                } else if (['M+', 'MC', 'MR', 'STATS', 'SETS'].contains(b)) {
-                  color = Colors.deepPurple;
-                } else if (_electricianCalculationFromButton(b) != null) {
-                  color = _isSelectedElectricianButton(b)
-                      ? Colors.green
-                      : Colors.teal;
-                } else if (b == ';') {
-                  color = Colors.deepPurple;
-                }
-                return buildButton(
-                  b,
-                  color: color,
-                  semanticLabel: _getElectricianButtonSemanticLabel(b),
-                  onPressed: () {
-                    if (b == 'M+' && _currentMode == CalculatorMode.statistics) {
-                      _addSingleValueToStats();
-                    } else {
-                      _handleButtonPressed(b);
+                    Color? color;
+                    if (['/', '*', '-', '+'].contains(b)) {
+                      color = Colors.blue;
+                    } else if (b == 'C') {
+                      color = Colors.orange;
+                    } else if (b == 'DEL') {
+                      color = Colors.redAccent;
+                    } else if (b == '=') {
+                      color = Colors.green;
+                    } else if ([
+                      'M+',
+                      'MC',
+                      'MR',
+                      'STATS',
+                      'SETS',
+                    ].contains(b)) {
+                      color = Colors.deepPurple;
+                    } else if (_electricianCalculationFromButton(b) != null) {
+                      color = _isSelectedElectricianButton(b)
+                          ? Colors.green
+                          : Colors.teal;
+                    } else if (b == ';') {
+                      color = Colors.deepPurple;
                     }
-                  },
-                  onLongPressed: (b == 'M+' && _currentMode == CalculatorMode.statistics)
-                      ? _handleMultipleStatisticsAddition
-                      : null,
-                );
-              }).toList(),
-            ),
-          ),
-        );
-      }).toList(),
-    ),
-  ),
-);
+                    return buildButton(
+                      b,
+                      color: color,
+                      semanticLabel: _getElectricianButtonSemanticLabel(b),
+                      onPressed: () {
+                        if (b == 'M+' &&
+                            _currentMode == CalculatorMode.statistics) {
+                          _addSingleValueToStats();
+                        } else {
+                          _handleButtonPressed(b);
+                        }
+                      },
+                      onLongPressed:
+                          (b == 'M+' &&
+                              _currentMode == CalculatorMode.statistics)
+                          ? _handleMultipleStatisticsAddition
+                          : null,
+                    );
+                  }).toList(),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
   }
 
   Widget _buildModeSelector() {
@@ -4240,34 +4451,35 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       label: _s('Přepínač režimů', 'Mode selector'),
       container: true,
       child: Container(
-      height: 48,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          children: CalculatorMode.values.map((mode) {
-            String label = _getModeName(mode);
-            final isSelected = _currentMode == mode;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Semantics(
-                label: '$label${isSelected ? _s(', vybráno', ', selected') : ''}',
-                selected: isSelected,
-                child: ChoiceChip(
-                  label: Text(label),
+        height: 48,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: CalculatorMode.values.map((mode) {
+              String label = _getModeName(mode);
+              final isSelected = _currentMode == mode;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Semantics(
+                  label:
+                      '$label${isSelected ? _s(', vybráno', ', selected') : ''}',
                   selected: isSelected,
-                  onSelected: (s) {
-                    if (s) {
-                      _changeMode(mode);
-                    }
-                  },
+                  child: ChoiceChip(
+                    label: Text(label),
+                    selected: isSelected,
+                    onSelected: (s) {
+                      if (s) {
+                        _changeMode(mode);
+                      }
+                    },
+                  ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
-      ),
       ),
     );
   }
@@ -4282,14 +4494,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _insertFromHistory(String value) {
     _insertAtCursor(value.replaceAll(',', '.'));
-    speak('Vloženo ${value.replaceAll('.', ',')}');
+    speak(
+      _s(
+        'Vloženo ${value.replaceAll('.', ',')}',
+        'Inserted ${value.replaceAll('.', ',')}',
+      ),
+    );
     Navigator.pop(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _mainFocusNode.requestFocus();
     });
   }
 
-  void _removeStatsRecord(List<int> indices, StateSetter setStateDialog, BuildContext dialogContext) {
+  void _removeStatsRecord(
+    List<int> indices,
+    StateSetter setStateDialog,
+    BuildContext dialogContext,
+  ) {
     setState(() {
       final sorted = List<int>.from(indices)..sort((a, b) => b.compareTo(a));
       for (final idx in sorted) {
@@ -4312,51 +4533,77 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           );
     speak(removedMsg);
     if (mounted) {
-      ScaffoldMessenger.of(dialogContext).showSnackBar(
-        SnackBar(content: Text(removedMsg)),
-      );
+      ScaffoldMessenger.of(
+        dialogContext,
+      ).showSnackBar(SnackBar(content: Text(removedMsg)));
     }
     if (_statsMemory.isEmpty) {
       speak(_statsEmptyMessage());
       if (mounted) {
-        ScaffoldMessenger.of(dialogContext).showSnackBar(
-          SnackBar(content: Text(_statsEmptyMessage())),
-        );
+        ScaffoldMessenger.of(
+          dialogContext,
+        ).showSnackBar(SnackBar(content: Text(_statsEmptyMessage())));
       }
       Navigator.pop(dialogContext);
     }
   }
 
-  void _showEditStatsRecordDialog(List<int> recordIndices, BuildContext dialogContext, StateSetter setStateDialog) {
+  void _showEditStatsRecordDialog(
+    List<int> recordIndices,
+    BuildContext dialogContext,
+    StateSetter setStateDialog,
+  ) {
     final recordIndex = recordIndices.first;
     final record = _statsMemory[recordIndex];
     final currentSet = _statsSets[_currentStatsSetIndex];
     final fieldNames = currentSet.fieldNames;
     final fieldUnits = currentSet.fieldUnits;
     final controllers = record.values
-        .map((v) => TextEditingController(text: _formatNumber(v).replaceAll(',', '.')))
+        .map(
+          (v) => TextEditingController(
+            text: _formatNumber(v).replaceAll(',', '.'),
+          ),
+        )
         .toList();
 
     showDialog<void>(
       context: dialogContext,
-      routeSettings: RouteSettings(name: _s('Upravit záznam ${recordIndex + 1}', 'Edit record ${recordIndex + 1}')),
+      routeSettings: RouteSettings(
+        name: _s(
+          'Upravit záznam ${recordIndex + 1}',
+          'Edit record ${recordIndex + 1}',
+        ),
+      ),
       builder: (ctx) {
         return AlertDialog(
-          semanticLabel: _s('Upravit záznam ${recordIndex + 1}', 'Edit record ${recordIndex + 1}'),
-          title: Text(_s('Upravit záznam ${recordIndex + 1}', 'Edit record ${recordIndex + 1}')),
+          semanticLabel: _s(
+            'Upravit záznam ${recordIndex + 1}',
+            'Edit record ${recordIndex + 1}',
+          ),
+          title: Text(
+            _s(
+              'Upravit záznam ${recordIndex + 1}',
+              'Edit record ${recordIndex + 1}',
+            ),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: List.generate(fieldNames.length, (i) {
                 final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
-                final label = unitCode != null ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})' : fieldNames[i];
+                final label = unitCode != null
+                    ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
+                    : fieldNames[i];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Semantics(
                     label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
                     child: TextField(
                       controller: controllers[i],
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
                       decoration: InputDecoration(
                         labelText: label,
                         isDense: true,
@@ -4407,9 +4654,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         );
                   speak(editedMsg);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(editedMsg)),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(editedMsg)));
                   }
                 } else {
                   speak(_s('Neplatná hodnota', 'Invalid value'));
@@ -4440,11 +4687,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             final totalCountForm = _getStatsCountForm(totalCount);
             final records = List<StatisticsRecord>.from(_statsMemory);
             final groups = _groupStatsRecords(records);
-            final freqFieldIndex =
-                _selectedFieldIndex < fieldNames.length ? _selectedFieldIndex : 0;
-            final freqSnapshot =
-                records.isNotEmpty ? _computeStatisticsSnapshot(freqFieldIndex) : null;
-            final showFrequencies = freqSnapshot != null &&
+            final freqFieldIndex = _selectedFieldIndex < fieldNames.length
+                ? _selectedFieldIndex
+                : 0;
+            final freqSnapshot = records.isNotEmpty
+                ? _computeStatisticsSnapshot(freqFieldIndex)
+                : null;
+            final showFrequencies =
+                freqSnapshot != null &&
                 (freqSnapshot.frequencies.length > 1 ||
                     freqSnapshot.frequencies.entries.first.value > 1);
 
@@ -4455,39 +4705,54 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 'Statistics memory for set $currentSetName is empty.',
               );
             } else {
-              final fieldsSummary = fieldNames.asMap().entries.map((fe) {
-                final unitCode = fe.key < fieldUnits.length ? fieldUnits[fe.key] : null;
-                final vals = groups.map((g) {
-                  final r = records[g.first];
-                  final v = _formatSpokenNumber(r.values[fe.key]);
-                  final u = unitCode != null ? ' ${_getUnitSpeech(unitCode, value: r.values[fe.key])}' : '';
-                  final countPart = g.length > 1
-                      ? _s(' ${g.length} ${_getStatsCountForm(g.length)}', ' ${g.length} ${_getStatsCountForm(g.length)}')
-                      : '';
-                  return '$v$u$countPart';
-                }).join(_s('; ', '; '));
-                return '${fe.value}: $vals';
-              }).join('. ');
+              final fieldsSummary = fieldNames
+                  .asMap()
+                  .entries
+                  .map((fe) {
+                    final unitCode = fe.key < fieldUnits.length
+                        ? fieldUnits[fe.key]
+                        : null;
+                    final vals = groups
+                        .map((g) {
+                          final r = records[g.first];
+                          final v = _formatSpokenNumber(r.values[fe.key]);
+                          final u = unitCode != null
+                              ? ' ${_getUnitSpeech(unitCode, value: r.values[fe.key])}'
+                              : '';
+                          final countPart = g.length > 1
+                              ? _s(
+                                  ' ${g.length} ${_getStatsCountForm(g.length)}',
+                                  ' ${g.length} ${_getStatsCountForm(g.length)}',
+                                )
+                              : '';
+                          return '$v$u$countPart';
+                        })
+                        .join(_s('; ', '; '));
+                    return '${fe.value}: $vals';
+                  })
+                  .join('. ');
               spokenSummary = _s(
                 'Statistická paměť, sada $currentSetName. Obsahuje $totalCount $totalCountForm. '
-                'Pole: $fieldsSummary.',
+                    'Pole: $fieldsSummary.',
                 'Statistics memory, set $currentSetName. Contains $totalCount $totalCountForm. '
-                'Fields: $fieldsSummary.',
+                    'Fields: $fieldsSummary.',
               );
               if (showFrequencies) {
                 final freqUnit = freqFieldIndex < fieldUnits.length
                     ? fieldUnits[freqFieldIndex]
                     : null;
-                final frequencySpoken = freqSnapshot.frequencies.entries.map((e) {
-                  final valStr = _formatSpokenNumber(e.key);
-                  final unitStr = freqUnit != null
-                      ? ' ${_getUnitSpeech(freqUnit, value: e.key)}'
-                      : '';
-                  return _s(
-                    '$valStr$unitStr se vyskytuje ${e.value} krát',
-                    '$valStr$unitStr occurs ${e.value} times',
-                  );
-                }).join(_s('; ', '; '));
+                final frequencySpoken = freqSnapshot.frequencies.entries
+                    .map((e) {
+                      final valStr = _formatSpokenNumber(e.key);
+                      final unitStr = freqUnit != null
+                          ? ' ${_getUnitSpeech(freqUnit, value: e.key)}'
+                          : '';
+                      return _s(
+                        '$valStr$unitStr se vyskytuje ${e.value} krát',
+                        '$valStr$unitStr occurs ${e.value} times',
+                      );
+                    })
+                    .join(_s('; ', '; '));
                 spokenSummary += _s(
                   ' Počet výskytů pole ${fieldNames[freqFieldIndex]}: $frequencySpoken.',
                   ' Occurrences for field ${fieldNames[freqFieldIndex]}: $frequencySpoken.',
@@ -4508,153 +4773,201 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 child: Focus(
                   autofocus: true,
                   onFocusChange: (hasFocus) {
-                    if (hasFocus && !_isScreenReaderActive) speak(spokenSummary);
+                    if (hasFocus && !_isScreenReaderActive)
+                      speak(spokenSummary);
                   },
                   child: SizedBox(
                     width: double.maxFinite,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 400),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Semantics(
-                            label: l10n.statsCurrentSetLabel(currentSetName),
-                            child: ExcludeSemantics(
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: Text(
-                                  l10n.statsCurrentSetLabel(currentSetName),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const Divider(height: 8),
-                          ExcludeSemantics(
-                            child: Text(
-                              _s('Záznamů: $totalCount, Polí: ${fieldNames.length}', 'Records: $totalCount, Fields: ${fieldNames.length}'),
-                            ),
-                          ),
-                          if (records.isNotEmpty) ...[
-                            const SizedBox(height: 12),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                             Semantics(
-                              header: true,
-                              label: _s(
-                                'Sloupce: číslo, ${fieldNames.join(', ')}, počet',
-                                'Columns: number, ${fieldNames.join(', ')}, count',
-                              ),
+                              label: l10n.statsCurrentSetLabel(currentSetName),
                               child: ExcludeSemantics(
-                                child: DefaultTextStyle.merge(
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                  child: _buildMemoryHeaderRow(fieldNames, fieldUnits),
-                                ),
-                              ),
-                            ),
-                            const Divider(height: 16),
-                            ...groups.asMap().entries.map((gEntry) {
-                              final groupIndex = gEntry.key;
-                              final group = gEntry.value;
-                              final record = records[group.first];
-                              final count = group.length;
-                              final spokenValues = record.values
-                                  .asMap()
-                                  .entries
-                                  .map((ve) {
-                                    final unitCode = ve.key < fieldUnits.length ? fieldUnits[ve.key] : null;
-                                    final unitStr = unitCode != null
-                                        ? ' ${_getUnitSpeech(unitCode, value: ve.value)}'
-                                        : '';
-                                    return '${fieldNames[ve.key]}: ${_formatSpokenNumber(ve.value)}$unitStr';
-                                  })
-                                  .join(', ');
-
-                              final rowLabel = _s(
-                                'Záznam ${groupIndex + 1}: $spokenValues. Počet výskytů: $count',
-                                'Record ${groupIndex + 1}: $spokenValues. Occurrences: $count',
-                              );
-                              return Semantics(
-                                container: true,
-                                label: rowLabel,
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
-                                  child: Row(
-                                    children: [
-                                      ExcludeSemantics(
-                                        child: SizedBox(
-                                          width: 28,
-                                          child: Text(
-                                            '${groupIndex + 1}',
-                                            style: const TextStyle(fontSize: 12),
-                                          ),
-                                        ),
-                                      ),
-                                      ...record.values.asMap().entries.map((ve) {
-                                        final unitCode = ve.key < fieldUnits.length ? fieldUnits[ve.key] : null;
-                                        final unitStr = unitCode != null
-                                            ? ' ${_getUnitSpeech(unitCode, value: ve.value)}'
-                                            : '';
-                                        return Expanded(
-                                          child: ExcludeSemantics(
-                                            child: Text(
-                                              '${_formatNumber(ve.value)}$unitStr',
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(fontSize: 13),
-                                            ),
-                                          ),
-                                        );
-                                      }),
-                                      Expanded(
-                                        child: ExcludeSemantics(
-                                          child: Text(
-                                            '$count×',
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(fontSize: 13),
-                                          ),
-                                        ),
-                                      ),
-                                      Semantics(
-                                        label: rowLabel,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
-                                              icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                                              tooltip: _s(
-                                                'Upravit záznam ${groupIndex + 1}',
-                                                'Edit record ${groupIndex + 1}',
-                                              ),
-                                              onPressed: () => _showEditStatsRecordDialog(group, dialogContext, setStateDialog),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            IconButton(
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
-                                              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
-                                              tooltip: _s(
-                                                'Smazat záznam ${groupIndex + 1}',
-                                                'Delete record ${groupIndex + 1}',
-                                              ),
-                                              onPressed: () => _removeStatsRecord(group, setStateDialog, dialogContext),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: Text(
+                                    l10n.statsCurrentSetLabel(currentSetName),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
-                              );
-                            }),
+                              ),
+                            ),
+                            const Divider(height: 8),
+                            ExcludeSemantics(
+                              child: Text(
+                                _s(
+                                  'Záznamů: $totalCount, Polí: ${fieldNames.length}',
+                                  'Records: $totalCount, Fields: ${fieldNames.length}',
+                                ),
+                              ),
+                            ),
+                            if (records.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Semantics(
+                                header: true,
+                                label: _s(
+                                  'Sloupce: číslo, ${fieldNames.join(', ')}, počet',
+                                  'Columns: number, ${fieldNames.join(', ')}, count',
+                                ),
+                                child: ExcludeSemantics(
+                                  child: DefaultTextStyle.merge(
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    child: _buildMemoryHeaderRow(
+                                      fieldNames,
+                                      fieldUnits,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const Divider(height: 16),
+                              ...groups.asMap().entries.map((gEntry) {
+                                final groupIndex = gEntry.key;
+                                final group = gEntry.value;
+                                final record = records[group.first];
+                                final count = group.length;
+                                final spokenValues = record.values
+                                    .asMap()
+                                    .entries
+                                    .map((ve) {
+                                      final unitCode =
+                                          ve.key < fieldUnits.length
+                                          ? fieldUnits[ve.key]
+                                          : null;
+                                      final unitStr = unitCode != null
+                                          ? ' ${_getUnitSpeech(unitCode, value: ve.value)}'
+                                          : '';
+                                      return '${fieldNames[ve.key]}: ${_formatSpokenNumber(ve.value)}$unitStr';
+                                    })
+                                    .join(', ');
+
+                                final rowLabel = _s(
+                                  'Záznam ${groupIndex + 1}: $spokenValues. Počet výskytů: $count',
+                                  'Record ${groupIndex + 1}: $spokenValues. Occurrences: $count',
+                                );
+                                return Semantics(
+                                  container: true,
+                                  label: rowLabel,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        ExcludeSemantics(
+                                          child: SizedBox(
+                                            width: 28,
+                                            child: Text(
+                                              '${groupIndex + 1}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        ...record.values.asMap().entries.map((
+                                          ve,
+                                        ) {
+                                          final unitCode =
+                                              ve.key < fieldUnits.length
+                                              ? fieldUnits[ve.key]
+                                              : null;
+                                          final unitStr = unitCode != null
+                                              ? ' ${_getUnitSpeech(unitCode, value: ve.value)}'
+                                              : '';
+                                          return Expanded(
+                                            child: ExcludeSemantics(
+                                              child: Text(
+                                                '${_formatNumber(ve.value)}$unitStr',
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }),
+                                        Expanded(
+                                          child: ExcludeSemantics(
+                                            child: Text(
+                                              '$count×',
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Semantics(
+                                          label: rowLabel,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                icon: const Icon(
+                                                  Icons.edit,
+                                                  size: 20,
+                                                  color: Colors.blue,
+                                                ),
+                                                tooltip: _s(
+                                                  'Upravit záznam ${groupIndex + 1}',
+                                                  'Edit record ${groupIndex + 1}',
+                                                ),
+                                                onPressed: () =>
+                                                    _showEditStatsRecordDialog(
+                                                      group,
+                                                      dialogContext,
+                                                      setStateDialog,
+                                                    ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                icon: const Icon(
+                                                  Icons.delete,
+                                                  size: 20,
+                                                  color: Colors.red,
+                                                ),
+                                                tooltip: _s(
+                                                  'Smazat záznam ${groupIndex + 1}',
+                                                  'Delete record ${groupIndex + 1}',
+                                                ),
+                                                onPressed: () =>
+                                                    _removeStatsRecord(
+                                                      group,
+                                                      setStateDialog,
+                                                      dialogContext,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
               ),
               actions: [
                 TextButton(
@@ -4680,7 +4993,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
-  Widget _buildMemoryHeaderRow(List<String> fieldNames, [List<String?>? fieldUnits]) {
+  Widget _buildMemoryHeaderRow(
+    List<String> fieldNames, [
+    List<String?>? fieldUnits,
+  ]) {
     return Row(
       children: [
         const SizedBox(
@@ -4689,8 +5005,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
         ...fieldNames.asMap().entries.map((e) {
           final name = e.value;
-          final unitCode = fieldUnits != null && e.key < fieldUnits.length ? fieldUnits[e.key] : null;
-          final label = unitCode != null ? '$name (${_getUnitSpeech(unitCode)})' : name;
+          final unitCode = fieldUnits != null && e.key < fieldUnits.length
+              ? fieldUnits[e.key]
+              : null;
+          final label = unitCode != null
+              ? '$name (${_getUnitSpeech(unitCode)})'
+              : name;
           return Expanded(
             child: Text(
               label,
@@ -4724,20 +5044,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final currentSetName = _statsSets[_currentStatsSetIndex].name;
     final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
     final selectedFieldName = fieldNames[fieldIndex];
-    final fieldUnit = fieldIndex < _statsSets[_currentStatsSetIndex].fieldUnits.length
+    final fieldUnit =
+        fieldIndex < _statsSets[_currentStatsSetIndex].fieldUnits.length
         ? _statsSets[_currentStatsSetIndex].fieldUnits[fieldIndex]
         : null;
     final rawValues = _getFieldValues(fieldIndex);
     final allValuesSpoken = rawValues
         .map((v) {
           final numStr = _formatSpokenNumber(v);
-          final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: v)}' : '';
+          final unitStr = fieldUnit != null
+              ? ' ${_getUnitSpeech(fieldUnit, value: v)}'
+              : '';
           return '$numStr$unitStr';
         })
         .join(_isEnglish() ? ', ' : '; ');
     final dataCount = rawValues.length;
     final modeSpoken = snapshot.modeExists
-        ? snapshot.modes.map((m) => _formatSpokenNumber(m)).join(_s(' a ', ' and '))
+        ? snapshot.modes
+              .map((m) => _formatSpokenNumber(m))
+              .join(_s(' a ', ' and '))
         : _l10n.statsModeNone;
     final cvSpoken = snapshot.cv == null
         ? _s('nelze vypočítat', 'cannot calculate')
@@ -4748,25 +5073,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     String spokenSummary = _s(
       'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. '
-      'Počet hodnot: $dataCount. '
-      'Všechny hodnoty: $allValuesSpoken. '
-      'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
-      'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
-      'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
-      'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
-      'Medián: ${_formatSpokenNumber(snapshot.median)}. '
-      'Modus: $modeSpoken. '
-      'Variační koeficient: $cvSpoken.',
+          'Počet hodnot: $dataCount. '
+          'Všechny hodnoty: $allValuesSpoken. '
+          'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
+          'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
+          'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
+          'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
+          'Medián: ${_formatSpokenNumber(snapshot.median)}. '
+          'Modus: $modeSpoken. '
+          'Variační koeficient: $cvSpoken.',
       'Statistics summary for set $currentSetName, field $selectedFieldName. '
-      'Count: $dataCount. '
-      'All values: $allValuesSpoken. '
-      'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
-      'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
-      'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
-      'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
-      'Median: ${_formatSpokenNumber(snapshot.median)}. '
-      'Mode: $modeSpoken. '
-      'Coefficient of variation: $cvSpoken.',
+          'Count: $dataCount. '
+          'All values: $allValuesSpoken. '
+          'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
+          'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
+          'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
+          'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
+          'Median: ${_formatSpokenNumber(snapshot.median)}. '
+          'Mode: $modeSpoken. '
+          'Coefficient of variation: $cvSpoken.',
     );
     if (snapshot.wmean != null) {
       final fieldNamesForWmean = _statsSets[_currentStatsSetIndex].fieldNames;
@@ -4795,30 +5120,38 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             if (snapshot == null) {
               speak(_statsEmptyMessage());
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(_statsEmptyMessage())),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(_statsEmptyMessage())));
               }
               Navigator.pop(dialogContext);
               return const SizedBox.shrink();
             }
             final currentSetName = _statsSets[_currentStatsSetIndex].name;
             final selectedFieldName = fieldNames[_selectedFieldIndex];
-            final fieldUnit = _statsSets.isNotEmpty && _selectedFieldIndex < _statsSets[_currentStatsSetIndex].fieldUnits.length
-                ? _statsSets[_currentStatsSetIndex].fieldUnits[_selectedFieldIndex]
+            final fieldUnit =
+                _statsSets.isNotEmpty &&
+                    _selectedFieldIndex <
+                        _statsSets[_currentStatsSetIndex].fieldUnits.length
+                ? _statsSets[_currentStatsSetIndex]
+                      .fieldUnits[_selectedFieldIndex]
                 : null;
             final rawValues = _getFieldValues(_selectedFieldIndex);
             final allValues = rawValues
                 .map((v) {
                   final numStr = _formatNumber(v);
-                  final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: v)}' : '';
+                  final unitStr = fieldUnit != null
+                      ? ' ${_getUnitSpeech(fieldUnit, value: v)}'
+                      : '';
                   return '$numStr$unitStr';
                 })
                 .join(_isEnglish() ? ', ' : '; ');
             final allValuesSpoken = rawValues
                 .map((v) {
                   final numStr = _formatSpokenNumber(v);
-                  final unitStr = fieldUnit != null ? ' ${_getUnitSpeech(fieldUnit, value: v)}' : '';
+                  final unitStr = fieldUnit != null
+                      ? ' ${_getUnitSpeech(fieldUnit, value: v)}'
+                      : '';
                   return '$numStr$unitStr';
                 })
                 .join(_isEnglish() ? ', ' : '; ');
@@ -4869,9 +5202,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 label: spokenSummary,
                 liveRegion: true,
                 child: SizedBox(
-                    width: double.maxFinite,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 420),
+                  width: double.maxFinite,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 420),
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -4884,7 +5217,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 padding: const EdgeInsets.only(bottom: 8.0),
                                 child: Text(
                                   l10n.statsCurrentSetLabel(currentSetName),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
                               ),
                             ),
@@ -4893,14 +5229,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             const SizedBox(height: 4),
                             InkWell(
                               onTap: () {
-                                final nextIndex = (_selectedFieldIndex + 1) % fieldNames.length;
-                                final nextSummary = _buildStatsSummarySpeech(nextIndex);
+                                final nextIndex =
+                                    (_selectedFieldIndex + 1) %
+                                    fieldNames.length;
+                                final nextSummary = _buildStatsSummarySpeech(
+                                  nextIndex,
+                                );
                                 setState(() => _selectedFieldIndex = nextIndex);
                                 setSummaryState(() {});
-                                speak(_s(
-                                  'Vybráno pole ${fieldNames[nextIndex]}. ',
-                                  'Selected field ${fieldNames[nextIndex]}. ',
-                                ) + nextSummary);
+                                speak(
+                                  _s(
+                                        'Vybráno pole ${fieldNames[nextIndex]}. ',
+                                        'Selected field ${fieldNames[nextIndex]}. ',
+                                      ) +
+                                      nextSummary,
+                                );
                               },
                               child: Semantics(
                                 liveRegion: true,
@@ -4910,20 +5253,28 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 ),
                                 excludeSemantics: true,
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                    horizontal: 4,
+                                  ),
                                   child: Row(
                                     children: [
                                       Text(_s('Pole: ', 'Field: ')),
                                       const SizedBox(width: 4),
                                       Text(
                                         fieldNames[_selectedFieldIndex],
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                       if (fieldUnit != null) ...[
                                         const SizedBox(width: 4),
                                         Text(
                                           '(${_getUnitSpeech(fieldUnit)})',
-                                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
                                         ),
                                       ],
                                       const SizedBox(width: 4),
@@ -4941,7 +5292,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             child: ExcludeSemantics(
                               child: Text(
                                 l10n.statsAllValuesSection,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -4960,7 +5313,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             child: ExcludeSemantics(
                               child: Text(
                                 l10n.statsComputedSection,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -4972,13 +5327,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               label: '${row.key}: $spokenValue',
                               child: ExcludeSemantics(
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
                                   child: Row(
                                     children: [
-                                      Expanded(
-                                        flex: 3,
-                                        child: Text(row.key),
-                                      ),
+                                      Expanded(flex: 3, child: Text(row.key)),
                                       Expanded(
                                         flex: 2,
                                         child: Text(
@@ -5033,10 +5387,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (context, setStateDialog) {
             return AlertDialog(
               semanticLabel: l10n.statsSetsTitle,
-              title: Semantics(
-                header: true,
-                child: Text(l10n.statsSetsTitle),
-              ),
+              title: Semantics(header: true, child: Text(l10n.statsSetsTitle)),
               content: SizedBox(
                 width: double.maxFinite,
                 child: ConstrainedBox(
@@ -5055,21 +5406,35 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             final countForm = _getStatsCountForm(count);
                             final titleText = '${set.name} ($count $countForm)';
 
-                            final fieldsLabel = set.fieldNames.asMap().entries.map((e) {
-                              final unitCode = e.key < set.fieldUnits.length ? set.fieldUnits[e.key] : null;
-                              final name = e.value;
-                              return unitCode != null ? '$name, ${_getUnitSpeech(unitCode)}' : name;
-                            }).join(', ');
+                            final fieldsLabel = set.fieldNames
+                                .asMap()
+                                .entries
+                                .map((e) {
+                                  final unitCode = e.key < set.fieldUnits.length
+                                      ? set.fieldUnits[e.key]
+                                      : null;
+                                  final name = e.value;
+                                  return unitCode != null
+                                      ? '$name, ${_getUnitSpeech(unitCode)}'
+                                      : name;
+                                })
+                                .join(', ');
                             final semanticsLabel = isCurrent
                                 ? '${set.name}, $count $countForm. Pole: $fieldsLabel. Vybráno jako aktivní sada.'
                                 : '${set.name}, $count $countForm. Pole: $fieldsLabel. Poklepáním vyberete jako aktivní sadu.';
 
-                            final fieldsText = set.fieldNames.asMap().entries.map((e) {
-                              final unitCode = e.key < set.fieldUnits.length ? set.fieldUnits[e.key] : null;
-                              return unitCode != null
-                                  ? '${e.value} (${_getUnitSpeech(unitCode)})'
-                                  : e.value;
-                            }).join(', ');
+                            final fieldsText = set.fieldNames
+                                .asMap()
+                                .entries
+                                .map((e) {
+                                  final unitCode = e.key < set.fieldUnits.length
+                                      ? set.fieldUnits[e.key]
+                                      : null;
+                                  return unitCode != null
+                                      ? '${e.value} (${_getUnitSpeech(unitCode)})'
+                                      : e.value;
+                                })
+                                .join(', ');
 
                             return Semantics(
                               container: true,
@@ -5081,7 +5446,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   child: Text(
                                     titleText,
                                     style: TextStyle(
-                                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                      fontWeight: isCurrent
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
                                     ),
                                   ),
                                 ),
@@ -5096,33 +5463,44 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   children: [
                                     IconButton(
                                       icon: const Icon(Icons.view_list),
-                                      tooltip: _s('Upravit pole', 'Edit fields'),
+                                      tooltip: _s(
+                                        'Upravit pole',
+                                        'Edit fields',
+                                      ),
                                       onPressed: () {
-                                        _showEditStatsSetDialog(context, index, () {
-                                          setStateDialog(() {});
-                                          setState(() {});
-                                        });
+                                        _showEditStatsSetDialog(
+                                          context,
+                                          index,
+                                          () {
+                                            setStateDialog(() {});
+                                            setState(() {});
+                                          },
+                                        );
                                       },
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.edit),
                                       tooltip: l10n.statsSetsRename,
                                       onPressed: () {
-                                        _showRenameStatsSetDialog(context, index, () {
-                                          setStateDialog(() {});
-                                          setState(() {});
-                                        });
+                                        _showRenameStatsSetDialog(
+                                          context,
+                                          index,
+                                          () {
+                                            setStateDialog(() {});
+                                            setState(() {});
+                                          },
+                                        );
                                       },
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.delete),
                                       tooltip: l10n.statsSetsDelete,
                                       onPressed: () {
-                                              setStateDialog(() {
-                                                _deleteStatsSet(index);
-                                              });
-                                              setState(() {});
-                                            },
+                                        setStateDialog(() {
+                                          _deleteStatsSet(index);
+                                        });
+                                        setState(() {});
+                                      },
                                     ),
                                   ],
                                 ),
@@ -5131,15 +5509,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                     _currentStatsSetIndex = index;
                                   });
                                   setState(() {
-                                    if (_selectedFieldIndex >= _currentFieldCount) {
+                                    if (_selectedFieldIndex >=
+                                        _currentFieldCount) {
                                       _selectedFieldIndex = 0;
                                     }
                                   });
-                                  final announcement = l10n.statsSetSelectedAnnouncement(
-                                    set.name,
-                                    count,
-                                    _getStatsCountForm(count),
-                                  );
+                                  final announcement = l10n
+                                      .statsSetSelectedAnnouncement(
+                                        set.name,
+                                        count,
+                                        _getStatsCountForm(count),
+                                      );
                                   speak(announcement);
                                 },
                               ),
@@ -5180,7 +5560,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
-  void _showRenameStatsSetDialog(BuildContext context, int index, VoidCallback onUpdated) {
+  void _showRenameStatsSetDialog(
+    BuildContext context,
+    int index,
+    VoidCallback onUpdated,
+  ) {
     final l10n = _l10n;
     final controller = TextEditingController(text: _statsSets[index].name);
 
@@ -5196,9 +5580,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             child: TextField(
               controller: controller,
               autofocus: true,
-              decoration: InputDecoration(
-                labelText: l10n.statsSetNameLabel,
-              ),
+              decoration: InputDecoration(labelText: l10n.statsSetNameLabel),
             ),
           ),
           actions: [
@@ -5227,7 +5609,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  void _showEditStatsSetDialog(BuildContext context, int index, VoidCallback onUpdated) {
+  void _showEditStatsSetDialog(
+    BuildContext context,
+    int index,
+    VoidCallback onUpdated,
+  ) {
     final l10n = _l10n;
     final set = _statsSets[index];
 
@@ -5236,8 +5622,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         TextEditingController(text: set.fieldNames[i]),
     ];
     final fieldUnitValues = <String>[
-      for (var i = 0; i < set.fieldUnits.length; i++)
-        set.fieldUnits[i] ?? '--',
+      for (var i = 0; i < set.fieldUnits.length; i++) set.fieldUnits[i] ?? '--',
     ];
 
     void commitChanges(StateSetter setDialogState) {
@@ -5247,8 +5632,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           if (trimmed.isNotEmpty) {
             set.fieldNames[i] = trimmed;
           }
-          set.fieldUnits[i] =
-              fieldUnitValues[i] == '--' ? null : fieldUnitValues[i];
+          set.fieldUnits[i] = fieldUnitValues[i] == '--'
+              ? null
+              : fieldUnitValues[i];
         }
         if (_selectedFieldIndex >= set.fieldNames.length) {
           _selectedFieldIndex = 0;
@@ -5267,10 +5653,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
             return AlertDialog(
-              semanticLabel: _s('Upravit pole sady ${set.name}', 'Edit fields of set ${set.name}'),
+              semanticLabel: _s(
+                'Upravit pole sady ${set.name}',
+                'Edit fields of set ${set.name}',
+              ),
               title: Semantics(
                 header: true,
-                child: Text(_s('Pole sady', 'Fields of set') + ' "${set.name}"'),
+                child: Text(
+                  _s('Pole sady', 'Fields of set') + ' "${set.name}"',
+                ),
               ),
               content: SingleChildScrollView(
                 child: ConstrainedBox(
@@ -5288,13 +5679,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               Expanded(
                                 flex: 3,
                                 child: Semantics(
-                                  label: _s('Název pole', 'Field name') + ' ${i + 1}',
+                                  label:
+                                      _s('Název pole', 'Field name') +
+                                      ' ${i + 1}',
                                   child: TextField(
                                     controller: fieldNameControllers[i],
                                     decoration: InputDecoration(
-                                      labelText: _s('Pole', 'Field') + ' ${i + 1}',
+                                      labelText:
+                                          _s('Pole', 'Field') + ' ${i + 1}',
                                       isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 8,
+                                          ),
                                     ),
                                     onChanged: (_) {
                                       commitChanges(setDialogState);
@@ -5306,13 +5704,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               Expanded(
                                 flex: 2,
                                 child: Semantics(
-                                  label: _s('Jednotka pole', 'Unit for field') + ' ${i + 1}',
+                                  label:
+                                      _s('Jednotka pole', 'Unit for field') +
+                                      ' ${i + 1}',
                                   child: DropdownButtonFormField<String>(
                                     value: fieldUnitValues[i],
                                     isDense: true,
                                     decoration: const InputDecoration(
                                       isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 8,
+                                      ),
                                     ),
                                     items: _statsFieldUnitOptions.map((u) {
                                       return DropdownMenuItem(
@@ -5333,13 +5736,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.remove_circle, color: Colors.red, size: 20),
-                                tooltip: _s('Smazat pole', 'Delete field') + ' ${i + 1}',
+                                icon: const Icon(
+                                  Icons.remove_circle,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                tooltip:
+                                    _s('Smazat pole', 'Delete field') +
+                                    ' ${i + 1}',
                                 onPressed: isLast
                                     ? null
                                     : () {
                                         setState(() {
-                                          fieldNameControllers.removeAt(i).dispose();
+                                          fieldNameControllers
+                                              .removeAt(i)
+                                              .dispose();
                                           fieldUnitValues.removeAt(i);
                                           set.fieldNames.removeAt(i);
                                           set.fieldUnits.removeAt(i);
@@ -5348,7 +5759,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                               record.values.removeAt(i);
                                             }
                                           }
-                                          if (_selectedFieldIndex >= set.fieldNames.length) {
+                                          if (_selectedFieldIndex >=
+                                              set.fieldNames.length) {
                                             _selectedFieldIndex = 0;
                                           }
                                         });
@@ -5356,7 +5768,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                         _statsSummaryInitialized = false;
                                         onUpdated();
                                         setDialogState(() {});
-                                        speak(_s('Pole smazáno.', 'Field deleted.'));
+                                        speak(
+                                          _s('Pole smazáno.', 'Field deleted.'),
+                                        );
                                       },
                               ),
                             ],
@@ -5369,11 +5783,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         onPressed: () {
                           final newIndex = set.fieldNames.length;
                           setState(() {
-                            set.fieldNames
-                                .add(_s('Pole ${newIndex + 1}', 'Field ${newIndex + 1}'));
+                            set.fieldNames.add(
+                              _s(
+                                'Pole ${newIndex + 1}',
+                                'Field ${newIndex + 1}',
+                              ),
+                            );
                             set.fieldUnits.add(null);
-                            fieldNameControllers
-                                .add(TextEditingController(text: set.fieldNames.last));
+                            fieldNameControllers.add(
+                              TextEditingController(text: set.fieldNames.last),
+                            );
                             fieldUnitValues.add('--');
                             for (final record in set.records) {
                               record.values.add(0.0);
@@ -5383,10 +5802,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           _statsSummaryInitialized = false;
                           onUpdated();
                           setDialogState(() {});
-                          speak(_s(
-                            'Pole přidáno. Stávajícím záznamům byla doplněna hodnota 0.',
-                            'Field added. Existing records were filled with value 0.',
-                          ));
+                          speak(
+                            _s(
+                              'Pole přidáno. Stávajícím záznamům byla doplněna hodnota 0.',
+                              'Field added. Existing records were filled with value 0.',
+                            ),
+                          );
                         },
                       ),
                     ],
@@ -5429,11 +5850,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return unitCode;
   }
 
-  void _showCreateStatsSetDialog(BuildContext context, VoidCallback onUpdated, {List<StatisticsRecord>? recordsToRepeat}) {
+  void _showCreateStatsSetDialog(
+    BuildContext context,
+    VoidCallback onUpdated, {
+    List<StatisticsRecord>? recordsToRepeat,
+  }) {
     final l10n = _l10n;
     final defaultName = l10n.statsSetDefaultName(_statsSets.length + 1);
     final controller = TextEditingController(text: defaultName);
-    final fieldControllers = <TextEditingController>[TextEditingController(text: 'Hodnota')];
+    final fieldControllers = <TextEditingController>[
+      TextEditingController(text: 'Hodnota'),
+    ];
     final fieldUnitValues = <String>['--'];
 
     showDialog<void>(
@@ -5461,8 +5888,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text(_s('Názvy a jednotky polí:', 'Field names and units:'),
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      _s('Názvy a jednotky polí:', 'Field names and units:'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
                     ...List.generate(fieldControllers.length, (i) {
                       return Padding(
@@ -5476,9 +5905,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 child: TextField(
                                   controller: fieldControllers[i],
                                   decoration: InputDecoration(
-                                    labelText: '${_s("Pole", "Field")} ${i + 1}',
+                                    labelText:
+                                        '${_s("Pole", "Field")} ${i + 1}',
                                     isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 8,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -5487,13 +5920,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             Expanded(
                               flex: 2,
                               child: Semantics(
-                                label: _s('Jednotka pole ${i + 1}', 'Unit for field ${i + 1}'),
+                                label: _s(
+                                  'Jednotka pole ${i + 1}',
+                                  'Unit for field ${i + 1}',
+                                ),
                                 child: DropdownButtonFormField<String>(
                                   value: fieldUnitValues[i],
                                   isDense: true,
                                   decoration: const InputDecoration(
                                     isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 8,
+                                    ),
                                   ),
                                   items: _statsFieldUnitOptions.map((u) {
                                     return DropdownMenuItem(
@@ -5516,8 +5955,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             ),
                             if (fieldControllers.length > 1)
                               IconButton(
-                                icon: const Icon(Icons.remove_circle, color: Colors.red, size: 20),
-                                tooltip: _s('Odebrat pole ${i + 1}', 'Remove field ${i + 1}'),
+                                icon: const Icon(
+                                  Icons.remove_circle,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                tooltip: _s(
+                                  'Odebrat pole ${i + 1}',
+                                  'Remove field ${i + 1}',
+                                ),
                                 onPressed: () {
                                   setDialogState(() {
                                     fieldControllers[i].dispose();
@@ -5535,8 +5981,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       label: Text(_s('Přidat pole', 'Add field')),
                       onPressed: () {
                         setDialogState(() {
-                          fieldControllers.add(TextEditingController(
-                              text: _s('Pole ${fieldControllers.length + 1}', 'Field ${fieldControllers.length + 1}')));
+                          fieldControllers.add(
+                            TextEditingController(
+                              text: _s(
+                                'Pole ${fieldControllers.length + 1}',
+                                'Field ${fieldControllers.length + 1}',
+                              ),
+                            ),
+                          );
                           fieldUnitValues.add('--');
                         });
                       },
@@ -5561,29 +6013,35 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       final fieldUnits = List<String?>.generate(
                         fieldNames.length,
                         (i) {
-                          final unit = i < fieldUnitValues.length ? fieldUnitValues[i] : '--';
+                          final unit = i < fieldUnitValues.length
+                              ? fieldUnitValues[i]
+                              : '--';
                           return unit == '--' ? null : unit;
                         },
                       );
                       setState(() {
-                        _statsSets.add(StatisticsSet(
-                          name: newName,
-                          fieldNames: fieldNames,
-                          fieldUnits: fieldUnits,
-                          records: [],
-                        ));
+                        _statsSets.add(
+                          StatisticsSet(
+                            name: newName,
+                            fieldNames: fieldNames,
+                            fieldUnits: fieldUnits,
+                            records: [],
+                          ),
+                        );
                         _currentStatsSetIndex = _statsSets.length - 1;
                         _selectedFieldIndex = 0;
                       });
                       _saveStatsData();
                       onUpdated();
                       Navigator.pop(ctx);
-                      
+
                       if (recordsToRepeat != null) {
-                        speak(_s(
-                          'Sada $newName vytvořena. Nyní můžete zadat počet opakování pro vložení hodnot.',
-                          'Set $newName created. You can now enter the number of repetitions to insert the values.',
-                        ));
+                        speak(
+                          _s(
+                            'Sada $newName vytvořena. Nyní můžete zadat počet opakování pro vložení hodnot.',
+                            'Set $newName created. You can now enter the number of repetitions to insert the values.',
+                          ),
+                        );
                         _showRepeatDialog(recordsToRepeat);
                       } else {
                         speak(l10n.statsSetCreatedAnnouncement(newName));
@@ -5609,10 +6067,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     if (_statsSets.isEmpty) {
       _currentStatsSetIndex = 0;
-      speak(_s(
-        'Sada $deletedName byla smazána. Nejsou vytvořeny žádné sady.',
-        'Set $deletedName was deleted. No sets created.',
-      ));
+      speak(
+        _s(
+          'Sada $deletedName byla smazána. Nejsou vytvořeny žádné sady.',
+          'Set $deletedName was deleted. No sets created.',
+        ),
+      );
       return;
     }
 
@@ -5655,9 +6115,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (value == null) {
       speak(l10n.infoNoResult);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.infoNoResult)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.infoNoResult)));
       }
       return;
     }
@@ -5679,7 +6139,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         .replaceAll('.', ',');
 
     String percent = '${_formatNumber(value * 100)} %';
-    String percentSpoken = '${_formatSpokenNumber(value * 100)} '
+    String percentSpoken =
+        '${_formatSpokenNumber(value * 100)} '
         '${_s('procent', 'percent')}';
 
     String factorsStr = '';
@@ -5703,17 +6164,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     final spokenText = _s(
       'Info o čísle. Hodnota: $spokenValue. '
-      'Zlomek: $fractionSpoken. '
-      'DMS: $dmsSpoken. '
-      'Procenta: $percentSpoken. '
-      '${factorsSpoken.isNotEmpty ? 'Rozklad na prvočísla: $factorsSpoken. ' : ''}'
-      '${divisorsSpoken.isNotEmpty ? 'Dělitele: $divisorsSpoken.' : ''}',
+          'Zlomek: $fractionSpoken. '
+          'DMS: $dmsSpoken. '
+          'Procenta: $percentSpoken. '
+          '${factorsSpoken.isNotEmpty ? 'Rozklad na prvočísla: $factorsSpoken. ' : ''}'
+          '${divisorsSpoken.isNotEmpty ? 'Dělitele: $divisorsSpoken.' : ''}',
       'Number info. Value: $spokenValue. '
-      'Fraction: $fractionSpoken. '
-      'DMS: $dmsSpoken. '
-      'Percentage: $percentSpoken. '
-      '${factorsSpoken.isNotEmpty ? 'Prime factors: $factorsSpoken. ' : ''}'
-      '${divisorsSpoken.isNotEmpty ? 'Divisors: $divisorsSpoken.' : ''}',
+          'Fraction: $fractionSpoken. '
+          'DMS: $dmsSpoken. '
+          'Percentage: $percentSpoken. '
+          '${factorsSpoken.isNotEmpty ? 'Prime factors: $factorsSpoken. ' : ''}'
+          '${divisorsSpoken.isNotEmpty ? 'Divisors: $divisorsSpoken.' : ''}',
     );
 
     String notIntMsg = l10n.infoNotInteger;
@@ -5733,9 +6194,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 header: true,
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Text(l10n.numberInfo),
-                    ),
+                    Expanded(child: Text(l10n.numberInfo)),
                     Semantics(
                       label: isInfoFullscreen
                           ? _s('Zmenšit dialog', 'Minimize dialog')
@@ -5826,8 +6285,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
               actions: [
                 Semantics(
-                  label: _s('Přečíst všechny informace hlasem',
-                      'Read all information aloud'),
+                  label: _s(
+                    'Přečíst všechny informace hlasem',
+                    'Read all information aloud',
+                  ),
                   button: true,
                   child: TextButton(
                     onPressed: () => speak(spokenText),
@@ -5892,66 +6353,65 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Historie výpočtů'),
       builder: (context) => AlertDialog(
-        semanticLabel: 'Historie výpočtů',
-        title: Semantics(header: true, child: const Text('Historie výpočtů')),
+        semanticLabel: _l10n.historyTitle,
+        title: Semantics(header: true, child: Text(_l10n.historyTitle)),
         content: _applyDialogSize(
           _history.isEmpty
-              ? Semantics(
-                  container: true,
-                  child: const Text('Historie je prázdná.'),
-                )
+              ? Semantics(container: true, child: Text(_l10n.emptyHistory))
               : SizedBox(
                   width: double.maxFinite,
                   child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _history.length,
-                  itemBuilder: (context, index) {
-                    String item = _history[index];
-                    String expression = item;
-                    String result = "";
+                    shrinkWrap: true,
+                    itemCount: _history.length,
+                    itemBuilder: (context, index) {
+                      String item = _history[index];
+                      String expression = item;
+                      String result = "";
 
-                    if (item.contains('|')) {
-                      List<String> parts = item.split('|');
-                      expression = parts[0];
-                      result = parts[1];
-                    } else if (item.contains('=')) {
-                      // Zpětná kompatibilita pro starý formát "exp = res"
-                      int eqIdx = item.lastIndexOf('=');
-                      expression = item.substring(0, eqIdx).trim();
-                      result = item.substring(eqIdx + 1).trim();
-                    }
+                      if (item.contains('|')) {
+                        List<String> parts = item.split('|');
+                        expression = parts[0];
+                        result = parts[1];
+                      } else if (item.contains('=')) {
+                        // Zpětná kompatibilita pro starý formát "exp = res"
+                        int eqIdx = item.lastIndexOf('=');
+                        expression = item.substring(0, eqIdx).trim();
+                        result = item.substring(eqIdx + 1).trim();
+                      }
 
-                    String semanticDescription =
-                        "Výpočet: $expression, výsledek: $result. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.";
+                      String semanticDescription = _s(
+                        "Výpočet: $expression, výsledek: $result. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
+                        "Calculation: $expression, result: $result. Tap to insert the result, hold to insert the whole calculation.",
+                      );
 
-                    return Semantics(
-                      label: semanticDescription,
-                      container: true,
-                      child: MergeSemantics(
-                        child: ListTile(
-                          title: Text(
-                            expression,
-                            style: const TextStyle(fontSize: 14),
+                      return Semantics(
+                        label: semanticDescription,
+                        container: true,
+                        child: MergeSemantics(
+                          child: ListTile(
+                            title: Text(
+                              expression,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            subtitle: result.isNotEmpty
+                                ? Text(
+                                    result,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.blue,
+                                    ),
+                                  )
+                                : null,
+                            onTap: () => _insertFromHistory(
+                              result.isNotEmpty ? result : expression,
+                            ),
+                            onLongPress: () => _insertFromHistory(expression),
                           ),
-                          subtitle: result.isNotEmpty
-                              ? Text(
-                                  result,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: Colors.blue,
-                                  ),
-                                )
-                              : null,
-                          onTap: () => _insertFromHistory(
-                            result.isNotEmpty ? result : expression,
-                          ),
-                          onLongPress: () => _insertFromHistory(expression),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
                 ),
         ),
         actions: [
@@ -5960,7 +6420,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               Navigator.pop(context);
               _showClearHistoryConfirmation();
             },
-            child: const Text('VYMAZAT HISTORII'),
+            child: Text(_l10n.clearHistory),
           ),
           TextButton(
             onPressed: () {
@@ -5969,7 +6429,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 if (mounted) _mainFocusNode.requestFocus();
               });
             },
-            child: const Text('ZAVŘÍT'),
+            child: Text(_l10n.close),
           ),
         ],
       ),
@@ -5977,13 +6437,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showClearHistoryConfirmation() {
-    String question = 'Opravdu chcete smazat celou historii výpočtů?';
+    String question = _l10n.deleteConfirmation;
     showDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Potvrzení'),
       builder: (context) => AlertDialog(
-        semanticLabel: 'Potvrzení',
-        title: Semantics(header: true, child: Text('Potvrzení')),
+        semanticLabel: _l10n.confirmationTitle,
+        title: Semantics(header: true, child: Text(_l10n.confirmationTitle)),
         content: Focus(
           autofocus: true,
           onFocusChange: (hasFocus) {
@@ -5991,7 +6451,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           },
           child: Semantics(
             container: true,
-            label: 'Otázka',
+            label: _s('Otázka', 'Question'),
             child: Text(question),
           ),
         ),
@@ -6002,24 +6462,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 _history.clear();
                 _saveHistory();
               });
-              speak('Historie smazána');
+              speak(_l10n.historyCleared);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Historie smazána')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(_l10n.historyCleared)));
               }
               Navigator.pop(context);
             },
             child: Semantics(
-              label: 'Ano, potvrdit smazání celé historie výpočtů',
-              child: Text('ANO, SMAZAT'),
+              label: _l10n.yesConfirmHistory,
+              child: Text(_l10n.yesDelete),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Semantics(
-              label: 'Ne, zrušit smazání a ponechat historii',
-              child: Text('NE, ZŮSTAT'),
+              label: _l10n.noCancelHistory,
+              child: Text(_l10n.noStay),
             ),
           ),
         ],
@@ -6033,8 +6493,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       for (int i = 0; i < count; i++) {
         _statsMemory.addAll(records.map((r) => r.copyWith()));
       }
-      _lastAddedBatch =
-          records.map((r) => StatisticsRecord(values: List.from(r.values))).toList();
+      _lastAddedBatch = records
+          .map((r) => StatisticsRecord(values: List.from(r.values)))
+          .toList();
       display = '';
       _cursorPosition = 0;
     });
@@ -6052,9 +6513,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     } else {
       String valuesStr = records
-          .map((r) => r.values
-              .map((v) => _formatNumber(v).replaceAll('.', ','))
-              .join(';'))
+          .map(
+            (r) => r.values
+                .map((v) => _formatNumber(v).replaceAll('.', ','))
+                .join(';'),
+          )
           .join(' ');
       String countForm = _getStatsCountForm(_statsMemory.length);
 
@@ -6068,9 +6531,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     speak(spoken);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(spoken)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(spoken)));
     }
   }
 
@@ -6113,49 +6576,54 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _handleMultipleStatisticsAddition() {
     if (!_hasStatsSet) {
-      speak(_s(
-        'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
-        'No statistics set created. Enter a name for a new set first.',
-      ));
-      
+      speak(
+        _s(
+          'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
+          'No statistics set created. Enter a name for a new set first.',
+        ),
+      );
+
       List<StatisticsRecord>? recordsToRepeat;
       if (display.isNotEmpty) {
         try {
           recordsToRepeat = _parseDisplayToRecords(display);
         } catch (_) {}
       }
-      
+
       _showCreateStatsSetDialog(context, () {
         _handleMultipleStatisticsAddition();
       }, recordsToRepeat: recordsToRepeat);
       return;
     }
     if (display.isEmpty) {
-      speak(_s(
-        'Displej je prázdný. Zadejte číslo k uložení.',
-        'Display is empty. Enter a number to store.',
-      ));
+      speak(
+        _s(
+          'Displej je prázdný. Zadejte číslo k uložení.',
+          'Display is empty. Enter a number to store.',
+        ),
+      );
       return;
     }
     try {
       final recordsToAdd = _parseDisplayToRecords(display);
 
       if (recordsToAdd.isEmpty) {
-        speak(_s(
-          'Žádná platná čísla k uložení.',
-          'No valid numbers to store.',
-        ));
+        speak(
+          _s('Žádná platná čísla k uložení.', 'No valid numbers to store.'),
+        );
         return;
       }
 
       _showRepeatDialog(recordsToAdd);
     } catch (e) {
-      speak(e is FormatException
-          ? e.message
-          : _s(
-              'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
-              'Error storing to statistics memory. Check the data format.',
-            ));
+      speak(
+        e is FormatException
+            ? e.message
+            : _s(
+                'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
+                'Error storing to statistics memory. Check the data format.',
+              ),
+      );
     }
   }
 
@@ -6206,10 +6674,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   if (release != null) {
                     _showUpdateDialog(release);
                   } else {
-                    speak('Aplikace je aktuální.');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Aplikace je aktuální.')),
-                    );
+                    speak(_l10n.appIsCurrent);
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(_l10n.appIsCurrent)));
                   }
                 }
               },
@@ -6283,12 +6751,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           liveRegion: true,
                           label: l10n.displayLabel,
                           hint: l10n.displayHint,
-                          value: '${_getModeName(_currentMode)}. ${display.isEmpty ? (_hasResult ? _lastResult.replaceAll('.', ',') : l10n.displayEmpty) : display.replaceAll('.', ',')}',
+                          value:
+                              '${_getModeName(_currentMode)}. ${display.isEmpty ? (_hasResult ? _lastResult.replaceAll('.', ',') : l10n.displayEmpty) : display.replaceAll('.', ',')}',
                           onTap: () {
                             _mainFocusNode.requestFocus();
-                            speak(display.isEmpty
-                                ? (_hasResult ? _lastResult.replaceAll('.', ',') : l10n.displayEmpty)
-                                : display.replaceAll('.', ','));
+                            speak(
+                              display.isEmpty
+                                  ? (_hasResult
+                                        ? _lastResult.replaceAll('.', ',')
+                                        : l10n.displayEmpty)
+                                  : display.replaceAll('.', ','),
+                            );
                           },
                           // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
                           // a vše se přečte z tohoto Semantics widgetu
@@ -6390,16 +6863,25 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                   const SizedBox(height: 8),
                   if (parent._hasStatsSet)
                     Semantics(
-                      label: parent._l10n.statsCurrentSetLabel(parent._statsSets[parent._currentStatsSetIndex].name),
+                      label: parent._l10n.statsCurrentSetLabel(
+                        parent._statsSets[parent._currentStatsSetIndex].name,
+                      ),
                       child: Container(
                         padding: const EdgeInsets.all(8.0),
                         color: Colors.blue.withOpacity(0.1),
                         child: Column(
                           children: [
                             Text(
-                              parent._l10n.statsCurrentSetLabel(parent._statsSets[parent._currentStatsSetIndex].name) +
+                              parent._l10n.statsCurrentSetLabel(
+                                    parent
+                                        ._statsSets[parent
+                                            ._currentStatsSetIndex]
+                                        .name,
+                                  ) +
                                   ' (${parent._statsMemory.length} ${parent._getStatsCountForm(parent._statsMemory.length)})',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                               textAlign: TextAlign.center,
                             ),
                             if (parent._currentFieldCount > 1)
@@ -6407,16 +6889,26 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                                 padding: const EdgeInsets.only(top: 4),
                                 child: StatefulBuilder(
                                   builder: (ctx, setLocalState) {
-                                    final fieldNames = parent._statsSets[parent._currentStatsSetIndex].fieldNames;
+                                    final fieldNames = parent
+                                        ._statsSets[parent
+                                            ._currentStatsSetIndex]
+                                        .fieldNames;
                                     return InkWell(
                                       onTap: () {
-                                        final nextIndex = (parent._selectedFieldIndex + 1) % parent._currentFieldCount;
-                                        parent.setState(() => parent._selectedFieldIndex = nextIndex);
+                                        final nextIndex =
+                                            (parent._selectedFieldIndex + 1) %
+                                            parent._currentFieldCount;
+                                        parent.setState(
+                                          () => parent._selectedFieldIndex =
+                                              nextIndex,
+                                        );
                                         setLocalState(() {});
-                                        parent.speak(parent._s(
-                                          'Vybráno pole ${fieldNames[nextIndex]}',
-                                          'Selected field ${fieldNames[nextIndex]}',
-                                        ));
+                                        parent.speak(
+                                          parent._s(
+                                            'Vybráno pole ${fieldNames[nextIndex]}',
+                                            'Selected field ${fieldNames[nextIndex]}',
+                                          ),
+                                        );
                                       },
                                       child: Semantics(
                                         liveRegion: true,
@@ -6426,15 +6918,27 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                                         ),
                                         excludeSemantics: true,
                                         child: Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                            horizontal: 4,
+                                          ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Text(parent._s('Pole: ', 'Field: '), style: const TextStyle(fontSize: 12)),
+                                              Text(
+                                                parent._s('Pole: ', 'Field: '),
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                ),
+                                              ),
                                               const SizedBox(width: 4),
                                               Text(
-                                                fieldNames[parent._selectedFieldIndex],
-                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                                fieldNames[parent
+                                                    ._selectedFieldIndex],
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                               const SizedBox(width: 4),
                                               Icon(Icons.swap_horiz, size: 14),
@@ -6455,10 +6959,12 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                       autofocus: true,
                       onFocusChange: (hasFocus) {
                         if (hasFocus) {
-                          parent.speak(parent._s(
-                            'Není vytvořena žádná sada. Vytvořte novou sadu tlačítkem SETS na hlavní klávesnici.',
-                            'No set created. Create a new set using the SETS button on the main keyboard.',
-                          ));
+                          parent.speak(
+                            parent._s(
+                              'Není vytvořena žádná sada. Vytvořte novou sadu tlačítkem SETS na hlavní klávesnici.',
+                              'No set created. Create a new set using the SETS button on the main keyboard.',
+                            ),
+                          );
                         }
                       },
                       child: Semantics(
@@ -6481,41 +6987,68 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                     alignment: WrapAlignment.center,
                     spacing: 4,
                     runSpacing: 4,
-                    children: [
-                      'MEAN', 'SD', 'VAR', 'SUM',
-                      'MED', 'MODE', 'CV', 'WMEAN'
-                    ].map((b) {
-                      return SizedBox(
-                        width: (MediaQuery.of(ctx).size.width - 80) / 4,
-                        height: 50,
-                        child: parent.buildButton(
-                          b,
-                          onPressed: () {
-                            parent._handleButtonPressed(b);
-                          },
-                          expanded: false,
-                        ),
-                      );
-                    }).toList(),
+                    children:
+                        [
+                          'MEAN',
+                          'SD',
+                          'VAR',
+                          'SUM',
+                          'MED',
+                          'MODE',
+                          'CV',
+                          'WMEAN',
+                        ].map((b) {
+                          return SizedBox(
+                            width: (MediaQuery.of(ctx).size.width - 80) / 4,
+                            height: 50,
+                            child: parent.buildButton(
+                              b,
+                              onPressed: () {
+                                parent._handleButtonPressed(b);
+                              },
+                              expanded: false,
+                            ),
+                          );
+                        }).toList(),
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: () {
                       if (parent._lastAddedBatch.isEmpty) {
-                      parent.speak(parent._s('Žádná data v poslední dávce.', 'No data in the last batch.'), force: true);
-                    } else {
-                      String valuesStr = parent._lastAddedBatch
-                          .map((r) => r.values
-                              .map((v) => parent._formatNumber(v).replaceAll('.', ','))
-                              .join(';'))
-                          .join(' ');
-                      parent.speak(parent._s(
-                        'Poslední vložená data: $valuesStr',
-                        'Last added data: $valuesStr',
-                      ), force: true);
-                    }
+                        parent.speak(
+                          parent._s(
+                            'Žádná data v poslední dávce.',
+                            'No data in the last batch.',
+                          ),
+                          force: true,
+                        );
+                      } else {
+                        String valuesStr = parent._lastAddedBatch
+                            .map(
+                              (r) => r.values
+                                  .map(
+                                    (v) => parent
+                                        ._formatNumber(v)
+                                        .replaceAll('.', ','),
+                                  )
+                                  .join(';'),
+                            )
+                            .join(' ');
+                        parent.speak(
+                          parent._s(
+                            'Poslední vložená data: $valuesStr',
+                            'Last added data: $valuesStr',
+                          ),
+                          force: true,
+                        );
+                      }
                     },
-                    child: Text(parent._s('Přečíst naposledy vložená data', 'Read last added data')),
+                    child: Text(
+                      parent._s(
+                        'Přečíst naposledy vložená data',
+                        'Read last added data',
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -6534,83 +7067,101 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 children: [
-DropdownButtonFormField<String>(
-                  initialValue: parent._selectedUnitCategory,
-                  decoration: const InputDecoration(labelText: 'Kategorie'),
-                  items: parent._unitCategories.keys
-                      .map(
-                        (cat) =>
-                            DropdownMenuItem(value: cat, child: Text(cat)),
-                      )
-                      .toList(),
-                  onChanged: (val) {
-                    // ignore: invalid_use_of_protected_member
-                    parent.setState(() {
-                      parent._selectedUnitCategory = val!;
-                      parent._unitFrom =
-                          parent._unitCategories[val]!.keys.first;
-                      parent._unitTo = parent._unitCategories[val]!.keys
-                          .elementAt(1);
-                    });
-                    setState(() {});
-                    parent.speak('Kategorie $val');
-                  },
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Semantics(
-                        label: parent._s('Převod z jednotky', 'Convert from unit'),
-                        child: DropdownButtonFormField<String>(
-                          initialValue: parent._unitFrom,
-                          decoration: const InputDecoration(labelText: 'Z'),
-                          items: parent
-                              ._unitCategories[parent._selectedUnitCategory]!
-                              .keys
-                              .map(
-                                (u) => DropdownMenuItem(
-                                  value: u,
-                                  child: Text(parent._getUnitSpeech(u)),
+                  DropdownButtonFormField<String>(
+                    initialValue: parent._selectedUnitCategory,
+                    decoration: InputDecoration(
+                      labelText: parent._s('Kategorie', 'Category'),
+                    ),
+                    items: parent._unitCategories.keys
+                        .map(
+                          (cat) =>
+                              DropdownMenuItem(value: cat, child: Text(cat)),
+                        )
+                        .toList(),
+                    onChanged: (val) {
+                      // ignore: invalid_use_of_protected_member
+                      parent.setState(() {
+                        parent._selectedUnitCategory = val!;
+                        parent._unitFrom =
+                            parent._unitCategories[val]!.keys.first;
+                        parent._unitTo = parent._unitCategories[val]!.keys
+                            .elementAt(1);
+                      });
+                      setState(() {});
+                      parent.speak(
+                        parent._s('Kategorie $val', 'Category $val'),
+                      );
+                    },
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Semantics(
+                          label: parent._s(
+                            'Převod z jednotky',
+                            'Convert from unit',
+                          ),
+                          child: DropdownButtonFormField<String>(
+                            initialValue: parent._unitFrom,
+                            decoration: const InputDecoration(labelText: 'Z'),
+                            items: parent
+                                ._unitCategories[parent._selectedUnitCategory]!
+                                .keys
+                                .map(
+                                  (u) => DropdownMenuItem(
+                                    value: u,
+                                    child: Text(parent._getUnitSpeech(u)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) {
+                              if (val == null) return;
+                              // ignore: invalid_use_of_protected_member
+                              parent.setState(() => parent._unitFrom = val);
+                              parent.speak(
+                                parent._s(
+                                  'Z jednotky ${parent._getUnitSpeech(val)}',
+                                  'From unit ${parent._getUnitSpeech(val)}',
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (val) {
-                            // ignore: invalid_use_of_protected_member
-                            parent.setState(() => parent._unitFrom = val!);
-                            parent.speak(
-                              'Z jednotky ${parent._getUnitSpeech(val!)}',
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                    const Icon(Icons.arrow_forward),
-                    Expanded(
-                      child: Semantics(
-                        label: parent._s('Převod na jednotku', 'Convert to unit'),
-                        child: DropdownButtonFormField<String>(
-                          initialValue: parent._unitTo,
-                          decoration: const InputDecoration(labelText: 'Na'),
-                          items: parent
-                              ._unitCategories[parent._selectedUnitCategory]!
-                              .keys
-                              .map(
-                                (u) => DropdownMenuItem(
-                                  value: u,
-                                  child: Text(parent._getUnitSpeech(u)),
+                      const Icon(Icons.arrow_forward),
+                      Expanded(
+                        child: Semantics(
+                          label: parent._s(
+                            'Převod na jednotku',
+                            'Convert to unit',
+                          ),
+                          child: DropdownButtonFormField<String>(
+                            initialValue: parent._unitTo,
+                            decoration: const InputDecoration(labelText: 'Na'),
+                            items: parent
+                                ._unitCategories[parent._selectedUnitCategory]!
+                                .keys
+                                .map(
+                                  (u) => DropdownMenuItem(
+                                    value: u,
+                                    child: Text(parent._getUnitSpeech(u)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) {
+                              if (val == null) return;
+                              // ignore: invalid_use_of_protected_member
+                              parent.setState(() => parent._unitTo = val);
+                              parent.speak(
+                                parent._s(
+                                  'Na jednotku ${parent._getUnitSpeech(val)}',
+                                  'To unit ${parent._getUnitSpeech(val)}',
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (val) {
-                            // ignore: invalid_use_of_protected_member
-                            parent.setState(() => parent._unitTo = val!);
-                            parent.speak(
-                              'Na jednotku ${parent._getUnitSpeech(val!)}',
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -6619,7 +7170,7 @@ DropdownButtonFormField<String>(
                     child: ElevatedButton.icon(
                       onPressed: parent._convertUnits,
                       icon: const Icon(Icons.sync),
-                      label: const Text('PŘEVÉST'),
+                      label: Text(parent._s('PŘEVÉST', 'CONVERT')),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.all(16),
                       ),
@@ -6644,7 +7195,9 @@ DropdownButtonFormField<String>(
                 alignment: WrapAlignment.center,
                 spacing: 4,
                 runSpacing: 4,
-                children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((b) {
+                children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((
+                  b,
+                ) {
                   return SizedBox(
                     width: (MediaQuery.of(ctx).size.width - 80) / 4,
                     height: 50,
@@ -6702,7 +7255,7 @@ DropdownButtonFormField<String>(
 
     sections.add(
       _CollapsibleSection(
-        title: 'Paměť',
+        title: parent._s('Paměť', 'Memory'),
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -6733,7 +7286,7 @@ DropdownButtonFormField<String>(
                       height: 50,
                       child: parent.buildButton(
                         b,
-                        semanticLabel: 'Proměnná $b',
+                        semanticLabel: parent._s('Proměnná $b', 'Variable $b'),
                         onPressed: () => parent._handleMemoryVariable(b),
                         expanded: false,
                       ),
@@ -6749,7 +7302,7 @@ DropdownButtonFormField<String>(
 
     sections.add(
       _CollapsibleSection(
-        title: 'Zobrazení',
+        title: parent._s('Zobrazení', 'Display'),
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -6763,16 +7316,31 @@ DropdownButtonFormField<String>(
                   height: 50,
                   child: parent.buildButton(
                     'NORM',
-                    semanticLabel: 'Standardní zobrazení',
+                    semanticLabel: parent._s(
+                      'Standardní zobrazení',
+                      'Standard display',
+                    ),
                     onPressed: () {
                       // ignore: invalid_use_of_protected_member
                       parent.setState(
                         () => parent._displayFormat = DisplayFormat.standard,
                       );
-                      parent.speak('Nastaveno standardní zobrazení');
+                      parent.speak(
+                        parent._s(
+                          'Nastaveno standardní zobrazení',
+                          'Standard display set',
+                        ),
+                      );
                       if (parent.mounted) {
                         ScaffoldMessenger.of(ctx).showSnackBar(
-                          const SnackBar(content: Text('Nastaveno standardní zobrazení')),
+                          SnackBar(
+                            content: Text(
+                              parent._s(
+                                'Nastaveno standardní zobrazení',
+                                'Standard display set',
+                              ),
+                            ),
+                          ),
                         );
                       }
                     },
@@ -6784,7 +7352,10 @@ DropdownButtonFormField<String>(
                   height: 50,
                   child: parent.buildButton(
                     'FIX',
-                    semanticLabel: 'Zobrazení s pevným počtem desetinných míst',
+                    semanticLabel: parent._s(
+                      'Zobrazení s pevným počtem desetinných míst',
+                      'Fixed decimal places display',
+                    ),
                     onPressed: () =>
                         parent._showPrecisionDialog(DisplayFormat.fix),
                     expanded: false,
@@ -6795,7 +7366,10 @@ DropdownButtonFormField<String>(
                   height: 50,
                   child: parent.buildButton(
                     'SCI',
-                    semanticLabel: 'Vědecký zápis',
+                    semanticLabel: parent._s(
+                      'Vědecký zápis',
+                      'Scientific notation',
+                    ),
                     onPressed: () =>
                         parent._showPrecisionDialog(DisplayFormat.sci),
                     expanded: false,
@@ -6806,7 +7380,10 @@ DropdownButtonFormField<String>(
                   height: 50,
                   child: parent.buildButton(
                     'ENG',
-                    semanticLabel: 'Inženýrský zápis',
+                    semanticLabel: parent._s(
+                      'Inženýrský zápis',
+                      'Engineering notation',
+                    ),
                     onPressed: () =>
                         parent._showPrecisionDialog(DisplayFormat.eng),
                     expanded: false,
@@ -6824,8 +7401,11 @@ DropdownButtonFormField<String>(
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      semanticLabel: 'Pokročilé funkce',
-      title: Semantics(header: true, child: const Text('Pokročilé funkce')),
+      semanticLabel: parent._s('Pokročilé funkce', 'Advanced functions'),
+      title: Semantics(
+        header: true,
+        child: Text(parent._s('Pokročilé funkce', 'Advanced functions')),
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: ListView(children: _buildSections(context)),
@@ -6838,7 +7418,7 @@ DropdownButtonFormField<String>(
               if (parent.mounted) parent._mainFocusNode.requestFocus();
             });
           },
-          child: const Text('ZAVŘÍT'),
+          child: Text(parent._s('ZAVŘÍT', 'CLOSE')),
         ),
       ],
     );
@@ -8248,12 +8828,7 @@ class _NewsDialogState extends State<_NewsDialog> {
         ),
         const SizedBox(height: 8),
         if (body.isEmpty)
-          Text(
-            widget.parent._s(
-              'Bez popisu novinek.',
-              'No release notes.',
-            ),
-          )
+          Text(widget.parent._s('Bez popisu novinek.', 'No release notes.'))
         else
           Text(body),
         const SizedBox(height: 8),
@@ -8292,77 +8867,66 @@ class _NewsDialogState extends State<_NewsDialog> {
                 child: Center(child: CircularProgressIndicator()),
               )
             : _error != null
-                ? Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Semantics(
-                      label: _error,
-                      child: Text(_error!),
-                    ),
-                  )
-                : SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Semantics(
-                            label: widget.parent._s(
-                              'Přečíst všechny novinky',
-                              'Read all release notes',
-                            ),
-                            child: FilledButton.icon(
-                              onPressed: _readAll,
-                              icon: const Icon(Icons.volume_up),
-                              label: Text(
-                                widget.parent._s(
-                                  'Přečíst vše',
-                                  'Read all',
-                                ),
-                              ),
-                            ),
+            ? Padding(
+                padding: const EdgeInsets.all(16),
+                child: Semantics(label: _error, child: Text(_error!)),
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Přečíst všechny novinky',
+                          'Read all release notes',
+                        ),
+                        child: FilledButton.icon(
+                          onPressed: _readAll,
+                          icon: const Icon(Icons.volume_up),
+                          label: Text(
+                            widget.parent._s('Přečíst vše', 'Read all'),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        if (widget.initialFocusVersion != null) ...[
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              widget.parent._s(
-                                'Co je nového v této verzi',
-                                'What is new in this version',
-                              ),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          _buildReleaseTile(widget.initialFocusVersion!),
-                          const SizedBox(height: 8),
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              widget.parent._s(
-                                'Starší verze',
-                                'Older versions',
-                              ),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                        ..._releases
-                            .where((release) =>
-                                widget.initialFocusVersion == null ||
-                                release.normalizedVersion !=
-                                    widget.initialFocusVersion!.normalizedVersion)
-                            .map(_buildReleaseTile),
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    if (widget.initialFocusVersion != null) ...[
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          widget.parent._s(
+                            'Co je nového v této verzi',
+                            'What is new in this version',
+                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildReleaseTile(widget.initialFocusVersion!),
+                      const SizedBox(height: 8),
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          widget.parent._s('Starší verze', 'Older versions'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    ..._releases
+                        .where(
+                          (release) =>
+                              widget.initialFocusVersion == null ||
+                              release.normalizedVersion !=
+                                  widget.initialFocusVersion!.normalizedVersion,
+                        )
+                        .map(_buildReleaseTile),
+                  ],
+                ),
+              ),
       ),
       actions: [
         TextButton(
@@ -8385,14 +8949,20 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      semanticLabel: 'Nastavení přístupnosti',
-      title: Semantics(header: true, child: const Text('Nastavení přístupnosti')),
+      semanticLabel: widget.parent._l10n.accessibilitySettings,
+      title: Semantics(
+        header: true,
+        child: Text(widget.parent._l10n.accessibilitySettings),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Semantics(
-              label: 'Přepnutí typu displeje',
+              label: widget.parent._s(
+                'Přepnutí typu displeje',
+                'Switch display type',
+              ),
               child: ElevatedButton(
                 onPressed: () {
                   setState(() {
@@ -8404,32 +8974,46 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   });
                   widget.parent.speak(
                     widget.parent._useSixteenSegment
-                        ? 'Zapnut 16-segmentový displej'
-                        : 'Zapnut 7-segmentový displej',
+                        ? widget.parent._l10n.segment16On
+                        : widget.parent._l10n.segment7On,
                   );
                 },
                 child: Text(
-                  'Displej: ${widget.parent._useSixteenSegment ? '16-segmentový' : '7-segmentový'}',
+                  widget.parent._l10n.displayType(
+                    widget.parent._useSixteenSegment
+                        ? widget.parent._s('16-segmentový', '16-segment')
+                        : widget.parent._s('7-segmentový', '7-segment'),
+                  ),
                 ),
               ),
             ),
             const Divider(),
             Semantics(
-              label: 'Přepnutí hlasového výstupu',
+              label: widget.parent._s(
+                'Přepnutí hlasového výstupu',
+                'Switch voice output',
+              ),
               child: ElevatedButton(
                 onPressed: () {
                   setState(() {
                     widget.parent.setState(
-                      () => widget.parent.ttsEnabled = !widget.parent.ttsEnabled,
+                      () =>
+                          widget.parent.ttsEnabled = !widget.parent.ttsEnabled,
                     );
                     widget.parent._saveSettings();
                   });
                   widget.parent.speak(
-                    widget.parent.ttsEnabled ? 'Hlas zapnut' : 'Hlas vypnut',
+                    widget.parent.ttsEnabled
+                        ? widget.parent._l10n.voiceOn
+                        : widget.parent._l10n.voiceOff,
                   );
                 },
                 child: Text(
-                  'Hlasový výstup: ${widget.parent.ttsEnabled ? 'Zapnuto' : 'Vypnuto'}',
+                  widget.parent._l10n.voiceOutput(
+                    widget.parent.ttsEnabled
+                        ? widget.parent._s('Zapnuto', 'On')
+                        : widget.parent._s('Vypnuto', 'Off'),
+                  ),
                 ),
               ),
             ),
@@ -8439,9 +9023,17 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
-                  label: 'Režim čtečky obrazovky',
+                  label: widget.parent._s(
+                    'Režim čtečky obrazovky',
+                    'Screen reader mode',
+                  ),
                   child: ExcludeSemantics(
-                    child: const Text('Režim čtečky obrazovky'),
+                    child: Text(
+                      widget.parent._s(
+                        'Režim čtečky obrazovky',
+                        'Screen reader mode',
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -8450,26 +9042,50 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     ButtonSegment(
                       value: ScreenReaderMode.auto,
                       label: Semantics(
-                        label: 'Automaticky podle čtečky',
-                        child: ExcludeSemantics(child: Text('Auto')),
+                        label: widget.parent._s(
+                          'Automaticky podle čtečky',
+                          'Automatic according to screen reader',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._s('Auto', 'Auto')),
+                        ),
                       ),
-                      tooltip: 'Automaticky podle čtečky',
+                      tooltip: widget.parent._s(
+                        'Automaticky podle čtečky',
+                        'Automatic according to screen reader',
+                      ),
                     ),
                     ButtonSegment(
                       value: ScreenReaderMode.on,
                       label: Semantics(
-                        label: 'Režim čtečky obrazovky zapnut',
-                        child: ExcludeSemantics(child: Text('Zapnuto')),
+                        label: widget.parent._s(
+                          'Režim čtečky obrazovky zapnut',
+                          'Screen reader mode on',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._s('Zapnuto', 'On')),
+                        ),
                       ),
-                      tooltip: 'Režim čtečky obrazovky zapnut',
+                      tooltip: widget.parent._s(
+                        'Režim čtečky obrazovky zapnut',
+                        'Screen reader mode on',
+                      ),
                     ),
                     ButtonSegment(
                       value: ScreenReaderMode.off,
                       label: Semantics(
-                        label: 'Režim čtečky obrazovky vypnut',
-                        child: ExcludeSemantics(child: Text('Vypnuto')),
+                        label: widget.parent._s(
+                          'Režim čtečky obrazovky vypnut',
+                          'Screen reader mode off',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._s('Vypnuto', 'Off')),
+                        ),
                       ),
-                      tooltip: 'Režim čtečky obrazovky vypnut',
+                      tooltip: widget.parent._s(
+                        'Režim čtečky obrazovky vypnut',
+                        'Screen reader mode off',
+                      ),
                     ),
                   ],
                   selected: {widget.parent._screenReaderMode},
@@ -8483,10 +9099,19 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     });
                     widget.parent.speak(
                       mode == ScreenReaderMode.auto
-                          ? 'Režim čtečky: automaticky'
+                          ? widget.parent._s(
+                              'Režim čtečky: automaticky',
+                              'Screen reader mode: automatic',
+                            )
                           : mode == ScreenReaderMode.on
-                              ? 'Režim čtečky obrazovky zapnut'
-                              : 'Režim čtečky obrazovky vypnut',
+                          ? widget.parent._s(
+                              'Režim čtečky obrazovky zapnut',
+                              'Screen reader mode on',
+                            )
+                          : widget.parent._s(
+                              'Režim čtečky obrazovky vypnut',
+                              'Screen reader mode off',
+                            ),
                     );
                   },
                 ),
@@ -8494,59 +9119,71 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
             ),
             const Divider(),
             Semantics(
-              label: 'Nastavení hlasového engine',
+              label: widget.parent._s(
+                'Nastavení hlasového engine',
+                'Voice engine settings',
+              ),
               child: ElevatedButton(
                 onPressed: () {
                   widget.parent._showTtsEngineDialog();
                 },
                 child: Text(
-                  'Engine: ${widget.parent._ttsEngine ?? 'Výchozí'}',
+                  '${widget.parent._s('Engine', 'Engine')}: ${widget.parent._ttsEngine ?? widget.parent._s('Výchozí', 'Default')}',
                 ),
               ),
             ),
             const Divider(),
             Semantics(
-              label: 'Otevřít systémové nastavení TTS',
+              label: widget.parent._s(
+                'Otevřít systémové nastavení TTS',
+                'Open system TTS settings',
+              ),
               child: ElevatedButton(
                 onPressed: () {
                   widget.parent._openTtsSystemSettings();
                 },
-                child: const Text('Nastavení TTS'),
+                child: Text(widget.parent._s('Nastavení TTS', 'TTS settings')),
               ),
             ),
             const Divider(),
             Semantics(
-              label: 'Nastavení hlasu',
+              label: widget.parent._s('Nastavení hlasu', 'Voice settings'),
               child: ElevatedButton(
                 onPressed: () {
                   widget.parent._showTtsVoiceDialog();
                 },
                 child: Text(
-                  'Hlas: ${widget.parent._ttsVoiceName ?? 'Výchozí'}',
+                  '${widget.parent._s('Hlas', 'Voice')}: ${widget.parent._ttsVoiceName ?? widget.parent._s('Výchozí', 'Default')}',
                 ),
               ),
             ),
             const Divider(),
             Semantics(
-              label: 'Přepnutí formátu úhlů',
+              label: widget.parent._s(
+                'Přepnutí formátu úhlů',
+                'Switch angle format',
+              ),
               child: ElevatedButton(
                 onPressed: () {
                   // Pokud je null nebo 1, nastavíme na 0 (DMS). Pokud je 0, nastavíme na 1 (Desetinné).
                   final current = widget.parent._inverseFormatPreference ?? 1;
                   final newFormat = (current == 0) ? 1 : 0;
-                  
+
                   widget.parent._saveInversePreference(newFormat);
-                  
+
                   widget.parent.speak(
                     newFormat == 0
-                        ? 'Formát nastaven na stupně, minuty a sekundy'
-                        : 'Formát nastaven na desetinné stupně',
+                        ? widget.parent._l10n.formatDms
+                        : widget.parent._l10n.formatDecimalDegrees,
                   );
                   // Vynucené překreslení dialogu
                   setState(() {});
                 },
                 child: Text(
-                  'Úhly: ${(widget.parent._inverseFormatPreference == 0) ? 'DMS' : 'Desetinné'}',
+                  widget.parent._s(
+                    'Úhly: ${(widget.parent._inverseFormatPreference == 0) ? 'DMS' : 'Desetinné'}',
+                    'Angles: ${(widget.parent._inverseFormatPreference == 0) ? 'DMS' : 'Decimal'}',
+                  ),
                 ),
               ),
             ),
@@ -8556,9 +9193,14 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
-                  label: 'Výběr motivu aplikace',
+                  label: widget.parent._s(
+                    'Výběr motivu aplikace',
+                    'App theme selection',
+                  ),
                   child: ExcludeSemantics(
-                    child: const Text('Motiv aplikace'),
+                    child: Text(
+                      widget.parent._s('Motiv aplikace', 'App theme'),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -8567,39 +9209,50 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     ButtonSegment(
                       value: ThemeMode.system,
                       label: Semantics(
-                        label: 'Systémový motiv',
-                        child: ExcludeSemantics(child: Text('Systém')),
+                        label: widget.parent._l10n.themeSystemLabel,
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._s('Systém', 'System')),
+                        ),
                       ),
                       icon: Icon(Icons.brightness_auto),
-                      tooltip: 'Systémový motiv',
+                      tooltip: widget.parent._l10n.themeSystemLabel,
                     ),
                     ButtonSegment(
                       value: ThemeMode.light,
                       label: Semantics(
-                        label: 'Světlý motiv',
-                        child: ExcludeSemantics(child: Text('Světlý')),
+                        label: widget.parent._l10n.themeLightLabel,
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._s('Světlý', 'Light')),
+                        ),
                       ),
                       icon: Icon(Icons.light_mode),
-                      tooltip: 'Světlý motiv',
+                      tooltip: widget.parent._l10n.themeLightLabel,
                     ),
                     ButtonSegment(
                       value: ThemeMode.dark,
                       label: Semantics(
-                        label: 'Tmavý motiv',
-                        child: ExcludeSemantics(child: Text('Tmavý')),
+                        label: widget.parent._l10n.themeDarkLabel,
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._s('Tmavý', 'Dark')),
+                        ),
                       ),
                       icon: Icon(Icons.dark_mode),
-                      tooltip: 'Tmavý motiv',
+                      tooltip: widget.parent._l10n.themeDarkLabel,
                     ),
                   ],
                   selected: {widget.parent.widget.themeMode},
                   onSelectionChanged: (Set<ThemeMode> selection) {
                     ThemeMode mode = selection.first;
                     widget.parent.widget.onThemeModeChanged(mode);
-                    String modeName = 'systémový';
-                    if (mode == ThemeMode.light) modeName = 'světlý';
-                    if (mode == ThemeMode.dark) modeName = 'tmavý';
-                    widget.parent.speak('Motiv nastaven na $modeName');
+                    String modeName;
+                    if (mode == ThemeMode.light) {
+                      modeName = widget.parent._l10n.themeLight;
+                    } else if (mode == ThemeMode.dark) {
+                      modeName = widget.parent._l10n.themeDark;
+                    } else {
+                      modeName = widget.parent._l10n.themeSystem;
+                    }
+                    widget.parent.speak(widget.parent._l10n.themeSet(modeName));
                     setState(() {});
                   },
                 ),
@@ -8678,7 +9331,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       value: DialogSize.compact,
                       label: Semantics(
                         label: widget.parent._l10n.dialogSizeCompact,
-                        child: ExcludeSemantics(child: Text(widget.parent._l10n.dialogSizeCompact)),
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._l10n.dialogSizeCompact),
+                        ),
                       ),
                       icon: const Icon(Icons.phone_android),
                       tooltip: widget.parent._l10n.dialogSizeCompact,
@@ -8687,7 +9342,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       value: DialogSize.wide,
                       label: Semantics(
                         label: widget.parent._l10n.dialogSizeWide,
-                        child: ExcludeSemantics(child: Text(widget.parent._l10n.dialogSizeWide)),
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._l10n.dialogSizeWide),
+                        ),
                       ),
                       icon: const Icon(Icons.phone_iphone),
                       tooltip: widget.parent._l10n.dialogSizeWide,
@@ -8696,7 +9353,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       value: DialogSize.fullscreen,
                       label: Semantics(
                         label: widget.parent._l10n.dialogSizeFullscreen,
-                        child: ExcludeSemantics(child: Text(widget.parent._l10n.dialogSizeFullscreen)),
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._l10n.dialogSizeFullscreen),
+                        ),
                       ),
                       icon: const Icon(Icons.fullscreen),
                       tooltip: widget.parent._l10n.dialogSizeFullscreen,
@@ -8730,9 +9389,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
-                  label: 'Ovládání zoomu horního řádku',
+                  label: widget.parent._l10n.zoomUpperControls,
                   child: ExcludeSemantics(
-                    child: const Text('Zoom horního řádku'),
+                    child: Text(widget.parent._l10n.zoomUpper),
                   ),
                 ),
                 Row(
@@ -8740,34 +9399,43 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   children: [
                     Semantics(
                       container: true,
-                      label: 'Zmenšit zoom horního řádku',
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDotMatrixZoom(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
+                      label: widget.parent._s(
+                        'Zmenšit zoom horního řádku',
+                        'Decrease upper line zoom',
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Semantics(
-                          container: true,
-                          label: 'Hodnota zoomu: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
-                          child: ExcludeSemantics(
-                            child: Text(
-                              '${(widget.parent._dotMatrixZoom * 100).toInt()}%',
-                            ),
+                      child: ElevatedButton(
+                        onPressed: () => _adjustDotMatrixZoom(-0.1),
+                        child: ExcludeSemantics(child: const Text('-')),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Semantics(
+                        container: true,
+                        label: widget.parent._s(
+                          'Hodnota zoomu: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
+                          'Zoom value: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            '${(widget.parent._dotMatrixZoom * 100).toInt()}%',
                           ),
                         ),
                       ),
-                      Semantics(
-                        container: true,
-                        label: 'Zvětšit zoom horního řádku',
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDotMatrixZoom(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
+                    ),
+                    Semantics(
+                      container: true,
+                      label: widget.parent._s(
+                        'Zvětšit zoom horního řádku',
+                        'Increase upper line zoom',
                       ),
-                    ],
-                  ),
+                      child: ElevatedButton(
+                        onPressed: () => _adjustDotMatrixZoom(0.1),
+                        child: ExcludeSemantics(child: const Text('+')),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -8775,9 +9443,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
-                  label: 'Ovládání zoomu dolního řádku',
+                  label: widget.parent._l10n.zoomLowerControls,
                   child: ExcludeSemantics(
-                    child: const Text('Zoom dolního řádku'),
+                    child: Text(widget.parent._l10n.zoomLower),
                   ),
                 ),
                 Row(
@@ -8785,34 +9453,43 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   children: [
                     Semantics(
                       container: true,
-                      label: 'Zmenšit zoom dolního řádku',
-                        child: ElevatedButton(
-                          onPressed: () => _adjustResultZoom(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
+                      label: widget.parent._s(
+                        'Zmenšit zoom dolního řádku',
+                        'Decrease lower line zoom',
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Semantics(
-                          container: true,
-                          label: 'Hodnota zoomu: ${(widget.parent._resultZoom * 100).toInt()} %',
-                          child: ExcludeSemantics(
-                            child: Text(
-                              '${(widget.parent._resultZoom * 100).toInt()}%',
-                            ),
+                      child: ElevatedButton(
+                        onPressed: () => _adjustResultZoom(-0.1),
+                        child: ExcludeSemantics(child: const Text('-')),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Semantics(
+                        container: true,
+                        label: widget.parent._s(
+                          'Hodnota zoomu: ${(widget.parent._resultZoom * 100).toInt()} %',
+                          'Zoom value: ${(widget.parent._resultZoom * 100).toInt()} %',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            '${(widget.parent._resultZoom * 100).toInt()}%',
                           ),
                         ),
                       ),
-                      Semantics(
-                        container: true,
-                        label: 'Zvětšit zoom dolního řádku',
-                        child: ElevatedButton(
-                          onPressed: () => _adjustResultZoom(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
+                    ),
+                    Semantics(
+                      container: true,
+                      label: widget.parent._s(
+                        'Zvětšit zoom dolního řádku',
+                        'Increase lower line zoom',
                       ),
-                    ],
-                  ),
+                      child: ElevatedButton(
+                        onPressed: () => _adjustResultZoom(0.1),
+                        child: ExcludeSemantics(child: const Text('+')),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -8820,9 +9497,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
-                  label: 'Ovládání rychlosti hlasu',
+                  label: widget.parent._l10n.speechRateControls,
                   child: ExcludeSemantics(
-                    child: const Text('Rychlost hlasu'),
+                    child: Text(widget.parent._l10n.speechRate),
                   ),
                 ),
                 Row(
@@ -8830,34 +9507,36 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   children: [
                     Semantics(
                       container: true,
-                      label: 'Snížit rychlost',
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechRate(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
+                      label: widget.parent._l10n.decreaseSpeechRate,
+                      child: ElevatedButton(
+                        onPressed: () => _adjustSpeechRate(-0.1),
+                        child: ExcludeSemantics(child: const Text('-')),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Semantics(
-                          container: true,
-                          label: 'Aktuální rychlost: ${(widget.parent._speechRate * 100).toInt()} %',
-                          child: ExcludeSemantics(
-                            child: Text(
-                              '${(widget.parent._speechRate * 100).toInt()}%',
-                            ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Semantics(
+                        container: true,
+                        label: widget.parent._l10n.speechRateValue(
+                          (widget.parent._speechRate * 100).toInt(),
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            '${(widget.parent._speechRate * 100).toInt()}%',
                           ),
                         ),
                       ),
-                      Semantics(
-                        container: true,
-                        label: 'Zvýšit rychlost',
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechRate(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
+                    ),
+                    Semantics(
+                      container: true,
+                      label: widget.parent._l10n.increaseSpeechRate,
+                      child: ElevatedButton(
+                        onPressed: () => _adjustSpeechRate(0.1),
+                        child: ExcludeSemantics(child: const Text('+')),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -8866,9 +9545,12 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
-                  label: 'Ovládání hlasitosti',
+                  label: widget.parent._s(
+                    'Ovládání hlasitosti',
+                    'Volume controls',
+                  ),
                   child: ExcludeSemantics(
-                    child: const Text('Hlasitost'),
+                    child: Text(widget.parent._l10n.volume),
                   ),
                 ),
                 Row(
@@ -8876,34 +9558,37 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   children: [
                     Semantics(
                       container: true,
-                      label: 'Snížit hlasitost',
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechVolume(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
+                      label: widget.parent._l10n.decreaseVolume,
+                      child: ElevatedButton(
+                        onPressed: () => _adjustSpeechVolume(-0.1),
+                        child: ExcludeSemantics(child: const Text('-')),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Semantics(
-                          container: true,
-                          label: 'Aktuální hlasitost: ${(widget.parent._speechVolume * 100).toInt()} %',
-                          child: ExcludeSemantics(
-                            child: Text(
-                              '${(widget.parent._speechVolume * 100).toInt()}%',
-                            ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Semantics(
+                        container: true,
+                        label: widget.parent._s(
+                          'Aktuální hlasitost: ${(widget.parent._speechVolume * 100).toInt()} %',
+                          'Current volume: ${(widget.parent._speechVolume * 100).toInt()} %',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            '${(widget.parent._speechVolume * 100).toInt()}%',
                           ),
                         ),
                       ),
-                      Semantics(
-                        container: true,
-                        label: 'Zvýšit hlasitost',
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechVolume(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
+                    ),
+                    Semantics(
+                      container: true,
+                      label: widget.parent._l10n.increaseVolume,
+                      child: ElevatedButton(
+                        onPressed: () => _adjustSpeechVolume(0.1),
+                        child: ExcludeSemantics(child: const Text('+')),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -8912,9 +9597,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
-                  label: 'Záloha a obnova dat',
+                  label: widget.parent._l10n.dataManagementSection,
                   child: ExcludeSemantics(
-                    child: const Text('Správa dat'),
+                    child: Text(widget.parent._l10n.dataManagementTitle),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -8922,39 +9607,42 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Semantics(
-                      label: 'Zálohovat data',
+                      label: widget.parent._l10n.backupData,
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.backup),
                         onPressed: () {
                           widget.parent._exportBackup();
                           Navigator.pop(context);
                         },
-                        label: const Text('Zálohovat'),
+                        label: Text(widget.parent._l10n.backupData),
                       ),
                     ),
                     const SizedBox(width: 16),
                     Semantics(
-                      label: 'Obnovit data',
+                      label: widget.parent._l10n.restoreData,
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.restore),
                         onPressed: () async {
                           final confirmed = await showDialog<bool>(
                             context: context,
-                            routeSettings: const RouteSettings(name: 'Potvrzení'),
+                            routeSettings: const RouteSettings(
+                              name: 'Potvrzení',
+                            ),
                             builder: (ctx) => AlertDialog(
-                              semanticLabel: 'Potvrzení',
-                              title: const Text('Potvrzení'),
-                              content: Text(
-                                widget.parent._l10n.restoreConfirm,
+                              semanticLabel:
+                                  widget.parent._l10n.confirmationTitle,
+                              title: Text(
+                                widget.parent._l10n.confirmationTitle,
                               ),
+                              content: Text(widget.parent._l10n.restoreConfirm),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('NE'),
+                                  child: Text(widget.parent._l10n.noShort),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('ANO'),
+                                  child: Text(widget.parent._l10n.yesShort),
                                 ),
                               ],
                             ),
@@ -8964,7 +9652,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                             if (context.mounted) Navigator.pop(context);
                           }
                         },
-                        label: const Text('Obnovit'),
+                        label: Text(widget.parent._l10n.restoreData),
                       ),
                     ),
                   ],
@@ -8983,7 +9671,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 widget.parent._mainFocusNode.requestFocus();
             });
           },
-          child: const Text('HOTOVO'),
+          child: Text(widget.parent._l10n.done),
         ),
       ],
     );
@@ -8998,7 +9686,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       widget.parent._saveSettings();
     });
     widget.parent.speak(
-      'Zoom horního řádku ${(widget.parent._dotMatrixZoom * 100).toInt()} procent',
+      widget.parent._l10n.zoomUpperPct(
+        (widget.parent._dotMatrixZoom * 100).toInt(),
+      ),
     );
   }
 
@@ -9013,7 +9703,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       widget.parent._saveSettings();
     });
     widget.parent.speak(
-      'Zoom dolního řádku ${(widget.parent._resultZoom * 100).toInt()} procent',
+      widget.parent._l10n.zoomLowerPct(
+        (widget.parent._resultZoom * 100).toInt(),
+      ),
     );
   }
 
@@ -9029,7 +9721,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       widget.parent._saveSettings();
     });
     widget.parent.speak(
-      'Rychlost ${(widget.parent._speechRate * 100).toInt()} procent',
+      widget.parent._l10n.speechRatePct(
+        (widget.parent._speechRate * 100).toInt(),
+      ),
     );
   }
 
@@ -9043,7 +9737,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       widget.parent._saveSettings();
     });
     widget.parent.speak(
-      'Hlasitost ${(widget.parent._speechVolume * 100).toInt()} procent',
+      widget.parent._l10n.volumePct(
+        (widget.parent._speechVolume * 100).toInt(),
+      ),
     );
   }
 }
