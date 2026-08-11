@@ -357,6 +357,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'h': 3600.0,
       'd': 86400.0,
     },
+    'Napětí': {
+      'V': 1.0,
+      'mV': 0.001,
+      'µV': 0.000001,
+      'kV': 1000.0,
+      'MV': 1000000.0,
+    },
+    'Proud': {
+      'A': 1.0,
+      'mA': 0.001,
+      'µA': 0.000001,
+      'kA': 1000.0,
+    },
+    'Odpor': {
+      'Ω': 1.0,
+      'mΩ': 0.001,
+      'kΩ': 1000.0,
+      'MΩ': 1000000.0,
+    },
+    'Výkon': {
+      'W': 1.0,
+      'mW': 0.001,
+      'kW': 1000.0,
+      'MW': 1000000.0,
+      'GW': 1000000000.0,
+    },
   };
 
   final ScrollController _scrollControllerH = ScrollController();
@@ -591,6 +617,114 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'z': 'dní',
       'na': 'dny',
       'forms': ['den', 'dny', 'dní', 'dne'],
+    },
+    'V': {
+      'base': 'volt',
+      'z': 'voltů',
+      'na': 'volty',
+      'forms': ['volt', 'volty', 'voltů', 'voltu'],
+    },
+    'mV': {
+      'base': 'milivolt',
+      'z': 'milivoltů',
+      'na': 'milivolty',
+      'forms': ['milivolt', 'milivolty', 'milivoltů', 'milivoltu'],
+    },
+    'µV': {
+      'base': 'mikrovolt',
+      'z': 'mikrovoltů',
+      'na': 'mikrovolty',
+      'forms': ['mikrovolt', 'mikrovolty', 'mikrovoltů', 'mikrovoltu'],
+    },
+    'kV': {
+      'base': 'kilovolt',
+      'z': 'kilovoltů',
+      'na': 'kilovolty',
+      'forms': ['kilovolt', 'kilovolty', 'kilovoltů', 'kilovoltu'],
+    },
+    'MV': {
+      'base': 'megavolt',
+      'z': 'megavoltů',
+      'na': 'megavolty',
+      'forms': ['megavolt', 'megavolty', 'megavoltů', 'megavoltu'],
+    },
+    'A': {
+      'base': 'ampér',
+      'z': 'ampérů',
+      'na': 'ampéry',
+      'forms': ['ampér', 'ampéry', 'ampérů', 'ampéru'],
+    },
+    'mA': {
+      'base': 'miliampér',
+      'z': 'miliampérů',
+      'na': 'miliampéry',
+      'forms': ['miliampér', 'miliampéry', 'miliampérů', 'miliampéru'],
+    },
+    'µA': {
+      'base': 'mikroampér',
+      'z': 'mikroampérů',
+      'na': 'mikroampéry',
+      'forms': ['mikroampér', 'mikroampéry', 'mikroampérů', 'mikroampéru'],
+    },
+    'kA': {
+      'base': 'kiloampér',
+      'z': 'kiloampérů',
+      'na': 'kiloampéry',
+      'forms': ['kiloampér', 'kiloampéry', 'kiloampérů', 'kiloampéru'],
+    },
+    'Ω': {
+      'base': 'ohm',
+      'z': 'ohmů',
+      'na': 'ohmy',
+      'forms': ['ohm', 'ohmy', 'ohmů', 'ohmu'],
+    },
+    'mΩ': {
+      'base': 'miliohm',
+      'z': 'miliohmů',
+      'na': 'miliohmy',
+      'forms': ['miliohm', 'miliohmy', 'miliohmů', 'miliohmu'],
+    },
+    'kΩ': {
+      'base': 'kiloohm',
+      'z': 'kiloohmů',
+      'na': 'kiloohmy',
+      'forms': ['kiloohm', 'kiloohmy', 'kiloohmů', 'kiloohmu'],
+    },
+    'MΩ': {
+      'base': 'megaohm',
+      'z': 'megaohmů',
+      'na': 'megaohmy',
+      'forms': ['megaohm', 'megaohmy', 'megaohmů', 'megaohmu'],
+    },
+    'W': {
+      'base': 'watt',
+      'z': 'wattů',
+      'na': 'watty',
+      'forms': ['watt', 'watty', 'wattů', 'wattu'],
+    },
+    'mW': {
+      'base': 'miliwatt',
+      'z': 'miliwattů',
+      'na': 'miliwatty',
+      'forms': ['miliwatt', 'miliwatty', 'miliwattů', 'miliwattu'],
+    },
+    'kW': {
+      'base': 'kilowatt',
+      'z': 'kilowattů',
+      'na': 'kilowatty',
+      'forms': ['kilowatt', 'kilowatty', 'kilowattů', 'kilowattu'],
+    },
+    'MW': {
+      'base': 'megawatt',
+      'z': 'megawattů',
+      'na': 'megawatty',
+      'forms': ['megawatt', 'megawatty', 'megawattů', 'megawattu'],
+    },
+    'GW': {
+      'base': 'gigawatt',
+      'z': 'gigawattů',
+      'na': 'gigawatty',
+      'forms': ['gigawatt', 'gigawatty', 'gigawattů', 'gigawattu'],
     },
   };
 
@@ -6202,9 +6336,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 }
 
-class _AdvancedFunctionsDialog extends StatelessWidget {
+class _AdvancedFunctionsDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
   const _AdvancedFunctionsDialog({required this.parent});
+
+  @override
+  State<_AdvancedFunctionsDialog> createState() =>
+      _AdvancedFunctionsDialogState();
+}
+
+class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
+  late _CalculatorScreenState parent;
+
+  @override
+  void initState() {
+    super.initState();
+    parent = widget.parent;
+  }
 
   List<Widget> _buildSections(BuildContext ctx) {
     List<Widget> sections = [];
@@ -6388,6 +6536,7 @@ DropdownButtonFormField<String>(
                       parent._unitTo = parent._unitCategories[val]!.keys
                           .elementAt(1);
                     });
+                    setState(() {});
                     parent.speak('Kategorie $val');
                   },
                 ),
