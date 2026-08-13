@@ -886,4 +886,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noShort => 'NO';
+
+  @override
+  String get moreOptions => 'More options';
+
+  @override
+  String get news => 'What is new';
 }

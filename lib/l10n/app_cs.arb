@@ -603,5 +603,7 @@
   "dataManagementSection": "Záloha a obnova dat",
   "dataManagementTitle": "Správa dat",
   "yesShort": "ANO",
-  "noShort": "NE"
+  "noShort": "NE",
+  "moreOptions": "Další možnosti",
+  "news": "Novinky"
 }

@@ -1684,6 +1684,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'NO'**
   String get noShort;
+
+  /// No description provided for @moreOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get moreOptions;
+
+  /// No description provided for @news.
+  ///
+  /// In en, this message translates to:
+  /// **'What is new'**
+  String get news;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

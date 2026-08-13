@@ -886,4 +886,10 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get noShort => 'NE';
+
+  @override
+  String get moreOptions => 'Další možnosti';
+
+  @override
+  String get news => 'Novinky';
 }

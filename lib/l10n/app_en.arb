@@ -531,5 +531,7 @@
   "dataManagementSection": "Data backup and restore",
   "dataManagementTitle": "Data management",
   "yesShort": "YES",
-  "noShort": "NO"
+  "noShort": "NO",
+  "moreOptions": "More options",
+  "news": "What is new"
 }

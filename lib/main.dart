@@ -1396,6 +1396,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await _showUpdateDialog(release);
   }
 
+  Future<void> _checkForUpdatesManually() async {
+    if (!mounted) return;
+    final checker = GitHubReleaseChecker();
+    final release = await checker.checkForUpdates(
+      owner: 'Johny45-open',
+      repo: 'Mluvici_kalkulacka',
+      currentVersion: _currentAppVersion,
+    );
+    checker.close();
+    if (!mounted) return;
+    if (release != null) {
+      await _showUpdateDialog(release);
+    } else {
+      speak(_l10n.appIsCurrent);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_l10n.appIsCurrent)));
+    }
+  }
+
   Future<void> _showUpdateDialog(GitHubReleaseInfo release) async {
     setState(() {
       _updateDialogShown = true;
@@ -6701,6 +6721,78 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  void _showMoreOptionsDialog() {
+    final l10n = _l10n;
+    showDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: l10n.moreOptions),
+      builder: (dialogContext) => AlertDialog(
+        semanticLabel: l10n.moreOptions,
+        title: Semantics(header: true, child: Text(l10n.moreOptions)),
+        content: _applyDialogSize(
+          SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildMoreOptionTile(
+                  icon: Icons.help_outline,
+                  label: l10n.helpTooltip,
+                  autofocus: true,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _showTutorialDialog();
+                  },
+                ),
+                _buildMoreOptionTile(
+                  icon: Icons.info_outline,
+                  label: l10n.numberInfo,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _showNumberInfoDialog();
+                  },
+                ),
+                _buildMoreOptionTile(
+                  icon: Icons.campaign,
+                  label: l10n.news,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _showNewsDialog();
+                  },
+                ),
+                _buildMoreOptionTile(
+                  icon: Icons.update,
+                  label: l10n.checkForUpdates,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _checkForUpdatesManually();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoreOptionTile({
+    required IconData icon,
+    required String label,
+    bool autofocus = false,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: ElevatedButton.icon(
+        autofocus: autofocus,
+        onPressed: onTap,
+        icon: Icon(icon),
+        label: Text(label, textAlign: TextAlign.center),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _updateTtsLanguage();
@@ -6724,52 +6816,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               onPressed: _showAdvancedFunctionsDialog,
             ),
             IconButton(
-              icon: const Icon(Icons.help_outline),
-              tooltip: l10n.helpTooltip,
-              onPressed: _showTutorialDialog,
-            ),
-            IconButton(
               icon: Icon(ttsEnabled ? Icons.volume_up : Icons.volume_off),
               tooltip: ttsEnabled ? l10n.muteVoice : l10n.unmuteVoice,
               onPressed: _toggleTts,
             ),
             IconButton(
-              icon: const Icon(Icons.update),
-              tooltip: 'Zkontrolovat aktualizace',
-              onPressed: () async {
-                final checker = GitHubReleaseChecker();
-                final release = await checker.checkForUpdates(
-                  owner: 'Johny45-open',
-                  repo: 'Mluvici_kalkulacka',
-                  currentVersion: _currentAppVersion,
-                );
-                checker.close();
-                if (mounted) {
-                  if (release != null) {
-                    _showUpdateDialog(release);
-                  } else {
-                    speak(_l10n.appIsCurrent);
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(_l10n.appIsCurrent)));
-                  }
-                }
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.campaign),
-              tooltip: _s('Novinky', 'What is new'),
-              onPressed: () => _showNewsDialog(),
-            ),
-            IconButton(
-              icon: const Icon(Icons.info_outline),
-              tooltip: l10n.numberInfo,
-              onPressed: _showNumberInfoDialog,
-            ),
-            IconButton(
               icon: const Icon(Icons.settings),
               tooltip: l10n.accessibility,
               onPressed: _showAccessibilityDialog,
+            ),
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              tooltip: l10n.moreOptions,
+              onPressed: _showMoreOptionsDialog,
             ),
           ],
         ),
