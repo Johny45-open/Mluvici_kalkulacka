@@ -1034,8 +1034,14 @@ abstract class AppLocalizations {
   /// No description provided for @savedToVariable.
   ///
   /// In en, this message translates to:
-  /// **'Saved to variable {name}'**
-  String savedToVariable(String name);
+  /// **'Saved to variable {name}: {value}'**
+  String savedToVariable(String name, String value);
+
+  /// Error announced when the user tries to store an expression that cannot be evaluated into memory.
+  ///
+  /// In en, this message translates to:
+  /// **'The expression cannot be calculated, nothing was saved to memory.'**
+  String get cannotStoreExpression;
 
   /// No description provided for @recalledFromVariable.
   ///

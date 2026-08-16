@@ -513,9 +513,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String savedToVariable(String name) {
-    return 'Saved to variable $name';
+  String savedToVariable(String name, String value) {
+    return 'Saved to variable $name: $value';
   }
+
+  @override
+  String get cannotStoreExpression => 'The expression cannot be calculated, nothing was saved to memory.';
 
   @override
   String recalledFromVariable(String name, String value) {

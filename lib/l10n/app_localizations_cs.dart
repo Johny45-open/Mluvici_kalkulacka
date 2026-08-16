@@ -513,9 +513,12 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String savedToVariable(String name) {
-    return 'Uloženo do proměnné $name';
+  String savedToVariable(String name, String value) {
+    return 'Uloženo do proměnné $name: $value';
   }
+
+  @override
+  String get cannotStoreExpression => 'Výraz nelze vypočítat, do paměti se neuložilo nic.';
 
   @override
   String recalledFromVariable(String name, String value) {

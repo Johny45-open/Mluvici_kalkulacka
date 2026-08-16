@@ -1295,9 +1295,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     WidgetsBinding.instance.addObserver(this);
     _refreshAccessibilityState();
     _initTts();
-    _loadSettings();
-    _loadHistory();
-    _loadStatsData();
     _initAppVersion();
   }
 
@@ -1509,6 +1506,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _initTts() async {
     try {
+      await _loadSettings();
+      await _loadHistory();
+      await _loadStatsData();
       final locale = WidgetsBinding.instance.platformDispatcher.locale;
       final l10n = lookupAppLocalizations(locale);
       _lastTtsLocale = locale.languageCode == 'en' ? 'en-US' : 'cs-CZ';
@@ -1518,9 +1518,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
       if (_sayWelcome) {
-        speak(
-          l10n.welcomeMessage(_getModeSpeechNameForL10n(_currentMode, l10n)),
-        );
+        String welcome =
+            l10n.welcomeMessage(_getModeSpeechNameForL10n(_currentMode, l10n));
+        if (_currentMode == CalculatorMode.statistics) {
+          welcome += _statsModeAnnouncement();
+        }
+        speak(welcome);
       }
     } catch (e) {
       debugPrint('TTS Error: $e');
@@ -1835,20 +1838,41 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _handleMemoryVariable(String name) {
     if (_isStoreMode) {
-      double val = 0;
-      try {
-        val = double.parse(_lastResult.replaceAll(',', '.'));
-      } catch (_) {}
+      double val;
+      if (display.isNotEmpty) {
+        try {
+          val = _evaluateExpression(display);
+        } catch (_) {
+          val = double.nan;
+        }
+        if (!val.isFinite) {
+          setState(() => _isStoreMode = false);
+          speak(_l10n.cannotStoreExpression, force: true);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_l10n.cannotStoreExpression)),
+            );
+          }
+          return;
+        }
+      } else {
+        try {
+          val = double.parse(_lastResult.replaceAll(',', '.'));
+        } catch (_) {
+          val = 0;
+        }
+      }
+      final String valStr = _formatNumber(val).replaceAll('.', ',');
       setState(() {
         _memory[name] = val;
         _isStoreMode = false;
       });
       _saveStatsData();
-      speak(_l10n.savedToVariable(name));
+      speak(_l10n.savedToVariable(name, valStr));
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(_l10n.savedToVariable(name))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_l10n.savedToVariable(name, valStr))),
+        );
       }
     } else if (_isRecallMode) {
       String valStr = _formatNumber(_memory[name]!).replaceAll('.', ',');
@@ -2562,47 +2586,47 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _saveModeUsage();
     _maybeSuggestFavoriteMode();
     String speech = _l10n.switchedToMode(_getModeSpeechName(mode));
-    if (mode == CalculatorMode.statistics) {
-      if (!_hasStatsSet) {
-        speech +=
-            '. ' +
-            _s(
-              'Zatím nemáte vytvořenou žádnou statistickou sadu. Vytvořte ji stisknutím tlačítka SETS.',
-              'You have no statistical sets created yet. Create one by pressing the SETS button.',
-            );
-      } else if (_statsMemory.isEmpty) {
-        final setName = _statsSets[_currentStatsSetIndex].name;
-        speech +=
-            '. ' +
-            _s(
-              'Aktivní sada "$setName" je prázdná. Přidejte data pomocí tlačítka M plus.',
-              'The active set "$setName" is empty. Add data using the M+ button.',
-            );
-      } else {
-        final set = _statsSets[_currentStatsSetIndex];
-        final count = _statsMemory.length;
-        final countForm = _getStatsCountForm(count);
-        final fieldsLabel = set.fieldNames
-            .asMap()
-            .entries
-            .map((e) {
-              final unitCode = e.key < set.fieldUnits.length
-                  ? set.fieldUnits[e.key]
-                  : null;
-              return unitCode != null
-                  ? '${e.value}, ${_getUnitSpeech(unitCode)}'
-                  : e.value;
-            })
-            .join(', ');
-        speech +=
-            '. ' +
-            _s(
-              'Aktivní sada "${set.name}" obsahuje $count $countForm. Pole: $fieldsLabel.',
-              'The active set "${set.name}" contains $count $countForm. Fields: $fieldsLabel.',
-            );
-      }
-    }
+    speech += _statsModeAnnouncement();
     speak(speech);
+  }
+
+  String _statsModeAnnouncement() {
+    if (_currentMode != CalculatorMode.statistics) return '';
+    if (!_hasStatsSet) {
+      return '. ' +
+          _s(
+            'Zatím nemáte vytvořenou žádnou statistickou sadu. Vytvořte ji stisknutím tlačítka SETS.',
+            'You have no statistical sets created yet. Create one by pressing the SETS button.',
+          );
+    } else if (_statsMemory.isEmpty) {
+      final setName = _statsSets[_currentStatsSetIndex].name;
+      return '. ' +
+          _s(
+            'Aktivní sada "$setName" je prázdná. Přidejte data pomocí tlačítka M plus.',
+            'The active set "$setName" is empty. Add data using the M+ button.',
+          );
+    } else {
+      final set = _statsSets[_currentStatsSetIndex];
+      final count = _statsMemory.length;
+      final countForm = _getStatsCountForm(count);
+      final fieldsLabel = set.fieldNames
+          .asMap()
+          .entries
+          .map((e) {
+            final unitCode = e.key < set.fieldUnits.length
+                ? set.fieldUnits[e.key]
+                : null;
+            return unitCode != null
+                ? '${e.value}, ${_getUnitSpeech(unitCode)}'
+                : e.value;
+          })
+          .join(', ');
+      return '. ' +
+          _s(
+            'Aktivní sada "${set.name}" obsahuje $count $countForm. Pole: $fieldsLabel.',
+            'The active set "${set.name}" contains $count $countForm. Fields: $fieldsLabel.',
+          );
+    }
   }
 
   void _cycleMode(int direction) {
@@ -2703,7 +2727,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  void _loadSettings() async {
+  Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _isDegreeMode = prefs.getBool('isDegreeMode') ?? true;
@@ -2841,12 +2865,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     speak(ttsEnabled ? _l10n.voiceOn : _l10n.voiceOff);
   }
 
-  void _loadHistory() async {
+  Future<void> _loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() => _history = prefs.getStringList('history') ?? []);
   }
 
-  void _loadStatsData() async {
+  Future<void> _loadStatsData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       final statsJson = prefs.getString('statsSets');
@@ -7330,7 +7354,7 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
     if (parent._currentMode == CalculatorMode.scientific) {
       sections.add(
         _CollapsibleSection(
-          title: 'Goniometrie',
+          title: parent._l10n.sectionTrigonometry,
           children: [
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -7356,7 +7380,7 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
 
     sections.add(
       _CollapsibleSection(
-        title: 'Funkce',
+        title: parent._l10n.sectionFunctions,
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),

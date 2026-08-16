@@ -309,13 +309,20 @@
       }
     }
   },
-  "savedToVariable": "Uloženo do proměnné {name}",
+  "savedToVariable": "Uloženo do proměnné {name}: {value}",
   "@savedToVariable": {
     "placeholders": {
       "name": {
         "type": "String"
+      },
+      "value": {
+        "type": "String"
       }
     }
+  },
+  "cannotStoreExpression": "Výraz nelze vypočítat, do paměti se neuložilo nic.",
+  "@cannotStoreExpression": {
+    "description": "Error announced when the user tries to store an expression that cannot be evaluated into memory."
   },
   "recalledFromVariable": "Vyvoláno z proměnné {name}: {value}",
   "@recalledFromVariable": {
