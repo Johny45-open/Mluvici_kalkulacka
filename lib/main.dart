@@ -6467,6 +6467,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showHistoryDialog() {
+    final bool historyEmpty = _history.isEmpty;
     showDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Historie výpočtů'),
@@ -6474,7 +6475,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         semanticLabel: _l10n.historyTitle,
         title: Semantics(header: true, child: Text(_l10n.historyTitle)),
         content: _applyDialogSize(
-          _history.isEmpty
+          historyEmpty
               ? Semantics(container: true, child: Text(_l10n.emptyHistory))
               : SizedBox(
                   width: double.maxFinite,
@@ -6534,10 +6535,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showClearHistoryConfirmation();
-            },
+            onPressed: historyEmpty
+                ? null
+                : () {
+                    Navigator.pop(context);
+                    _showClearHistoryConfirmation();
+                  },
             child: Text(_l10n.clearHistory),
           ),
           TextButton(
@@ -6552,6 +6555,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ],
       ),
     );
+    if (historyEmpty) speak(_l10n.emptyHistory);
   }
 
   void _showClearHistoryConfirmation() {
@@ -8828,6 +8832,8 @@ class _CustomDotMatrixPainter extends CustomPainter {
     '/': [0x10, 0x08, 0x04, 0x02, 0x01],
     '%': [0x19, 0x05, 0x02, 0x14, 0x13],
     '^': [0x02, 0x01, 0x02, 0x00, 0x00],
+    '\u00B2': [0x01, 0x05, 0x05, 0x05, 0x03],
+    '\u00B3': [0x01, 0x05, 0x05, 0x05, 0x07],
     '√': [0x02, 0x04, 0x08, 0x10, 0x1E],
     '∛': [0x22, 0x24, 0x28, 0x30, 0x2E],
     'ⁿ': [0x00, 0x03, 0x01, 0x03, 0x00],
