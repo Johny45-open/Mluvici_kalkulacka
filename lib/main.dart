@@ -269,6 +269,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Map<String, String>? _ttsVoice;
   String? _ttsVoiceName;
   int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
+  bool _scientificFunctionsPage = false;
 
   DialogSize _dialogSize = DialogSize.compact;
   DisplayFormat _displayFormat = DisplayFormat.standard;
@@ -2590,6 +2591,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() {
       _currentMode = mode;
       display = '';
+      _scientificFunctionsPage = false;
     });
     _modeUsageCounts[mode.index]++;
     _totalModeSwitches++;
@@ -4426,30 +4428,59 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ];
         break;
       case CalculatorMode.scientific:
-        btns = [
-          'C',
-          '(',
-          ')',
-          '/',
-          '7',
-          '8',
-          '9',
-          '*',
-          '4',
-          '5',
-          '6',
-          '-',
-          '1',
-          '2',
-          '3',
-          '+',
-          '0',
-          '.',
-          'EXP',
-          '%',
-          'DEL',
-          '=',
-        ];
+        if (_scientificFunctionsPage) {
+          btns = [
+            'SIN',
+            'COS',
+            'TAN',
+            'ASIN',
+            'ACOS',
+            'ATAN',
+            '√',
+            '∛',
+            'ⁿ√',
+            '!',
+            'LOG',
+            'LN',
+            'x²',
+            'x³',
+            '^',
+            '\u03C0',
+            'DMS',
+            '°→\'',
+            '\'→°',
+            'ABS',
+            'ANS',
+            'C',
+            'DEL',
+            '=',
+          ];
+        } else {
+          btns = [
+            'C',
+            '(',
+            ')',
+            '/',
+            '7',
+            '8',
+            '9',
+            '*',
+            '4',
+            '5',
+            '6',
+            '-',
+            '1',
+            '2',
+            '3',
+            '+',
+            '0',
+            '.',
+            'EXP',
+            '%',
+            'DEL',
+            '=',
+          ];
+        }
         break;
       case CalculatorMode.statistics:
         btns = [
@@ -4535,60 +4566,101 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       padding: const EdgeInsets.all(2),
       child: FocusTraversalGroup(
         child: Column(
-          children: rows.map((row) {
-            return Expanded(
-              child: FocusTraversalGroup(
-                child: Row(
-                  children: row.map((b) {
-                    Color? color;
-                    if (['/', '*', '-', '+'].contains(b)) {
-                      color = Colors.blue;
-                    } else if (b == 'C') {
-                      color = Colors.orange;
-                    } else if (b == 'DEL') {
-                      color = Colors.redAccent;
-                    } else if (b == '=') {
-                      color = Colors.green;
-                    } else if ([
-                      'M+',
-                      'MC',
-                      'MR',
-                      'STATS',
-                      'SETS',
-                    ].contains(b)) {
-                      color = Colors.deepPurple;
-                    } else if (_electricianCalculationFromButton(b) != null) {
-                      color = _isSelectedElectricianButton(b)
-                          ? Colors.green
-                          : Colors.teal;
-                    } else if (b == ';') {
-                      color = Colors.deepPurple;
-                    }
-                    return buildButton(
-                      b,
-                      color: color,
-                      semanticLabel: _getElectricianButtonSemanticLabel(b),
-                      onPressed: () {
-                        if (b == 'M+' &&
-                            _currentMode == CalculatorMode.statistics) {
-                          _addSingleValueToStats();
-                        } else {
-                          _handleButtonPressed(b);
-                        }
-                      },
-                      onLongPressed:
-                          (b == 'M+' &&
-                              _currentMode == CalculatorMode.statistics)
-                          ? _handleMultipleStatisticsAddition
-                          : null,
-                    );
-                  }).toList(),
+          children: [
+            if (_currentMode == CalculatorMode.scientific)
+              _buildScientificPageToggle(),
+            ...rows.map((row) {
+              return Expanded(
+                child: FocusTraversalGroup(
+                  child: Row(
+                    children: row.map((b) {
+                      Color? color;
+                      if (['/', '*', '-', '+'].contains(b)) {
+                        color = Colors.blue;
+                      } else if (b == 'C') {
+                        color = Colors.orange;
+                      } else if (b == 'DEL') {
+                        color = Colors.redAccent;
+                      } else if (b == '=') {
+                        color = Colors.green;
+                      } else if ([
+                        'M+',
+                        'MC',
+                        'MR',
+                        'STATS',
+                        'SETS',
+                      ].contains(b)) {
+                        color = Colors.deepPurple;
+                      } else if (_electricianCalculationFromButton(b) != null) {
+                        color = _isSelectedElectricianButton(b)
+                            ? Colors.green
+                            : Colors.teal;
+                      } else if (b == ';') {
+                        color = Colors.deepPurple;
+                      }
+                      return buildButton(
+                        b,
+                        color: color,
+                        semanticLabel: _getElectricianButtonSemanticLabel(b),
+                        onPressed: () {
+                          if (b == 'M+' &&
+                              _currentMode == CalculatorMode.statistics) {
+                            _addSingleValueToStats();
+                          } else {
+                            _handleButtonPressed(b);
+                          }
+                        },
+                        onLongPressed:
+                            (b == 'M+' &&
+                                _currentMode == CalculatorMode.statistics)
+                            ? _handleMultipleStatisticsAddition
+                            : null,
+                      );
+                    }).toList(),
+                  ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildScientificPageToggle() {
+    final isFunctions = _scientificFunctionsPage;
+    final label = isFunctions ? 'ČÍSLA' : 'FUNKCE';
+    final semanticLabel = isFunctions
+        ? _s(
+            'Přepnout na číselnou klávesnici',
+            'Switch to numeric keyboard',
+          )
+        : _s(
+            'Přepnout na klávesnici funkcí',
+            'Switch to functions keyboard',
+          );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      child: SizedBox(
+        height: 44,
+        width: double.infinity,
+        child: buildButton(
+          label,
+          semanticLabel: semanticLabel,
+          color: Colors.deepPurple,
+          onPressed: _toggleScientificFunctionsPage,
+          expanded: false,
+        ),
+      ),
+    );
+  }
+
+  void _toggleScientificFunctionsPage() {
+    setState(() => _scientificFunctionsPage = !_scientificFunctionsPage);
+    speak(
+      _scientificFunctionsPage
+          ? _s('Funkce', 'Functions')
+          : _s('Čísla', 'Numbers'),
     );
   }
 
