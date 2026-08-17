@@ -54,7 +54,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get understand => 'UNDERSTAND';
 
   @override
-  String get tutorialText => 'This calculator supports scientific calculations, statistics, electrical formulas, and unit conversions. \n\nKeyboard shortcuts:\nS - Sine (Shift+S for Arcsine)\nC - Cosine (Shift+C for Arccosine)\nT - Tangent (Shift+T for Arctangent)\nP - Pi\nQ - Square root\nEnter - Result';
+  String get tutorialText => 'This calculator supports scientific calculations, statistics, electrical formulas, and unit conversions. \n\nKeyboard shortcuts:\nS - Sine (Shift+S for Arcsine)\nC - Cosine (Shift+C for Arccosine)\nT - Tangent (Shift+T for Arctangent)\nP - Pi\nQ - Square root\nEnter - Result\nCtrl+PageDown/PageUp - Switch between functions and numbers page in scientific mode';
 
   @override
   String get accessibilitySettings => 'Accessibility Settings';

@@ -188,7 +188,7 @@ abstract class AppLocalizations {
   /// No description provided for @tutorialText.
   ///
   /// In en, this message translates to:
-  /// **'This calculator supports scientific calculations, statistics, electrical formulas, and unit conversions. \n\nKeyboard shortcuts:\nS - Sine (Shift+S for Arcsine)\nC - Cosine (Shift+C for Arccosine)\nT - Tangent (Shift+T for Arctangent)\nP - Pi\nQ - Square root\nEnter - Result'**
+  /// **'This calculator supports scientific calculations, statistics, electrical formulas, and unit conversions. \n\nKeyboard shortcuts:\nS - Sine (Shift+S for Arcsine)\nC - Cosine (Shift+C for Arccosine)\nT - Tangent (Shift+T for Arctangent)\nP - Pi\nQ - Square root\nEnter - Result\nCtrl+PageDown/PageUp - Switch between functions and numbers page in scientific mode'**
   String get tutorialText;
 
   /// No description provided for @accessibilitySettings.

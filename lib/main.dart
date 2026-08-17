@@ -270,6 +270,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? _ttsVoiceName;
   int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
   bool _scientificFunctionsPage = false;
+  String? _scientificPageAnnouncement;
 
   DialogSize _dialogSize = DialogSize.compact;
   DisplayFormat _displayFormat = DisplayFormat.standard;
@@ -1799,6 +1800,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         } else {
           _cycleMode(1);
         }
+      } else if (isControl &&
+          (event.logicalKey == LogicalKeyboardKey.pageDown ||
+              event.logicalKey == LogicalKeyboardKey.pageUp)) {
+        if (_currentMode == CalculatorMode.scientific) {
+          _toggleScientificFunctionsPage();
+        }
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
         if (RegExp(r'''[0-9.+\-*/^%()eE°'"a-zA-Z]''').hasMatch(toAppend)) {
@@ -2592,6 +2599,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _currentMode = mode;
       display = '';
       _scientificFunctionsPage = false;
+      _scientificPageAnnouncement = null;
     });
     _modeUsageCounts[mode.index]++;
     _totalModeSwitches++;
@@ -4567,8 +4575,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       child: FocusTraversalGroup(
         child: Column(
           children: [
-            if (_currentMode == CalculatorMode.scientific)
+            if (_currentMode == CalculatorMode.scientific) ...[
               _buildScientificPageToggle(),
+              Semantics(
+                liveRegion: true,
+                label: _scientificPageAnnouncement ?? '',
+                excludeSemantics: true,
+                child: const SizedBox(width: 1, height: 1),
+              ),
+            ],
             ...rows.map((row) {
               return Expanded(
                 child: FocusTraversalGroup(
@@ -4656,7 +4671,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _toggleScientificFunctionsPage() {
-    setState(() => _scientificFunctionsPage = !_scientificFunctionsPage);
+    setState(() {
+      _scientificFunctionsPage = !_scientificFunctionsPage;
+      _scientificPageAnnouncement = _scientificFunctionsPage
+          ? _s('Stránka funkcí', 'Functions page')
+          : _s('Číselná stránka', 'Numbers page');
+    });
     speak(
       _scientificFunctionsPage
           ? _s('Funkce', 'Functions')
