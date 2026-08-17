@@ -206,6 +206,12 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsN => 'Počet hodnot';
 
   @override
+  String get statsMin => 'Minimum';
+
+  @override
+  String get statsMax => 'Maximum';
+
+  @override
   String get statsMean => 'Průměr';
 
   @override
@@ -303,7 +309,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsHelpButton => 'Nápověda k ovládání';
 
   @override
-  String get statsHelpText => '=== NÁPOVĚDA KE STATISTICE ===\n\nTLAČÍTKA NA KLÁVESNICI:\n\nSETS – Správa statistických sad. Umožňuje vytvořit novou sadu, přejmenovat ji, smazat nebo přepínat mezi sadami.\n\nM+ (krátké stisknutí) – Přidá zadanou hodnotu (nebo více hodnot oddělených středníkem) do aktivní sady.\n\nM+ (dlouhé stisknutí) – Přidá hodnoty a umožní zadat počet opakování pro hromadné vložení stejných dat.\n\nMC – Smaže všechna data v aktivní sadě.\n\nMR – Zobrazí všechna uložená data v editovatelném seznamu.\n\nSTATS – Zobrazí statistický souhrn pro vybrané pole: průměr, součet, rozptyl, směrodatnou odchylku, medián, modus a variační koeficient.\n\n; (středník) – Oddělovač hodnot při zadávání více hodnot najednou (např. 5;10;15).\n\nPOKROČILÉ FUNKCE (dostupné z tlačítka se seznamem v horní liště):\n\nMEAN – Aritmetický průměr všech hodnot.\nSD – Směrodatná odchylka (míra rozptylu hodnot kolem průměru).\nVAR – Rozptyl (průměrná čtvercová odchylka od průměru).\nSUM – Součet všech hodnot.\nMED – Medián (prostřední hodnota seřazených dat).\nMODE – Modus (nejčastější hodnota).\nCV – Variační koeficient (SD v procentech průměru).\nWMEAN – Vážený průměr (vyžaduje 2 pole: hodnoty a váhy).\n\nPOLÍ V SADĚ:\n\nKaždá sada může mít více polí (např. \"Hodnota\" a \"Váha\"). Při vytváření sady (SETS → Vytvořit novou sadu) přidáš další pole tlačítkem \"Přidat pole\". Poté můžeš přepínat, pro které pole se statistiky počítají – buď v dialogu STATS, nebo v Pokročilých funkcích.\n\nVÁŽENÝ PRŮMĚR (WMEAN):\n\nVyžaduje sadu s alespoň 2 poli. Pole 0 = hodnoty, pole 1 = váhy. Postup: 1) Vytvoř sadu se 2 poli (např. \"Hodnota\" a \"Váha\"). 2) Zadávej hodnoty a váhy oddělené středníkem, např. \"80;2\" (hodnota 80 s váhou 2). 3) Po zadání všech dat klepni v Pokročilých funkcích na WMEAN. 4) Aplikace vypočte: (hodnota1 × váha1 + hodnota2 × váha2 + ...) / (váha1 + váha2 + ...).\n\nTIPY:\n- Lze vytvářet více sad pro různé skupiny dat.\n- Každá sada může mít více polí (např. hodnoty, váhy).\n- Nová sada se vytvoří automaticky při prvním vložení dat.\n- Data se automaticky ukládají do paměti telefonu.';
+  String get statsHelpText => '=== NÁPOVĚDA KE STATISTICE ===\n\nTLAČÍTKA NA KLÁVESNICI:\n\nSETS – Správa statistických sad. Umožňuje vytvořit novou sadu, přejmenovat ji, smazat nebo přepínat mezi sadami.\n\nM+ (krátké stisknutí) – Přidá zadanou hodnotu (nebo více hodnot oddělených středníkem) do aktivní sady.\n\nM+ (dlouhé stisknutí) – Přidá hodnoty a umožní zadat počet opakování pro hromadné vložení stejných dat.\n\nMC – Smaže všechna data v aktivní sadě.\n\nMR – Zobrazí všechna uložená data v editovatelném seznamu.\n\nSTATS – Zobrazí statistický souhrn pro vybrané pole: průměr, součet, rozptyl, směrodatnou odchylku, medián, modus a variační koeficient.\n\n; (středník) – Oddělovač hodnot při zadávání více hodnot najednou (např. 5;10;15).\n\nPOKROČILÉ FUNKCE (dostupné z tlačítka se seznamem v horní liště):\n\nMEAN – Aritmetický průměr všech hodnot.\nSD – Směrodatná odchylka (míra rozptylu hodnot kolem průměru).\nVAR – Rozptyl (průměrná čtvercová odchylka od průměru).\nSUM – Součet všech hodnot.\nMED – Medián (prostřední hodnota seřazených dat).\nMODE – Modus (nejčastější hodnota).\nMIN – Minimální hodnota všech hodnot.\nMAX – Maximální hodnota všech hodnot.\nCV – Variační koeficient (SD v procentech průměru).\nWMEAN – Vážený průměr (vyžaduje 2 pole: hodnoty a váhy).\n\nPOLÍ V SADĚ:\n\nKaždá sada může mít více polí (např. \"Hodnota\" a \"Váha\"). Při vytváření sady (SETS → Vytvořit novou sadu) přidáš další pole tlačítkem \"Přidat pole\". Poté můžeš přepínat, pro které pole se statistiky počítají – buď v dialogu STATS, nebo v Pokročilých funkcích.\n\nVÁŽENÝ PRŮMĚR (WMEAN):\n\nVyžaduje sadu s alespoň 2 poli. Pole 0 = hodnoty, pole 1 = váhy. Postup: 1) Vytvoř sadu se 2 poli (např. \"Hodnota\" a \"Váha\"). 2) Zadávej hodnoty a váhy oddělené středníkem, např. \"80;2\" (hodnota 80 s váhou 2). 3) Po zadání všech dat klepni v Pokročilých funkcích na WMEAN. 4) Aplikace vypočte: (hodnota1 × váha1 + hodnota2 × váha2 + ...) / (váha1 + váha2 + ...).\n\nTIPY:\n- Lze vytvářet více sad pro různé skupiny dat.\n- Každá sada může mít více polí (např. hodnoty, váhy).\n- Nová sada se vytvoří automaticky při prvním vložení dat.\n- Data se automaticky ukládají do paměti telefonu.';
 
   @override
   String get statsHelpKeyboardSection => 'Tlačítka na klávesnici';
@@ -355,6 +361,12 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get statsHelpAdvancedMode => 'MODE – Modus (nejčastější hodnota).';
+
+  @override
+  String get statsHelpAdvancedMin => 'MIN – Minimální hodnota všech hodnot.';
+
+  @override
+  String get statsHelpAdvancedMax => 'MAX – Maximální hodnota všech hodnot.';
 
   @override
   String get statsHelpAdvancedCv => 'CV – Variační koeficient (SD v procentech průměru).';

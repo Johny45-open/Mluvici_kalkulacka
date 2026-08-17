@@ -124,6 +124,8 @@ class _StatisticsSnapshot {
   final double variance;
   final double sd;
   final double median;
+  final double min;
+  final double max;
   final List<double> modes;
   final int modeOccurrenceCount;
   final bool modeExists;
@@ -137,6 +139,8 @@ class _StatisticsSnapshot {
     required this.variance,
     required this.sd,
     required this.median,
+    required this.min,
+    required this.max,
     required this.modes,
     required this.modeOccurrenceCount,
     required this.modeExists,
@@ -833,6 +837,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     'MODE': ['Modus', 'Mode'],
     'CV': ['Variační koeficient', 'Coefficient of variation'],
     'WMEAN': ['Vážený průměr', 'Weighted mean'],
+    'MIN': ['Minimum', 'Minimum'],
+    'MAX': ['Maximum', 'Maximum'],
     'SETS': ['Správa sad', 'Manage sets'],
     'PCT': ['Kolik procent', 'What percent'],
     'SUM': ['Součet hodnot', 'Sum of values'],
@@ -989,6 +995,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final median = sorted.length % 2 == 1
         ? sorted[middle]
         : (sorted[middle - 1] + sorted[middle]) / 2;
+    final min = sorted.first;
+    final max = sorted.last;
 
     final counts = <double, int>{};
     for (final x in data) {
@@ -1027,6 +1035,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       variance: variance,
       sd: sd,
       median: median,
+      min: min,
+      max: max,
       modes: modes,
       modeOccurrenceCount: maxCount,
       modeExists: modeExists,
@@ -2852,9 +2862,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _saveInversePreference(int val) async {
+    setState(() => _inverseFormatPreference = val);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('inverseFormatPreference', val);
-    setState(() => _inverseFormatPreference = val);
   }
 
   void _toggleTts() {
@@ -3470,6 +3480,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     l10n.statsHelpAdvancedSum,
                     l10n.statsHelpAdvancedMed,
                     l10n.statsHelpAdvancedMode,
+                    l10n.statsHelpAdvancedMin,
+                    l10n.statsHelpAdvancedMax,
                     l10n.statsHelpAdvancedCv,
                     l10n.statsHelpAdvancedWmean,
                   ]),
@@ -3988,6 +4000,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'CV',
       'SUM',
       'WMEAN',
+      'MIN',
+      'MAX',
     ].contains(label)) {
       if (_currentMode == CalculatorMode.statistics) {
         try {
@@ -4139,6 +4153,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 'Coefficient of variation${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.cv!)} percent',
               );
             }
+          } else if (label == 'MIN') {
+            resStr = _formatNumber(snapshot.min);
+            spoken = _s(
+              'Minimální hodnota${fieldLabelSpoken} je ${_formatSpokenNumber(snapshot.min)}',
+              'Minimum${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.min)}',
+            );
+          } else if (label == 'MAX') {
+            resStr = _formatNumber(snapshot.max);
+            spoken = _s(
+              'Maximální hodnota${fieldLabelSpoken} je ${_formatSpokenNumber(snapshot.max)}',
+              'Maximum${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.max)}',
+            );
           }
 
           setState(() {
@@ -4806,10 +4832,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             final totalCount = _statsMemory.length;
             final totalCountForm = _getStatsCountForm(totalCount);
             final records = List<StatisticsRecord>.from(_statsMemory);
-            final groups = _groupStatsRecords(records);
             final freqFieldIndex = _selectedFieldIndex < fieldNames.length
                 ? _selectedFieldIndex
                 : 0;
+            final groups = _groupStatsRecords(records);
+            if (groups.length > 1) {
+              groups.sort((a, b) => records[a.first]
+                  .values[freqFieldIndex]
+                  .compareTo(records[b.first].values[freqFieldIndex]));
+            }
             final freqSnapshot = records.isNotEmpty
                 ? _computeStatisticsSnapshot(freqFieldIndex)
                 : null;
@@ -4839,13 +4870,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           final u = unitCode != null
                               ? ' ${_getUnitSpeech(unitCode, value: r.values[fe.key])}'
                               : '';
-                          final countPart = g.length > 1
-                              ? _s(
-                                  ' ${g.length} ${_getStatsCountForm(g.length)}',
-                                  ' ${g.length} ${_getStatsCountForm(g.length)}',
-                                )
-                              : '';
-                          return '$v$u$countPart';
+                          return '$v$u';
                         })
                         .join(_s('; ', '; '));
                     return '${fe.value}: $vals';
@@ -5169,7 +5194,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ? _statsSets[_currentStatsSetIndex].fieldUnits[fieldIndex]
         : null;
     final rawValues = _getFieldValues(fieldIndex);
-    final allValuesSpoken = rawValues
+    final sortedValues = List<double>.from(rawValues)..sort();
+    final allValuesSpoken = sortedValues
         .map((v) {
           final numStr = _formatSpokenNumber(v);
           final unitStr = fieldUnit != null
@@ -5200,6 +5226,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
           'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
           'Medián: ${_formatSpokenNumber(snapshot.median)}. '
+          'Minimum: ${_formatSpokenNumber(snapshot.min)}. '
+          'Maximum: ${_formatSpokenNumber(snapshot.max)}. '
           'Modus: $modeSpoken. '
           'Variační koeficient: $cvSpoken.',
       'Statistics summary for set $currentSetName, field $selectedFieldName. '
@@ -5210,6 +5238,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
           'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
           'Median: ${_formatSpokenNumber(snapshot.median)}. '
+          'Minimum: ${_formatSpokenNumber(snapshot.min)}. '
+          'Maximum: ${_formatSpokenNumber(snapshot.max)}. '
           'Mode: $modeSpoken. '
           'Coefficient of variation: $cvSpoken.',
     );
@@ -5257,7 +5287,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       .fieldUnits[_selectedFieldIndex]
                 : null;
             final rawValues = _getFieldValues(_selectedFieldIndex);
-            final allValues = rawValues
+            final sortedValues = List<double>.from(rawValues)..sort();
+            final allValues = sortedValues
                 .map((v) {
                   final numStr = _formatNumber(v);
                   final unitStr = fieldUnit != null
@@ -5266,7 +5297,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   return '$numStr$unitStr';
                 })
                 .join(_isEnglish() ? ', ' : '; ');
-            final allValuesSpoken = rawValues
+            final allValuesSpoken = sortedValues
                 .map((v) {
                   final numStr = _formatSpokenNumber(v);
                   final unitStr = fieldUnit != null
@@ -5291,6 +5322,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
             final statRows = <MapEntry<String, String>>[
               MapEntry(l10n.statsN, dataCount.toString()),
+              MapEntry(l10n.statsMin, _formatNumber(snapshot.min)),
+              MapEntry(l10n.statsMax, _formatNumber(snapshot.max)),
               MapEntry(l10n.statsMean, _formatNumber(snapshot.mean)),
               if (snapshot.wmean != null)
                 MapEntry(l10n.statsWeightedMean, wmeanText!),
@@ -7158,6 +7191,8 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                           'MODE',
                           'CV',
                           'WMEAN',
+                          'MIN',
+                          'MAX',
                         ].map((b) {
                           return SizedBox(
                             width: (MediaQuery.of(ctx).size.width - 80) / 4,

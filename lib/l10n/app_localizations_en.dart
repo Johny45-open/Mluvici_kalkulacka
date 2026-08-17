@@ -206,6 +206,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsN => 'N';
 
   @override
+  String get statsMin => 'Minimum';
+
+  @override
+  String get statsMax => 'Maximum';
+
+  @override
   String get statsMean => 'Mean';
 
   @override
@@ -303,7 +309,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsHelpButton => 'Help with controls';
 
   @override
-  String get statsHelpText => '=== STATISTICS HELP ===\n\nKEYBOARD BUTTONS:\n\nSETS – Manage statistics sets. Create, rename, delete or switch between sets.\n\nM+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set.\n\nM+ (long press) – Add values and specify a repeat count for bulk insertion.\n\nMC – Clear all data in the active set.\n\nMR – Show all stored data in an editable list.\n\nSTATS – Show the statistics summary for the selected field: mean, sum, variance, standard deviation, median, mode and coefficient of variation.\n\n; (semicolon) – Separator for multiple values (e.g. 5;10;15).\n\nADVANCED FUNCTIONS (available from the list button in the top bar):\n\nMEAN – Arithmetic mean of all values.\nSD – Standard deviation (measure of dispersion around the mean).\nVAR – Variance (average squared deviation from the mean).\nSUM – Sum of all values.\nMED – Median (middle value of sorted data).\nMODE – Mode (most frequent value).\nCV – Coefficient of variation (SD as percentage of the mean).\nWMEAN – Weighted mean (requires 2 fields: values and weights).\n\nFIELDS IN A SET:\n\nEach set can have multiple fields (e.g. \"Value\" and \"Weight\"). When creating a set (SETS → Create new set) you can add fields using the \"Add field\" button. You can then switch which field statistics are calculated for – either in the STATS dialog or in Advanced Functions.\n\nWEIGHTED MEAN (WMEAN):\n\nRequires a set with at least 2 fields. Field 0 = values, field 1 = weights. Steps: 1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\"). 2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2). 3) After entering all data, tap WMEAN in Advanced Functions. 4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).\n\nTIPS:\n- Create multiple sets for different data groups.\n- Each set can have multiple fields (e.g. values, weights).\n- A new set is created automatically on first data entry.\n- Data is saved automatically to the device memory.';
+  String get statsHelpText => '=== STATISTICS HELP ===\n\nKEYBOARD BUTTONS:\n\nSETS – Manage statistics sets. Create, rename, delete or switch between sets.\n\nM+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set.\n\nM+ (long press) – Add values and specify a repeat count for bulk insertion.\n\nMC – Clear all data in the active set.\n\nMR – Show all stored data in an editable list.\n\nSTATS – Show the statistics summary for the selected field: mean, sum, variance, standard deviation, median, mode and coefficient of variation.\n\n; (semicolon) – Separator for multiple values (e.g. 5;10;15).\n\nADVANCED FUNCTIONS (available from the list button in the top bar):\n\nMEAN – Arithmetic mean of all values.\nSD – Standard deviation (measure of dispersion around the mean).\nVAR – Variance (average squared deviation from the mean).\nSUM – Sum of all values.\nMED – Median (middle value of sorted data).\nMODE – Mode (most frequent value).\nMIN – Minimum of all values.\nMAX – Maximum of all values.\nCV – Coefficient of variation (SD as percentage of the mean).\nWMEAN – Weighted mean (requires 2 fields: values and weights).\n\nFIELDS IN A SET:\n\nEach set can have multiple fields (e.g. \"Value\" and \"Weight\"). When creating a set (SETS → Create new set) you can add fields using the \"Add field\" button. You can then switch which field statistics are calculated for – either in the STATS dialog or in Advanced Functions.\n\nWEIGHTED MEAN (WMEAN):\n\nRequires a set with at least 2 fields. Field 0 = values, field 1 = weights. Steps: 1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\"). 2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2). 3) After entering all data, tap WMEAN in Advanced Functions. 4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).\n\nTIPS:\n- Create multiple sets for different data groups.\n- Each set can have multiple fields (e.g. values, weights).\n- A new set is created automatically on first data entry.\n- Data is saved automatically to the device memory.';
 
   @override
   String get statsHelpKeyboardSection => 'Keyboard buttons';
@@ -355,6 +361,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statsHelpAdvancedMode => 'MODE – Mode (most frequent value).';
+
+  @override
+  String get statsHelpAdvancedMin => 'MIN – Minimum of all values.';
+
+  @override
+  String get statsHelpAdvancedMax => 'MAX – Maximum of all values.';
 
   @override
   String get statsHelpAdvancedCv => 'CV – Coefficient of variation (SD as percentage of the mean).';
