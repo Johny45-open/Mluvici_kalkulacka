@@ -3775,7 +3775,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return;
       }
 
-      _addValuesToStats(recordsToAdd, 1);
+      if (recordsToAdd.length > 1) {
+        _showStatsSaveReviewDialog(recordsToAdd);
+      } else {
+        _addValuesToStats(recordsToAdd, 1);
+      }
     } catch (e) {
       final msg = e is FormatException
           ? e.message
@@ -6784,41 +6788,329 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  void _showStatsSaveReviewDialog(List<StatisticsRecord> records) {
+    final l10n = _l10n;
+    final setName = _statsSets[_currentStatsSetIndex].name;
+    final editableRecords = records
+        .map((r) => StatisticsRecord(values: List.from(r.values)))
+        .toList();
+    final summary = l10n.statsReviewSummary(editableRecords.length, setName);
+
+    showDialog(
+      context: context,
+      routeSettings: RouteSettings(name: l10n.statsReviewTitle),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          semanticLabel: l10n.statsReviewTitle,
+          title: Semantics(header: true, child: Text(l10n.statsReviewTitle)),
+          content: Semantics(
+            container: true,
+            label: summary,
+            liveRegion: true,
+            child: SizedBox(
+              width: double.maxFinite,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        summary,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...editableRecords.asMap().entries.map((entry) {
+                        final idx = entry.key + 1;
+                        final rowText = entry.value.values
+                            .map((v) => _formatNumber(v))
+                            .join('; ');
+                        final rowLabel = _s(
+                          'Hodnota $idx: $rowText',
+                          'Value $idx: $rowText',
+                        );
+                        return Semantics(
+                          container: true,
+                          label: rowLabel,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: ExcludeSemantics(
+                                    child: Text('$idx. $rowText'),
+                                  ),
+                                ),
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    size: 20,
+                                    color: Colors.blue,
+                                  ),
+                                  tooltip: _s(
+                                    'Upravit hodnotu $idx',
+                                    'Edit value $idx',
+                                  ),
+                                  onPressed: () =>
+                                      _showEditReviewRecordDialog(
+                                        entry.key,
+                                        editableRecords,
+                                        dialogContext,
+                                        setStateDialog,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _addValuesToStats(editableRecords, 1);
+              },
+              child: Text(l10n.confirmAction),
+            ),
+          ],
+        ),
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_isScreenReaderActive) speak(summary);
+    });
+  }
+
+  void _showEditReviewRecordDialog(
+    int index,
+    List<StatisticsRecord> editableRecords,
+    BuildContext dialogContext,
+    StateSetter setStateDialog,
+  ) {
+    final record = editableRecords[index];
+    final currentSet = _statsSets[_currentStatsSetIndex];
+    final fieldNames = currentSet.fieldNames;
+    final fieldUnits = currentSet.fieldUnits;
+    final controllers = record.values
+        .map(
+          (v) => TextEditingController(
+            text: _formatNumber(v).replaceAll(',', '.'),
+          ),
+        )
+        .toList();
+
+    showDialog<void>(
+      context: dialogContext,
+      routeSettings: RouteSettings(
+        name: _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
+      ),
+      builder: (ctx) => AlertDialog(
+        semanticLabel: _s(
+          'Upravit hodnotu ${index + 1}',
+          'Edit value ${index + 1}',
+        ),
+        title: Text(
+          _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(fieldNames.length, (i) {
+              final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
+              final label = unitCode != null
+                  ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
+                  : fieldNames[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Semantics(
+                  label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                  child: TextField(
+                    controller: controllers[i],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: label,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              final newValues = <double>[];
+              bool valid = true;
+              for (int i = 0; i < controllers.length; i++) {
+                final text = controllers[i].text.trim().replaceAll(',', '.');
+                final val = double.tryParse(text);
+                if (val != null) {
+                  newValues.add(val);
+                } else {
+                  valid = false;
+                  break;
+                }
+              }
+              if (valid) {
+                setStateDialog(() {
+                  editableRecords[index] = StatisticsRecord(values: newValues);
+                });
+                Navigator.pop(ctx);
+                speak(
+                  _s(
+                    'Hodnota ${index + 1} upravena',
+                    'Value ${index + 1} edited',
+                  ),
+                );
+              } else {
+                speak(_s('Neplatná hodnota', 'Invalid value'));
+              }
+            },
+            child: Text(_l10n.confirmAction),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showRepeatDialog(List<StatisticsRecord> records) {
     final l10n = _l10n;
+    final setName = _statsSets[_currentStatsSetIndex].name;
+    final editableRecords = records
+        .map((r) => StatisticsRecord(values: List.from(r.values)))
+        .toList();
+    final summary = l10n.statsReviewSummary(editableRecords.length, setName);
     TextEditingController controller = TextEditingController(text: '1');
 
     showDialog(
       context: context,
       routeSettings: RouteSettings(name: l10n.statsRepeatTitle),
-      builder: (context) => AlertDialog(
-        semanticLabel: l10n.statsRepeatTitle,
-        title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
-        content: Semantics(
-          label: l10n.statsRepeatHint,
-          child: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            decoration: InputDecoration(labelText: l10n.statsRepeatLabel),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          semanticLabel: l10n.statsRepeatTitle,
+          title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 380),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      summary,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...editableRecords.asMap().entries.map((entry) {
+                      final idx = entry.key + 1;
+                      final rowText = entry.value.values
+                          .map((v) => _formatNumber(v))
+                          .join('; ');
+                      final rowLabel = _s(
+                        'Hodnota $idx: $rowText',
+                        'Value $idx: $rowText',
+                      );
+                      return Semantics(
+                        container: true,
+                        label: rowLabel,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ExcludeSemantics(
+                                  child: Text('$idx. $rowText'),
+                                ),
+                              ),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(
+                                  Icons.edit,
+                                  size: 20,
+                                  color: Colors.blue,
+                                ),
+                                tooltip: _s(
+                                  'Upravit hodnotu $idx',
+                                  'Edit value $idx',
+                                ),
+                                onPressed: () => _showEditReviewRecordDialog(
+                                  entry.key,
+                                  editableRecords,
+                                  dialogContext,
+                                  setStateDialog,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: controller,
+                      keyboardType: TextInputType.number,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: l10n.statsRepeatLabel,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () {
+                int count = int.tryParse(controller.text) ?? 1;
+                _addValuesToStats(editableRecords, count);
+                Navigator.pop(dialogContext);
+              },
+              child: Text(l10n.confirmAction),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              int count = int.tryParse(controller.text) ?? 1;
-              _addValuesToStats(records, count);
-              Navigator.pop(context);
-            },
-            child: Text(l10n.confirmAction),
-          ),
-        ],
       ),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_isScreenReaderActive) {
+        speak('$summary ${l10n.statsRepeatHint}');
+      }
+    });
   }
 
   void _handleMultipleStatisticsAddition() {

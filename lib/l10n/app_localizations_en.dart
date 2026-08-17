@@ -197,6 +197,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsRepeatLabel => 'Insert count';
 
   @override
+  String get statsReviewTitle => 'Review data before saving';
+
+  @override
+  String statsReviewSummary(Object count, Object name) {
+    return 'Ready to save $count records to set $name.';
+  }
+
+  @override
   String get statsAllValuesSection => 'All values in memory';
 
   @override

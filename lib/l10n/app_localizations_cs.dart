@@ -197,6 +197,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsRepeatLabel => 'Počet vložení';
 
   @override
+  String get statsReviewTitle => 'Kontrola dat před uložením';
+
+  @override
+  String statsReviewSummary(Object count, Object name) {
+    return 'Připraveno $count záznamů k uložení do sady $name.';
+  }
+
+  @override
   String get statsAllValuesSection => 'Všechny hodnoty v paměti';
 
   @override

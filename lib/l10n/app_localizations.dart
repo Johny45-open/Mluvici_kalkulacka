@@ -443,6 +443,18 @@ abstract class AppLocalizations {
   /// **'Insert count'**
   String get statsRepeatLabel;
 
+  /// No description provided for @statsReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review data before saving'**
+  String get statsReviewTitle;
+
+  /// No description provided for @statsReviewSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to save {count} records to set {name}.'**
+  String statsReviewSummary(Object count, Object name);
+
   /// No description provided for @statsAllValuesSection.
   ///
   /// In en, this message translates to:

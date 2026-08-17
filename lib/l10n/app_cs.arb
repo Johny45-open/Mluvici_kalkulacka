@@ -107,6 +107,8 @@
   "statsRepeatTitle": "Počet opakování",
   "statsRepeatHint": "Zadejte, kolikrát se mají hodnoty vložit do statistické paměti",
   "statsRepeatLabel": "Počet vložení",
+  "statsReviewTitle": "Kontrola dat před uložením",
+  "statsReviewSummary": "Připraveno {count} záznamů k uložení do sady {name}.",
   "statsAllValuesSection": "Všechny hodnoty v paměti",
   "statsComputedSection": "Vypočtené statistiky",
   "statsN": "Počet hodnot",

@@ -58,6 +58,8 @@
   "statsRepeatTitle": "Repeat count",
   "statsRepeatHint": "Enter how many times the values should be added to statistics memory",
   "statsRepeatLabel": "Insert count",
+  "statsReviewTitle": "Review data before saving",
+  "statsReviewSummary": "Ready to save {count} records to set {name}.",
   "statsAllValuesSection": "All values in memory",
   "statsComputedSection": "Computed statistics",
   "statsN": "N",
