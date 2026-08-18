@@ -70,6 +70,16 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
+  String announceExpressionState(Object state) {
+    return 'Oznamovat příklad před výpočtem: $state';
+  }
+
+  @override
+  String expressionResultIs(String expression, String result) {
+    return 'Výpočet $expression. $result';
+  }
+
+  @override
   String angles(Object type) {
     return 'Úhly: $type';
   }

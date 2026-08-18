@@ -256,6 +256,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _updateDialogShown = false;
   bool _isDegreeMode = true;
   bool _useSixteenSegment = false;
+  bool _announceExpression = false;
   final bool _sayWelcome = true;
   AccessibilityType _accessibilityType = AccessibilityType.none;
   double _fontSizeMultiplier = 1.0;
@@ -2259,6 +2260,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         } else {
           spoken = _l10n.resultIs(_spokenForDisplay(resStr));
         }
+
+        if (_announceExpression &&
+            (_currentMode == CalculatorMode.basic ||
+                _currentMode == CalculatorMode.scientific)) {
+          spoken = _l10n.expressionResultIs(
+            _expressionToSpeech(currentExpression),
+            spoken,
+          );
+        }
       }
 
       setState(() {
@@ -3009,6 +3019,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _resultZoom = prefs.getDouble('resultZoom') ?? 1.0;
       ttsEnabled = prefs.getBool('ttsEnabled') ?? true;
       _useSixteenSegment = prefs.getBool('useSixteenSegment') ?? false;
+      _announceExpression = prefs.getBool('announceExpression') ?? false;
       _accessibilityType =
           AccessibilityType.values[prefs.getInt('accessibilityType') ?? 0];
       _speechRate = prefs.getDouble('speechRate') ?? 0.5;
@@ -3087,6 +3098,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setDouble('resultZoom', _resultZoom);
     await prefs.setBool('ttsEnabled', ttsEnabled);
     await prefs.setBool('useSixteenSegment', _useSixteenSegment);
+    await prefs.setBool('announceExpression', _announceExpression);
     await prefs.setInt('accessibilityType', _accessibilityType.index);
     await prefs.setDouble('speechRate', _speechRate);
     await prefs.setDouble('speechVolume', _speechVolume);
@@ -9910,6 +9922,38 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 child: Text(
                   widget.parent._l10n.voiceOutput(
                     widget.parent.ttsEnabled
+                        ? widget.parent._s('Zapnuto', 'On')
+                        : widget.parent._s('Vypnuto', 'Off'),
+                  ),
+                ),
+              ),
+            ),
+            const Divider(),
+            Semantics(
+              label: widget.parent._s(
+                'Přepnutí oznamování příkladu před výpočtem',
+                'Switch announcing expression before calculation',
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    widget.parent.setState(
+                      () => widget.parent._announceExpression =
+                          !widget.parent._announceExpression,
+                    );
+                    widget.parent._saveSettings();
+                  });
+                  widget.parent.speak(
+                    widget.parent._l10n.announceExpressionState(
+                      widget.parent._announceExpression
+                          ? widget.parent._s('Zapnuto', 'On')
+                          : widget.parent._s('Vypnuto', 'Off'),
+                    ),
+                  );
+                },
+                child: Text(
+                  widget.parent._l10n.announceExpressionState(
+                    widget.parent._announceExpression
                         ? widget.parent._s('Zapnuto', 'On')
                         : widget.parent._s('Vypnuto', 'Off'),
                   ),

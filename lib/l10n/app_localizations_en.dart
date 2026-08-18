@@ -70,6 +70,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String announceExpressionState(Object state) {
+    return 'Announce expression before calculation: $state';
+  }
+
+  @override
+  String expressionResultIs(String expression, String result) {
+    return 'Calculation $expression. $result';
+  }
+
+  @override
   String angles(Object type) {
     return 'Angles: $type';
   }

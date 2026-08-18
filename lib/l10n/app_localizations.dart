@@ -209,6 +209,18 @@ abstract class AppLocalizations {
   /// **'Voice output: {state}'**
   String voiceOutput(Object state);
 
+  /// No description provided for @announceExpressionState.
+  ///
+  /// In en, this message translates to:
+  /// **'Announce expression before calculation: {state}'**
+  String announceExpressionState(Object state);
+
+  /// No description provided for @expressionResultIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation {expression}. {result}'**
+  String expressionResultIs(String expression, String result);
+
   /// No description provided for @angles.
   ///
   /// In en, this message translates to:
