@@ -1051,7 +1051,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   String _spokenForDisplay(String text) {
     String result = text.replaceAllMapped(
-      RegExp(r'(\d+)(?:\.(\d+))?\((\d+)\)'),
+      RegExp(r'(\d+)(?:[.,](\d*))?\((\d+)\)'),
       (m) {
         final intPart = m.group(1)!;
         final nonRepeating = m.group(2) ?? '';
@@ -1062,6 +1062,48 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       },
     );
     return result.replaceAll('.', ',');
+  }
+
+  String _expressionToSpeech(String expr) {
+    String result = expr.replaceAllMapped(
+      RegExp(
+        r'''x²|x³|ⁿ√|\(-\)|°→'|'→°|√|∛|π|ANS|ASIN|ACOS|ATAN|SIN|COS|TAN|ABS|LOG|LN|\d+(?:[.,]\d*)?\(\d+\)|\d+[.,]\d+|\d+|[+\-*/^%!()°'"]|[A-Za-z]''',
+        caseSensitive: false,
+      ),
+      (m) {
+        final token = m[0]!;
+        String spoken;
+        if (RegExp(r'^\d').hasMatch(token)) {
+          spoken = _spokenForDisplay(token);
+        } else if (token == '\u03C0') {
+          spoken = _l10n.piSpoken;
+        } else {
+          final upper = token.toUpperCase();
+          if (upper == 'E' &&
+              m.start > 0 &&
+              RegExp(r'\d').hasMatch(expr[m.start - 1])) {
+            spoken = _getButtonName('EXP');
+          } else {
+            switch (token) {
+              case '°':
+                spoken = _l10n.degreesUnit;
+                break;
+              case "'":
+                spoken = _l10n.minutesUnit;
+                break;
+              case '"':
+                spoken = _l10n.secondsUnit;
+                break;
+              default:
+                final name = _getButtonName(token);
+                spoken = name == token ? _getButtonName(upper) : name;
+            }
+          }
+        }
+        return ' $spoken';
+      },
+    );
+    return result.trim();
   }
 
   ({int num, int den})? _rationalFromDouble(double x) {
@@ -1784,9 +1826,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   String _formatForSpeech(String text) {
     final l10n = _l10n;
-    String processed = text
-        .replaceAll('.', ',')
-        .replaceAll('\u03C0', l10n.piSpoken);
+    String processed = _spokenForDisplay(text).replaceAll('\u03C0', l10n.piSpoken);
     processed = processed.replaceAllMapped(
       RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"),
       (m) {
@@ -4967,8 +5007,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _insertAtCursor(value.replaceAll(',', '.'));
     speak(
       _s(
-        'Vloženo ${value.replaceAll('.', ',')}',
-        'Inserted ${value.replaceAll('.', ',')}',
+        'Vloženo ${_expressionToSpeech(value)}',
+        'Inserted ${_expressionToSpeech(value)}',
       ),
     );
     Navigator.pop(context);
@@ -5799,7 +5839,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           ),
                           const SizedBox(height: 8),
                           ...statRows.map((row) {
-                            final spokenValue = row.value.replaceAll('.', ',');
+                            final spokenValue = _spokenForDisplay(row.value);
                             return Semantics(
                               container: true,
                               label: '${row.key}: $spokenValue',
@@ -6857,8 +6897,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       }
 
                       String semanticDescription = _s(
-                        "Výpočet: $expression, výsledek: $result. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
-                        "Calculation: $expression, result: $result. Tap to insert the result, hold to insert the whole calculation.",
+                        "Výpočet: $expression, výsledek: ${_spokenForDisplay(result)}. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
+                        "Calculation: $expression, result: ${_spokenForDisplay(result)}. Tap to insert the result, hold to insert the whole calculation.",
                       );
 
                       return Semantics(
@@ -7559,7 +7599,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           label: l10n.displayLabel,
                           hint: l10n.displayHint,
                           value:
-                              '${_getModeName(_currentMode)}. ${display.isEmpty ? (_hasResult ? _spokenForDisplay(_lastResult) : l10n.displayEmpty) : _spokenForDisplay(display)}',
+                              '${_getModeName(_currentMode)}. ${display.isEmpty ? (_hasResult ? _spokenForDisplay(_lastResult) : l10n.displayEmpty) : _expressionToSpeech(display)}',
                           onTap: () {
                             _mainFocusNode.requestFocus();
                             speak(
@@ -7567,7 +7607,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   ? (_hasResult
                                         ? _spokenForDisplay(_lastResult)
                                         : l10n.displayEmpty)
-                                  : _spokenForDisplay(display),
+                                  : _expressionToSpeech(display),
                             );
                           },
                           // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
