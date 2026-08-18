@@ -9875,6 +9875,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 'Switch display type',
               ),
               child: ElevatedButton(
+                autofocus: true,
                 onPressed: () {
                   setState(() {
                     widget.parent.setState(
