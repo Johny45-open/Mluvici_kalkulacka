@@ -802,6 +802,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     '(': ['Závorka otevřená', 'Open parenthesis'],
     ')': ['Závorka zavřená', 'Close parenthesis'],
     '.': ['Tečka', 'Decimal point'],
+    '…': ['Periodické číslo', 'Repeating decimal'],
     '^': ['Mocnina', 'Power'],
     '√': ['Odmocnina', 'Square root'],
     'ⁿ√': ['En-tá odmocnina', 'Nth root'],
@@ -1048,8 +1049,99 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  String _formatSpokenNumber(double value) =>
-      _formatNumber(value).replaceAll('.', ',');
+  String _spokenForDisplay(String text) {
+    String result = text.replaceAllMapped(
+      RegExp(r'(\d+)(?:\.(\d+))?\((\d+)\)'),
+      (m) {
+        final intPart = m.group(1)!;
+        final nonRepeating = m.group(2) ?? '';
+        final period = m.group(3)!;
+        final suffix = _s('periodických', 'repeating');
+        if (nonRepeating.isEmpty) return '$intPart,$period $suffix';
+        return '$intPart,$nonRepeating, $period $suffix';
+      },
+    );
+    return result.replaceAll('.', ',');
+  }
+
+  ({int num, int den})? _rationalFromDouble(double x) {
+    if (x.isNaN || x.isInfinite || x <= 0) return null;
+    double pPrev = 0, p = 1;
+    double qPrev = 1, q = 0;
+    double xi = x;
+    for (int i = 0; i < 100; i++) {
+      final a = xi.floorToDouble();
+      final pNext = a * p + pPrev;
+      final qNext = a * q + qPrev;
+      if (qNext > 1e9) return null;
+      pPrev = p;
+      p = pNext;
+      qPrev = q;
+      q = qNext;
+      if ((x - p / q).abs() < 1e-10) {
+        return (num: p.round(), den: q.round());
+      }
+      final frac = xi - a;
+      if (frac < 1e-12) return null;
+      xi = 1.0 / frac;
+    }
+    return null;
+  }
+
+  String? _tryFormatRepeating(double value) {
+    if (value.isNaN || value.isInfinite || value == 0) return null;
+    final neg = value < 0;
+    final absVal = value.abs();
+    final frac = _rationalFromDouble(absVal);
+    if (frac == null) return null;
+    final num = frac.num;
+    final den = frac.den;
+
+    int d = den;
+    int x = 0, y = 0;
+    while (d % 2 == 0) {
+      d ~/= 2;
+      x++;
+    }
+    while (d % 5 == 0) {
+      d ~/= 5;
+      y++;
+    }
+    if (d == 1) return null; // konečné desetinné číslo
+
+    final nonRepCount = math.max(x, y);
+    final intPart = num ~/ den;
+    int rem = num % den;
+    final nonRep = <int>[];
+    for (int i = 0; i < nonRepCount; i++) {
+      rem *= 10;
+      nonRep.add(rem ~/ den);
+      rem = rem % den;
+    }
+    final rep = <int>[];
+    final startRem = rem;
+    var guard = 0;
+    do {
+      rem *= 10;
+      rep.add(rem ~/ den);
+      rem = rem % den;
+      guard++;
+    } while (rem != startRem && rem != 0 && guard < 1000);
+    if (rep.length > 9) return null;
+
+    final sign = neg ? '-' : '';
+    final np = nonRep.join();
+    final rp = rep.join();
+    return '$sign$intPart.${np.isEmpty ? '' : np}($rp)';
+  }
+
+  String _formatSpokenNumber(double value) {
+    if (_displayFormat == DisplayFormat.standard) {
+      final repeating = _tryFormatRepeating(value);
+      if (repeating != null) return _spokenForDisplay(repeating);
+    }
+    return _formatNumber(value).replaceAll('.', ',');
+  }
 
   String _getButtonName(String label) {
     final pair = _buttonNames[label];
@@ -1764,6 +1856,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _handleButtonPressed("√");
       } else if (event.logicalKey == LogicalKeyboardKey.keyA) {
         _handleButtonPressed("ABS");
+      } else if (isControl && isShift && event.logicalKey == LogicalKeyboardKey.keyP) {
+        _togglePeriod();
       } else if (event.logicalKey == LogicalKeyboardKey.keyP) {
         _handleButtonPressed("\u03C0");
       } else if (event.logicalKey == LogicalKeyboardKey.keyR) {
@@ -1933,6 +2027,96 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  String? _findShortestPeriod(String digits) {
+    for (int len = 1; len <= digits.length ~/ 2; len++) {
+      final candidate = digits.substring(digits.length - len);
+      if (digits.length % len != 0) continue;
+      final builder = StringBuffer();
+      for (int i = 0; i < digits.length ~/ len; i++) {
+        builder.write(candidate);
+      }
+      if (builder.toString() == digits) return candidate;
+    }
+    return null;
+  }
+
+  void _applyPeriodText(String text, int matchStart, String newText, bool useResult) {
+    setState(() {
+      if (useResult) {
+        display = newText;
+        _cursorPosition = newText.length;
+        _hasResult = false;
+      } else {
+        display =
+            display.substring(0, matchStart) +
+            newText +
+            display.substring(_cursorPosition);
+        _cursorPosition = matchStart + newText.length;
+      }
+    });
+  }
+
+  void _togglePeriod() {
+    final bool useResult = display.isEmpty && _hasResult;
+    final String text =
+        useResult ? _lastResult : display.substring(0, _cursorPosition);
+    if (text.isEmpty) {
+      speak(_s('Nejprve zadejte číslo.', 'Enter a number first.'));
+      return;
+    }
+    final match =
+        RegExp(r'(\d+)(?:\.(\d*))?(?:\((\d+)\))?$').firstMatch(text);
+    if (match == null) {
+      speak(
+        _s(
+          'Nelze najít číslo pro označení periody.',
+          'Cannot find a number to mark as repeating.',
+        ),
+      );
+      return;
+    }
+    final intPart = match.group(1)!;
+    final fracPart = match.group(2) ?? '';
+    final existingPeriod = match.group(3);
+
+    if (existingPeriod != null) {
+      final newText = '$intPart${fracPart.isEmpty ? '' : '.$fracPart'}';
+      _applyPeriodText(text, match.start, newText, useResult);
+      speak(
+        _s(
+          'Perioda odstraněna, číslo je ${_spokenForDisplay(newText)}',
+          'Period removed, the number is ${_spokenForDisplay(newText)}',
+        ),
+      );
+      return;
+    }
+
+    if (fracPart.isEmpty) {
+      speak(
+        _s(
+          'Nejprve zadejte desetinnou část.',
+          'Enter the decimal part first.',
+        ),
+      );
+      return;
+    }
+
+    final period = _findShortestPeriod(fracPart);
+    final String nonRepeating;
+    final String repeating;
+    if (period != null) {
+      nonRepeating = fracPart.substring(0, fracPart.length - period.length);
+      repeating = period;
+    } else {
+      nonRepeating = fracPart.substring(0, fracPart.length - 1);
+      repeating = fracPart.substring(fracPart.length - 1);
+    }
+    final newText =
+        '$intPart.${nonRepeating.isEmpty ? '' : nonRepeating}($repeating)';
+    _applyPeriodText(text, match.start, newText, useResult);
+    speak(_spokenForDisplay(newText));
+  }
+
   void calculateResult() {
     try {
       if (display.isEmpty) return;
@@ -1956,7 +2140,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             data.length;
         double sd = math.sqrt(variance);
 
-        resStr = _formatNumber(mean);
+        resStr = _formatNumberSmart(mean);
         spoken = _s(
           'Průměr z paměti je ${_formatSpokenNumber(mean)}, směrodatná odchylka je ${_formatSpokenNumber(sd)}',
           'Mean from memory is ${_formatSpokenNumber(mean)}, standard deviation is ${_formatSpokenNumber(sd)}',
@@ -1974,7 +2158,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         final prefix = scaledData['prefix'] as String;
 
         // Formátování pro zobrazení s předponou
-        String formattedValue = _formatNumber(scaledValue);
+        String formattedValue = _formatNumberSmart(scaledValue);
         String unit = '';
         switch (calculation) {
           case ElectricianCalculation.voltage:
@@ -2025,13 +2209,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (userWantsDms && (isInverse || (isDms && !isTrig))) {
           resStr = _formatAsDMS(result);
         } else {
-          resStr = _formatNumber(result);
+          resStr = (_displayFormat == DisplayFormat.standard)
+              ? (_tryFormatRepeating(result) ?? _formatNumber(result))
+              : _formatNumber(result);
         }
 
         if (resStr.contains('°')) {
           spoken = _l10n.resultIs(_formatDmsSpeech(resStr));
         } else {
-          spoken = _l10n.resultIs(resStr.replaceAll('.', ','));
+          spoken = _l10n.resultIs(_spokenForDisplay(resStr));
         }
       }
 
@@ -2082,6 +2268,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     processed = processed.replaceAll('(-)', '-');
     processed = processed.replaceAll(',', '.');
     processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
+
+    // 1.2. PERIODICKÁ ČÍSLA: 3.(3) -> (3 + 3/9), 1.2(34) -> (1 + 2/10 + 34/990)
+    processed = processed.replaceAllMapped(
+      RegExp(r'(\d+)\.(\d*)\((\d+)\)'),
+      (m) {
+        final intPart = int.parse(m.group(1)!);
+        final nonRep = m.group(2) ?? '';
+        final period = m.group(3)!;
+        final n = nonRep.length;
+        final p = period.length;
+        final intN = nonRep.isEmpty ? 0 : int.parse(nonRep);
+        final intP = int.parse(period);
+        final tenN = math.pow(10, n).toInt();
+        final tenNP = math.pow(10, n + p).toInt();
+        final denominator = tenNP - tenN;
+        final numerator = intN * denominator + intP * tenN;
+        final totalDenom = denominator * tenN;
+        return '($intPart + $numerator/$totalDenom)';
+      },
+    );
 
     // 1.5. N-TÁ ODMOCNINA: xⁿ√y -> (y)^(1/x) (POZOR: toto musí být před náhradou √)
     processed = processed.replaceAllMapped(
@@ -2329,6 +2535,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   .replaceAll(RegExp(r'\.$'), '')
             : value.toInt().toString();
     }
+  }
+
+  String _formatNumberSmart(double value) {
+    if (_displayFormat == DisplayFormat.standard) {
+      return _tryFormatRepeating(value) ?? _formatNumber(value);
+    }
+    return _formatNumber(value);
   }
 
   String _decimalToFraction(double val) {
@@ -3649,7 +3862,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       onTap:
           onPressed ??
           () {
-            if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
+            if (!['°→\'', '\'→°', 'DMS', '…'].contains(label)) {
               if (!_isScreenReaderActive) speak(descriptiveName);
             }
             _handleButtonPressed(label);
@@ -3664,7 +3877,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         onTap:
             onPressed ??
             () {
-              if (!['°→\'', '\'→°', 'DMS'].contains(label)) {
+              if (!['°→\'', '\'→°', 'DMS', '…'].contains(label)) {
                 // Pokud je aktivní čtečka, nevoláme speak, protože čtečka přečte label sama.
                 if (!_isScreenReaderActive) speak(descriptiveName);
               }
@@ -3798,6 +4011,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _handleButtonPressed(String label, {bool silent = false}) {
     bool alreadyHandled = false;
+    if (label == '…') {
+      _togglePeriod();
+      return;
+    }
     if (_hasResult) {
       setState(() {
         if (['+', '-', '*', '/', '^', '%', 'EXP', 'x²', 'x³'].contains(label)) {
@@ -4054,7 +4271,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               return;
             }
             final wmean = sumVW / sumW;
-            final resStr = _formatNumber(wmean);
+            final resStr = _formatNumberSmart(wmean);
             final spoken = _s(
               'Vážený průměr z paměti je ${_formatSpokenNumber(wmean)} '
                   '(pole ${fieldNames[0]} váženo polem ${fieldNames[1]})',
@@ -4066,7 +4283,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               _hasResult = true;
               display = resStr;
               _cursorPosition = display.length;
-              _lastNumericValue = double.tryParse(resStr.replaceAll(',', '.'));
+              _lastNumericValue = wmean;
             });
             speak(spoken, force: true);
             _addToHistory('STATS($label)', resStr);
@@ -4077,6 +4294,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
           String resStr = '0';
           String spoken = '';
+          double? numericResult;
           final fieldUnit =
               _statsSets.isNotEmpty &&
                   _selectedFieldIndex <
@@ -4098,46 +4316,52 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               : fieldUnitSpoken;
 
           if (label == 'MEAN') {
-            resStr = _formatNumber(snapshot.mean);
+            resStr = _formatNumberSmart(snapshot.mean);
+            numericResult = snapshot.mean;
             spoken = _s(
               'Průměr${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.mean)}',
               'Mean${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.mean)}',
             );
           } else if (label == 'SUM') {
-            resStr = _formatNumber(snapshot.sum);
+            resStr = _formatNumberSmart(snapshot.sum);
+            numericResult = snapshot.sum;
             spoken = _s(
               'Součet hodnot${fieldLabelSpoken} je ${_formatSpokenNumber(snapshot.sum)}',
               'Sum of values${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.sum)}',
             );
           } else if (label == 'VAR') {
-            resStr = _formatNumber(snapshot.variance);
+            resStr = _formatNumberSmart(snapshot.variance);
+            numericResult = snapshot.variance;
             spoken = _s(
               'Rozptyl${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.variance)}',
               'Variance${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.variance)}',
             );
           } else if (label == 'SD') {
-            resStr = _formatNumber(snapshot.sd);
+            resStr = _formatNumberSmart(snapshot.sd);
+            numericResult = snapshot.sd;
             spoken = _s(
               'Směrodatná odchylka${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.sd)}',
               'Standard deviation${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.sd)}',
             );
           } else if (label == 'MED') {
-            resStr = _formatNumber(snapshot.median);
+            resStr = _formatNumberSmart(snapshot.median);
+            numericResult = snapshot.median;
             spoken = _s(
               'Medián${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.median)}',
               'Median${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.median)}',
             );
           } else if (label == 'MODE') {
             if (!snapshot.modeExists) {
-              resStr = _formatNumber(
-                _getFieldValues(_selectedFieldIndex).first,
-              );
+              final firstValue = _getFieldValues(_selectedFieldIndex).first;
+              resStr = _formatNumberSmart(firstValue);
+              numericResult = firstValue;
               spoken = _s(
                 'Modus${fieldLabelSpoken} neexistuje, všechny hodnoty se vyskytují pouze jednou.',
                 'No mode${fieldLabelSpoken} exists, all values occur only once.',
               );
             } else {
-              resStr = snapshot.modes.map((m) => _formatNumber(m)).join(';');
+              resStr = snapshot.modes.map((m) => _formatNumberSmart(m)).join(';');
+              numericResult = snapshot.modes.first;
               final modesSpoken = snapshot.modes
                   .map((m) => _formatSpokenNumber(m))
                   .join(_s(' a ', ' and '));
@@ -4161,20 +4385,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               );
               resStr = 'Err';
             } else {
-              resStr = _formatNumber(snapshot.cv!);
+              resStr = _formatNumberSmart(snapshot.cv!);
+              numericResult = snapshot.cv!;
               spoken = _s(
                 'Variační koeficient${fieldLabelSpoken} je ${_formatSpokenNumber(snapshot.cv!)} procent',
                 'Coefficient of variation${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.cv!)} percent',
               );
             }
           } else if (label == 'MIN') {
-            resStr = _formatNumber(snapshot.min);
+            resStr = _formatNumberSmart(snapshot.min);
+            numericResult = snapshot.min;
             spoken = _s(
               'Minimální hodnota${fieldLabelSpoken} je ${_formatSpokenNumber(snapshot.min)}',
               'Minimum${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.min)}',
             );
           } else if (label == 'MAX') {
-            resStr = _formatNumber(snapshot.max);
+            resStr = _formatNumberSmart(snapshot.max);
+            numericResult = snapshot.max;
             spoken = _s(
               'Maximální hodnota${fieldLabelSpoken} je ${_formatSpokenNumber(snapshot.max)}',
               'Maximum${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.max)}',
@@ -4186,7 +4413,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _hasResult = true;
             display = resStr;
             _cursorPosition = display.length;
-            _lastNumericValue = double.tryParse(resStr.replaceAll(',', '.'));
+            _lastNumericValue = numericResult;
           });
           speak(spoken, force: true);
           _addToHistory('STATS($label)', resStr);
@@ -4386,7 +4613,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return;
       }
       final percent = value / whole * 100;
-      final resStr = _formatNumber(percent);
+      final resStr = _formatNumberSmart(percent);
       final spoken = _s(
         '${_formatSpokenNumber(value)} je ${_formatSpokenNumber(percent)} procent z ${_formatSpokenNumber(whole)}',
         '${_formatSpokenNumber(value)} is ${_formatSpokenNumber(percent)} percent of ${_formatSpokenNumber(whole)}',
@@ -4435,6 +4662,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'DEL',
           '0',
           '.',
+          '…',
           '%',
           '=',
         ];
@@ -4487,6 +4715,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             '+',
             '0',
             '.',
+            '…',
             'EXP',
             '%',
             'DEL',
@@ -5405,28 +5634,28 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             final dataCount = rawValues.length;
 
             final modeText = snapshot.modeExists
-                ? snapshot.modes.map((m) => _formatNumber(m)).join('; ')
+                ? snapshot.modes.map((m) => _formatNumberSmart(m)).join('; ')
                 : l10n.statsModeNone;
 
             final cvText = snapshot.cv == null
                 ? 'Err'
-                : '${_formatNumber(snapshot.cv!)} %';
+                : '${_formatNumberSmart(snapshot.cv!)} %';
 
             final wmeanText = snapshot.wmean == null
                 ? null
-                : _formatNumber(snapshot.wmean!);
+                : _formatNumberSmart(snapshot.wmean!);
 
             final statRows = <MapEntry<String, String>>[
               MapEntry(l10n.statsN, dataCount.toString()),
-              MapEntry(l10n.statsMin, _formatNumber(snapshot.min)),
-              MapEntry(l10n.statsMax, _formatNumber(snapshot.max)),
-              MapEntry(l10n.statsMean, _formatNumber(snapshot.mean)),
+              MapEntry(l10n.statsMin, _formatNumberSmart(snapshot.min)),
+              MapEntry(l10n.statsMax, _formatNumberSmart(snapshot.max)),
+              MapEntry(l10n.statsMean, _formatNumberSmart(snapshot.mean)),
               if (snapshot.wmean != null)
                 MapEntry(l10n.statsWeightedMean, wmeanText!),
-              MapEntry(l10n.statsSum, _formatNumber(snapshot.sum)),
-              MapEntry(l10n.statsVariance, _formatNumber(snapshot.variance)),
-              MapEntry(l10n.statsStdDev, _formatNumber(snapshot.sd)),
-              MapEntry(l10n.statsMedian, _formatNumber(snapshot.median)),
+              MapEntry(l10n.statsSum, _formatNumberSmart(snapshot.sum)),
+              MapEntry(l10n.statsVariance, _formatNumberSmart(snapshot.variance)),
+              MapEntry(l10n.statsStdDev, _formatNumberSmart(snapshot.sd)),
+              MapEntry(l10n.statsMedian, _formatNumberSmart(snapshot.median)),
               MapEntry(l10n.statsMode, modeText),
               MapEntry(l10n.statsCv, cvText),
             ];
@@ -7330,15 +7559,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           label: l10n.displayLabel,
                           hint: l10n.displayHint,
                           value:
-                              '${_getModeName(_currentMode)}. ${display.isEmpty ? (_hasResult ? _lastResult.replaceAll('.', ',') : l10n.displayEmpty) : display.replaceAll('.', ',')}',
+                              '${_getModeName(_currentMode)}. ${display.isEmpty ? (_hasResult ? _spokenForDisplay(_lastResult) : l10n.displayEmpty) : _spokenForDisplay(display)}',
                           onTap: () {
                             _mainFocusNode.requestFocus();
                             speak(
                               display.isEmpty
                                   ? (_hasResult
-                                        ? _lastResult.replaceAll('.', ',')
+                                        ? _spokenForDisplay(_lastResult)
                                         : l10n.displayEmpty)
-                                  : display.replaceAll('.', ','),
+                                  : _spokenForDisplay(display),
                             );
                           },
                           // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
@@ -8158,6 +8387,8 @@ class _CustomSevenSegmentPainter extends CustomPainter {
     '8': [true, true, true, true, true, true, true],
     '9': [true, true, true, true, false, true, true],
     '-': [false, false, false, false, false, false, true],
+    '(': [false, false, false, false, true, true, false],
+    ')': [false, true, true, false, false, false, false],
     'E': [true, false, false, true, true, true, true],
     'R': [false, false, false, false, true, false, true],
     'H': [false, true, true, false, true, true, true],
@@ -8694,6 +8925,42 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
       true,
       true,
       true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ],
+    '(': [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ],
+    ')': [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
       false,
       false,
       false,
