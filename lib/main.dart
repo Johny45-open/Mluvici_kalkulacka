@@ -275,6 +275,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   DialogSize _dialogSize = DialogSize.compact;
   DisplayFormat _displayFormat = DisplayFormat.standard;
+  bool _usePeriodicNotation = true;
   int _precision = 2;
   double? _lastNumericValue;
   ElectricianCalculation _selectedElectricianCalculation =
@@ -1179,7 +1180,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   String _formatSpokenNumber(double value) {
-    if (_displayFormat == DisplayFormat.standard) {
+    if (_displayFormat == DisplayFormat.standard && _usePeriodicNotation) {
       final repeating = _tryFormatRepeating(value);
       if (repeating != null) return _spokenForDisplay(repeating);
     }
@@ -2250,7 +2251,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (userWantsDms && (isInverse || (isDms && !isTrig))) {
           resStr = _formatAsDMS(result);
         } else {
-          resStr = (_displayFormat == DisplayFormat.standard)
+          resStr = (_displayFormat == DisplayFormat.standard &&
+                  _usePeriodicNotation)
               ? (_tryFormatRepeating(result) ?? _formatNumber(result))
               : _formatNumber(result);
         }
@@ -2588,7 +2590,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   String _formatNumberSmart(double value) {
-    if (_displayFormat == DisplayFormat.standard) {
+    if (_displayFormat == DisplayFormat.standard && _usePeriodicNotation) {
       return _tryFormatRepeating(value) ?? _formatNumber(value);
     }
     return _formatNumber(value);
@@ -3018,6 +3020,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _dotMatrixZoom = prefs.getDouble('dotMatrixZoom') ?? 1.0;
       _resultZoom = prefs.getDouble('resultZoom') ?? 1.0;
       ttsEnabled = prefs.getBool('ttsEnabled') ?? true;
+      _usePeriodicNotation = prefs.getBool('usePeriodicNotation') ?? true;
       _useSixteenSegment = prefs.getBool('useSixteenSegment') ?? false;
       _announceExpression = prefs.getBool('announceExpression') ?? false;
       _accessibilityType =
@@ -3097,6 +3100,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setDouble('dotMatrixZoom', _dotMatrixZoom);
     await prefs.setDouble('resultZoom', _resultZoom);
     await prefs.setBool('ttsEnabled', ttsEnabled);
+    await prefs.setBool('usePeriodicNotation', _usePeriodicNotation);
     await prefs.setBool('useSixteenSegment', _useSixteenSegment);
     await prefs.setBool('announceExpression', _announceExpression);
     await prefs.setInt('accessibilityType', _accessibilityType.index);
@@ -7904,19 +7908,19 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                         );
                       }
                     },
-                    child: Text(
+child: Text(
                       parent._s(
                         'Přečíst naposledy vložená data',
                         'Read last added data',
                       ),
                     ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
     }
 
     if (parent._currentMode == CalculatorMode.unitConversion) {
@@ -8261,6 +8265,47 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                   ),
                 ),
               ],
+            ),
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Semantics(
+              label: parent._s(
+                'Přepnutí periodického zápisu výsledků',
+                'Switch repeating decimal notation for results',
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  // ignore: invalid_use_of_protected_member
+                  parent.setState(
+                    () => parent._usePeriodicNotation =
+                        !parent._usePeriodicNotation,
+                  );
+                  parent._saveSettings();
+                  parent.speak(
+                    parent._usePeriodicNotation
+                        ? parent._s(
+                            'Periodický zápis výsledků zapnut',
+                            'Repeating decimal notation for results on',
+                          )
+                        : parent._s(
+                            'Periodický zápis výsledků vypnut',
+                            'Repeating decimal notation for results off',
+                          ),
+                  );
+                },
+                child: Text(
+                  parent._s(
+                    'Periodický zápis výsledků',
+                    'Repeating decimal notation for results',
+                  ) +
+                      ': ' +
+                      (parent._usePeriodicNotation
+                          ? parent._s('Zapnuto', 'On')
+                          : parent._s('Vypnuto', 'Off')),
+                ),
+              ),
             ),
           ),
         ],
