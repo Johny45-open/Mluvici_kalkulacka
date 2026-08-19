@@ -20,6 +20,40 @@ void main() async {
   runApp(const ScientificCalculatorApp());
 }
 
+class _FocusRestoreObserver extends NavigatorObserver {
+  final Map<Route<dynamic>, FocusNode?> _openers = {};
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    _openers[route] = FocusManager.instance.primaryFocus;
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    final opener = _openers.remove(route);
+    if (opener == null) {
+      return;
+    }
+    Future.delayed(const Duration(milliseconds: 150), () {
+      try {
+        if (opener.context != null) {
+          opener.requestFocus();
+        }
+      } catch (_) {
+        // Uzel byl zničen, necháme výchozí chování.
+      }
+    });
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    _openers.remove(route);
+  }
+}
+
 class ScientificCalculatorApp extends StatefulWidget {
   final Locale? locale;
 
@@ -32,6 +66,7 @@ class ScientificCalculatorApp extends StatefulWidget {
 
 class _ScientificCalculatorAppState extends State<ScientificCalculatorApp> {
   ThemeMode _themeMode = ThemeMode.system;
+  final _FocusRestoreObserver _focusObserver = _FocusRestoreObserver();
 
   @override
   void initState() {
@@ -74,6 +109,7 @@ class _ScientificCalculatorAppState extends State<ScientificCalculatorApp> {
         brightness: Brightness.dark,
       ),
       themeMode: _themeMode,
+      navigatorObservers: [_focusObserver],
       home: CalculatorScreen(
         themeMode: _themeMode,
         onThemeModeChanged: _updateThemeMode,
@@ -1736,9 +1772,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         'Default mode set to $modeName',
                       ),
                     );
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) _mainFocusNode.requestFocus();
-                    });
                   },
                   child: Text(modeName),
                 ),
@@ -2985,9 +3018,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             onPressed: () {
               Navigator.of(dialogContext).pop();
               _saveSuggestedMode(mode.index);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _mainFocusNode.requestFocus();
-              });
             },
             child: Text(_s('Ne', 'No')),
           ),
@@ -3001,9 +3031,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   'Default mode set to $modeName',
                 ),
               );
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _mainFocusNode.requestFocus();
-              });
             },
             child: Text(_s('Ano, nastavit', 'Yes, set it')),
           ),
@@ -3302,9 +3329,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               setState(() => _accessibilityType = AccessibilityType.none);
               _saveSettings();
               Navigator.pop(context);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _mainFocusNode.requestFocus();
-              });
             },
             child: Text(_s('STANDARDNÍ', 'STANDARD')),
           ),
@@ -3317,9 +3341,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               });
               _saveSettings();
               Navigator.pop(context);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _mainFocusNode.requestFocus();
-              });
             },
             child: Text(_s('PRO NEVIDOMÉ', 'FOR THE BLIND')),
           ),
@@ -3680,9 +3701,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (mounted) _mainFocusNode.requestFocus();
-              });
             },
             child: Text(l10n.understand),
           ),
@@ -3791,11 +3809,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ),
         ],
       ),
-    ).then((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _mainFocusNode.requestFocus();
-      });
-    });
+    );
   }
 
   void _showPrecisionDialog(DisplayFormat format) {
@@ -3822,9 +3836,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 });
                 speak(_l10n.decimalPlacesSet(i));
                 Navigator.pop(context);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _mainFocusNode.requestFocus();
-                });
               },
               child: Text('$i'),
             ),
@@ -3834,9 +3845,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _mainFocusNode.requestFocus();
-              });
             },
             child: Text(_l10n.cancel.toUpperCase()),
           ),
@@ -5028,9 +5036,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
     );
     Navigator.pop(context);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _mainFocusNode.requestFocus();
-    });
   }
 
   void _removeStatsRecord(
@@ -5512,11 +5517,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           },
         );
       },
-    ).then((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _mainFocusNode.requestFocus();
-      });
-    });
+    );
   }
 
   Widget _buildMemoryHeaderRow(
@@ -5903,11 +5904,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           },
         );
       },
-    ).then((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _mainFocusNode.requestFocus();
-      });
-    });
+    );
   }
 
   void _showStatsSetsDialog() {
@@ -6087,11 +6084,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           },
         );
       },
-    ).then((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _mainFocusNode.requestFocus();
-      });
-    });
+    );
   }
 
   void _showRenameStatsSetDialog(
@@ -6355,9 +6348,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       c.dispose();
                     }
                     Navigator.pop(dialogContext);
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) _mainFocusNode.requestFocus();
-                    });
                   },
                   child: Text(l10n.close),
                 ),
@@ -6836,11 +6826,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           },
         );
       },
-    ).then((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _mainFocusNode.requestFocus();
-      });
-    });
+    );
   }
 
   Widget _buildInfoCard({
@@ -6960,9 +6946,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _mainFocusNode.requestFocus();
-              });
             },
             child: Text(_l10n.close),
           ),
@@ -7615,7 +7598,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           label: l10n.displayLabel,
                           hint: l10n.displayHint,
                           value:
-                              '${_getModeName(_currentMode)}. ${display.isEmpty ? (_hasResult ? _spokenForDisplay(_lastResult) : l10n.displayEmpty) : _expressionToSpeech(display)}',
+                              '${display.isEmpty ? (_hasResult ? _spokenForDisplay(_lastResult) : l10n.displayEmpty) : _expressionToSpeech(display)}',
                           onTap: () {
                             _mainFocusNode.requestFocus();
                             speak(
@@ -8289,9 +8272,6 @@ child: Text(
         TextButton(
           onPressed: () {
             Navigator.pop(context);
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (parent.mounted) parent._mainFocusNode.requestFocus();
-            });
           },
           child: Text(parent._s('ZAVŘÍT', 'CLOSE')),
         ),
@@ -10653,10 +10633,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
         TextButton(
           onPressed: () {
             Navigator.pop(context);
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (widget.parent.mounted)
-                widget.parent._mainFocusNode.requestFocus();
-            });
           },
           child: Text(widget.parent._l10n.done),
         ),
