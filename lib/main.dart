@@ -8267,47 +8267,6 @@ child: Text(
               ],
             ),
           ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Semantics(
-              label: parent._s(
-                'Přepnutí periodického zápisu výsledků',
-                'Switch repeating decimal notation for results',
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  // ignore: invalid_use_of_protected_member
-                  parent.setState(
-                    () => parent._usePeriodicNotation =
-                        !parent._usePeriodicNotation,
-                  );
-                  parent._saveSettings();
-                  parent.speak(
-                    parent._usePeriodicNotation
-                        ? parent._s(
-                            'Periodický zápis výsledků zapnut',
-                            'Repeating decimal notation for results on',
-                          )
-                        : parent._s(
-                            'Periodický zápis výsledků vypnut',
-                            'Repeating decimal notation for results off',
-                          ),
-                  );
-                },
-                child: Text(
-                  parent._s(
-                    'Periodický zápis výsledků',
-                    'Repeating decimal notation for results',
-                  ) +
-                      ': ' +
-                      (parent._usePeriodicNotation
-                          ? parent._s('Zapnuto', 'On')
-                          : parent._s('Vypnuto', 'Off')),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -9941,6 +9900,45 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         ? widget.parent._s('16-segmentový', '16-segment')
                         : widget.parent._s('7-segmentový', '7-segment'),
                   ),
+                ),
+              ),
+            ),
+            const Divider(),
+            Semantics(
+              label: widget.parent._s(
+                'Přepnutí periodického zápisu výsledků',
+                'Switch repeating decimal notation for results',
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    widget.parent.setState(
+                      () => widget.parent._usePeriodicNotation =
+                          !widget.parent._usePeriodicNotation,
+                    );
+                  });
+                  widget.parent._saveSettings();
+                  widget.parent.speak(
+                    widget.parent._usePeriodicNotation
+                        ? widget.parent._s(
+                            'Periodický zápis výsledků zapnut',
+                            'Repeating decimal notation for results on',
+                          )
+                        : widget.parent._s(
+                            'Periodický zápis výsledků vypnut',
+                            'Repeating decimal notation for results off',
+                          ),
+                  );
+                },
+                child: Text(
+                  widget.parent._s(
+                    'Periodický zápis výsledků',
+                    'Repeating decimal notation for results',
+                  ) +
+                      ': ' +
+                      (widget.parent._usePeriodicNotation
+                          ? widget.parent._s('Zapnuto', 'On')
+                          : widget.parent._s('Vypnuto', 'Off')),
                 ),
               ),
             ),
