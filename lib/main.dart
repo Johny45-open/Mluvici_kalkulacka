@@ -1087,6 +1087,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  String _toBarNotation(String text) {
+    const bar = '\u0305';
+    return text.replaceAllMapped(
+      RegExp(r'(\d+)([.,])(\d*)\((\d+)\)'),
+      (m) {
+        final intPart = m.group(1)!;
+        final sep = m.group(2)!;
+        final nonRepeating = m.group(3) ?? '';
+        final period = m.group(4)!;
+        final periodBars = period.split('').map((d) => '$d$bar').join();
+        return '$intPart$sep$nonRepeating$periodBars';
+      },
+    );
+  }
+
   String _spokenForDisplay(String text) {
     String result = text.replaceAllMapped(
       RegExp(r'(\d+)(?:[.,](\d*))?\((\d+)\)'),
@@ -2049,25 +2064,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           val = 0;
         }
       }
-      final String valStr = _formatNumber(val).replaceAll('.', ',');
+      final String valStrVis = _toBarNotation(
+        _formatNumberSmart(val),
+      ).replaceAll('.', ',');
+      final String valStrSpoken = _formatSpokenNumber(val);
       setState(() {
         _memory[name] = val;
         _isStoreMode = false;
       });
       _saveStatsData();
-      speak(_l10n.savedToVariable(name, valStr));
+      speak(_l10n.savedToVariable(name, valStrSpoken));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_l10n.savedToVariable(name, valStr))),
+          SnackBar(content: Text(_l10n.savedToVariable(name, valStrVis))),
         );
       }
     } else if (_isRecallMode) {
-      String valStr = _formatNumber(_memory[name]!).replaceAll('.', ',');
+      String valStrVis = _toBarNotation(
+        _formatNumberSmart(_memory[name]!),
+      ).replaceAll('.', ',');
+      String valStrSpoken = _formatSpokenNumber(_memory[name]!);
       append(_formatNumber(_memory[name]!), silent: true);
-      speak(_l10n.recalledFromVariable(name, valStr));
+      speak(_l10n.recalledFromVariable(name, valStrSpoken));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_l10n.recalledFromVariable(name, valStr))),
+          SnackBar(content: Text(_l10n.recalledFromVariable(name, valStrVis))),
         );
       }
       _isRecallMode = false;
@@ -2844,7 +2865,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Widget _buildStandardDisplay(String res) {
     return CustomSegmentDisplay(
-      value: _normalizeForSegmentDisplay(res),
+      value: _normalizeForSegmentDisplay(_toBarNotation(res)),
       size: 16 * _resultZoom,
       characterCount: 16,
       isSixteenSegment: _useSixteenSegment,
@@ -3858,7 +3879,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ? (_hasResult ? "" : "_")
         : "${display.substring(0, _cursorPosition)}_${display.substring(_cursorPosition)}";
     return CustomDotMatrixDisplay(
-      text: txt,
+      text: _toBarNotation(txt),
       ledSize: 3.0 * _dotMatrixZoom,
       ledSpacing: 0.8 * _dotMatrixZoom,
     );
@@ -5418,7 +5439,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                           return Expanded(
                                             child: ExcludeSemantics(
                                               child: Text(
-                                                '${_formatNumber(ve.value)}$unitStr',
+                                                '${_toBarNotation(_formatNumberSmart(ve.value))}$unitStr',
                                                 textAlign: TextAlign.center,
                                                 style: const TextStyle(
                                                   fontSize: 13,
@@ -5672,7 +5693,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             final sortedValues = List<double>.from(rawValues)..sort();
             final allValues = sortedValues
                 .map((v) {
-                  final numStr = _formatNumber(v);
+                  final numStr = _toBarNotation(_formatNumberSmart(v));
                   final unitStr = fieldUnit != null
                       ? ' ${_getUnitSpeech(fieldUnit, value: v)}'
                       : '';
@@ -5691,7 +5712,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             final dataCount = rawValues.length;
 
             final modeText = snapshot.modeExists
-                ? snapshot.modes.map((m) => _formatNumberSmart(m)).join('; ')
+                ? snapshot.modes
+                    .map((m) => _formatNumberSmart(m))
+                    .join('; ')
                 : l10n.statsModeNone;
 
             final cvText = snapshot.cv == null
@@ -5710,7 +5733,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               if (snapshot.wmean != null)
                 MapEntry(l10n.statsWeightedMean, wmeanText!),
               MapEntry(l10n.statsSum, _formatNumberSmart(snapshot.sum)),
-              MapEntry(l10n.statsVariance, _formatNumberSmart(snapshot.variance)),
+              MapEntry(
+                l10n.statsVariance,
+                _formatNumberSmart(snapshot.variance),
+              ),
               MapEntry(l10n.statsStdDev, _formatNumberSmart(snapshot.sd)),
               MapEntry(l10n.statsMedian, _formatNumberSmart(snapshot.median)),
               MapEntry(l10n.statsMode, modeText),
@@ -5871,7 +5897,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                       Expanded(
                                         flex: 2,
                                         child: Text(
-                                          row.value,
+                                          _toBarNotation(row.value),
                                           textAlign: TextAlign.right,
                                         ),
                                       ),
@@ -6914,7 +6940,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             ),
                             subtitle: result.isNotEmpty
                                 ? Text(
-                                    result,
+                                    _toBarNotation(result),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
@@ -7094,6 +7120,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       const SizedBox(height: 8),
                       ...editableRecords.asMap().entries.map((entry) {
                         final idx = entry.key + 1;
+                        final rowTextVis = entry.value.values
+                            .map((v) => _toBarNotation(_formatNumberSmart(v)))
+                            .join('; ');
                         final rowText = entry.value.values
                             .map((v) => _formatNumber(v))
                             .join('; ');
@@ -7110,7 +7139,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               children: [
                                 Expanded(
                                   child: ExcludeSemantics(
-                                    child: Text('$idx. $rowText'),
+                                    child: Text('$idx. $rowTextVis'),
                                   ),
                                 ),
                                 IconButton(
@@ -7300,6 +7329,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     const SizedBox(height: 8),
                     ...editableRecords.asMap().entries.map((entry) {
                       final idx = entry.key + 1;
+                      final rowTextVis = entry.value.values
+                          .map((v) => _toBarNotation(_formatNumberSmart(v)))
+                          .join('; ');
                       final rowText = entry.value.values
                           .map((v) => _formatNumber(v))
                           .join('; ');
@@ -7316,7 +7348,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             children: [
                               Expanded(
                                 child: ExcludeSemantics(
-                                  child: Text('$idx. $rowText'),
+                                  child: Text('$idx. $rowTextVis'),
                                 ),
                               ),
                               IconButton(
@@ -8347,17 +8379,22 @@ class CustomSegmentDisplay extends StatelessWidget {
     while (chars.length < characterCount && valIdx < value.length) {
       String char = value[valIdx];
       bool hasDot = false;
+      bool overline = false;
       if (valIdx + 1 < value.length && value[valIdx + 1] == '.') {
         hasDot = true;
         valIdx++;
       }
-      chars.add(_SegmentCharData(char, hasDot));
+      if (valIdx + 1 < value.length && value[valIdx + 1] == '\u0305') {
+        overline = true;
+        valIdx++;
+      }
+      chars.add(_SegmentCharData(char, hasDot, overline));
       valIdx++;
     }
 
     // Doplnění mezerami
     while (chars.length < characterCount) {
-      chars.add(_SegmentCharData(' ', false));
+      chars.add(_SegmentCharData(' ', false, false));
     }
 
     return Row(
@@ -8375,12 +8412,14 @@ class CustomSegmentDisplay extends StatelessWidget {
                   ? _CustomSixteenSegmentPainter(
                       chars[index].char,
                       chars[index].hasDot,
+                      chars[index].overline,
                       enabledColor,
                       disabledColor,
                     )
                   : _CustomSevenSegmentPainter(
                       chars[index].char,
                       chars[index].hasDot,
+                      chars[index].overline,
                       enabledColor,
                       disabledColor,
                     ),
@@ -8395,18 +8434,21 @@ class CustomSegmentDisplay extends StatelessWidget {
 class _SegmentCharData {
   final String char;
   final bool hasDot;
-  _SegmentCharData(this.char, this.hasDot);
+  final bool overline;
+  _SegmentCharData(this.char, this.hasDot, this.overline);
 }
 
 class _CustomSevenSegmentPainter extends CustomPainter {
   final String char;
   final bool showDot;
+  final bool overline;
   final Color enabledColor;
   final Color disabledColor;
 
   _CustomSevenSegmentPainter(
     this.char,
     this.showDot,
+    this.overline,
     this.enabledColor,
     this.disabledColor,
   );
@@ -8490,6 +8532,19 @@ class _CustomSevenSegmentPainter extends CustomPainter {
     draw(5, Offset(0, thickness), Offset(0, h / 2 - thickness / 2)); // f
     draw(6, Offset(thickness, h / 2), Offset(w - thickness, h / 2)); // g
 
+    // Čárka nad periodou (overline)
+    if (overline) {
+      final barPaint = Paint()
+        ..color = enabledColor
+        ..strokeWidth = thickness * 1.4
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        Offset(0, thickness / 2),
+        Offset(size.width, thickness / 2),
+        barPaint,
+      );
+    }
+
     // Decimální tečka (DP) - odsazená od číslice
     final dotPaint = Paint()..color = showDot ? enabledColor : disabledColor;
     canvas.drawCircle(
@@ -8506,12 +8561,14 @@ class _CustomSevenSegmentPainter extends CustomPainter {
 class _CustomSixteenSegmentPainter extends CustomPainter {
   final String char;
   final bool showDot;
+  final bool overline;
   final Color enabledColor;
   final Color disabledColor;
 
   _CustomSixteenSegmentPainter(
     this.char,
     this.showDot,
+    this.overline,
     this.enabledColor,
     this.disabledColor,
   );
@@ -9431,6 +9488,19 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
       Offset(w / 2 + thickness / 2, h / 2 + thickness / 2),
     ); // M
 
+    // Čárka nad periodou (overline)
+    if (overline) {
+      final barPaint = Paint()
+        ..color = enabledColor
+        ..strokeWidth = thickness * 1.4
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        Offset(0, thickness / 2),
+        Offset(size.width, thickness / 2),
+        barPaint,
+      );
+    }
+
     // Decimální tečka (DP) - odsazená od číslice
     final dotPaint = Paint()..color = showDot ? enabledColor : disabledColor;
     canvas.drawCircle(
@@ -9462,18 +9532,33 @@ class CustomDotMatrixDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final items = <({String char, bool overline})>[];
+    for (final unit in text.split('')) {
+      if (unit == '\u0305') {
+        if (items.isNotEmpty) {
+          items[items.length - 1] = (
+            char: items.last.char,
+            overline: true,
+          );
+        }
+      } else {
+        items.add((char: unit, overline: false));
+      }
+    }
+
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: text.split('').map((char) {
+      children: items.map((item) {
         return Container(
           margin: EdgeInsets.only(right: ledSpacing * 2),
           child: CustomPaint(
             size: Size(
               ledSize * 5 + ledSpacing * 4,
-              ledSize * 7 + ledSpacing * 6,
+              ledSize * 8 + ledSpacing * 7,
             ),
             painter: _CustomDotMatrixPainter(
-              char,
+              item.char,
+              item.overline,
               ledSize,
               ledSpacing,
               enabledColor,
@@ -9488,6 +9573,7 @@ class CustomDotMatrixDisplay extends StatelessWidget {
 
 class _CustomDotMatrixPainter extends CustomPainter {
   final String char;
+  final bool overline;
   final double ledSize;
   final double ledSpacing;
   final Color enabledColor;
@@ -9495,6 +9581,7 @@ class _CustomDotMatrixPainter extends CustomPainter {
 
   _CustomDotMatrixPainter(
     this.char,
+    this.overline,
     this.ledSize,
     this.ledSpacing,
     this.enabledColor,
@@ -9579,7 +9666,22 @@ class _CustomDotMatrixPainter extends CustomPainter {
         canvas.drawCircle(
           Offset(
             col * (ledSize + ledSpacing) + ledSize / 2,
-            row * (ledSize + ledSpacing) + ledSize / 2,
+            (row + 1) * (ledSize + ledSpacing) + ledSize / 2,
+          ),
+          ledSize / 2,
+          paint,
+        );
+      }
+    }
+
+    // Čárka nad periodou (overline)
+    if (overline) {
+      paint.color = enabledColor;
+      for (int col = 0; col < 5; col++) {
+        canvas.drawCircle(
+          Offset(
+            col * (ledSize + ledSpacing) + ledSize / 2,
+            ledSize / 2,
           ),
           ledSize / 2,
           paint,
