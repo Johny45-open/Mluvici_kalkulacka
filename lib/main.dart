@@ -2064,9 +2064,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           val = 0;
         }
       }
-      final String valStrVis = _toBarNotation(
-        _formatNumberSmart(val),
-      ).replaceAll('.', ',');
+      final String valStrVis = _formatNumberSmart(val).replaceAll('.', ',');
       final String valStrSpoken = _formatSpokenNumber(val);
       setState(() {
         _memory[name] = val;
@@ -2076,19 +2074,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       speak(_l10n.savedToVariable(name, valStrSpoken));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_l10n.savedToVariable(name, valStrVis))),
+          SnackBar(
+            content: _PeriodicText(_l10n.savedToVariable(name, valStrVis)),
+          ),
         );
       }
     } else if (_isRecallMode) {
-      String valStrVis = _toBarNotation(
-        _formatNumberSmart(_memory[name]!),
-      ).replaceAll('.', ',');
+      String valStrVis =
+          _formatNumberSmart(_memory[name]!).replaceAll('.', ',');
       String valStrSpoken = _formatSpokenNumber(_memory[name]!);
       append(_formatNumber(_memory[name]!), silent: true);
       speak(_l10n.recalledFromVariable(name, valStrSpoken));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_l10n.recalledFromVariable(name, valStrVis))),
+          SnackBar(
+            content: _PeriodicText(_l10n.recalledFromVariable(name, valStrVis)),
+          ),
         );
       }
       _isRecallMode = false;
@@ -5438,8 +5439,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                               : '';
                                           return Expanded(
                                             child: ExcludeSemantics(
-                                              child: Text(
-                                                '${_toBarNotation(_formatNumberSmart(ve.value))}$unitStr',
+                                              child: _PeriodicText(
+                                                '${_formatNumberSmart(ve.value)}$unitStr',
                                                 textAlign: TextAlign.center,
                                                 style: const TextStyle(
                                                   fontSize: 13,
@@ -5693,7 +5694,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             final sortedValues = List<double>.from(rawValues)..sort();
             final allValues = sortedValues
                 .map((v) {
-                  final numStr = _toBarNotation(_formatNumberSmart(v));
+                  final numStr = _formatNumberSmart(v);
                   final unitStr = fieldUnit != null
                       ? ' ${_getUnitSpeech(fieldUnit, value: v)}'
                       : '';
@@ -5865,7 +5866,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               'Všechny hodnoty pole $selectedFieldName: $allValuesSpoken',
                               'All values of field $selectedFieldName: $allValuesSpoken',
                             ),
-                            child: ExcludeSemantics(child: Text(allValues)),
+                            child: ExcludeSemantics(child: _PeriodicText(allValues)),
                           ),
                           const SizedBox(height: 16),
                           Semantics(
@@ -5896,8 +5897,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                       Expanded(flex: 3, child: Text(row.key)),
                                       Expanded(
                                         flex: 2,
-                                        child: Text(
-                                          _toBarNotation(row.value),
+                                        child: _PeriodicText(
+                                          row.value,
                                           textAlign: TextAlign.right,
                                         ),
                                       ),
@@ -6939,8 +6940,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               style: const TextStyle(fontSize: 14),
                             ),
                             subtitle: result.isNotEmpty
-                                ? Text(
-                                    _toBarNotation(result),
+                                ? _PeriodicText(
+                                    result,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
@@ -7121,7 +7122,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       ...editableRecords.asMap().entries.map((entry) {
                         final idx = entry.key + 1;
                         final rowTextVis = entry.value.values
-                            .map((v) => _toBarNotation(_formatNumberSmart(v)))
+                            .map((v) => _formatNumberSmart(v))
                             .join('; ');
                         final rowText = entry.value.values
                             .map((v) => _formatNumber(v))
@@ -7139,7 +7140,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               children: [
                                 Expanded(
                                   child: ExcludeSemantics(
-                                    child: Text('$idx. $rowTextVis'),
+                                    child: _PeriodicText('$idx. $rowTextVis'),
                                   ),
                                 ),
                                 IconButton(
@@ -7330,7 +7331,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ...editableRecords.asMap().entries.map((entry) {
                       final idx = entry.key + 1;
                       final rowTextVis = entry.value.values
-                          .map((v) => _toBarNotation(_formatNumberSmart(v)))
+                          .map((v) => _formatNumberSmart(v))
                           .join('; ');
                       final rowText = entry.value.values
                           .map((v) => _formatNumber(v))
@@ -7348,7 +7349,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             children: [
                               Expanded(
                                 child: ExcludeSemantics(
-                                  child: Text('$idx. $rowTextVis'),
+                                  child: _PeriodicText('$idx. $rowTextVis'),
                                 ),
                               ),
                               IconButton(
@@ -8347,6 +8348,45 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
           if (_isExpanded) ...widget.children,
         ],
       ),
+    );
+  }
+}
+
+class _PeriodicText extends StatelessWidget {
+  final String text;
+  final TextStyle? style;
+  final TextAlign? textAlign;
+
+  const _PeriodicText(this.text, {this.style, this.textAlign});
+
+  @override
+  Widget build(BuildContext context) {
+    final re = RegExp(r'(\d+)([.,])(\d*)\((\d+)\)');
+    final spans = <TextSpan>[];
+    var lastEnd = 0;
+    for (final m in re.allMatches(text)) {
+      if (m.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, m.start)));
+      }
+      final intPart = m.group(1)!;
+      final sep = m.group(2)!;
+      final nonRepeating = m.group(3) ?? '';
+      final period = m.group(4)!;
+      spans.add(TextSpan(text: '$intPart$sep$nonRepeating'));
+      spans.add(
+        TextSpan(
+          text: period,
+          style: const TextStyle(decoration: TextDecoration.overline),
+        ),
+      );
+      lastEnd = m.end;
+    }
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+    return Text.rich(
+      TextSpan(style: style, children: spans),
+      textAlign: textAlign,
     );
   }
 }
