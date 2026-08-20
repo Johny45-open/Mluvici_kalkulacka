@@ -3281,23 +3281,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _importBackup() async {
     try {
-      final result = await FilePicker.pickFiles(
+      final files = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
-        withData: true,
       );
 
-      if (result == null || result.files.isEmpty) return;
+      if (files.isEmpty) return;
 
-      final file = result.files.single;
-      String content;
-      if (file.bytes != null) {
-        content = utf8.decode(file.bytes!);
-      } else if (file.path != null) {
-        content = await File(file.path!).readAsString();
-      } else {
-        return;
-      }
+      final content = utf8.decode(await files.single.readAsBytes());
 
       final data = jsonDecode(content) as Map<String, dynamic>;
       final prefs = await SharedPreferences.getInstance();
