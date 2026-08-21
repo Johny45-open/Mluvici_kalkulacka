@@ -48,6 +48,7 @@ class _PeriodicText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = this.text.replaceAll('.', ',');
     final re = RegExp(r'(\d+)([.,])(\d*)\((\d+)\)');
     final spans = <TextSpan>[];
     var lastEnd = 0;

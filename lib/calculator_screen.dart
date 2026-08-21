@@ -65,10 +65,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ElectricianCalculation _selectedElectricianCalculation =
       ElectricianCalculation.resistance;
 
-  final List<String> _pendingSpeech = [];
-  Timer? _speechBatchTimer;
-  static const Duration _speechBatchWindow = Duration(milliseconds: 250);
-  static const int _maxBatchTextLength = 12;
   String? _lastTtsLocale;
 
   final Map<String, double> _memory = {
@@ -1306,7 +1302,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @override
   void dispose() {
-    _speechBatchTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _mainFocusNode.dispose();
     super.dispose();
@@ -1467,7 +1462,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (_ttsVoice != null) await tts.setVoice(_ttsVoice!);
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
-      await tts.setQueueMode(1);
+      await tts.setQueueMode(0);
       if (_sayWelcome) {
         String welcome =
             l10n.welcomeMessage(_getModeSpeechNameForL10n(_currentMode, l10n));
@@ -1612,47 +1607,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         (_isScreenReaderActive && !force)) {
       return;
     }
-    if (force) {
-      _cancelSpeechBatch();
-      try {
-        await tts.stop();
-        await tts.speak(_formatForSpeech(text));
-      } catch (e) {
-        debugPrint('TTS Error: $e');
-      }
-      return;
-    }
-    if (text.length <= _maxBatchTextLength) {
-      _pendingSpeech.add(text);
-      _speechBatchTimer?.cancel();
-      _speechBatchTimer = Timer(_speechBatchWindow, _flushSpeechBatch);
-      return;
-    }
-    if (_pendingSpeech.isNotEmpty) _flushSpeechBatch();
+    // QUEUE_FLUSH zajistí, že nová mluva okamžitě přeruší tu aktuální.
     try {
+      if (force) await tts.stop();
       await tts.speak(_formatForSpeech(text));
     } catch (e) {
       debugPrint('TTS Error: $e');
     }
-  }
-
-  void _flushSpeechBatch() {
-    _speechBatchTimer?.cancel();
-    _speechBatchTimer = null;
-    if (!mounted || _pendingSpeech.isEmpty) return;
-    final joined = _pendingSpeech.join(', ');
-    _pendingSpeech.clear();
-    try {
-      tts.speak(_formatForSpeech(joined));
-    } catch (e) {
-      debugPrint('TTS Error: $e');
-    }
-  }
-
-  void _cancelSpeechBatch() {
-    _speechBatchTimer?.cancel();
-    _speechBatchTimer = null;
-    _pendingSpeech.clear();
   }
 
   String _formatForSpeech(String text) {
@@ -2921,7 +2882,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await tts.setVolume(_speechVolume);
     if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
     if (_ttsVoice != null) await tts.setVoice(_ttsVoice!);
-    await tts.setQueueMode(1);
+    await tts.setQueueMode(0);
   }
 
   void _saveSettings() async {
@@ -6700,8 +6661,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       }
 
                       String semanticDescription = _s(
-                        "Výpočet: $expression, výsledek: ${_spokenForDisplay(result)}. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
-                        "Calculation: $expression, result: ${_spokenForDisplay(result)}. Tap to insert the result, hold to insert the whole calculation.",
+                        "Výpočet: ${_spokenForDisplay(expression)}, výsledek: ${_spokenForDisplay(result)}. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
+                        "Calculation: ${_spokenForDisplay(expression)}, result: ${_spokenForDisplay(result)}. Tap to insert the result, hold to insert the whole calculation.",
                       );
 
                       return Semantics(
@@ -6709,7 +6670,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         container: true,
                         child: MergeSemantics(
                           child: ListTile(
-                            title: Text(
+                            title: _PeriodicText(
                               expression,
                               style: const TextStyle(fontSize: 14),
                             ),
