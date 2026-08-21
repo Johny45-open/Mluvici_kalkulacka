@@ -175,16 +175,24 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                           'MIN',
                           'MAX',
                         ].map((b) {
-                          return SizedBox(
-                            width: (MediaQuery.of(ctx).size.width - 80) / 4,
-                            height: 50,
-                            child: parent.buildButton(
+                          return LayoutBuilder(
+                            builder: (lbCtx, lbConstraints) {
+                              final lbWidth = lbConstraints.maxWidth.isFinite
+                                  ? lbConstraints.maxWidth
+                                  : MediaQuery.of(lbCtx).size.width * 0.85;
+                              final lbScale = parent._responsiveScale(lbCtx);
+                              return SizedBox(
+                                width: (lbWidth - 12) / 4,
+                                height: 50 * lbScale,
+                                child: parent.buildButton(
                               b,
                               onPressed: () {
                                 parent._handleButtonPressed(b);
                               },
                               expanded: false,
-                            ),
+                                ),
+                              );
+                            },
                           );
                         }).toList(),
                   ),
@@ -402,11 +410,20 @@ child: Text(
                 children: ['SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN'].map((
                   b,
                 ) {
-                  return SizedBox(
-                    width: (MediaQuery.of(ctx).size.width - 80) / 4,
-                    height: 50,
-                    child: parent.buildButton(b, expanded: false),
-                  );
+                  return LayoutBuilder(
+                            builder: (lbCtx, lbConstraints) {
+                              final lbWidth = lbConstraints.maxWidth.isFinite
+                                  ? lbConstraints.maxWidth
+                                  : MediaQuery.of(lbCtx).size.width * 0.85;
+                              final lbScale = parent._responsiveScale(lbCtx);
+                              return SizedBox(
+                                width: (lbWidth - 12) / 4,
+                                height: 50 * lbScale,
+                                child: parent.buildButton(b, expanded: false
+                                ),
+                              );
+                            },
+                          );
                 }).toList(),
               ),
             ),
@@ -445,11 +462,20 @@ child: Text(
                     'ABS',
                     'PCT',
                   ].map((b) {
-                    return SizedBox(
-                      width: (MediaQuery.of(ctx).size.width - 80) / 4,
-                      height: 50,
-                      child: parent.buildButton(b, expanded: false),
-                    );
+                    return LayoutBuilder(
+                            builder: (lbCtx, lbConstraints) {
+                              final lbWidth = lbConstraints.maxWidth.isFinite
+                                  ? lbConstraints.maxWidth
+                                  : MediaQuery.of(lbCtx).size.width * 0.85;
+                              final lbScale = parent._responsiveScale(lbCtx);
+                              return SizedBox(
+                                width: (lbWidth - 12) / 4,
+                                height: 50 * lbScale,
+                                child: parent.buildButton(b, expanded: false
+                                ),
+                              );
+                            },
+                          );
                   }).toList(),
             ),
           ),
@@ -470,11 +496,20 @@ child: Text(
                   spacing: 4,
                   runSpacing: 4,
                   children: ['STO', 'RCL', 'CLR'].map((b) {
-                    return SizedBox(
-                      width: (MediaQuery.of(ctx).size.width - 80) / 3.2,
-                      height: 50,
-                      child: parent.buildButton(b, expanded: false),
-                    );
+                    return LayoutBuilder(
+                            builder: (lbCtx, lbConstraints) {
+                              final lbWidth = lbConstraints.maxWidth.isFinite
+                                  ? lbConstraints.maxWidth
+                                  : MediaQuery.of(lbCtx).size.width * 0.85;
+                              final lbScale = parent._responsiveScale(lbCtx);
+                              return SizedBox(
+                                width: (lbWidth - 8) / 3.2,
+                                height: 50 * lbScale,
+                                child: parent.buildButton(b, expanded: false
+                                ),
+                              );
+                            },
+                          );
                   }).toList(),
                 ),
                 const Divider(),
@@ -485,16 +520,24 @@ child: Text(
                   children: ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'].map((
                     b,
                   ) {
-                    return SizedBox(
-                      width: (MediaQuery.of(ctx).size.width - 80) / 4,
-                      height: 50,
-                      child: parent.buildButton(
+                    return LayoutBuilder(
+                            builder: (lbCtx, lbConstraints) {
+                              final lbWidth = lbConstraints.maxWidth.isFinite
+                                  ? lbConstraints.maxWidth
+                                  : MediaQuery.of(lbCtx).size.width * 0.85;
+                              final lbScale = parent._responsiveScale(lbCtx);
+                              return SizedBox(
+                                width: (lbWidth - 12) / 4,
+                                height: 50 * lbScale,
+                                child: parent.buildButton(
                         b,
                         semanticLabel: parent._s('Proměnná $b', 'Variable $b'),
                         onPressed: () => parent._handleMemoryVariable(b),
                         expanded: false,
-                      ),
-                    );
+                                ),
+                              );
+                            },
+                          );
                   }).toList(),
                 ),
               ],
@@ -516,8 +559,8 @@ child: Text(
               runSpacing: 4,
               children: [
                 SizedBox(
-                  width: 80,
-                  height: 50,
+                  width: 80 * parent._responsiveScale(ctx),
+                  height: 50 * parent._responsiveScale(ctx),
                   child: parent.buildButton(
                     'NORM',
                     semanticLabel: parent._s(
@@ -552,8 +595,8 @@ child: Text(
                   ),
                 ),
                 SizedBox(
-                  width: 80,
-                  height: 50,
+                  width: 80 * parent._responsiveScale(ctx),
+                  height: 50 * parent._responsiveScale(ctx),
                   child: parent.buildButton(
                     'FIX',
                     semanticLabel: parent._s(
@@ -566,8 +609,8 @@ child: Text(
                   ),
                 ),
                 SizedBox(
-                  width: 80,
-                  height: 50,
+                  width: 80 * parent._responsiveScale(ctx),
+                  height: 50 * parent._responsiveScale(ctx),
                   child: parent.buildButton(
                     'SCI',
                     semanticLabel: parent._s(
@@ -580,8 +623,8 @@ child: Text(
                   ),
                 ),
                 SizedBox(
-                  width: 80,
-                  height: 50,
+                  width: 80 * parent._responsiveScale(ctx),
+                  height: 50 * parent._responsiveScale(ctx),
                   child: parent.buildButton(
                     'ENG',
                     semanticLabel: parent._s(
@@ -605,6 +648,7 @@ child: Text(
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: parent._dialogInsetPadding(),
       semanticLabel: parent._s('Pokročilé funkce', 'Advanced functions'),
       title: Semantics(
         header: true,
@@ -783,6 +827,7 @@ class _NewsDialogState extends State<_NewsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: widget.parent._dialogInsetPadding(),
       semanticLabel: widget.parent._s('Novinky', 'What is new'),
       title: Semantics(
         header: true,
@@ -878,6 +923,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: widget.parent._dialogInsetPadding(),
       semanticLabel: widget.parent._l10n.accessibilitySettings,
       title: Semantics(
         header: true,
@@ -1630,6 +1676,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                               name: 'Potvrzení',
                             ),
                             builder: (ctx) => AlertDialog(
+      insetPadding: widget.parent._dialogInsetPadding(),
                               semanticLabel:
                                   widget.parent._l10n.confirmationTitle,
                               title: Text(

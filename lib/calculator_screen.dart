@@ -59,6 +59,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   DialogSize _dialogSize = DialogSize.compact;
   DisplayFormat _displayFormat = DisplayFormat.standard;
+
+  double _responsiveScale(BuildContext context) {
+    final shortest = MediaQuery.of(context).size.shortestSide;
+    final s = shortest / 360.0;
+    return s.clamp(1.0, 1.7);
+  }
   bool _usePeriodicNotation = true;
   int _precision = 2;
   double? _lastNumericValue;
@@ -1383,6 +1389,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Dostupná aktualizace'),
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: _l10n.updateAvailableTitle,
         title: Semantics(header: true, child: Text(_l10n.updateAvailableTitle)),
         content: Semantics(
@@ -1514,6 +1521,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Výběr režimu'),
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: _s(
           'Jaký režim nejčastěji používáte?',
           'Which mode do you use most often?',
@@ -2622,9 +2630,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Widget _buildStandardDisplay(String res) {
+    final scale = _responsiveScale(context);
     return CustomSegmentDisplay(
       value: _normalizeForSegmentDisplay(_toBarNotation(res)),
-      size: 16 * _resultZoom,
+      size: 16 * _resultZoom * scale,
       characterCount: 16,
       isSixteenSegment: _useSixteenSegment,
     );
@@ -2637,26 +2646,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String formattedExp = exponent.startsWith('-')
         ? '-${exponent.substring(1).padLeft(2, '0')}'
         : exponent.padLeft(3, '0');
+    final scale = _responsiveScale(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         _buildStandardDisplay(mantissa),
-        const SizedBox(width: 8),
+        SizedBox(width: 8 * scale),
         Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            const Text(
+            Text(
               'x10',
               style: TextStyle(
                 color: Colors.redAccent,
-                fontSize: 10,
+                fontSize: 10 * scale,
                 fontWeight: FontWeight.bold,
               ),
             ),
             CustomSegmentDisplay(
               value: formattedExp,
-              size: 8 * _resultZoom,
+              size: 8 * _resultZoom * scale,
               characterCount: 3,
               isSixteenSegment: false,
             ),
@@ -2772,6 +2782,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Nejpoužívanější režim'),
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: _s('Nejpoužívanější režim', 'Most used mode'),
         title: Semantics(
           header: true,
@@ -3086,6 +3097,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Vítejte'),
       barrierDismissible: false,
       builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: _s('Vítejte', 'Welcome'),
         title: Semantics(header: true, child: Text(_s('Vítejte', 'Welcome'))),
         content: Text(
@@ -3145,6 +3157,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
           semanticLabel: _s('Chyba', 'Error'),
           title: Semantics(header: true, child: Text(_s('Chyba', 'Error'))),
           content: Focus(
@@ -3182,6 +3195,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Vybrat TTS engine'),
         builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
           semanticLabel: 'Vybrat TTS engine',
           title: const Text('Vybrat TTS engine'),
           content: SizedBox(
@@ -3220,6 +3234,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
           semanticLabel: _s('Chyba', 'Error'),
           title: Semantics(header: true, child: Text(_s('Chyba', 'Error'))),
           content: Focus(
@@ -3259,6 +3274,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           context: context,
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
             semanticLabel: _s('Info', 'Info'),
             title: Semantics(header: true, child: Text(_s('Info', 'Info'))),
             content: Focus(
@@ -3299,6 +3315,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           context: context,
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
             semanticLabel: _s('Info', 'Info'),
             title: Semantics(header: true, child: Text(_s('Info', 'Info'))),
             content: Focus(
@@ -3331,6 +3348,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Vybrat hlas'),
         builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
           semanticLabel: _s('Vybrat hlas', 'Select voice'),
           title: Text(_s('Vybrat hlas', 'Select voice')),
           content: SizedBox(
@@ -3413,6 +3431,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
           semanticLabel: _s('Chyba', 'Error'),
           title: Semantics(header: true, child: Text(_s('Chyba', 'Error'))),
           content: Focus(
@@ -3456,6 +3475,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: RouteSettings(name: l10n.helpTitle),
       builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: l10n.helpTitle,
         title: Semantics(header: true, child: Text(l10n.helpTitle)),
         content: Focus(
@@ -3516,6 +3536,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: RouteSettings(name: l10n.statsHelpTitle),
       builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: l10n.statsHelpTitle,
         title: Semantics(header: true, child: Text(l10n.statsHelpTitle)),
         content: Semantics(
@@ -3588,6 +3609,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Nastavení přesnosti'),
       builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: _l10n.precisionTitle,
         title: Semantics(header: true, child: Text(_l10n.precisionTitle)),
         content: Wrap(
@@ -3628,10 +3650,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String txt = display.isEmpty
         ? (_hasResult ? "" : "_")
         : "${display.substring(0, _cursorPosition)}_${display.substring(_cursorPosition)}";
+    final scale = _responsiveScale(context);
     return CustomDotMatrixDisplay(
       text: _toBarNotation(txt),
-      ledSize: 3.0 * _dotMatrixZoom,
-      ledSpacing: 0.8 * _dotMatrixZoom,
+      ledSize: 3.0 * _dotMatrixZoom * scale,
+      ledSpacing: 0.8 * _dotMatrixZoom * scale,
     );
   }
 
@@ -3663,23 +3686,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textScale = MediaQuery.textScalerOf(context).textScaleFactor;
+    final scale = _responsiveScale(context);
 
     Widget buttonBody = Container(
-      margin: const EdgeInsets.all(3),
+      margin: EdgeInsets.all(3 * scale),
       decoration: BoxDecoration(
         color: color ?? (isDark ? Colors.grey[800] : Colors.grey[300]),
         borderRadius: BorderRadius.zero,
         border: Border.all(color: Colors.black54, width: 0.5),
       ),
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: 4 * scale,
+        vertical: 6 * scale,
+      ),
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: ExcludeSemantics(
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 20 * _fontSizeMultiplier * textScale,
+              fontSize: 20 * _fontSizeMultiplier * textScale * scale,
               fontWeight: FontWeight.bold,
               color: color != null
                   ? Colors.white
@@ -4723,10 +4750,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             'Přepnout na klávesnici funkcí',
             'Switch to functions keyboard',
           );
+    final scale = _responsiveScale(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: 2 * scale,
+        vertical: 2 * scale,
+      ),
       child: SizedBox(
-        height: 44,
+        height: 44 * scale,
         width: double.infinity,
         child: buildButton(
           label,
@@ -4754,21 +4785,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Widget _buildModeSelector() {
+    final scale = _responsiveScale(context);
     return Semantics(
       label: _s('Přepínač režimů', 'Mode selector'),
       container: true,
       child: Container(
-        height: 48,
-        margin: const EdgeInsets.symmetric(vertical: 4),
+        height: 48 * scale,
+        margin: EdgeInsets.symmetric(vertical: 4 * scale),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: EdgeInsets.symmetric(horizontal: 8 * scale),
           child: Row(
             children: CalculatorMode.values.map((mode) {
               String label = _getModeName(mode);
               final isSelected = _currentMode == mode;
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: EdgeInsets.symmetric(horizontal: 4 * scale),
                 child: Semantics(
                   label:
                       '$label${isSelected ? _s(', vybráno', ', selected') : ''}',
@@ -4880,6 +4912,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       builder: (ctx) {
         return AlertDialog(
+        insetPadding: _dialogInsetPadding(),
           semanticLabel: _s(
             'Upravit záznam ${recordIndex + 1}',
             'Edit record ${recordIndex + 1}',
@@ -5064,6 +5097,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             }
 
             return AlertDialog(
+        insetPadding: _dialogInsetPadding(),
               semanticLabel: l10n.statsMemoryTitle,
               title: Semantics(
                 header: true,
@@ -5082,7 +5116,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   child: SizedBox(
                     width: double.maxFinite,
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 400),
+                      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.65),
                       child: SingleChildScrollView(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -5504,6 +5538,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             }
 
             return AlertDialog(
+        insetPadding: _dialogInsetPadding(),
               semanticLabel: l10n.statsSummaryTitle,
               title: Semantics(
                 header: true,
@@ -5516,7 +5551,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 child: SizedBox(
                   width: double.maxFinite,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 420),
+                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.70),
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -5694,12 +5729,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
+        insetPadding: _dialogInsetPadding(),
               semanticLabel: l10n.statsSetsTitle,
               title: Semantics(header: true, child: Text(l10n.statsSetsTitle)),
               content: SizedBox(
                 width: double.maxFinite,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 360),
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.60),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -5877,6 +5913,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: l10n.statsSetsRename),
       builder: (ctx) {
         return AlertDialog(
+        insetPadding: _dialogInsetPadding(),
           semanticLabel: l10n.statsSetsRename,
           title: Text(l10n.statsSetsRename),
           content: Semantics(
@@ -5957,6 +5994,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
             return AlertDialog(
+        insetPadding: _dialogInsetPadding(),
               semanticLabel: _s(
                 'Upravit pole sady ${set.name}',
                 'Edit fields of set ${set.name}',
@@ -6169,6 +6207,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
+        insetPadding: _dialogInsetPadding(),
               semanticLabel: l10n.statsSetsCreate,
               title: Text(l10n.statsSetsCreate),
               content: SingleChildScrollView(
@@ -6393,22 +6432,50 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Widget _applyDialogSize(Widget child) {
+    final h = MediaQuery.of(context).size.height;
     switch (_dialogSize) {
       case DialogSize.compact:
-        return child;
+        return SizedBox(
+          width: double.maxFinite,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: h * 0.65),
+            child: child,
+          ),
+        );
       case DialogSize.wide:
         return SizedBox(
           width: double.maxFinite,
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.9,
-            ),
+            constraints: BoxConstraints(maxHeight: h * 0.85),
             child: child,
           ),
         );
       case DialogSize.fullscreen:
         return SizedBox.expand(child: child);
     }
+  }
+
+  EdgeInsets _dialogInsetPadding() {
+    switch (_dialogSize) {
+      case DialogSize.compact:
+        return const EdgeInsets.symmetric(horizontal: 40, vertical: 24);
+      case DialogSize.wide:
+        return EdgeInsets.symmetric(
+          horizontal: MediaQuery.of(context).size.width * 0.04,
+          vertical: 24,
+        );
+      case DialogSize.fullscreen:
+        return EdgeInsets.zero;
+    }
+  }
+
+  Widget _wrapDialog(Widget dialog) {
+    // Pro fullscreen zvětšíme dialog na téměř celou obrazovku,
+    // pro wide použijeme širší inset, pro compact ponecháme výchozí.
+    if (_dialogSize == DialogSize.fullscreen) {
+      return Dialog.fullscreen(child: dialog);
+    }
+    return dialog;
   }
 
   void _showNumberInfoDialog() {
@@ -6491,6 +6558,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (ctx, setDialogState) {
             bool isInfoFullscreen = currentSize == DialogSize.fullscreen;
             return AlertDialog(
+        insetPadding: _dialogInsetPadding(),
               semanticLabel: l10n.numberInfo,
               title: Semantics(
                 header: true,
@@ -6652,6 +6720,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Historie výpočtů'),
       builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: _l10n.historyTitle,
         title: Semantics(header: true, child: Text(_l10n.historyTitle)),
         content: _applyDialogSize(
@@ -6741,6 +6810,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Potvrzení'),
       builder: (context) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: _l10n.confirmationTitle,
         title: Semantics(header: true, child: Text(_l10n.confirmationTitle)),
         content: Focus(
@@ -6849,6 +6919,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: l10n.statsReviewTitle),
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
           semanticLabel: l10n.statsReviewTitle,
           title: Semantics(header: true, child: Text(l10n.statsReviewTitle)),
           content: Semantics(
@@ -6858,7 +6929,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             child: SizedBox(
               width: double.maxFinite,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 420),
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.70),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -6972,6 +7043,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         name: _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
       ),
       builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: _s(
           'Upravit hodnotu ${index + 1}',
           'Edit value ${index + 1}',
@@ -7062,12 +7134,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: l10n.statsRepeatTitle),
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
           semanticLabel: l10n.statsRepeatTitle,
           title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
           content: SizedBox(
             width: double.maxFinite,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 380),
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.62),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -7226,6 +7299,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: RouteSettings(name: l10n.moreOptions),
       builder: (dialogContext) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
         semanticLabel: l10n.moreOptions,
         title: Semantics(header: true, child: Text(l10n.moreOptions)),
         content: _applyDialogSize(
@@ -7356,6 +7430,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               // Na malých displejích dáme klávesnici víc prostoru
               final double displayFlex = (totalHeight < 600) ? 1.0 : 1.5;
               final double keyboardFlex = 3.0;
+              final double s = _responsiveScale(context);
 
               return Column(
                 children: [
@@ -7385,15 +7460,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       },
                       onTap: () => _mainFocusNode.requestFocus(),
                       child: Container(
-                        margin: const EdgeInsets.all(8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF121212),
-                          border: Border.all(color: Colors.black, width: 3),
-                        ),
+                            margin: EdgeInsets.all(8 * s),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8 * s,
+                              vertical: 8 * s,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF121212),
+                              border: Border.all(
+                                color: Colors.black,
+                                width: 3 * s.clamp(1.0, 1.3),
+                              ),
+                            ),
                         child: Semantics(
                           liveRegion: true,
                           label: l10n.displayLabel,
@@ -7417,15 +7495,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               Align(
                                 alignment: Alignment.topLeft,
                                 child: Text(
-                                  _getModeName(_currentMode).toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.redAccent,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                      _getModeName(_currentMode).toUpperCase(),
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 12 * s,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: 4 * s),
                               Expanded(
                                 child: Center(
                                   child: SingleChildScrollView(
@@ -7441,7 +7519,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                             CrossAxisAlignment.center,
                                         children: [
                                           _buildDotMatrixDisplay(),
-                                          const SizedBox(height: 12),
+                                          SizedBox(height: 12 * s),
                                           _buildMainResultDisplay(),
                                         ],
                                       ),
