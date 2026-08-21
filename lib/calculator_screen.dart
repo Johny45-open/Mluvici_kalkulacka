@@ -84,6 +84,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   int _selectedFieldIndex = 0;
   List<StatisticsRecord> _lastAddedBatch = [];
   bool _statsSummaryInitialized = false;
+  _VoiceSetCreationSession? _voiceCreationSession;
 
   bool get _hasStatsSet => _statsSets.isNotEmpty;
 
@@ -1303,8 +1304,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _voiceCreationSession?.dispose();
     _mainFocusNode.dispose();
     super.dispose();
+  }
+
+  void _startVoiceSetCreation() {
+    final session = _voiceCreationSession;
+    if (session != null && !session.finished) {
+      session.cancelByUser();
+      return;
+    }
+    _voiceCreationSession = _VoiceSetCreationSession(this)..start();
+  }
+
+  void _onVoiceSessionEnded() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -5953,13 +5968,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
               ),
               content: SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 380),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ...List.generate(set.fieldNames.length, (i) {
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ...List.generate(set.fieldNames.length, (i) {
                         final isLast = set.fieldNames.length == 1;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 4),
@@ -5999,6 +6012,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   child: DropdownButtonFormField<String>(
                                     value: fieldUnitValues[i],
                                     isDense: true,
+                                    isExpanded: true,
                                     decoration: const InputDecoration(
                                       isDense: true,
                                       contentPadding: EdgeInsets.symmetric(
@@ -6012,6 +6026,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                         child: Text(
                                           _getUnitOptionLabel(u),
                                           style: const TextStyle(fontSize: 12),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       );
                                     }).toList(),
@@ -6102,7 +6118,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ],
                   ),
                 ),
-              ),
               actions: [
                 TextButton(
                   onPressed: () {
@@ -6211,6 +6226,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 child: DropdownButtonFormField<String>(
                                   value: fieldUnitValues[i],
                                   isDense: true,
+                                  isExpanded: true,
                                   decoration: const InputDecoration(
                                     isDense: true,
                                     contentPadding: EdgeInsets.symmetric(
@@ -6224,6 +6240,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                       child: Text(
                                         _getUnitOptionLabel(u),
                                         style: const TextStyle(fontSize: 12),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     );
                                   }).toList(),
@@ -7286,6 +7304,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         appBar: AppBar(
           title: Text(l10n.appTitle),
           actions: [
+            IconButton(
+              icon: Icon(
+                _voiceCreationSession?.listening == true
+                    ? Icons.mic
+                    : Icons.mic_none,
+                color: _voiceCreationSession?.listening == true
+                    ? Colors.redAccent
+                    : null,
+              ),
+              tooltip: _s(
+                'Hlasové vytvoření statistické sady',
+                'Voice statistics set creation',
+              ),
+              onPressed: _startVoiceSetCreation,
+            ),
             IconButton(
               icon: const Icon(Icons.history),
               tooltip: l10n.history,

@@ -246,6 +246,7 @@ child: Text(
                 children: [
                   DropdownButtonFormField<String>(
                     initialValue: parent._selectedUnitCategory,
+                    isExpanded: true,
                     decoration: InputDecoration(
                       labelText: parent._s('Kategorie', 'Category'),
                     ),
@@ -253,7 +254,11 @@ child: Text(
                         .map(
                           (cat) => DropdownMenuItem(
                             value: cat,
-                            child: Text(parent._getCategorySpeech(cat)),
+                            child: Text(
+                              parent._getCategorySpeech(cat),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),
@@ -286,6 +291,8 @@ child: Text(
                           ),
                           child: DropdownButtonFormField<String>(
                             initialValue: parent._unitFrom,
+                            isExpanded: true,
+                            isDense: true,
                             decoration: InputDecoration(
                               labelText: parent._s('Z', 'From'),
                             ),
@@ -295,7 +302,11 @@ child: Text(
                                 .map(
                                   (u) => DropdownMenuItem(
                                     value: u,
-                                    child: Text(parent._getUnitSpeech(u)),
+                                    child: Text(
+                                      parent._getUnitSpeech(u),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 )
                                 .toList(),
@@ -322,6 +333,8 @@ child: Text(
                           ),
                           child: DropdownButtonFormField<String>(
                             initialValue: parent._unitTo,
+                            isExpanded: true,
+                            isDense: true,
                             decoration: InputDecoration(
                               labelText: parent._s('Na', 'To'),
                             ),
@@ -331,7 +344,11 @@ child: Text(
                                 .map(
                                   (u) => DropdownMenuItem(
                                     value: u,
-                                    child: Text(parent._getUnitSpeech(u)),
+                                    child: Text(
+                                      parent._getUnitSpeech(u),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 )
                                 .toList(),

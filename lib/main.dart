@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'package:math_expressions/math_expressions.dart' as math_expr;
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,7 @@ part 'models.dart';
 part 'calculator_screen.dart';
 part 'widgets.dart';
 part 'dialogs.dart';
+part 'voice_set_creation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
