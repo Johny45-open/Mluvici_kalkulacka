@@ -5873,6 +5873,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       ),
                       const Divider(),
                       const SizedBox(height: 8),
+                      Semantics(
+                        label: _s(
+                          'Průvodce vytvořením sady bez diakritiky',
+                          'Set creation wizard without diacritics',
+                        ),
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.assistant, size: 18),
+                          label: Text(_s('Průvodce vytvořením', 'Creation wizard')),
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            _showGuidedStatsCreationDialog();
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.add),
                         label: Text(l10n.statsSetsCreate),
@@ -6429,6 +6444,113 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     final activeSetName = _statsSets[_currentStatsSetIndex].name;
     speak(l10n.statsSetDeletedAnnouncement(deletedName, activeSetName));
+  }
+
+  // --- Helpers pro diakritiku: vstup bez háčků, čtení s háčky ---
+  static const Map<String, String> _diacriticsRestoreMap = {
+    'hodnota': 'Hodnota',
+    'vaha': 'Váha',
+    'vyska': 'Výška',
+    'sirka': 'Šířka',
+    'delka': 'Délka',
+    'hmotnost': 'Hmotnost',
+    'cas': 'Čas',
+    'teplota': 'Teplota',
+    'tlak': 'Tlak',
+    'objem': 'Objem',
+    'obsah': 'Obsah',
+    'cena': 'Cena',
+    'mnozstvi': 'Množství',
+    'pocet': 'Počet',
+    'prumer': 'Průměr',
+    'soucet': 'Součet',
+    'rychlost': 'Rychlost',
+    'sila': 'Síla',
+    'vykon': 'Výkon',
+    'odpor': 'Odpor',
+    'proud': 'Proud',
+    'napeti': 'Napětí',
+    'skola': 'Škola',
+    'mereni': 'Měření',
+    'skolni': 'Školní',
+    'test': 'Test',
+  };
+
+  String _stripDiacritics(String input) {
+    const map = {
+      'á': 'a',
+      'č': 'c',
+      'ď': 'd',
+      'é': 'e',
+      'ě': 'e',
+      'í': 'i',
+      'ň': 'n',
+      'ó': 'o',
+      'ř': 'r',
+      'š': 's',
+      'ť': 't',
+      'ú': 'u',
+      'ů': 'u',
+      'ý': 'y',
+      'ž': 'z',
+      'Á': 'A',
+      'Č': 'C',
+      'Ď': 'D',
+      'É': 'E',
+      'Ě': 'E',
+      'Í': 'I',
+      'Ň': 'N',
+      'Ó': 'O',
+      'Ř': 'R',
+      'Š': 'S',
+      'Ť': 'T',
+      'Ú': 'U',
+      'Ů': 'U',
+      'Ý': 'Y',
+      'Ž': 'Z',
+    };
+    var out = input;
+    map.forEach((k, v) => out = out.replaceAll(k, v));
+    return out;
+  }
+
+  String _normalizeAnswer(String input) {
+    return _stripDiacritics(
+      input.toLowerCase().replaceAll(RegExp(r'[.,!?;:\"]'), ''),
+    ).trim();
+  }
+
+  String _restoreDiacritics(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final key = _stripDiacritics(trimmed.toLowerCase());
+    final restored = _diacriticsRestoreMap[key];
+    if (restored != null) {
+      // Zachovej kapitalizaci prvního písmene podle originálu.
+      if (trimmed[0] == trimmed[0].toUpperCase()) return restored;
+      return restored[0].toLowerCase() + restored.substring(1);
+    }
+    return trimmed;
+  }
+
+  int? _parseNumberAnswer(String input) {
+    final norm = _normalizeAnswer(input);
+    if (norm.isEmpty) return null;
+    const words = {
+      'jedna': 1,
+      'jedno': 1,
+      'dva': 2,
+      'tri': 3,
+      'ctyri': 4,
+      'pet': 5,
+      'sest': 6,
+      'sedm': 7,
+      'osm': 8,
+      'devet': 9,
+      'deset': 10,
+    };
+    if (words.containsKey(norm)) return words[norm]!;
+    return int.tryParse(norm);
   }
 
   Widget _applyDialogSize(Widget child) {

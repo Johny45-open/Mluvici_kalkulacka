@@ -424,8 +424,48 @@ class _VoiceSetCreationSession {
     return '${index + 1}';
   }
 
+  String _stripDiacriticsLocal(String s) {
+    const map = {
+      'á': 'a',
+      'č': 'c',
+      'ď': 'd',
+      'é': 'e',
+      'ě': 'e',
+      'í': 'i',
+      'ň': 'n',
+      'ó': 'o',
+      'ř': 'r',
+      'š': 's',
+      'ť': 't',
+      'ú': 'u',
+      'ů': 'u',
+      'ý': 'y',
+      'ž': 'z',
+      'Á': 'A',
+      'Č': 'C',
+      'Ď': 'D',
+      'É': 'E',
+      'Ě': 'E',
+      'Í': 'I',
+      'Ň': 'N',
+      'Ó': 'O',
+      'Ř': 'R',
+      'Š': 'S',
+      'Ť': 'T',
+      'Ú': 'U',
+      'Ů': 'U',
+      'Ý': 'Y',
+      'Ž': 'Z',
+    };
+    var out = s;
+    map.forEach((k, v) => out = out.replaceAll(k, v));
+    return out;
+  }
+
   String _normalize(String text) {
-    return text.toLowerCase().replaceAll(RegExp(r'[.,!?;:"]'), '').trim();
+    return _stripDiacriticsLocal(
+      text.toLowerCase().replaceAll(RegExp(r'[.,!?;:"]'), '').trim(),
+    );
   }
 
   bool _isYes(String text) {
@@ -452,7 +492,7 @@ class _VoiceSetCreationSession {
 
   bool _isCancel(String text) {
     final t = _normalize(text);
-    return t.contains('zruš') ||
+    return t.contains('zrus') ||
         t == 'stop' ||
         t == 'zastav' ||
         t == 'zastavit' ||
