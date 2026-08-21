@@ -65,8 +65,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ElectricianCalculation _selectedElectricianCalculation =
       ElectricianCalculation.resistance;
 
-  DateTime? _lastSpeakTime;
-  final Duration _speakThrottle = const Duration(milliseconds: 300);
+  final List<String> _pendingSpeech = [];
+  Timer? _speechBatchTimer;
+  static const Duration _speechBatchWindow = Duration(milliseconds: 250);
+  static const int _maxBatchTextLength = 12;
   String? _lastTtsLocale;
 
   final Map<String, double> _memory = {
@@ -1304,6 +1306,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @override
   void dispose() {
+    _speechBatchTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _mainFocusNode.dispose();
     super.dispose();
@@ -1464,6 +1467,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (_ttsVoice != null) await tts.setVoice(_ttsVoice!);
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
+      await tts.setQueueMode(1);
       if (_sayWelcome) {
         String welcome =
             l10n.welcomeMessage(_getModeSpeechNameForL10n(_currentMode, l10n));
@@ -1608,18 +1612,47 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         (_isScreenReaderActive && !force)) {
       return;
     }
-    final now = DateTime.now();
-    if (_lastSpeakTime != null &&
-        now.difference(_lastSpeakTime!) < _speakThrottle) {
+    if (force) {
+      _cancelSpeechBatch();
+      try {
+        await tts.stop();
+        await tts.speak(_formatForSpeech(text));
+      } catch (e) {
+        debugPrint('TTS Error: $e');
+      }
       return;
     }
-    _lastSpeakTime = now;
+    if (text.length <= _maxBatchTextLength) {
+      _pendingSpeech.add(text);
+      _speechBatchTimer?.cancel();
+      _speechBatchTimer = Timer(_speechBatchWindow, _flushSpeechBatch);
+      return;
+    }
+    if (_pendingSpeech.isNotEmpty) _flushSpeechBatch();
     try {
-      await tts.stop();
       await tts.speak(_formatForSpeech(text));
     } catch (e) {
       debugPrint('TTS Error: $e');
     }
+  }
+
+  void _flushSpeechBatch() {
+    _speechBatchTimer?.cancel();
+    _speechBatchTimer = null;
+    if (!mounted || _pendingSpeech.isEmpty) return;
+    final joined = _pendingSpeech.join(', ');
+    _pendingSpeech.clear();
+    try {
+      tts.speak(_formatForSpeech(joined));
+    } catch (e) {
+      debugPrint('TTS Error: $e');
+    }
+  }
+
+  void _cancelSpeechBatch() {
+    _speechBatchTimer?.cancel();
+    _speechBatchTimer = null;
+    _pendingSpeech.clear();
   }
 
   String _formatForSpeech(String text) {
@@ -2888,6 +2921,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await tts.setVolume(_speechVolume);
     if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
     if (_ttsVoice != null) await tts.setVoice(_ttsVoice!);
+    await tts.setQueueMode(1);
   }
 
   void _saveSettings() async {
@@ -3835,6 +3869,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _handleButtonPressed(String label, {bool silent = false}) {
+    HapticFeedback.selectionClick();
     bool alreadyHandled = false;
     if (label == '…') {
       _togglePeriod();
