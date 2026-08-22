@@ -46,6 +46,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   double _fontSizeMultiplier = 1.0;
   double _dotMatrixZoom = 1.0;
   double _resultZoom = 1.0;
+  bool _alignInputLeft = true;
+  double _dialogFontScale = 1.0;
   double _speechRate = 0.5;
   double _speechVolume = 1.0;
   ScreenReaderMode _screenReaderMode = ScreenReaderMode.auto;
@@ -65,6 +67,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final s = shortest / 360.0;
     return s.clamp(1.0, 1.7);
   }
+
+  void _scheduleInputAutoscroll() {
+    if (!_alignInputLeft) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollControllerH.hasClients) return;
+      final pos = _scrollControllerH.position;
+      if (pos.maxScrollExtent <= 0) return;
+      // Scroll to cursor position proportionally; if cursor at end -> maxExtent
+      final totalLen = display.length + 1; // +1 for cursor marker
+      final progress = totalLen == 0 ? 1.0 : _cursorPosition / totalLen;
+      final target = (pos.maxScrollExtent * progress).clamp(0.0, pos.maxScrollExtent);
+      // Prefer maxExtent when cursor at end for typical typing
+      final finalTarget = _cursorPosition == display.length
+          ? pos.maxScrollExtent
+          : target;
+      if ((pos.pixels - finalTarget).abs() > 1) {
+        _scrollControllerH.animateTo(
+          finalTarget,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   bool _usePeriodicNotation = true;
   int _precision = 2;
   double? _lastNumericValue;
@@ -2857,6 +2884,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _fontSizeMultiplier = prefs.getDouble('fontSizeMultiplier') ?? 1.0;
       _dotMatrixZoom = prefs.getDouble('dotMatrixZoom') ?? 1.0;
       _resultZoom = prefs.getDouble('resultZoom') ?? 1.0;
+      _alignInputLeft = prefs.getBool('alignInputLeft') ?? true;
+      _dialogFontScale = (prefs.getDouble('dialogFontScale') ?? 1.0).clamp(0.5, 5.0);
       ttsEnabled = prefs.getBool('ttsEnabled') ?? true;
       _usePeriodicNotation = prefs.getBool('usePeriodicNotation') ?? true;
       _useSixteenSegment = prefs.getBool('useSixteenSegment') ?? false;
@@ -2938,6 +2967,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setDouble('fontSizeMultiplier', _fontSizeMultiplier);
     await prefs.setDouble('dotMatrixZoom', _dotMatrixZoom);
     await prefs.setDouble('resultZoom', _resultZoom);
+    await prefs.setBool('alignInputLeft', _alignInputLeft);
+    await prefs.setDouble('dialogFontScale', _dialogFontScale);
     await prefs.setBool('ttsEnabled', ttsEnabled);
     await prefs.setBool('usePeriodicNotation', _usePeriodicNotation);
     await prefs.setBool('useSixteenSegment', _useSixteenSegment);
@@ -2983,6 +3014,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() => _inverseFormatPreference = val);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('inverseFormatPreference', val);
+  }
+
+  Widget _wrapWithDialogFontScale(BuildContext ctx, Widget dialog) {
+    final sys = MediaQuery.textScalerOf(ctx);
+    final sysFactor = sys.scale(1.0);
+    final combined = (sysFactor * _dialogFontScale).clamp(0.5, 10.0);
+    return MediaQuery(
+      data: MediaQuery.of(ctx).copyWith(
+        textScaler: TextScaler.linear(combined),
+      ),
+      child: dialog,
+    );
   }
 
   void _toggleTts() {
@@ -7577,6 +7620,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               final double displayFlex = (totalHeight < 600) ? 1.0 : 1.5;
               final double keyboardFlex = 3.0;
               final double s = _responsiveScale(context);
+              if (_alignInputLeft) _scheduleInputAutoscroll();
 
               return Column(
                 children: [
@@ -7651,25 +7695,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               ),
                               SizedBox(height: 4 * s),
                               Expanded(
-                                child: Center(
-                                  child: SingleChildScrollView(
-                                    controller: _scrollControllerH,
-                                    scrollDirection: Axis.horizontal,
-                                    child: SingleChildScrollView(
-                                      controller: _scrollControllerV,
-                                      scrollDirection: Axis.vertical,
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          _buildDotMatrixDisplay(),
-                                          SizedBox(height: 12 * s),
-                                          _buildMainResultDisplay(),
-                                        ],
+                                child: SingleChildScrollView(
+                                  controller: _scrollControllerV,
+                                  scrollDirection: Axis.vertical,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: _alignInputLeft
+                                        ? CrossAxisAlignment.start
+                                        : CrossAxisAlignment.center,
+                                    children: [
+                                      Align(
+                                        alignment: _alignInputLeft
+                                            ? Alignment.centerLeft
+                                            : Alignment.center,
+                                        child: SingleChildScrollView(
+                                          controller: _scrollControllerH,
+                                          scrollDirection: Axis.horizontal,
+                                          child: _buildDotMatrixDisplay(),
+                                        ),
                                       ),
-                                    ),
+                                      SizedBox(height: 12 * s),
+                                      Align(
+                                        alignment: Alignment.center,
+                                        child: _buildMainResultDisplay(),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

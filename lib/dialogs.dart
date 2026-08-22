@@ -647,25 +647,28 @@ child: Text(
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      insetPadding: parent._dialogInsetPadding(),
-      semanticLabel: parent._s('Pokročilé funkce', 'Advanced functions'),
-      title: Semantics(
-        header: true,
-        child: Text(parent._s('Pokročilé funkce', 'Advanced functions')),
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: ListView(children: _buildSections(context)),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: Text(parent._s('ZAVŘÍT', 'CLOSE')),
+    return parent._wrapWithDialogFontScale(
+      context,
+      AlertDialog(
+        insetPadding: parent._dialogInsetPadding(),
+        semanticLabel: parent._s('Pokročilé funkce', 'Advanced functions'),
+        title: Semantics(
+          header: true,
+          child: Text(parent._s('Pokročilé funkce', 'Advanced functions')),
         ),
-      ],
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(children: _buildSections(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text(parent._s('ZAVŘÍT', 'CLOSE')),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1002,16 +1005,18 @@ class _NewsDialogState extends State<_NewsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      insetPadding: widget.parent._dialogInsetPadding(),
-      semanticLabel: widget.parent._s('Novinky', 'What is new'),
-      title: Semantics(
-        header: true,
-        child: Text(widget.parent._s('Novinky', 'What is new')),
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: _loading
+    return widget.parent._wrapWithDialogFontScale(
+      context,
+      AlertDialog(
+        insetPadding: widget.parent._dialogInsetPadding(),
+        semanticLabel: widget.parent._s('Novinky', 'What is new'),
+        title: Semantics(
+          header: true,
+          child: Text(widget.parent._s('Novinky', 'What is new')),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: _loading
             ? const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(child: CircularProgressIndicator()),
@@ -1191,12 +1196,13 @@ class _NewsDialogState extends State<_NewsDialog> {
                 ),
               ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(widget.parent._s('Zavřít', 'Close')),
-        ),
-      ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(widget.parent._s('Zavřít', 'Close')),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1211,7 +1217,9 @@ class _AccessibilityDialog extends StatefulWidget {
 class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return widget.parent._wrapWithDialogFontScale(
+      context,
+      AlertDialog(
       insetPadding: widget.parent._dialogInsetPadding(),
       semanticLabel: widget.parent._l10n.accessibilitySettings,
       title: Semantics(
@@ -1829,6 +1837,111 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ],
             ),
             const SizedBox(height: 16),
+            Semantics(
+              label: widget.parent._s(
+                'Přepnout zarovnání vstupního řádku vlevo',
+                'Toggle left alignment of input line',
+              ),
+              child: ElevatedButton.icon(
+                icon: Icon(
+                  widget.parent._alignInputLeft
+                      ? Icons.format_align_left
+                      : Icons.format_align_center,
+                ),
+                onPressed: () {
+                  setState(() {
+                    widget.parent.setState(
+                      () => widget.parent._alignInputLeft =
+                          !widget.parent._alignInputLeft,
+                    );
+                    widget.parent._saveSettings();
+                  });
+                  widget.parent.speak(
+                    widget.parent._s(
+                      widget.parent._alignInputLeft
+                          ? 'Vstupní řádek zarovnán vlevo'
+                          : 'Vstupní řádek zarovnán na střed',
+                      widget.parent._alignInputLeft
+                          ? 'Input line aligned left'
+                          : 'Input line centered',
+                    ),
+                  );
+                },
+                label: Text(
+                  widget.parent._s(
+                    widget.parent._alignInputLeft
+                        ? 'Vstupní řádek: vlevo'
+                        : 'Vstupní řádek: na střed',
+                    widget.parent._alignInputLeft
+                        ? 'Input line: left'
+                        : 'Input line: centered',
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Column(
+              children: [
+                Semantics(
+                  header: true,
+                  label: widget.parent._s(
+                    'Ovládání velikosti písma dialogů',
+                    'Dialog font size controls',
+                  ),
+                  child: ExcludeSemantics(
+                    child: Text(
+                      widget.parent._s(
+                        'Velikost písma dialogů',
+                        'Dialog font size',
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Semantics(
+                      container: true,
+                      label: widget.parent._s(
+                        'Zmenšit písmo dialogů',
+                        'Decrease dialog font size',
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () => _adjustDialogFontScale(-0.1),
+                        child: ExcludeSemantics(child: const Text('-')),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Semantics(
+                        container: true,
+                        label: widget.parent._s(
+                          'Hodnota velikosti písma dialogů: ${(widget.parent._dialogFontScale * 100).toInt()} %',
+                          'Dialog font size value: ${(widget.parent._dialogFontScale * 100).toInt()} %',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            '${(widget.parent._dialogFontScale * 100).toInt()}%',
+                          ),
+                        ),
+                      ),
+                    ),
+                    Semantics(
+                      container: true,
+                      label: widget.parent._s(
+                        'Zvětšit písmo dialogů',
+                        'Increase dialog font size',
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () => _adjustDialogFontScale(0.1),
+                        child: ExcludeSemantics(child: const Text('+')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             Column(
               children: [
                 Semantics(
@@ -2007,6 +2120,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
           child: Text(widget.parent._l10n.done),
         ),
       ],
+      ),
     );
   }
 
@@ -2072,6 +2186,22 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
     widget.parent.speak(
       widget.parent._l10n.volumePct(
         (widget.parent._speechVolume * 100).toInt(),
+      ),
+    );
+  }
+
+  void _adjustDialogFontScale(double delta) {
+    setState(() {
+      widget.parent.setState(() {
+        widget.parent._dialogFontScale = (widget.parent._dialogFontScale + delta)
+            .clamp(0.5, 5.0);
+      });
+      widget.parent._saveSettings();
+    });
+    widget.parent.speak(
+      widget.parent._s(
+        'Velikost písma dialogů ${(widget.parent._dialogFontScale * 100).toInt()} procent',
+        'Dialog font size ${(widget.parent._dialogFontScale * 100).toInt()} percent',
       ),
     );
   }
