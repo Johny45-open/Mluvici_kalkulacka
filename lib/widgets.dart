@@ -260,15 +260,15 @@ class _CustomSevenSegmentPainter extends CustomPainter {
     draw(5, Offset(0, thickness), Offset(0, h / 2 - thickness / 2)); // f
     draw(6, Offset(thickness, h / 2), Offset(w - thickness, h / 2)); // g
 
-    // Čárka nad periodou (overline)
+    // Čárka nad periodou (overline) – zvednuta nad segment a a ztenčena, aby 4 nevypadala jako 9
     if (overline) {
       final barPaint = Paint()
         ..color = enabledColor
-        ..strokeWidth = thickness * 1.4
+        ..strokeWidth = thickness * 0.75
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(
-        Offset(0, thickness / 2),
-        Offset(size.width, thickness / 2),
+        Offset(0, 0),
+        Offset(size.width, 0),
         barPaint,
       );
     }
@@ -1216,15 +1216,15 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
       Offset(w / 2 + thickness / 2, h / 2 + thickness / 2),
     ); // M
 
-    // Čárka nad periodou (overline)
+    // Čárka nad periodou (overline) – zvednuta a ztenčena
     if (overline) {
       final barPaint = Paint()
         ..color = enabledColor
-        ..strokeWidth = thickness * 1.4
+        ..strokeWidth = thickness * 0.75
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(
-        Offset(0, thickness / 2),
-        Offset(size.width, thickness / 2),
+        Offset(0, 0),
+        Offset(size.width, 0),
         barPaint,
       );
     }

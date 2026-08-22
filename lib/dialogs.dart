@@ -540,6 +540,26 @@ child: Text(
                           );
                   }).toList(),
                 ),
+                const Divider(),
+                Semantics(
+                  label: parent._s(
+                    'Vymazat všechny proměnné paměti, zobrazí potvrzovací dialog',
+                    'Clear all memory variables, shows confirmation dialog',
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.delete_forever, size: 18),
+                      label: Text(parent._s('Vymazat všechny proměnné', 'Clear all variables')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.all(12),
+                      ),
+                      onPressed: () => parent._showClearMemoryConfirmation(),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

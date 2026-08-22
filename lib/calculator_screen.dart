@@ -196,6 +196,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   };
 
   final ScrollController _scrollControllerH = ScrollController();
+  final ScrollController _scrollControllerResultH = ScrollController();
   final ScrollController _scrollControllerV = ScrollController();
 
   final Map<String, Map<String, dynamic>> _unitSpeechData = {
@@ -1360,6 +1361,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     WidgetsBinding.instance.removeObserver(this);
     _voiceCreationSession?.dispose();
     _mainFocusNode.dispose();
+    _scrollControllerH.dispose();
+    _scrollControllerResultH.dispose();
+    _scrollControllerV.dispose();
     super.dispose();
   }
 
@@ -1990,14 +1994,37 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final existingPeriod = match.group(3);
 
     if (existingPeriod != null) {
-      final newText = '$intPart${fracPart.isEmpty ? '' : '.$fracPart'}';
+      // Cyklování periody: každý stisk rozšíří periodu o jednu číslici vlevo, po dosažení celé desetinné části se smaže
+      if (fracPart.isEmpty) {
+        // Případ "3.(3)" – celá desetinná část je perioda -> odstranění
+        final newText = intPart;
+        _applyPeriodText(text, match.start, newText, useResult);
+        speak(
+          _s(
+            'Perioda odstraněna, číslo je ${_spokenForDisplay(newText)}',
+            'Period removed, the number is ${_spokenForDisplay(newText)}',
+          ),
+        );
+        return;
+      }
+      // Ověření limitu 9 číslic periody
+      if (existingPeriod.length >= 9) {
+        final newText = '$intPart${fracPart.isEmpty ? '' : '.$fracPart'}';
+        _applyPeriodText(text, match.start, newText, useResult);
+        speak(
+          _s(
+            'Perioda odstraněna, číslo je ${_spokenForDisplay(newText)}',
+            'Period removed, the number is ${_spokenForDisplay(newText)}',
+          ),
+        );
+        return;
+      }
+      final newNonRepeating = fracPart.substring(0, fracPart.length - 1);
+      final newPeriod = fracPart.substring(fracPart.length - 1) + existingPeriod;
+      final newText =
+          '$intPart.${newNonRepeating.isEmpty ? '' : newNonRepeating}($newPeriod)';
       _applyPeriodText(text, match.start, newText, useResult);
-      speak(
-        _s(
-          'Perioda odstraněna, číslo je ${_spokenForDisplay(newText)}',
-          'Period removed, the number is ${_spokenForDisplay(newText)}',
-        ),
-      );
+      speak(_spokenForDisplay(newText));
       return;
     }
 
@@ -2025,6 +2052,121 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         '$intPart.${nonRepeating.isEmpty ? '' : nonRepeating}($repeating)';
     _applyPeriodText(text, match.start, newText, useResult);
     speak(_spokenForDisplay(newText));
+  }
+
+  void _showPeriodEditDialog() {
+    final bool useResult = display.isEmpty && _hasResult;
+    final String text =
+        useResult ? _lastResult : display.substring(0, _cursorPosition);
+    if (text.isEmpty) {
+      speak(_s('Nejprve zadejte číslo.', 'Enter a number first.'));
+      return;
+    }
+    final match =
+        RegExp(r'(\d+)(?:\.(\d*))?(?:\((\d+)\))?$').firstMatch(text);
+    if (match == null) {
+      speak(_s('Nelze najít číslo pro úpravu periody.', 'Cannot find a number to edit period.'));
+      return;
+    }
+    final intPart = match.group(1)!;
+    final fracPart = match.group(2) ?? '';
+    final existingPeriod = match.group(3) ?? '';
+    // Rozložit na neperiodickou a periodickou část
+    final String nonRepeating = existingPeriod.isEmpty ? fracPart : fracPart;
+    final String period = existingPeriod;
+    final nonCtrl = TextEditingController(text: nonRepeating);
+    final periodCtrl = TextEditingController(text: period);
+
+    showDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: _s('Upravit periodu', 'Edit period')),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        semanticLabel: _s('Upravit periodu', 'Edit period'),
+        title: Semantics(header: true, child: Text(_s('Upravit periodu', 'Edit period'))),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(
+                label: _s('Celá část', 'Integer part'),
+                child: TextFormField(
+                  initialValue: intPart,
+                  readOnly: true,
+                  decoration: InputDecoration(labelText: _s('Celá část', 'Integer part')),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Semantics(
+                label: _s('Neperiodická část', 'Non-repeating part'),
+                child: TextField(
+                  controller: nonCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: _s('Neperiodická část', 'Non-repeating part'),
+                    hintText: _s('např. 23', 'e.g. 23'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Semantics(
+                label: _s('Perioda (1-9 číslic)', 'Period (1-9 digits)'),
+                child: TextField(
+                  controller: periodCtrl,
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: _s('Perioda (1-9 číslic)', 'Period (1-9 digits)'),
+                    hintText: _s('např. 45', 'e.g. 45'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Semantics(
+                container: true,
+                label: _s('Náhled', 'Preview'),
+                child: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: periodCtrl,
+                  builder: (_, __, ___) => ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: nonCtrl,
+                    builder: (_, __, ___) {
+                      final n = nonCtrl.text.trim();
+                      final p = periodCtrl.text.trim();
+                      final preview = p.isEmpty ? '$intPart.${n.isEmpty ? fracPart : n}' : '$intPart.${n}($p)';
+                      return Text(_s('Náhled: $preview', 'Preview: $preview'), style: const TextStyle(fontStyle: FontStyle.italic));
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+          FilledButton(
+            onPressed: () {
+              final n = nonCtrl.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+              final p = periodCtrl.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+              if (p.isEmpty) {
+                speak(_s('Perioda nesmí být prázdná.', 'Period must not be empty.'));
+                return;
+              }
+              if (p.length > 9) {
+                speak(_s('Perioda může mít maximálně 9 číslic.', 'Period can have at most 9 digits.'));
+                return;
+              }
+              final newText = p.isEmpty ? '$intPart${n.isEmpty ? '' : '.$n'}' : '$intPart.$n($p)';
+              // Validace že neperiodická+perioda nejsou prázdné obě
+              _applyPeriodText(text, match.start, newText, useResult);
+              Navigator.pop(ctx);
+              speak(_spokenForDisplay(newText));
+            },
+            child: Text(_l10n.confirmAction),
+          ),
+        ],
+      ),
+    );
   }
 
   void calculateResult() {
@@ -3746,6 +3888,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ? '. Enter value and whole separated by a semicolon, e.g. 30;200.'
           : '. Zadejte hodnotu a celek oddělené středníkem, např. 30;200.';
     }
+    if (label == '…') {
+      descriptiveName += _isEnglish()
+          ? ', tap to toggle period, long press to edit period manually'
+          : ', krátký stisk pro přepnutí periody, dlouhý stisk pro ruční úpravu periody';
+    }
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -4785,11 +4932,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             _handleButtonPressed(b);
                           }
                         },
-                        onLongPressed:
-                            (b == 'M+' &&
+                        onLongPressed: (b == 'M+' &&
                                 _currentMode == CalculatorMode.statistics)
                             ? _handleMultipleStatisticsAddition
-                            : null,
+                            : (b == '…')
+                                ? _showPeriodEditDialog
+                                : null,
                       );
                     }).toList(),
                   ),
@@ -7046,6 +7194,74 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     speak(question);
   }
 
+  void _showClearMemoryConfirmation({BuildContext? dialogContext}) {
+    final hasData = _memory.values.any((v) => v != 0);
+    if (!hasData) {
+      final msg = _s('Paměť je již prázdná.', 'Memory is already empty.');
+      speak(msg);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+      return;
+    }
+    final nonZero = _memory.entries.where((e) => e.value != 0).map((e) => '${e.key}=${_formatNumberSmart(e.value).replaceAll('.', ',')}').join(', ');
+    final question = _s(
+      'Opravdu chcete smazat všechny proměnné paměti? Aktuálně: $nonZero.',
+      'Really clear all memory variables? Currently: $nonZero.',
+    );
+    showDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Potvrdit smazání paměti'),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        semanticLabel: _l10n.confirmationTitle,
+        title: Semantics(header: true, child: Text(_l10n.confirmationTitle)),
+        content: Focus(
+          autofocus: true,
+          onFocusChange: (hasFocus) {
+            if (hasFocus) speak(question);
+          },
+          child: Semantics(
+            container: true,
+            label: _s('Otázka', 'Question'),
+            child: Text(question),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _memory.updateAll((key, value) => 0);
+              });
+              _saveStatsData();
+              speak(_l10n.memoryCleared);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_l10n.memoryCleared)));
+              }
+              Navigator.pop(ctx);
+              // Zavřít i rodičovský dialog Pokročilé funkce pokud byl předán
+              if (dialogContext != null) {
+                // ponechat otevřený – uživatel uvidí prázdnou paměť
+              }
+            },
+            child: Semantics(
+              label: _s('Ano, smazat paměť', 'Yes, clear memory'),
+              child: Text(_l10n.yesDelete),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Semantics(
+              label: _s('Ne, ponechat paměť', 'No, keep memory'),
+              child: Text(_l10n.noStay),
+            ),
+          ),
+        ],
+      ),
+    );
+    speak(question);
+  }
+
   void _addValuesToStats(List<StatisticsRecord> records, int count) {
     setState(() {
       for (int i = 0; i < count; i++) {
@@ -7717,7 +7933,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                       SizedBox(height: 12 * s),
                                       Align(
                                         alignment: Alignment.center,
-                                        child: _buildMainResultDisplay(),
+                                        child: SingleChildScrollView(
+                                          controller: _scrollControllerResultH,
+                                          scrollDirection: Axis.horizontal,
+                                          child: _buildMainResultDisplay(),
+                                        ),
                                       ),
                                     ],
                                   ),
