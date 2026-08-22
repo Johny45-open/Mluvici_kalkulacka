@@ -251,6 +251,7 @@ extension on _CalculatorScreenState {
                   Semantics(
                     label: _s('Jednotka pro pole ${idx + 1}', 'Unit for field ${idx + 1}'),
                     child: DropdownButtonFormField<String>(
+                      key: ValueKey('unit_${idx}_$fieldCount'),
                       initialValue: unitVal,
                       isExpanded: true,
                       decoration: InputDecoration(
@@ -424,10 +425,14 @@ extension on _CalculatorScreenState {
               actions: [
                 TextButton(
                   onPressed: () {
-                    for (final c in fieldNameControllers) c.dispose();
-                    nameController.dispose();
-                    countController.dispose();
                     Navigator.pop(ctx);
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                      for (final c in fieldNameControllers) {
+                        try { c.dispose(); } catch (_) {}
+                      }
+                      try { nameController.dispose(); } catch (_) {}
+                      try { countController.dispose(); } catch (_) {}
+                    });
                     speak(_s('Průvodce zrušen.', 'Wizard cancelled.'));
                   },
                   child: Text(_l10n.cancel),
@@ -454,7 +459,7 @@ extension on _CalculatorScreenState {
                         final parsed = _parseNumberAnswer(countController.text);
                         if (parsed == null || parsed < 1 || parsed > 10) {
                           speak(_s('Zadejte číslo 1 až 10.', 'Enter a number 1 to 10.'), force: true);
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(this.context).showSnackBar(
                             SnackBar(content: Text(_s('Zadejte číslo 1 až 10.', 'Enter a number 1 to 10.'))),
                           );
                           return;
@@ -479,52 +484,81 @@ extension on _CalculatorScreenState {
                 if (step == 3)
                   FilledButton(
                     onPressed: () {
-                      final rawName = nameController.text.trim();
-                      final finalName = rawName.isEmpty ? defaultName : _restoreDiacritics(rawName);
-                      // Kontrola duplicity po normalizaci
-                      final normNew = _normalizeAnswer(finalName);
-                      final duplicate = _statsSets.any((s) => _normalizeAnswer(s.name) == normNew);
-                      if (duplicate) {
-                        speak(_s('Název $finalName už existuje. Zvolte jiný.', 'Name $finalName already exists. Choose another.'), force: true);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(_s('Název $finalName už existuje.', 'Name $finalName already exists.'))),
-                        );
-                        setDialogState(() => step = 0);
-                        Future.delayed(const Duration(milliseconds: 300), () => speakStep(0));
-                        return;
-                      }
-                      final fieldNames = fieldNameControllers.map((c) {
-                        final t = c.text.trim();
-                        return t.isEmpty ? 'Hodnota' : _restoreDiacritics(t);
-                      }).toList();
-                      final fieldUnits = List<String?>.generate(fieldNames.length, (i) => fieldUnitValues[i] == '--' ? null : fieldUnitValues[i]);
+                      try {
+                        final rawName = nameController.text.trim();
+                        final finalName = rawName.isEmpty ? defaultName : _restoreDiacritics(rawName);
+                        // Kontrola duplicity po normalizaci
+                        final normNew = _normalizeAnswer(finalName);
+                        final duplicate = _statsSets.any((s) => _normalizeAnswer(s.name) == normNew);
+                        if (duplicate) {
+                          speak(_s('Název $finalName už existuje. Zvolte jiný.', 'Name $finalName already exists. Choose another.'), force: true);
+                          // Použij root context (this.context) pro ScaffoldMessenger – dialogový context nemusí mít Scaffold
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(content: Text(_s('Název $finalName už existuje.', 'Name $finalName already exists.'))),
+                          );
+                          setDialogState(() => step = 0);
+                          Future.delayed(const Duration(milliseconds: 300), () => speakStep(0));
+                          return;
+                        }
+                        // Zajisti konzistenci před generováním
+                        while (fieldNameControllers.length < fieldCount) {
+                          fieldNameControllers.add(TextEditingController(text: _s('Pole ${fieldNameControllers.length + 1}', 'Field ${fieldNameControllers.length + 1}')));
+                          fieldUnitValues.add('--');
+                        }
+                        while (fieldNameControllers.length > fieldCount) {
+                          fieldNameControllers.removeLast().dispose();
+                          fieldUnitValues.removeLast();
+                        }
+                        final fieldNames = fieldNameControllers.map((c) {
+                          final t = c.text.trim();
+                          return t.isEmpty ? 'Hodnota' : _restoreDiacritics(t);
+                        }).toList();
+                        // Ochrana proti nesouladu délek
+                        if (fieldUnitValues.length < fieldNames.length) {
+                          while (fieldUnitValues.length < fieldNames.length) {
+                            fieldUnitValues.add('--');
+                          }
+                        }
+                        final fieldUnits = List<String?>.generate(fieldNames.length, (i) => fieldUnitValues[i] == '--' ? null : fieldUnitValues[i]);
 
-                      // ignore: invalid_use_of_protected_member
-                      setState(() {
-                        _statsSets.add(
-                          StatisticsSet(
-                            name: finalName,
-                            fieldNames: fieldNames,
-                            fieldUnits: fieldUnits,
-                            records: [],
+                        // ignore: invalid_use_of_protected_member
+                        setState(() {
+                          _statsSets.add(
+                            StatisticsSet(
+                              name: finalName,
+                              fieldNames: fieldNames,
+                              fieldUnits: fieldUnits,
+                              records: [],
+                            ),
+                          );
+                          _currentStatsSetIndex = _statsSets.length - 1;
+                          _selectedFieldIndex = 0;
+                        });
+                        _saveStatsData();
+                        // Nejdřív zavřít dialog, až potom dispose kontrolerů
+                        Navigator.pop(ctx);
+                        // Dispose až po pop, aby nedošlo k použití po dispose během animace
+                        Future.delayed(const Duration(milliseconds: 100), () {
+                          for (final c in fieldNameControllers) {
+                            try { c.dispose(); } catch (_) {}
+                          }
+                          try { nameController.dispose(); } catch (_) {}
+                          try { countController.dispose(); } catch (_) {}
+                        });
+                        final fieldsSpoken = fieldNames.join(', ');
+                        speak(
+                          _s(
+                            'Sada $finalName byla vytvořena. Pole: $fieldsSpoken. Hodnoty můžete přidávat tlačítkem M plus.',
+                            'Set $finalName was created. Fields: $fieldsSpoken. You can add values using the M+ button.',
                           ),
+                          force: true,
                         );
-                        _currentStatsSetIndex = _statsSets.length - 1;
-                        _selectedFieldIndex = 0;
-                      });
-                      _saveStatsData();
-                      for (final c in fieldNameControllers) c.dispose();
-                      nameController.dispose();
-                      countController.dispose();
-                      Navigator.pop(ctx);
-                      final fieldsSpoken = fieldNames.join(', ');
-                      speak(
-                        _s(
-                          'Sada $finalName byla vytvořena. Pole: $fieldsSpoken. Hodnoty můžete přidávat tlačítkem M plus.',
-                          'Set $finalName was created. Fields: $fieldsSpoken. You can add values using the M+ button.',
-                        ),
-                        force: true,
-                      );
+                      } catch (e) {
+                        debugPrint('Guided wizard confirm error: $e');
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(content: Text(_s('Chyba při vytváření sady: $e', 'Error creating set: $e'))),
+                        );
+                      }
                     },
                     child: Text(_l10n.confirmAction),
                   ),

@@ -5904,7 +5904,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           label: Text(_s('Průvodce vytvořením', 'Creation wizard')),
                           onPressed: () {
                             Navigator.pop(dialogContext);
-                            _showGuidedStatsCreationDialog();
+                            // Počkat na dokončení pop animace, jinak může dojít k race kde nový dialog je připojen ke staré routě
+                            Future.delayed(const Duration(milliseconds: 200), () {
+                              if (mounted) _showGuidedStatsCreationDialog();
+                            });
                           },
                         ),
                       ),
