@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
@@ -88,6 +90,15 @@ class GitHubReleaseInfo {
   }
 }
 
+class GitHubFetchResult {
+  final List<GitHubReleaseInfo> releases;
+  final String? errorType; // null=success, otherwise offline/timeout/rateLimit/notFound/serverError/generic
+
+  const GitHubFetchResult({required this.releases, this.errorType});
+
+  bool get isSuccess => errorType == null;
+}
+
 class GitHubReleaseChecker {
   GitHubReleaseChecker({http.Client? client}) : _client = client ?? http.Client();
 
@@ -107,7 +118,9 @@ class GitHubReleaseChecker {
   }) async {
     try {
       final uri = Uri.https('api.github.com', '/repos/$owner/$repo/releases/latest');
-      final response = await _client.get(uri, headers: _headers());
+      final response = await _client
+          .get(uri, headers: _headers())
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
         debugPrint(
@@ -130,6 +143,12 @@ class GitHubReleaseChecker {
       }
 
       return null;
+    } on TimeoutException catch (e) {
+      debugPrint('Timeout checking for updates: $e');
+      return null;
+    } on SocketException catch (e) {
+      debugPrint('Offline checking for updates: $e');
+      return null;
     } catch (e) {
       debugPrint('Error checking for updates: $e');
       return null;
@@ -139,21 +158,40 @@ class GitHubReleaseChecker {
   Future<List<GitHubReleaseInfo>> fetchRecentReleases({
     required String owner,
     required String repo,
-    int perPage = 10,
+    int perPage = 30,
+    int page = 1,
+  }) async {
+    final result = await fetchRecentReleasesWithResult(
+      owner: owner,
+      repo: repo,
+      perPage: perPage,
+      page: page,
+    );
+    return result.releases;
+  }
+
+  Future<GitHubFetchResult> fetchRecentReleasesWithResult({
+    required String owner,
+    required String repo,
+    int perPage = 30,
+    int page = 1,
   }) async {
     try {
       final uri = Uri.https(
         'api.github.com',
         '/repos/$owner/$repo/releases',
-        {'per_page': '$perPage'},
+        {'per_page': '$perPage', 'page': '$page'},
       );
-      final response = await _client.get(uri, headers: _headers());
+      final response = await _client
+          .get(uri, headers: _headers())
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
         debugPrint(
           'Failed to fetch recent releases: ${response.statusCode} ${response.body}',
         );
-        return [];
+        final errorType = _errorTypeFromStatus(response.statusCode);
+        return GitHubFetchResult(releases: [], errorType: errorType);
       }
 
       final json = jsonDecode(response.body) as List<dynamic>;
@@ -161,11 +199,29 @@ class GitHubReleaseChecker {
           .whereType<Map<String, dynamic>>()
           .map(_releaseFromJson)
           .toList();
-      return releases;
+      return GitHubFetchResult(releases: releases);
+    } on TimeoutException catch (e) {
+      debugPrint('Timeout fetching recent releases: $e');
+      return const GitHubFetchResult(releases: [], errorType: 'timeout');
+    } on SocketException catch (e) {
+      debugPrint('Offline fetching recent releases: $e');
+      return const GitHubFetchResult(releases: [], errorType: 'offline');
     } catch (e) {
       debugPrint('Error fetching recent releases: $e');
-      return [];
+      // Rozlišení podle typu výjimky
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Failed host lookup')) {
+        return const GitHubFetchResult(releases: [], errorType: 'offline');
+      }
+      return const GitHubFetchResult(releases: [], errorType: 'generic');
     }
+  }
+
+  static String _errorTypeFromStatus(int statusCode) {
+    if (statusCode == 403 || statusCode == 429) return 'rateLimit';
+    if (statusCode == 404) return 'notFound';
+    if (statusCode >= 500) return 'serverError';
+    return 'generic';
   }
 
   static GitHubReleaseInfo _releaseFromJson(Map<String, dynamic> json) {

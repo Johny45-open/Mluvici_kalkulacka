@@ -682,8 +682,15 @@ class _NewsDialog extends StatefulWidget {
 
 class _NewsDialogState extends State<_NewsDialog> {
   bool _loading = true;
+  bool _loadingMore = false;
   String? _error;
+  // ignore: unused_field
+  String? _errorType;
   List<GitHubReleaseInfo> _releases = [];
+  int _currentPage = 1;
+  bool _hasMore = true;
+  bool _showingCached = false;
+  String? _cachedTimestamp;
 
   @override
   void initState() {
@@ -691,47 +698,201 @@ class _NewsDialogState extends State<_NewsDialog> {
     _loadReleases();
   }
 
-  Future<void> _loadReleases() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _loadReleases({bool loadMore = false}) async {
+    if (loadMore) {
+      if (_loadingMore || !_hasMore) return;
+      setState(() {
+        _loadingMore = true;
+      });
+    } else {
+      setState(() {
+        _loading = true;
+        _error = null;
+        _errorType = null;
+        _showingCached = false;
+        _cachedTimestamp = null;
+        _currentPage = 1;
+        _hasMore = true;
+      });
+    }
+
     final checker = GitHubReleaseChecker();
-    final releases = await checker.fetchRecentReleases(
+    final page = loadMore ? _currentPage + 1 : 1;
+    final result = await checker.fetchRecentReleasesWithResult(
       owner: 'Johny45-open',
       repo: 'Mluvici_kalkulacka',
-      perPage: 10,
+      perPage: 30,
+      page: page,
     );
     checker.close();
     if (!mounted) return;
 
-    setState(() {
-      _loading = false;
-      _releases = releases;
-      if (releases.isEmpty) {
-        _error = widget.parent._s(
+    if (result.isSuccess) {
+      if (!loadMore) {
+        await _saveCache(result.releases);
+      }
+      setState(() {
+        if (loadMore) {
+          _releases.addAll(result.releases);
+          _currentPage = page;
+          _loadingMore = false;
+        } else {
+          _releases = result.releases;
+          _currentPage = 1;
+          _loading = false;
+        }
+        _hasMore = result.releases.length == 30;
+        if (_releases.isEmpty) {
+          _error = widget.parent._s(
+            'Žádné novinky nenalezeny.',
+            'No release notes found.',
+          );
+          _errorType = 'empty';
+        } else {
+          _error = null;
+          _errorType = null;
+        }
+        _showingCached = false;
+        _cachedTimestamp = null;
+      });
+
+      if (!loadMore) {
+        final focused = widget.initialFocusVersion;
+        if (focused != null && result.releases.isNotEmpty) {
+          final matching = _findVersion(result.releases, focused.normalizedVersion);
+          if (matching != null && matching.plainTextBody.isNotEmpty) {
+            Future.delayed(const Duration(milliseconds: 600), () {
+              if (mounted) {
+                widget.parent.speak(
+                  widget.parent._s(
+                    'Novinky v této verzi. ${matching.plainTextBody}',
+                    'What is new in this version. ${matching.plainTextBody}',
+                  ),
+                  force: true,
+                );
+              }
+            });
+          }
+        }
+      }
+    } else {
+      // Chyba
+      if (!loadMore && _releases.isEmpty) {
+        final cached = await _loadCached();
+        if (cached != null && cached.releases.isNotEmpty) {
+          setState(() {
+            _loading = false;
+            _loadingMore = false;
+            _releases = cached.releases;
+            _cachedTimestamp = cached.timestamp;
+            _error = _errorMessageForType(result.errorType!);
+            _errorType = result.errorType;
+            _showingCached = true;
+            _hasMore = false;
+          });
+        } else {
+          setState(() {
+            _loading = false;
+            _loadingMore = false;
+            _error = _errorMessageForType(result.errorType!);
+            _errorType = result.errorType;
+          });
+        }
+      } else if (loadMore) {
+        setState(() {
+          _loadingMore = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_errorMessageForType(result.errorType!))),
+          );
+        }
+      } else {
+        setState(() {
+          _loading = false;
+          _loadingMore = false;
+          _error = _errorMessageForType(result.errorType!);
+          _errorType = result.errorType;
+        });
+      }
+    }
+  }
+
+  String _errorMessageForType(String type) {
+    switch (type) {
+      case 'offline':
+        return widget.parent._s(
           'Novinky se nepodařilo načíst. Zkontrolujte připojení k internetu.',
           'News could not be loaded. Check your internet connection.',
         );
-      }
-    });
+      case 'timeout':
+        return widget.parent._s(
+          'Načítání novinek vypršelo. Zkuste to znovu.',
+          'Loading news timed out. Please try again.',
+        );
+      case 'rateLimit':
+        return widget.parent._s(
+          'Byl překročen limit GitHub API. Zkuste to znovu za hodinu.',
+          'GitHub API rate limit exceeded. Please try again in an hour.',
+        );
+      case 'notFound':
+        return widget.parent._s(
+          'Repozitář nebo novinky nebyly nalezeny.',
+          'Repository or release notes not found.',
+        );
+      case 'serverError':
+        return widget.parent._s(
+          'Chyba serveru GitHub. Zkuste to znovu později.',
+          'GitHub server error. Please try again later.',
+        );
+      case 'empty':
+        return widget.parent._s(
+          'Žádné novinky nenalezeny.',
+          'No release notes found.',
+        );
+      default:
+        return widget.parent._s(
+          'Novinky se nepodařilo načíst. Zkuste to znovu.',
+          'News could not be loaded. Please try again.',
+        );
+    }
+  }
 
-    final focused = widget.initialFocusVersion;
-    if (focused != null && releases.isNotEmpty) {
-      final matching = _findVersion(releases, focused.normalizedVersion);
-      if (matching != null && matching.plainTextBody.isNotEmpty) {
-        Future.delayed(const Duration(milliseconds: 600), () {
-          if (mounted) {
-            widget.parent.speak(
-              widget.parent._s(
-                'Novinky v této verzi. ${matching.plainTextBody}',
-                'What is new in this version. ${matching.plainTextBody}',
-              ),
-              force: true,
-            );
-          }
-        });
-      }
+  Future<void> _saveCache(List<GitHubReleaseInfo> releases) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = releases
+          .map((r) => {
+                'tag_name': r.tagName,
+                'html_url': r.htmlUrl,
+                'body': r.body,
+              })
+          .toList();
+      await prefs.setString('news_cache_json', jsonEncode(jsonList));
+      await prefs.setString('news_cache_timestamp', DateTime.now().toIso8601String());
+    } catch (_) {}
+  }
+
+  Future<({List<GitHubReleaseInfo> releases, String? timestamp})?>
+      _loadCached() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('news_cache_json');
+      final timestamp = prefs.getString('news_cache_timestamp');
+      if (jsonStr == null) return null;
+      final List<dynamic> decoded = jsonDecode(jsonStr) as List<dynamic>;
+      final releases = decoded
+          .whereType<Map<String, dynamic>>()
+          .map((m) => GitHubReleaseInfo(
+                tagName: (m['tag_name'] as String?) ?? '',
+                htmlUrl: m['html_url'] as String?,
+                body: m['body'] as String?,
+              ))
+          .toList();
+      if (releases.isEmpty) return null;
+      return (releases: releases, timestamp: timestamp);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -824,6 +985,21 @@ class _NewsDialogState extends State<_NewsDialog> {
     );
   }
 
+  String _formatCachedTimestamp(String? iso) {
+    if (iso == null) return '';
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      final d = dt.day.toString().padLeft(2, '0');
+      final m = dt.month.toString().padLeft(2, '0');
+      final y = dt.year.toString();
+      final hh = dt.hour.toString().padLeft(2, '0');
+      final mm = dt.minute.toString().padLeft(2, '0');
+      return '$d.$m.$y $hh:$mm';
+    } catch (_) {
+      return iso;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -840,65 +1016,178 @@ class _NewsDialogState extends State<_NewsDialog> {
                 padding: EdgeInsets.all(24),
                 child: Center(child: CircularProgressIndicator()),
               )
-            : _error != null
-            ? Padding(
-                padding: const EdgeInsets.all(16),
-                child: Semantics(label: _error, child: Text(_error!)),
-              )
-            : SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Přečíst všechny novinky',
-                          'Read all release notes',
-                        ),
+            : (_error != null && _releases.isEmpty)
+            ? SingleChildScrollView(
+                child: Semantics(
+                  liveRegion: true,
+                  header: true,
+                  label: _error,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_error!),
+                      const SizedBox(height: 16),
+                      Semantics(
+                        label: widget.parent._s('Zkusit znovu načíst novinky', 'Try loading news again'),
                         child: FilledButton.icon(
-                          onPressed: _readAll,
-                          icon: const Icon(Icons.volume_up),
-                          label: Text(
-                            widget.parent._s('Přečíst vše', 'Read all'),
-                          ),
+                          onPressed: () => _loadReleases(),
+                          icon: const Icon(Icons.refresh),
+                          label: Text(widget.parent._s('Zkusit znovu', 'Retry')),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (widget.initialFocusVersion != null) ...[
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          widget.parent._s(
-                            'Co je nového v této verzi',
-                            'What is new in this version',
-                          ),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildReleaseTile(widget.initialFocusVersion!),
-                      const SizedBox(height: 8),
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          widget.parent._s('Starší verze', 'Older versions'),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
                     ],
-                    ..._releases
-                        .where(
-                          (release) =>
-                              widget.initialFocusVersion == null ||
-                              release.normalizedVersion !=
-                                  widget.initialFocusVersion!.normalizedVersion,
-                        )
-                        .map(_buildReleaseTile),
-                  ],
+                  ),
+                ),
+              )
+            : Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  child: Semantics(
+                    explicitChildNodes: true,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_showingCached && _error != null) ...[
+                          Semantics(
+                            liveRegion: true,
+                            header: true,
+                            label: _error,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.errorContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _error!,
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onErrorContainer,
+                                    ),
+                                  ),
+                                  if (_cachedTimestamp != null) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      widget.parent._s(
+                                        'Zobrazeny poslední uložené novinky z ${_formatCachedTimestamp(_cachedTimestamp)}.',
+                                        'Showing last saved news from ${_formatCachedTimestamp(_cachedTimestamp)}.',
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(context).colorScheme.onErrorContainer,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  Semantics(
+                                    label: widget.parent._s('Zkusit znovu načíst novinky', 'Try loading news again'),
+                                    child: FilledButton.icon(
+                                      onPressed: () => _loadReleases(),
+                                      icon: const Icon(Icons.refresh),
+                                      label: Text(widget.parent._s('Zkusit znovu', 'Retry')),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Semantics(
+                            label: widget.parent._s(
+                              'Přečíst všechny novinky',
+                              'Read all release notes',
+                            ),
+                            child: FilledButton.icon(
+                              autofocus: true,
+                              onPressed: _readAll,
+                              icon: const Icon(Icons.volume_up),
+                              label: Text(
+                                widget.parent._s('Přečíst vše', 'Read all'),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (widget.initialFocusVersion != null) ...[
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              widget.parent._s(
+                                'Co je nového v této verzi',
+                                'What is new in this version',
+                              ),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildReleaseTile(widget.initialFocusVersion!),
+                          const SizedBox(height: 8),
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              widget.parent._s('Starší verze', 'Older versions'),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ] else ...[
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              widget.parent._s('Seznam novinek', 'Release list'),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        ..._releases
+                            .where(
+                              (release) =>
+                                  widget.initialFocusVersion == null ||
+                                  release.normalizedVersion !=
+                                      widget.initialFocusVersion!.normalizedVersion,
+                            )
+                            .map(_buildReleaseTile),
+                        if (_hasMore && !_showingCached) ...[
+                          const SizedBox(height: 8),
+                          Center(
+                            child: _loadingMore
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : Semantics(
+                                    label: widget.parent._s(
+                                      'Načíst starší verze novinek',
+                                      'Load older release notes',
+                                    ),
+                                    child: FilledButton.tonalIcon(
+                                      onPressed: () => _loadReleases(loadMore: true),
+                                      icon: const Icon(Icons.expand_more),
+                                      label: Text(widget.parent._s('Načíst starší verze', 'Load older versions')),
+                                    ),
+                                  ),
+                          ),
+                        ],
+                        if (!_hasMore && _releases.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Text(
+                              widget.parent._s('Žádné další verze.', 'No more versions.'),
+                              style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
       ),

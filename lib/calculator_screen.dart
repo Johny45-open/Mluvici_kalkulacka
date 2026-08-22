@@ -1276,23 +1276,44 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return;
     }
 
-    await _markNewsSeen(currentNumeric);
-
     final checker = GitHubReleaseChecker();
-    final releases = await checker.fetchRecentReleases(
+    final result = await checker.fetchRecentReleasesWithResult(
       owner: 'Johny45-open',
       repo: 'Mluvici_kalkulacka',
-      perPage: 10,
+      perPage: 30,
+      page: 1,
     );
     checker.close();
     if (!mounted) return;
 
-    final currentRelease = _findReleaseForVersion(releases, currentNumeric);
+    // Uložit cache při úspěchu, i když currentRelease není nalezena
+    if (result.isSuccess && result.releases.isNotEmpty) {
+      await _saveNewsCache(result.releases);
+    }
+
+    final currentRelease = _findReleaseForVersion(result.releases, currentNumeric);
     if (currentRelease == null) {
       return;
     }
 
+    await _markNewsSeen(currentNumeric);
+
     await _showNewsDialog(initialFocusVersion: currentRelease);
+  }
+
+  Future<void> _saveNewsCache(List<GitHubReleaseInfo> releases) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = releases
+          .map((r) => {
+                'tag_name': r.tagName,
+                'html_url': r.htmlUrl,
+                'body': r.body,
+              })
+          .toList();
+      await prefs.setString('news_cache_json', jsonEncode(jsonList));
+      await prefs.setString('news_cache_timestamp', DateTime.now().toIso8601String());
+    } catch (_) {}
   }
 
   GitHubReleaseInfo? _findReleaseForVersion(
