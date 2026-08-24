@@ -44,11 +44,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   final bool _sayWelcome = true;
   AccessibilityType _accessibilityType = AccessibilityType.none;
   double _fontSizeMultiplier = 1.0;
+  double get _keyboardFontScale => _fontSizeMultiplier;
+  set _keyboardFontScale(double v) => _fontSizeMultiplier = v;
   double _dotMatrixZoom = 1.0;
   double _resultZoom = 1.0;
   double _overlineThickness = 1.0;
   bool _alignInputLeft = true;
   double _dialogFontScale = 1.0;
+  late final ValueNotifier<double> _dialogFontScaleNotifier =
+      ValueNotifier<double>(_dialogFontScale);
   double _speechRate = 0.5;
   double _speechVolume = 1.0;
   ScreenReaderMode _screenReaderMode = ScreenReaderMode.auto;
@@ -1277,6 +1281,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _refreshAccessibilityState();
     _initTts();
     _initAppVersion();
+    _dialogFontScaleNotifier.value = _dialogFontScale;
   }
 
   Future<void> _initAppVersion() async {
@@ -1365,6 +1370,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _scrollControllerH.dispose();
     _scrollControllerResultH.dispose();
     _scrollControllerV.dispose();
+    _dialogFontScaleNotifier.dispose();
     super.dispose();
   }
 
@@ -3053,7 +3059,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _isDegreeMode = prefs.getBool('isDegreeMode') ?? true;
-      _fontSizeMultiplier = prefs.getDouble('fontSizeMultiplier') ?? 1.0;
+      _fontSizeMultiplier =
+          (prefs.getDouble('keyboardFontScale') ??
+                  prefs.getDouble('fontSizeMultiplier') ??
+                  1.0)
+              .clamp(0.7, 2.5);
       _dotMatrixZoom = prefs.getDouble('dotMatrixZoom') ?? 1.0;
       _resultZoom = prefs.getDouble('resultZoom') ?? 1.0;
       _overlineThickness = (prefs.getDouble('overlineThickness') ?? 1.0).clamp(0.8, 4.0);
@@ -3127,6 +3137,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastSuggestedMode = savedSuggestedMode;
       }
     });
+    _dialogFontScaleNotifier.value = _dialogFontScale;
     await tts.setSpeechRate(_speechRate);
     await tts.setVolume(_speechVolume);
     if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
@@ -3137,6 +3148,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDegreeMode', _isDegreeMode);
+    await prefs.setDouble('keyboardFontScale', _fontSizeMultiplier);
     await prefs.setDouble('fontSizeMultiplier', _fontSizeMultiplier);
     await prefs.setDouble('dotMatrixZoom', _dotMatrixZoom);
     await prefs.setDouble('resultZoom', _resultZoom);
@@ -3191,19 +3203,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Widget _wrapWithDialogFontScale(BuildContext ctx, Widget dialog) {
-    final sys = MediaQuery.textScalerOf(ctx);
-    final sysFactor = sys.scale(1.0);
-    final combined = (sysFactor * _dialogFontScale).clamp(0.5, 3.5);
-    final scaled = MediaQuery(
-      data: MediaQuery.of(ctx).copyWith(
-        textScaler: TextScaler.linear(combined),
-      ),
-      child: dialog,
+    // Okamžitý náhled: sleduje _dialogFontScaleNotifier, aby se otevřený dialog překreslil živě
+    return ValueListenableBuilder<double>(
+      valueListenable: _dialogFontScaleNotifier,
+      builder: (context, scaleValue, _) {
+        final sys = MediaQuery.textScalerOf(ctx);
+        final sysFactor = sys.scale(1.0);
+        final combined = (sysFactor * scaleValue).clamp(0.5, 3.5);
+        final scaled = MediaQuery(
+          data: MediaQuery.of(ctx).copyWith(
+            textScaler: TextScaler.linear(combined),
+          ),
+          child: dialog,
+        );
+        if (_dialogSize == DialogSize.fullscreen) {
+          return Dialog.fullscreen(child: scaled);
+        }
+        return scaled;
+      },
     );
-    if (_dialogSize == DialogSize.fullscreen) {
-      return Dialog.fullscreen(child: scaled);
-    }
-    return scaled;
   }
 
   Future<T?> showAppDialog<T>({
@@ -3971,7 +3989,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 20 * _fontSizeMultiplier * textScale * scale,
+              fontSize: (20 * _keyboardFontScale * textScale * scale).clamp(12.0, 42.0),
               fontWeight: FontWeight.bold,
               color: color != null
                   ? Colors.white
@@ -4926,6 +4944,88 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         break;
     }
 
+    // Varianta B: na malém displeji s velkým fontem přepnout na scrollovatelný Wrap (jako statistický režim v dialozích)
+    final shortest = MediaQuery.of(context).size.shortestSide;
+    final isSmall = shortest < 360;
+    final needScroll = isSmall && _keyboardFontScale * _responsiveScale(context) > 1.6;
+
+    Widget buttonFor(String b) {
+      Color? color;
+      if (['/', '*', '-', '+'].contains(b)) {
+        color = Colors.blue;
+      } else if (b == 'C') {
+        color = Colors.orange;
+      } else if (b == 'DEL') {
+        color = Colors.redAccent;
+      } else if (b == '=') {
+        color = Colors.green;
+      } else if ([
+        'M+',
+        'MC',
+        'MR',
+        'STATS',
+        'SETS',
+      ].contains(b)) {
+        color = Colors.deepPurple;
+      } else if (_electricianCalculationFromButton(b) != null) {
+        color = _isSelectedElectricianButton(b) ? Colors.green : Colors.teal;
+      } else if (b == ';') {
+        color = Colors.deepPurple;
+      }
+      return buildButton(
+        b,
+        color: color,
+        semanticLabel: _getElectricianButtonSemanticLabel(b),
+        expanded: !needScroll,
+        onPressed: () {
+          if (b == 'M+' && _currentMode == CalculatorMode.statistics) {
+            _addSingleValueToStats();
+          } else {
+            _handleButtonPressed(b);
+          }
+        },
+        onLongPressed: (b == 'M+' && _currentMode == CalculatorMode.statistics)
+            ? _handleMultipleStatisticsAddition
+            : (b == '…')
+                ? _showPeriodEditDialog
+                : null,
+      );
+    }
+
+    if (needScroll) {
+      // Scrollovatelný Wrap – velikost tlačítek jako ve Statistickém režimu (Wrap + LayoutBuilder v dialozích: 50*scale)
+      return LayoutBuilder(
+        builder: (ctx, constraints) {
+          final maxW = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : MediaQuery.of(ctx).size.width;
+          final scale = _responsiveScale(ctx);
+          // šířka 4 sloupce, výška jako v dialogu statistiky: 50*scale, min 48dp pro hmatatelnost
+          final btnW = (maxW - 6) / 4;
+          final btnH = (54 * scale).clamp(48.0 * scale, 80.0 * scale);
+          return Scrollbar(
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Wrap(
+                  spacing: 2,
+                  runSpacing: 2,
+                  children: btns.map((b) {
+                    return SizedBox(
+                      width: btnW,
+                      height: btnH,
+                      child: buttonFor(b),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
     List<List<String>> rows = [];
     for (var i = 0; i < btns.length; i += 4) {
       rows.add(btns.sublist(i, i + 4 > btns.length ? btns.length : i + 4));
@@ -4940,51 +5040,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               return Expanded(
                 child: FocusTraversalGroup(
                   child: Row(
-                    children: row.map((b) {
-                      Color? color;
-                      if (['/', '*', '-', '+'].contains(b)) {
-                        color = Colors.blue;
-                      } else if (b == 'C') {
-                        color = Colors.orange;
-                      } else if (b == 'DEL') {
-                        color = Colors.redAccent;
-                      } else if (b == '=') {
-                        color = Colors.green;
-                      } else if ([
-                        'M+',
-                        'MC',
-                        'MR',
-                        'STATS',
-                        'SETS',
-                      ].contains(b)) {
-                        color = Colors.deepPurple;
-                      } else if (_electricianCalculationFromButton(b) != null) {
-                        color = _isSelectedElectricianButton(b)
-                            ? Colors.green
-                            : Colors.teal;
-                      } else if (b == ';') {
-                        color = Colors.deepPurple;
-                      }
-                      return buildButton(
-                        b,
-                        color: color,
-                        semanticLabel: _getElectricianButtonSemanticLabel(b),
-                        onPressed: () {
-                          if (b == 'M+' &&
-                              _currentMode == CalculatorMode.statistics) {
-                            _addSingleValueToStats();
-                          } else {
-                            _handleButtonPressed(b);
-                          }
-                        },
-                        onLongPressed: (b == 'M+' &&
-                                _currentMode == CalculatorMode.statistics)
-                            ? _handleMultipleStatisticsAddition
-                            : (b == '…')
-                                ? _showPeriodEditDialog
-                                : null,
-                      );
-                    }).toList(),
+                    children: row.map((b) => buttonFor(b)).toList(),
                   ),
                 ),
               );

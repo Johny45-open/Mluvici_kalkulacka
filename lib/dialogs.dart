@@ -2166,6 +2166,132 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
+                  label: widget.parent._s(
+                    'Ovládání velikosti písma tlačítek',
+                    'Keyboard button font size controls',
+                  ),
+                  child: ExcludeSemantics(
+                    child: Text(
+                      widget.parent._s(
+                        'Velikost písma tlačítek',
+                        'Keyboard button font size',
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Semantics(
+                      label: widget.parent._s(
+                        'Zmenšit písmo tlačítek',
+                        'Decrease keyboard button font size',
+                      ),
+                      button: true,
+                      child: ElevatedButton(
+                        onPressed: () => _adjustKeyboardFontScale(-0.1),
+                        child: ExcludeSemantics(child: const Text('-')),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Semantics(
+                        liveRegion: true,
+                        label: widget.parent._s(
+                          'Hodnota velikosti písma tlačítek: ${(widget.parent._keyboardFontScale * 100).toInt()} %',
+                          'Keyboard button font size value: ${(widget.parent._keyboardFontScale * 100).toInt()} %',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            '${(widget.parent._keyboardFontScale * 100).toInt()}%',
+                          ),
+                        ),
+                      ),
+                    ),
+                    Semantics(
+                      label: widget.parent._s(
+                        'Zvětšit písmo tlačítek',
+                        'Increase keyboard button font size',
+                      ),
+                      button: true,
+                      child: ElevatedButton(
+                        onPressed: () => _adjustKeyboardFontScale(0.1),
+                        child: ExcludeSemantics(child: const Text('+')),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Semantics(
+                  container: true,
+                  child: Text(
+                    widget.parent._s(
+                      'Na malém displeji se při velkém písmu klávesnice posouvá.',
+                      'On a small display the keyboard scrolls with large font.',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Náhled velikosti tlačítek – stejná velikost jako ve Statistickém režimu
+                Semantics(
+                  label: widget.parent._s(
+                    'Náhled tlačítek s aktuální velikostí písma',
+                    'Preview of buttons with current font size',
+                  ),
+                  child: ExcludeSemantics(
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 60,
+                            height: 44 * widget.parent._responsiveScale(context),
+                            child: widget.parent.buildButton(
+                              '7',
+                              expanded: false,
+                              onPressed: () {},
+                            ),
+                          ),
+                          SizedBox(
+                            width: 60,
+                            height: 44 * widget.parent._responsiveScale(context),
+                            child: widget.parent.buildButton(
+                              '8',
+                              expanded: false,
+                              onPressed: () {},
+                            ),
+                          ),
+                          SizedBox(
+                            width: 60,
+                            height: 44 * widget.parent._responsiveScale(context),
+                            child: widget.parent.buildButton(
+                              '9',
+                              expanded: false,
+                              onPressed: () {},
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Column(
+              children: [
+                Semantics(
+                  header: true,
                   label: widget.parent._l10n.speechRateControls,
                   child: ExcludeSemantics(
                     child: Text(widget.parent._l10n.speechRate),
@@ -2415,6 +2541,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       widget.parent.setState(() {
         widget.parent._dialogFontScale = (widget.parent._dialogFontScale + delta)
             .clamp(0.5, 5.0);
+        widget.parent._dialogFontScaleNotifier.value =
+            widget.parent._dialogFontScale;
       });
       widget.parent._saveSettings();
     });
@@ -2422,6 +2550,22 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       widget.parent._s(
         'Velikost písma dialogů ${(widget.parent._dialogFontScale * 100).toInt()} procent',
         'Dialog font size ${(widget.parent._dialogFontScale * 100).toInt()} percent',
+      ),
+    );
+  }
+
+  void _adjustKeyboardFontScale(double delta) {
+    setState(() {
+      widget.parent.setState(() {
+        widget.parent._keyboardFontScale =
+            (widget.parent._keyboardFontScale + delta).clamp(0.7, 2.5);
+      });
+      widget.parent._saveSettings();
+    });
+    widget.parent.speak(
+      widget.parent._s(
+        'Velikost písma tlačítek ${(widget.parent._keyboardFontScale * 100).toInt()} procent',
+        'Keyboard button font size ${(widget.parent._keyboardFontScale * 100).toInt()} percent',
       ),
     );
   }
