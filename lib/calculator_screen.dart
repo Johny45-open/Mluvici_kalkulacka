@@ -46,6 +46,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   double _fontSizeMultiplier = 1.0;
   double _dotMatrixZoom = 1.0;
   double _resultZoom = 1.0;
+  double _overlineThickness = 1.0;
   bool _alignInputLeft = true;
   double _dialogFontScale = 1.0;
   double _speechRate = 0.5;
@@ -1892,7 +1893,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: _PeriodicText(_l10n.savedToVariable(name, valStrVis)),
+            content: _PeriodicText(
+              _l10n.savedToVariable(name, valStrVis),
+              overlineThickness: _overlineThickness,
+            ),
           ),
         );
       }
@@ -1905,7 +1909,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: _PeriodicText(_l10n.recalledFromVariable(name, valStrVis)),
+            content: _PeriodicText(
+              _l10n.recalledFromVariable(name, valStrVis),
+              overlineThickness: _overlineThickness,
+            ),
           ),
         );
       }
@@ -2848,6 +2855,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       size: 16 * _resultZoom * scale,
       characterCount: 16,
       isSixteenSegment: _useSixteenSegment,
+      overlineThickness: _overlineThickness,
     );
   }
 
@@ -3048,6 +3056,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _fontSizeMultiplier = prefs.getDouble('fontSizeMultiplier') ?? 1.0;
       _dotMatrixZoom = prefs.getDouble('dotMatrixZoom') ?? 1.0;
       _resultZoom = prefs.getDouble('resultZoom') ?? 1.0;
+      _overlineThickness = (prefs.getDouble('overlineThickness') ?? 1.0).clamp(0.8, 4.0);
       _alignInputLeft = prefs.getBool('alignInputLeft') ?? true;
       _dialogFontScale = (prefs.getDouble('dialogFontScale') ?? 1.0).clamp(0.5, 5.0);
       ttsEnabled = prefs.getBool('ttsEnabled') ?? true;
@@ -3131,6 +3140,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setDouble('fontSizeMultiplier', _fontSizeMultiplier);
     await prefs.setDouble('dotMatrixZoom', _dotMatrixZoom);
     await prefs.setDouble('resultZoom', _resultZoom);
+    await prefs.setDouble('overlineThickness', _overlineThickness);
     await prefs.setBool('alignInputLeft', _alignInputLeft);
     await prefs.setDouble('dialogFontScale', _dialogFontScale);
     await prefs.setBool('ttsEnabled', ttsEnabled);
@@ -3904,6 +3914,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       text: _toBarNotation(txt),
       ledSize: 3.0 * _dotMatrixZoom * scale,
       ledSpacing: 0.8 * _dotMatrixZoom * scale,
+      overlineThickness: _overlineThickness,
     );
   }
 
@@ -5484,6 +5495,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                                 style: const TextStyle(
                                                   fontSize: 13,
                                                 ),
+                                                overlineThickness: _overlineThickness,
                                               ),
                                             ),
                                           );
@@ -5906,7 +5918,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               'Všechny hodnoty pole $selectedFieldName: $allValuesSpoken',
                               'All values of field $selectedFieldName: $allValuesSpoken',
                             ),
-                            child: ExcludeSemantics(child: _PeriodicText(allValues)),
+                            child: ExcludeSemantics(
+                              child: _PeriodicText(
+                                allValues,
+                                overlineThickness: _overlineThickness,
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Semantics(
@@ -5940,6 +5957,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                         child: _PeriodicText(
                                           row.value,
                                           textAlign: TextAlign.right,
+                                          overlineThickness: _overlineThickness,
                                         ),
                                       ),
                                     ],
@@ -7200,6 +7218,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             title: _PeriodicText(
                               expression,
                               style: const TextStyle(fontSize: 14),
+                              overlineThickness: _overlineThickness,
                             ),
                             subtitle: result.isNotEmpty
                                 ? _PeriodicText(
@@ -7209,6 +7228,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                       fontSize: 18,
                                       color: Colors.blue,
                                     ),
+                                    overlineThickness: _overlineThickness,
                                   )
                                 : null,
                             onTap: () => _insertFromHistory(
@@ -7472,7 +7492,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               children: [
                                 Expanded(
                                   child: ExcludeSemantics(
-                                    child: _PeriodicText('$idx. $rowTextVis'),
+                                    child: _PeriodicText(
+                                      '$idx. $rowTextVis',
+                                      overlineThickness: _overlineThickness,
+                                    ),
                                   ),
                                 ),
                                 IconButton(
@@ -7683,17 +7706,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             children: [
                               Expanded(
                                 child: ExcludeSemantics(
-                                  child: _PeriodicText('$idx. $rowTextVis'),
+                                    child: _PeriodicText(
+                                      '$idx. $rowTextVis',
+                                      overlineThickness: _overlineThickness,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                icon: const Icon(
-                                  Icons.edit,
-                                  size: 20,
-                                  color: Colors.blue,
-                                ),
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    size: 20,
+                                    color: Colors.blue,
+                                  ),
                                 tooltip: _s(
                                   'Upravit hodnotu $idx',
                                   'Edit value $idx',

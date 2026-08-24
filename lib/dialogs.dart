@@ -1853,11 +1853,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Semantics(
-                      container: true,
                       label: widget.parent._s(
                         'Zmenšit zoom horního řádku',
                         'Decrease upper line zoom',
                       ),
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustDotMatrixZoom(-0.1),
                         child: ExcludeSemantics(child: const Text('-')),
@@ -1866,7 +1866,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
-                        container: true,
+                        liveRegion: true,
                         label: widget.parent._s(
                           'Hodnota zoomu: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
                           'Zoom value: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
@@ -1879,11 +1879,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                     ),
                     Semantics(
-                      container: true,
                       label: widget.parent._s(
                         'Zvětšit zoom horního řádku',
                         'Increase upper line zoom',
                       ),
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustDotMatrixZoom(0.1),
                         child: ExcludeSemantics(child: const Text('+')),
@@ -1907,11 +1907,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Semantics(
-                      container: true,
                       label: widget.parent._s(
                         'Zmenšit zoom dolního řádku',
                         'Decrease lower line zoom',
                       ),
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustResultZoom(-0.1),
                         child: ExcludeSemantics(child: const Text('-')),
@@ -1920,7 +1920,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
-                        container: true,
+                        liveRegion: true,
                         label: widget.parent._s(
                           'Hodnota zoomu: ${(widget.parent._resultZoom * 100).toInt()} %',
                           'Zoom value: ${(widget.parent._resultZoom * 100).toInt()} %',
@@ -1933,13 +1933,122 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                     ),
                     Semantics(
-                      container: true,
                       label: widget.parent._s(
                         'Zvětšit zoom dolního řádku',
                         'Increase lower line zoom',
                       ),
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustResultZoom(0.1),
+                        child: ExcludeSemantics(child: const Text('+')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Column(
+              children: [
+                Semantics(
+                  header: true,
+                  label: widget.parent._s(
+                    'Tloušťka periodické čárky',
+                    'Repeating bar thickness',
+                  ),
+                  child: ExcludeSemantics(
+                    child: Text(
+                      widget.parent._s(
+                        'Tloušťka periodické čárky',
+                        'Repeating bar thickness',
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Semantics(
+                  label: widget.parent._s(
+                    'Náhled periodické čárky s aktuální tloušťkou',
+                    'Preview of repeating bar with current thickness',
+                  ),
+                  child: ExcludeSemantics(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF121212),
+                        border: Border.all(color: Colors.black, width: 1),
+                      ),
+                      child: Column(
+                        children: [
+                          CustomDotMatrixDisplay(
+                            text: '0.3\u0305',
+                            ledSize: 2.5,
+                            ledSpacing: 0.6,
+                            overlineThickness: widget.parent._overlineThickness,
+                          ),
+                          const SizedBox(height: 6),
+                          CustomSegmentDisplay(
+                            value: '0.3\u0305',
+                            size: 12,
+                            characterCount: 4,
+                            isSixteenSegment: widget.parent._useSixteenSegment,
+                            overlineThickness: widget.parent._overlineThickness,
+                          ),
+                          const SizedBox(height: 4),
+                          _PeriodicText(
+                            '0,(3)',
+                            overlineThickness: widget.parent._overlineThickness,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Semantics(
+                      label: widget.parent._s(
+                        'Zmenšit tloušťku periodické čárky',
+                        'Decrease repeating bar thickness',
+                      ),
+                      button: true,
+                      child: ElevatedButton(
+                        onPressed: () => _adjustOverlineThickness(-0.2),
+                        child: ExcludeSemantics(child: const Text('-')),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Semantics(
+                        liveRegion: true,
+                        label: widget.parent._s(
+                          'Tloušťka periodické čárky: ${(widget.parent._overlineThickness * 100).toInt()} %',
+                          'Repeating bar thickness: ${(widget.parent._overlineThickness * 100).toInt()} %',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            '${(widget.parent._overlineThickness * 100).toInt()}%',
+                          ),
+                        ),
+                      ),
+                    ),
+                    Semantics(
+                      label: widget.parent._s(
+                        'Zvětšit tloušťku periodické čárky',
+                        'Increase repeating bar thickness',
+                      ),
+                      button: true,
+                      child: ElevatedButton(
+                        onPressed: () => _adjustOverlineThickness(0.2),
                         child: ExcludeSemantics(child: const Text('+')),
                       ),
                     ),
@@ -2012,11 +2121,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Semantics(
-                      container: true,
                       label: widget.parent._s(
                         'Zmenšit písmo dialogů',
                         'Decrease dialog font size',
                       ),
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustDialogFontScale(-0.1),
                         child: ExcludeSemantics(child: const Text('-')),
@@ -2025,7 +2134,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
-                        container: true,
+                        liveRegion: true,
                         label: widget.parent._s(
                           'Hodnota velikosti písma dialogů: ${(widget.parent._dialogFontScale * 100).toInt()} %',
                           'Dialog font size value: ${(widget.parent._dialogFontScale * 100).toInt()} %',
@@ -2038,11 +2147,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                     ),
                     Semantics(
-                      container: true,
                       label: widget.parent._s(
                         'Zvětšit písmo dialogů',
                         'Increase dialog font size',
                       ),
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustDialogFontScale(0.1),
                         child: ExcludeSemantics(child: const Text('+')),
@@ -2066,8 +2175,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Semantics(
-                      container: true,
                       label: widget.parent._l10n.decreaseSpeechRate,
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustSpeechRate(-0.1),
                         child: ExcludeSemantics(child: const Text('-')),
@@ -2076,7 +2185,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
-                        container: true,
+                        liveRegion: true,
                         label: widget.parent._l10n.speechRateValue(
                           (widget.parent._speechRate * 100).toInt(),
                         ),
@@ -2088,8 +2197,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                     ),
                     Semantics(
-                      container: true,
                       label: widget.parent._l10n.increaseSpeechRate,
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustSpeechRate(0.1),
                         child: ExcludeSemantics(child: const Text('+')),
@@ -2117,8 +2226,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Semantics(
-                      container: true,
                       label: widget.parent._l10n.decreaseVolume,
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustSpeechVolume(-0.1),
                         child: ExcludeSemantics(child: const Text('-')),
@@ -2127,7 +2236,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
-                        container: true,
+                        liveRegion: true,
                         label: widget.parent._s(
                           'Aktuální hlasitost: ${(widget.parent._speechVolume * 100).toInt()} %',
                           'Current volume: ${(widget.parent._speechVolume * 100).toInt()} %',
@@ -2140,8 +2249,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                     ),
                     Semantics(
-                      container: true,
                       label: widget.parent._l10n.increaseVolume,
+                      button: true,
                       child: ElevatedButton(
                         onPressed: () => _adjustSpeechVolume(0.1),
                         child: ExcludeSemantics(child: const Text('+')),
@@ -2313,6 +2422,22 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       widget.parent._s(
         'Velikost písma dialogů ${(widget.parent._dialogFontScale * 100).toInt()} procent',
         'Dialog font size ${(widget.parent._dialogFontScale * 100).toInt()} percent',
+      ),
+    );
+  }
+
+  void _adjustOverlineThickness(double delta) {
+    setState(() {
+      widget.parent.setState(() {
+        widget.parent._overlineThickness = (widget.parent._overlineThickness + delta)
+            .clamp(0.8, 4.0);
+      });
+      widget.parent._saveSettings();
+    });
+    widget.parent.speak(
+      widget.parent._s(
+        'Tloušťka periodické čárky ${(widget.parent._overlineThickness * 100).toInt()} procent',
+        'Repeating bar thickness ${(widget.parent._overlineThickness * 100).toInt()} percent',
       ),
     );
   }

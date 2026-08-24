@@ -43,8 +43,14 @@ class _PeriodicText extends StatelessWidget {
   final String text;
   final TextStyle? style;
   final TextAlign? textAlign;
+  final double overlineThickness;
 
-  const _PeriodicText(this.text, {this.style, this.textAlign});
+  const _PeriodicText(
+    this.text, {
+    this.style,
+    this.textAlign,
+    this.overlineThickness = 1.0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +70,10 @@ class _PeriodicText extends StatelessWidget {
       spans.add(
         TextSpan(
           text: period,
-          style: const TextStyle(decoration: TextDecoration.overline),
+          style: TextStyle(
+            decoration: TextDecoration.overline,
+            decorationThickness: 1.0 * overlineThickness,
+          ),
         ),
       );
       lastEnd = m.end;
@@ -87,6 +96,7 @@ class CustomSegmentDisplay extends StatelessWidget {
   final bool isSixteenSegment;
   final Color enabledColor;
   final Color disabledColor;
+  final double overlineThickness;
 
   const CustomSegmentDisplay({
     super.key,
@@ -97,6 +107,7 @@ class CustomSegmentDisplay extends StatelessWidget {
     this.isSixteenSegment = false,
     this.enabledColor = Colors.redAccent,
     this.disabledColor = const Color(0x30FF5252),
+    this.overlineThickness = 1.0,
   });
 
   @override
@@ -143,6 +154,7 @@ class CustomSegmentDisplay extends StatelessWidget {
                       chars[index].overline,
                       enabledColor,
                       disabledColor,
+                      overlineThickness,
                     )
                   : _CustomSevenSegmentPainter(
                       chars[index].char,
@@ -150,6 +162,7 @@ class CustomSegmentDisplay extends StatelessWidget {
                       chars[index].overline,
                       enabledColor,
                       disabledColor,
+                      overlineThickness,
                     ),
             ),
           ),
@@ -172,14 +185,16 @@ class _CustomSevenSegmentPainter extends CustomPainter {
   final bool overline;
   final Color enabledColor;
   final Color disabledColor;
+  final double overlineThickness;
 
   _CustomSevenSegmentPainter(
     this.char,
     this.showDot,
     this.overline,
     this.enabledColor,
-    this.disabledColor,
-  );
+    this.disabledColor, [
+    this.overlineThickness = 1.0,
+  ]);
 
   static const Map<String, List<bool>> _map = {
     '0': [true, true, true, true, true, true, false],
@@ -262,13 +277,14 @@ class _CustomSevenSegmentPainter extends CustomPainter {
 
     // Čárka nad periodou (overline) – zvednuta nad segment a a ztenčena, aby 4 nevypadala jako 9
     if (overline) {
+      final overlineExtra = (overlineThickness - 1.0).clamp(0.0, 3.0);
       final barPaint = Paint()
         ..color = enabledColor
-        ..strokeWidth = thickness * 0.75
+        ..strokeWidth = thickness * 0.75 * overlineThickness
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(
-        Offset(0, 0),
-        Offset(size.width, 0),
+        Offset(0, -thickness * 0.20 * overlineExtra),
+        Offset(size.width, -thickness * 0.20 * overlineExtra),
         barPaint,
       );
     }
@@ -292,14 +308,16 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
   final bool overline;
   final Color enabledColor;
   final Color disabledColor;
+  final double overlineThickness;
 
   _CustomSixteenSegmentPainter(
     this.char,
     this.showDot,
     this.overline,
     this.enabledColor,
-    this.disabledColor,
-  );
+    this.disabledColor, [
+    this.overlineThickness = 1.0,
+  ]);
 
   // A1, A2, B, C, D2, D1, E, F, G2, G1, H, I, J, K, L, M
   static const Map<String, List<bool>> _map = {
@@ -1218,13 +1236,14 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
 
     // Čárka nad periodou (overline) – zvednuta a ztenčena
     if (overline) {
+      final overlineExtra = (overlineThickness - 1.0).clamp(0.0, 3.0);
       final barPaint = Paint()
         ..color = enabledColor
-        ..strokeWidth = thickness * 0.75
+        ..strokeWidth = thickness * 0.75 * overlineThickness
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(
-        Offset(0, 0),
-        Offset(size.width, 0),
+        Offset(0, -thickness * 0.20 * overlineExtra),
+        Offset(size.width, -thickness * 0.20 * overlineExtra),
         barPaint,
       );
     }
@@ -1248,6 +1267,7 @@ class CustomDotMatrixDisplay extends StatelessWidget {
   final double ledSpacing;
   final Color enabledColor;
   final Color disabledColor;
+  final double overlineThickness;
 
   const CustomDotMatrixDisplay({
     super.key,
@@ -1256,6 +1276,7 @@ class CustomDotMatrixDisplay extends StatelessWidget {
     this.ledSpacing = 1.0,
     this.enabledColor = Colors.redAccent,
     this.disabledColor = const Color(0x30FF5252),
+    this.overlineThickness = 1.0,
   });
 
   @override
@@ -1291,6 +1312,7 @@ class CustomDotMatrixDisplay extends StatelessWidget {
               ledSpacing,
               enabledColor,
               disabledColor,
+              overlineThickness,
             ),
           ),
         );
@@ -1306,6 +1328,7 @@ class _CustomDotMatrixPainter extends CustomPainter {
   final double ledSpacing;
   final Color enabledColor;
   final Color disabledColor;
+  final double overlineThickness;
 
   _CustomDotMatrixPainter(
     this.char,
@@ -1313,8 +1336,9 @@ class _CustomDotMatrixPainter extends CustomPainter {
     this.ledSize,
     this.ledSpacing,
     this.enabledColor,
-    this.disabledColor,
-  );
+    this.disabledColor, [
+    this.overlineThickness = 1.0,
+  ]);
 
   static const Map<String, List<int>> _font = {
     '0': [0x1F, 0x11, 0x11, 0x11, 0x1F],
@@ -1402,18 +1426,31 @@ class _CustomDotMatrixPainter extends CustomPainter {
       }
     }
 
-    // Čárka nad periodou (overline)
+    // Čárka nad periodou (overline) – tloušťka škáluje výšku plné čáry nad 1.5×, jinak tečky
     if (overline) {
       paint.color = enabledColor;
-      for (int col = 0; col < 5; col++) {
-        canvas.drawCircle(
-          Offset(
-            col * (ledSize + ledSpacing) + ledSize / 2,
-            ledSize / 2,
+      if (overlineThickness > 1.5) {
+        final barH = ledSize * 0.9 * overlineThickness.clamp(0.8, 4.0);
+        final r = ledSize / 2;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(0, ledSize / 2 - barH / 2, ledSize * 5 + ledSpacing * 4, barH),
+            Radius.circular(r),
           ),
-          ledSize / 2,
           paint,
         );
+      } else {
+        final radius = ledSize / 2 * overlineThickness.clamp(0.8, 1.5);
+        for (int col = 0; col < 5; col++) {
+          canvas.drawCircle(
+            Offset(
+              col * (ledSize + ledSpacing) + ledSize / 2,
+              ledSize / 2,
+            ),
+            radius,
+            paint,
+          );
+        }
       }
     }
   }
