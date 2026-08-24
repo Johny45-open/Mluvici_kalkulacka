@@ -3193,7 +3193,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Widget _wrapWithDialogFontScale(BuildContext ctx, Widget dialog) {
     final sys = MediaQuery.textScalerOf(ctx);
     final sysFactor = sys.scale(1.0);
-    final combined = (sysFactor * _dialogFontScale).clamp(0.5, 10.0);
+    final combined = (sysFactor * _dialogFontScale).clamp(0.5, 3.5);
     final scaled = MediaQuery(
       data: MediaQuery.of(ctx).copyWith(
         textScaler: TextScaler.linear(combined),
@@ -4936,15 +4936,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       child: FocusTraversalGroup(
         child: Column(
           children: [
-            if (_currentMode == CalculatorMode.scientific) ...[
-              _buildScientificPageToggle(),
-              Semantics(
-                liveRegion: true,
-                label: _scientificPageAnnouncement ?? '',
-                excludeSemantics: true,
-                child: const SizedBox(width: 1, height: 1),
-              ),
-            ],
             ...rows.map((row) {
               return Expanded(
                 child: FocusTraversalGroup(
@@ -5489,24 +5480,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                               : '';
                                           return Expanded(
                                             child: ExcludeSemantics(
-                                              child: _PeriodicText(
-                                                '${_formatNumberSmart(ve.value)}$unitStr',
-                                                textAlign: TextAlign.center,
-                                                style: const TextStyle(
-                                                  fontSize: 13,
+                                              child: FittedBox(
+                                                fit: BoxFit.scaleDown,
+                                                child: _PeriodicText(
+                                                  '${_formatNumberSmart(ve.value)}$unitStr',
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                  ),
+                                                  overlineThickness: _overlineThickness,
                                                 ),
-                                                overlineThickness: _overlineThickness,
                                               ),
                                             ),
                                           );
                                         }),
                                         Expanded(
                                           child: ExcludeSemantics(
-                                            child: Text(
-                                              '$count×',
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                fontSize: 13,
+                                            child: FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              child: Text(
+                                                '$count×',
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -6389,104 +6386,94 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       ...List.generate(fieldNameControllers.length, (i) {
                         final isLast = fieldNameControllers.length == 1;
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: Semantics(
-                                  label:
-                                      _s('Název pole', 'Field name') +
-                                      ' ${i + 1}',
-                                  child: TextField(
-                                    controller: fieldNameControllers[i],
-                                    decoration: InputDecoration(
-                                      labelText:
-                                          _s('Pole', 'Field') + ' ${i + 1}',
-                                      isDense: true,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 8,
-                                          ),
-                                    ),
-                                    onChanged: (_) {
-                                      dirty = true;
-                                      setDialogState(() {});
-                                    },
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                flex: 2,
-                                child: Semantics(
-                                  label:
-                                      _s('Jednotka pole', 'Unit for field') +
-                                      ' ${i + 1}',
-                                  child: DropdownButtonFormField<String>(
-                                    value: fieldUnitValues[i],
-                                    isDense: true,
-                                    isExpanded: true,
-                                    decoration: const InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 6,
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _buildResponsiveFieldRow(
+                            fieldWidget: Semantics(
+                              label:
+                                  _s('Název pole', 'Field name') + ' ${i + 1}',
+                              child: TextField(
+                                controller: fieldNameControllers[i],
+                                decoration: InputDecoration(
+                                  labelText:
+                                      _s('Pole', 'Field') + ' ${i + 1}',
+                                  isDense: true,
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                        horizontal: 8,
                                         vertical: 8,
                                       ),
-                                    ),
-                                    items: _statsFieldUnitOptions.map((u) {
-                                      return DropdownMenuItem(
-                                        value: u,
-                                        child: Text(
-                                          _getUnitOptionLabel(u),
-                                          style: const TextStyle(fontSize: 12),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      );
-                                    }).toList(),
-                                    onChanged: (val) {
-                                      if (val != null) {
-                                        fieldUnitValues[i] = val;
-                                        dirty = true;
-                                        setDialogState(() {});
-                                        final unitMsg = val == '--'
-                                            ? _s('Jednotka odstraněna.', 'Unit removed.')
-                                            : _s('Jednotka nastavena na $val. Změna se projeví po uložení.', 'Unit set to $val. Change will apply after saving.');
-                                        speak(unitMsg);
-                                      }
-                                    },
+                                ),
+                                onChanged: (_) {
+                                  dirty = true;
+                                  setDialogState(() {});
+                                },
+                              ),
+                            ),
+                            unitWidget: Semantics(
+                              label:
+                                  _s('Jednotka pole', 'Unit for field') +
+                                  ' ${i + 1}',
+                              child: DropdownButtonFormField<String>(
+                                value: fieldUnitValues[i],
+                                isDense: true,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 8,
                                   ),
                                 ),
+                                items: _statsFieldUnitOptions.map((u) {
+                                  return DropdownMenuItem(
+                                    value: u,
+                                    child: Text(
+                                      _getUnitOptionLabel(u),
+                                      style: const TextStyle(fontSize: 12),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    fieldUnitValues[i] = val;
+                                    dirty = true;
+                                    setDialogState(() {});
+                                    final unitMsg = val == '--'
+                                        ? _s('Jednotka odstraněna.', 'Unit removed.')
+                                        : _s('Jednotka nastavena na $val. Změna se projeví po uložení.', 'Unit set to $val. Change will apply after saving.');
+                                    speak(unitMsg);
+                                  }
+                                },
                               ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.remove_circle,
-                                  color: Colors.red,
-                                  size: 20,
-                                ),
-                                tooltip:
-                                    _s('Smazat pole', 'Delete field') +
-                                    ' ${i + 1}',
-                                onPressed: isLast
-                                    ? null
-                                    : () {
-                                        setDialogState(() {
-                                          fieldNameControllers.removeAt(i).dispose();
-                                          fieldUnitValues.removeAt(i);
-                                          draftFieldNames.removeAt(i);
-                                          for (final r in draftRecords) {
-                                            if (i < r.values.length) r.values.removeAt(i);
-                                          }
-                                          dirty = true;
-                                        });
-                                        speak(
-                                          _s('Pole ${i + 1} označeno ke smazání. Změna se projeví po uložení.', 'Field ${i + 1} marked for deletion. Change will apply after saving.'),
-                                        );
-                                      },
+                            ),
+                            deleteButton: IconButton(
+                              icon: const Icon(
+                                Icons.remove_circle,
+                                color: Colors.red,
+                                size: 20,
                               ),
-                            ],
+                              tooltip:
+                                  _s('Smazat pole', 'Delete field') +
+                                  ' ${i + 1}',
+                              onPressed: isLast
+                                  ? null
+                                  : () {
+                                      setDialogState(() {
+                                        fieldNameControllers.removeAt(i).dispose();
+                                        fieldUnitValues.removeAt(i);
+                                        draftFieldNames.removeAt(i);
+                                        for (final r in draftRecords) {
+                                          if (i < r.values.length) r.values.removeAt(i);
+                                        }
+                                        dirty = true;
+                                      });
+                                      speak(
+                                        _s('Pole ${i + 1} označeno ke smazání. Změna se projeví po uložení.', 'Field ${i + 1} marked for deletion. Change will apply after saving.'),
+                                      );
+                                    },
+                            ),
                           ),
                         );
                       }),
@@ -6531,6 +6518,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           },
         );
       },
+    );
+  }
+
+  Widget _buildResponsiveFieldRow({
+    required Widget fieldWidget,
+    required Widget unitWidget,
+    Widget? deleteButton,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 3, child: fieldWidget),
+        const SizedBox(width: 4),
+        Expanded(flex: 2, child: unitWidget),
+        if (deleteButton != null) deleteButton,
+      ],
     );
   }
 
@@ -6593,87 +6596,78 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     const SizedBox(height: 8),
                     ...List.generate(fieldControllers.length, (i) {
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: Semantics(
-                                label: '${_s("Pole", "Field")} ${i + 1}',
-                                child: TextField(
-                                  controller: fieldControllers[i],
-                                  decoration: InputDecoration(
-                                    labelText:
-                                        '${_s("Pole", "Field")} ${i + 1}',
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 8,
-                                    ),
-                                  ),
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _buildResponsiveFieldRow(
+                          fieldWidget: Semantics(
+                            label: '${_s("Pole", "Field")} ${i + 1}',
+                            child: TextField(
+                              controller: fieldControllers[i],
+                              decoration: InputDecoration(
+                                labelText: '${_s("Pole", "Field")} ${i + 1}',
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              flex: 2,
-                              child: Semantics(
-                                label: _s(
-                                  'Jednotka pole ${i + 1}',
-                                  'Unit for field ${i + 1}',
-                                ),
-                                child: DropdownButtonFormField<String>(
-                                  value: fieldUnitValues[i],
-                                  isDense: true,
-                                  isExpanded: true,
-                                  decoration: const InputDecoration(
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 8,
-                                    ),
-                                  ),
-                                  items: _statsFieldUnitOptions.map((u) {
-                                    return DropdownMenuItem(
-                                      value: u,
-                                      child: Text(
-                                        _getUnitOptionLabel(u),
-                                        style: const TextStyle(fontSize: 12),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setDialogState(() {
-                                        fieldUnitValues[i] = val;
-                                      });
-                                    }
-                                  },
+                          ),
+                          unitWidget: Semantics(
+                            label: _s(
+                              'Jednotka pole ${i + 1}',
+                              'Unit for field ${i + 1}',
+                            ),
+                            child: DropdownButtonFormField<String>(
+                              value: fieldUnitValues[i],
+                              isDense: true,
+                              isExpanded: true,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 8,
                                 ),
                               ),
-                            ),
-                            if (fieldControllers.length > 1)
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.remove_circle,
-                                  color: Colors.red,
-                                  size: 20,
-                                ),
-                                tooltip: _s(
-                                  'Odebrat pole ${i + 1}',
-                                  'Remove field ${i + 1}',
-                                ),
-                                onPressed: () {
+                              items: _statsFieldUnitOptions.map((u) {
+                                return DropdownMenuItem(
+                                  value: u,
+                                  child: Text(
+                                    _getUnitOptionLabel(u),
+                                    style: const TextStyle(fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
                                   setDialogState(() {
-                                    fieldControllers[i].dispose();
-                                    fieldUnitValues.removeAt(i);
-                                    fieldControllers.removeAt(i);
+                                    fieldUnitValues[i] = val;
                                   });
-                                },
-                              ),
-                          ],
+                                }
+                              },
+                            ),
+                          ),
+                          deleteButton: fieldControllers.length > 1
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.remove_circle,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                  tooltip: _s(
+                                    'Odebrat pole ${i + 1}',
+                                    'Remove field ${i + 1}',
+                                  ),
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      fieldControllers[i].dispose();
+                                      fieldUnitValues.removeAt(i);
+                                      fieldControllers.removeAt(i);
+                                    });
+                                  },
+                                )
+                              : null,
                         ),
                       );
                     }),
@@ -8080,6 +8074,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   ),
                   // Přepínač režimů
                   _buildModeSelector(),
+                  if (_currentMode == CalculatorMode.scientific) ...[
+                    _buildScientificPageToggle(),
+                    Semantics(
+                      liveRegion: true,
+                      label: _scientificPageAnnouncement ?? '',
+                      excludeSemantics: true,
+                      child: const SizedBox(width: 1, height: 1),
+                    ),
+                  ],
                   // Klávesnice
                   Expanded(
                     flex: (keyboardFlex * 100).toInt(),
