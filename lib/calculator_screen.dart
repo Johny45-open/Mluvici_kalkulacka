@@ -1436,7 +1436,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _updateDialogShown = true;
     });
 
-    await showDialog<void>(
+    await showAppDialog<void>(
       context: context,
       routeSettings: const RouteSettings(name: 'Dostupná aktualizace'),
       barrierDismissible: false,
@@ -1515,7 +1515,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Future<void> _showNewsDialog({GitHubReleaseInfo? initialFocusVersion}) async {
     if (!mounted) return;
 
-    await showDialog<void>(
+    await showAppDialog<void>(
       context: context,
       routeSettings: const RouteSettings(name: 'Novinky'),
       builder: (dialogContext) =>
@@ -1568,7 +1568,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         'Which mode do you use most often?',
       ),
     );
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: const RouteSettings(name: 'Výběr režimu'),
       barrierDismissible: false,
@@ -2077,7 +2077,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final nonCtrl = TextEditingController(text: nonRepeating);
     final periodCtrl = TextEditingController(text: period);
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(name: _s('Upravit periodu', 'Edit period')),
       builder: (ctx) => AlertDialog(
@@ -2103,6 +2103,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 child: TextField(
                   controller: nonCtrl,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
                   decoration: InputDecoration(
                     labelText: _s('Neperiodická část', 'Non-repeating part'),
                     hintText: _s('např. 23', 'e.g. 23'),
@@ -2116,14 +2119,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   controller: periodCtrl,
                   keyboardType: TextInputType.number,
                   autofocus: true,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(9),
+                  ],
                   decoration: InputDecoration(
                     labelText: _s('Perioda (1-9 číslic)', 'Period (1-9 digits)'),
                     hintText: _s('např. 45', 'e.g. 45'),
+                    helperText: _s(
+                      'Povolené znaky: pouze číslice, max. 9',
+                      'Allowed: digits only, max. 9',
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               Semantics(
+                liveRegion: true,
                 container: true,
                 label: _s('Náhled', 'Preview'),
                 child: ValueListenableBuilder<TextEditingValue>(
@@ -2134,7 +2146,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       final n = nonCtrl.text.trim();
                       final p = periodCtrl.text.trim();
                       final preview = p.isEmpty ? '$intPart.${n.isEmpty ? fracPart : n}' : '$intPart.${n}($p)';
-                      return Text(_s('Náhled: $preview', 'Preview: $preview'), style: const TextStyle(fontStyle: FontStyle.italic));
+                      final spokenPreview = p.isEmpty
+                          ? preview
+                          : _spokenForDisplay(preview);
+                      return Semantics(
+                        liveRegion: true,
+                        label: _s(
+                          'Náhled $spokenPreview',
+                          'Preview $spokenPreview',
+                        ),
+                        child: Text(_s('Náhled: $preview', 'Preview: $preview'), style: const TextStyle(fontStyle: FontStyle.italic)),
+                      );
                     },
                   ),
                 ),
@@ -2967,7 +2989,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showFavoriteModeSuggestionDialog(CalculatorMode mode) {
     final modeName = _getModeName(mode);
     _saveSuggestedMode(mode.index);
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: const RouteSettings(name: 'Nejpoužívanější režim'),
       barrierDismissible: false,
@@ -3162,11 +3184,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final sys = MediaQuery.textScalerOf(ctx);
     final sysFactor = sys.scale(1.0);
     final combined = (sysFactor * _dialogFontScale).clamp(0.5, 10.0);
-    return MediaQuery(
+    final scaled = MediaQuery(
       data: MediaQuery.of(ctx).copyWith(
         textScaler: TextScaler.linear(combined),
       ),
       child: dialog,
+    );
+    if (_dialogSize == DialogSize.fullscreen) {
+      return Dialog.fullscreen(child: scaled);
+    }
+    return scaled;
+  }
+
+  Future<T?> showAppDialog<T>({
+    required BuildContext context,
+    bool barrierDismissible = true,
+    RouteSettings? routeSettings,
+    required WidgetBuilder builder,
+  }) {
+    return showDialog<T>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      routeSettings: routeSettings,
+      builder: (dialogContext) => _wrapWithDialogFontScale(
+        dialogContext,
+        Builder(builder: builder),
+      ),
     );
   }
 
@@ -3298,7 +3341,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showInitialAccessibilityDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Vítejte'),
       barrierDismissible: false,
@@ -3339,7 +3382,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showAccessibilityDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Nastavení přístupnosti'),
       builder: (context) => _AccessibilityDialog(parent: this),
@@ -3359,7 +3402,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } catch (e) {
       debugPrint('openTtsSettings Error: $e');
       if (!mounted) return;
-      showDialog(
+      showAppDialog(
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
@@ -3397,7 +3440,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final engines = await tts.getEngines;
       if (!mounted) return;
 
-      showDialog(
+      showAppDialog(
         context: context,
         routeSettings: const RouteSettings(name: 'Vybrat TTS engine'),
         builder: (context) => AlertDialog(
@@ -3436,7 +3479,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } catch (e) {
       debugPrint('TTS Engine Error: $e');
       if (!mounted) return;
-      showDialog(
+      showAppDialog(
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
@@ -3476,7 +3519,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       if (voices == null || voices is! List || voices.isEmpty) {
         if (!mounted) return;
-        showDialog(
+        showAppDialog(
           context: context,
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
@@ -3517,7 +3560,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       if (filteredVoices.isEmpty) {
         if (!mounted) return;
-        showDialog(
+        showAppDialog(
           context: context,
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
@@ -3550,7 +3593,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return;
       }
 
-      showDialog(
+      showAppDialog(
         context: context,
         routeSettings: const RouteSettings(name: 'Vybrat hlas'),
         builder: (context) => AlertDialog(
@@ -3633,7 +3676,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } catch (e) {
       debugPrint('TTS Voice Error: $e');
       if (!mounted) return;
-      showDialog(
+      showAppDialog(
         context: context,
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
@@ -3677,7 +3720,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         tutorialText = sections.take(sections.length - 1).join('\n\n');
       }
     }
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: RouteSettings(name: l10n.helpTitle),
       builder: (context) => AlertDialog(
@@ -3738,7 +3781,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     final ttsText = l10n.statsHelpText;
 
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: RouteSettings(name: l10n.statsHelpTitle),
       builder: (context) => AlertDialog(
@@ -3811,7 +3854,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showPrecisionDialog(DisplayFormat format) {
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Nastavení přesnosti'),
       builder: (context) => AlertDialog(
@@ -5036,7 +5079,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showAdvancedFunctionsDialog() {
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Pokročilé funkce'),
       builder: (context) => _AdvancedFunctionsDialog(parent: this),
@@ -5114,7 +5157,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         )
         .toList();
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: dialogContext,
       routeSettings: RouteSettings(
         name: _s(
@@ -5222,7 +5265,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showStatisticsMemoryDialog() {
     final l10n = _l10n;
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(name: _l10n.statsMemoryTitle),
       builder: (dialogContext) {
@@ -5660,7 +5703,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ? _statsSets[_currentStatsSetIndex].fieldNames
         : <String>['Hodnota'];
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(name: l10n.statsSummaryTitle),
       builder: (dialogContext) {
@@ -5934,7 +5977,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showStatsSetsDialog() {
     final l10n = _l10n;
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(name: l10n.statsSetsTitle),
       builder: (dialogContext) {
@@ -6138,7 +6181,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final l10n = _l10n;
     final controller = TextEditingController(text: _statsSets[index].name);
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(name: l10n.statsSetsRename),
       builder: (ctx) {
@@ -6188,60 +6231,145 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final l10n = _l10n;
     final set = _statsSets[index];
 
+    // Draft kopie – mutuje se pouze lokálně, originál až po Potvrdit (kombinace A+B)
+    final draftFieldNames = List<String>.from(set.fieldNames);
+    final draftFieldUnits = List<String>.from(
+      set.fieldUnits.map((e) => e ?? '--'),
+    );
+    final draftRecords = set.records
+        .map((r) => StatisticsRecord(values: List<double>.from(r.values)))
+        .toList();
     final fieldNameControllers = <TextEditingController>[
-      for (var i = 0; i < set.fieldNames.length; i++)
-        TextEditingController(text: set.fieldNames[i]),
+      for (var i = 0; i < draftFieldNames.length; i++)
+        TextEditingController(text: draftFieldNames[i]),
     ];
-    final fieldUnitValues = <String>[
-      for (var i = 0; i < set.fieldUnits.length; i++) set.fieldUnits[i] ?? '--',
-    ];
+    final fieldUnitValues = List<String>.from(draftFieldUnits);
+    bool dirty = false;
 
-    void commitChanges(StateSetter setDialogState) {
-      setState(() {
-        for (var i = 0; i < set.fieldNames.length; i++) {
-          final trimmed = fieldNameControllers[i].text.trim();
-          if (trimmed.isNotEmpty) {
-            set.fieldNames[i] = trimmed;
-          }
-          set.fieldUnits[i] = fieldUnitValues[i] == '--'
-              ? null
-              : fieldUnitValues[i];
+    String fieldsSummary(List<String> names, List<String> units) {
+      return names.asMap().entries.map((e) {
+        final u = e.value;
+        final unitCode = e.key < units.length ? units[e.key] : '--';
+        return unitCode != '--' ? '$u ($unitCode)' : u;
+      }).join(', ');
+    }
+
+    void disposeControllers() {
+      for (final c in fieldNameControllers) {
+        c.dispose();
+      }
+    }
+
+    void handleCancel(BuildContext dialogContext) {
+      disposeControllers();
+      Navigator.pop(dialogContext);
+      final msg = _s(
+        'Úpravy sady "${set.name}" zahozeny. Sada nebyla změněna.',
+        'Edits of set "${set.name}" discarded. Set was not changed.',
+      );
+      speak(msg, force: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    }
+
+    void handleSave(BuildContext dialogContext, StateSetter setDialogState) {
+      // Validace: zapracuj texty z controllerů
+      for (var i = 0; i < fieldNameControllers.length; i++) {
+        final trimmed = fieldNameControllers[i].text.trim();
+        if (trimmed.isNotEmpty) {
+          draftFieldNames[i] = trimmed;
         }
+      }
+      // Prázdný název pole není povolen
+      if (draftFieldNames.any((n) => n.trim().isEmpty)) {
+        final err = _s('Název pole nesmí být prázdný.', 'Field name must not be empty.');
+        speak(err, force: true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+        }
+        return;
+      }
+      // Pokud nic nezměněno, jen zavřít s hláškou
+      final namesChanged = draftFieldNames.length != set.fieldNames.length ||
+          !List.generate(draftFieldNames.length, (i) => draftFieldNames[i] == set.fieldNames[i]).every((e) => e) ||
+          !List.generate(fieldUnitValues.length, (i) {
+                final orig = i < set.fieldUnits.length ? (set.fieldUnits[i] ?? '--') : '--';
+                return fieldUnitValues[i] == orig;
+              }).every((e) => e) ||
+          draftRecords.length != set.records.length;
+      // Detect i hodnoty jednotek/názvů + délka
+      if (!dirty && !namesChanged) {
+        disposeControllers();
+        Navigator.pop(dialogContext);
+        final msg = _s('Žádné změny k uložení.', 'No changes to save.');
+        speak(msg, force: true);
+        return;
+      }
+
+      setState(() {
+        set.fieldNames
+          ..clear()
+          ..addAll(draftFieldNames);
+        set.fieldUnits
+          ..clear()
+          ..addAll(fieldUnitValues.map((v) => v == '--' ? null : v));
+        set.records
+          ..clear()
+          ..addAll(draftRecords.map((r) => StatisticsRecord(values: List<double>.from(r.values))));
         if (_selectedFieldIndex >= set.fieldNames.length) {
           _selectedFieldIndex = 0;
         }
       });
       _saveStatsData();
       _statsSummaryInitialized = false;
-      setDialogState(() {});
       onUpdated();
+      setDialogState(() {});
+      disposeControllers();
+      Navigator.pop(dialogContext);
+      final summary = fieldsSummary(draftFieldNames, fieldUnitValues);
+      final msg = _s(
+        'Sada "${set.name}" upravena. Pole: $summary. Změny uloženy.',
+        'Set "${set.name}" edited. Fields: $summary. Changes saved.',
+      );
+      speak(msg, force: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
     }
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
+      barrierDismissible: false,
       routeSettings: RouteSettings(name: _s('Upravit pole', 'Edit fields')),
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
-            return AlertDialog(
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, result) {
+                if (didPop) return;
+                handleCancel(dialogContext);
+              },
+              child: AlertDialog(
         insetPadding: _dialogInsetPadding(),
-              semanticLabel: _s(
-                'Upravit pole sady ${set.name}',
-                'Edit fields of set ${set.name}',
-              ),
-              title: Semantics(
-                header: true,
-                child: Text(
-                  _s('Pole sady', 'Fields of set') + ' "${set.name}"',
+                semanticLabel: _s(
+                  'Upravit pole sady ${set.name}',
+                  'Edit fields of set ${set.name}',
                 ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ...List.generate(set.fieldNames.length, (i) {
-                        final isLast = set.fieldNames.length == 1;
+                title: Semantics(
+                  header: true,
+                  child: Text(
+                    _s('Pole sady', 'Fields of set') + ' "${set.name}"',
+                  ),
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...List.generate(fieldNameControllers.length, (i) {
+                        final isLast = fieldNameControllers.length == 1;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Row(
@@ -6265,7 +6393,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                           ),
                                     ),
                                     onChanged: (_) {
-                                      commitChanges(setDialogState);
+                                      dirty = true;
+                                      setDialogState(() {});
                                     },
                                   ),
                                 ),
@@ -6302,7 +6431,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                     onChanged: (val) {
                                       if (val != null) {
                                         fieldUnitValues[i] = val;
-                                        commitChanges(setDialogState);
+                                        dirty = true;
+                                        setDialogState(() {});
+                                        final unitMsg = val == '--'
+                                            ? _s('Jednotka odstraněna.', 'Unit removed.')
+                                            : _s('Jednotka nastavena na $val. Změna se projeví po uložení.', 'Unit set to $val. Change will apply after saving.');
+                                        speak(unitMsg);
                                       }
                                     },
                                   ),
@@ -6320,29 +6454,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 onPressed: isLast
                                     ? null
                                     : () {
-                                        setState(() {
-                                          fieldNameControllers
-                                              .removeAt(i)
-                                              .dispose();
+                                        setDialogState(() {
+                                          fieldNameControllers.removeAt(i).dispose();
                                           fieldUnitValues.removeAt(i);
-                                          set.fieldNames.removeAt(i);
-                                          set.fieldUnits.removeAt(i);
-                                          for (final record in set.records) {
-                                            if (i < record.values.length) {
-                                              record.values.removeAt(i);
-                                            }
+                                          draftFieldNames.removeAt(i);
+                                          for (final r in draftRecords) {
+                                            if (i < r.values.length) r.values.removeAt(i);
                                           }
-                                          if (_selectedFieldIndex >=
-                                              set.fieldNames.length) {
-                                            _selectedFieldIndex = 0;
-                                          }
+                                          dirty = true;
                                         });
-                                        _saveStatsData();
-                                        _statsSummaryInitialized = false;
-                                        onUpdated();
-                                        setDialogState(() {});
                                         speak(
-                                          _s('Pole smazáno.', 'Field deleted.'),
+                                          _s('Pole ${i + 1} označeno ke smazání. Změna se projeví po uložení.', 'Field ${i + 1} marked for deletion. Change will apply after saving.'),
                                         );
                                       },
                               ),
@@ -6354,31 +6476,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         icon: const Icon(Icons.add, size: 18),
                         label: Text(_s('Přidat pole', 'Add field')),
                         onPressed: () {
-                          final newIndex = set.fieldNames.length;
-                          setState(() {
-                            set.fieldNames.add(
-                              _s(
-                                'Pole ${newIndex + 1}',
-                                'Field ${newIndex + 1}',
-                              ),
-                            );
-                            set.fieldUnits.add(null);
-                            fieldNameControllers.add(
-                              TextEditingController(text: set.fieldNames.last),
-                            );
+                          final newIndex = draftFieldNames.length;
+                          setDialogState(() {
+                            final newName = _s('Pole ${newIndex + 1}', 'Field ${newIndex + 1}');
+                            draftFieldNames.add(newName);
                             fieldUnitValues.add('--');
-                            for (final record in set.records) {
-                              record.values.add(0.0);
+                            fieldNameControllers.add(TextEditingController(text: newName));
+                            for (final r in draftRecords) {
+                              r.values.add(0.0);
                             }
+                            dirty = true;
                           });
-                          _saveStatsData();
-                          _statsSummaryInitialized = false;
-                          onUpdated();
-                          setDialogState(() {});
                           speak(
                             _s(
-                              'Pole přidáno. Stávajícím záznamům byla doplněna hodnota 0.',
-                              'Field added. Existing records were filled with value 0.',
+                              'Pole přidáno do návrhu. Stávajícím záznamům bude doplněna hodnota 0 po uložení.',
+                              'Field added to draft. Existing records will be filled with 0 after saving.',
                             ),
                           );
                         },
@@ -6388,15 +6500,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    for (final c in fieldNameControllers) {
-                      c.dispose();
-                    }
-                    Navigator.pop(dialogContext);
-                  },
-                  child: Text(l10n.close),
+                  onPressed: () => handleCancel(dialogContext),
+                  child: Text(l10n.cancel),
+                ),
+                FilledButton(
+                  onPressed: () => handleSave(dialogContext, setDialogState),
+                  child: Text(l10n.confirmAction),
                 ),
               ],
+              ),
             );
           },
         );
@@ -6430,7 +6542,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     ];
     final fieldUnitValues = <String>['--'];
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(name: l10n.statsSetsCreate),
       builder: (ctx) {
@@ -6806,15 +6918,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  Widget _wrapDialog(Widget dialog) {
-    // Pro fullscreen zvětšíme dialog na téměř celou obrazovku,
-    // pro wide použijeme širší inset, pro compact ponecháme výchozí.
-    if (_dialogSize == DialogSize.fullscreen) {
-      return Dialog.fullscreen(child: dialog);
-    }
-    return dialog;
-  }
-
   void _showNumberInfoDialog() {
     final l10n = _l10n;
     final value = _lastNumericValue;
@@ -6886,7 +6989,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String notIntMsg = l10n.infoNotInteger;
     String naMsg = l10n.infoNotApplicable;
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(name: l10n.numberInfo),
       builder: (dialogContext) {
@@ -7053,7 +7156,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _showHistoryDialog() {
     final bool historyEmpty = _history.isEmpty;
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Historie výpočtů'),
       builder: (context) => AlertDialog(
@@ -7143,7 +7246,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _showClearHistoryConfirmation() {
     String question = _l10n.deleteConfirmation;
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Potvrzení'),
       builder: (context) => AlertDialog(
@@ -7209,7 +7312,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'Opravdu chcete smazat všechny proměnné paměti? Aktuálně: $nonZero.',
       'Really clear all memory variables? Currently: $nonZero.',
     );
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: const RouteSettings(name: 'Potvrdit smazání paměti'),
       builder: (ctx) => AlertDialog(
@@ -7319,7 +7422,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         .toList();
     final summary = l10n.statsReviewSummary(editableRecords.length, setName);
 
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: RouteSettings(name: l10n.statsReviewTitle),
       builder: (dialogContext) => StatefulBuilder(
@@ -7442,7 +7545,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         )
         .toList();
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: dialogContext,
       routeSettings: RouteSettings(
         name: _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
@@ -7534,7 +7637,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final summary = l10n.statsReviewSummary(editableRecords.length, setName);
     TextEditingController controller = TextEditingController(text: '1');
 
-    showDialog(
+    showAppDialog(
       context: context,
       routeSettings: RouteSettings(name: l10n.statsRepeatTitle),
       builder: (dialogContext) => StatefulBuilder(
@@ -7700,7 +7803,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _showMoreOptionsDialog() {
     final l10n = _l10n;
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(name: l10n.moreOptions),
       builder: (dialogContext) => AlertDialog(

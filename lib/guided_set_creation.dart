@@ -77,7 +77,7 @@ extension on _CalculatorScreenState {
       if (text.isNotEmpty) speak(text, force: true);
     }
 
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(name: _s('Průvodce vytvořením sady', 'Set creation wizard')),
       barrierDismissible: false,

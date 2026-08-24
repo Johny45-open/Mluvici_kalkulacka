@@ -569,6 +569,105 @@ child: Text(
 
     sections.add(
       _CollapsibleSection(
+        title: parent._s('Periodická čísla', 'Repeating decimals'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    LayoutBuilder(
+                      builder: (lbCtx, lbConstraints) {
+                        final lbWidth = lbConstraints.maxWidth.isFinite
+                            ? lbConstraints.maxWidth
+                            : MediaQuery.of(lbCtx).size.width * 0.85;
+                        final lbScale = parent._responsiveScale(lbCtx);
+                        final hasPeriod = RegExp(
+                          r'\(\d+\)$',
+                        ).hasMatch(parent.display.isEmpty && parent._hasResult
+                            ? parent._lastResult
+                            : parent.display);
+                        final toggleLabel = parent._s(
+                          'Přepnout periodu, krátký stisk posune periodu o číslici vlevo, při celé desetinné části ji odstraní. Klávesová zkratka Ctrl+Shift+P',
+                          'Toggle period, tap moves period one digit left, removes it when whole fraction is repeating. Shortcut Ctrl+Shift+P',
+                        );
+                        return SizedBox(
+                          width: (lbWidth - 4) / 2,
+                          height: 50 * lbScale,
+                          child: parent.buildButton(
+                            '…',
+                            semanticLabel: toggleLabel,
+                            color: hasPeriod ? Colors.green : null,
+                            onPressed: () {
+                              Navigator.pop(lbCtx);
+                              Future.delayed(
+                                const Duration(milliseconds: 170),
+                                () => parent._togglePeriod(),
+                              );
+                            },
+                            expanded: false,
+                          ),
+                        );
+                      },
+                    ),
+                    LayoutBuilder(
+                      builder: (lbCtx, lbConstraints) {
+                        final lbWidth = lbConstraints.maxWidth.isFinite
+                            ? lbConstraints.maxWidth
+                            : MediaQuery.of(lbCtx).size.width * 0.85;
+                        final lbScale = parent._responsiveScale(lbCtx);
+                        return SizedBox(
+                          width: (lbWidth - 4) / 2,
+                          height: 50 * lbScale,
+                          child: parent.buildButton(
+                            parent._s('UPRAVIT', 'EDIT'),
+                            semanticLabel: parent._s(
+                              'Ruční úprava periody, otevře dialog s neperiodickou částí a periodou 1 až 9 číslic',
+                              'Edit period manually, opens dialog with non-repeating part and period 1 to 9 digits',
+                            ),
+                            onPressed: () {
+                              Navigator.pop(lbCtx);
+                              Future.delayed(
+                                const Duration(milliseconds: 170),
+                                () => parent._showPeriodEditDialog(),
+                              );
+                            },
+                            expanded: false,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Semantics(
+                  container: true,
+                  child: Text(
+                    parent._s(
+                      'Funguje pro číslo před kurzorem nebo poslední výsledek, vyžaduje desetinnou část. Dlouhý stisk … na hlavní klávesnici dělá totéž.',
+                      'Works for number before cursor or last result, requires decimal part. Long press … on main keyboard does the same.',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    sections.add(
+      _CollapsibleSection(
         title: parent._s('Zobrazení', 'Display'),
         children: [
           Padding(
@@ -667,28 +766,25 @@ child: Text(
 
   @override
   Widget build(BuildContext context) {
-    return parent._wrapWithDialogFontScale(
-      context,
-      AlertDialog(
-        insetPadding: parent._dialogInsetPadding(),
-        semanticLabel: parent._s('Pokročilé funkce', 'Advanced functions'),
-        title: Semantics(
-          header: true,
-          child: Text(parent._s('Pokročilé funkce', 'Advanced functions')),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView(children: _buildSections(context)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: Text(parent._s('ZAVŘÍT', 'CLOSE')),
-          ),
-        ],
+    return AlertDialog(
+      insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._s('Pokročilé funkce', 'Advanced functions'),
+      title: Semantics(
+        header: true,
+        child: Text(parent._s('Pokročilé funkce', 'Advanced functions')),
       ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView(children: _buildSections(context)),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: Text(parent._s('ZAVŘÍT', 'CLOSE')),
+        ),
+      ],
     );
   }
 }
@@ -1025,11 +1121,9 @@ class _NewsDialogState extends State<_NewsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.parent._wrapWithDialogFontScale(
-      context,
-      AlertDialog(
-        insetPadding: widget.parent._dialogInsetPadding(),
-        semanticLabel: widget.parent._s('Novinky', 'What is new'),
+    return AlertDialog(
+      insetPadding: widget.parent._dialogInsetPadding(),
+      semanticLabel: widget.parent._s('Novinky', 'What is new'),
         title: Semantics(
           header: true,
           child: Text(widget.parent._s('Novinky', 'What is new')),
@@ -1222,7 +1316,6 @@ class _NewsDialogState extends State<_NewsDialog> {
             child: Text(widget.parent._s('Zavřít', 'Close')),
           ),
         ],
-      ),
     );
   }
 }
@@ -1237,9 +1330,7 @@ class _AccessibilityDialog extends StatefulWidget {
 class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   @override
   Widget build(BuildContext context) {
-    return widget.parent._wrapWithDialogFontScale(
-      context,
-      AlertDialog(
+    return AlertDialog(
       insetPadding: widget.parent._dialogInsetPadding(),
       semanticLabel: widget.parent._l10n.accessibilitySettings,
       title: Semantics(
@@ -2092,7 +2183,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.restore),
                         onPressed: () async {
-                          final confirmed = await showDialog<bool>(
+                          final confirmed =
+                              await widget.parent.showAppDialog<bool>(
                             context: context,
                             routeSettings: const RouteSettings(
                               name: 'Potvrzení',
@@ -2140,7 +2232,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
           child: Text(widget.parent._l10n.done),
         ),
       ],
-      ),
     );
   }
 
