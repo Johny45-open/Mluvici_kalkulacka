@@ -696,11 +696,47 @@ class _VoiceTestDialogState extends State<_VoiceTestDialog> {
   }
 }
 
-class _PrefsDumpDialog extends StatelessWidget {
+class _PrefsDumpDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
   const _PrefsDumpDialog({required this.parent});
+  @override
+  State<_PrefsDumpDialog> createState() => _PrefsDumpDialogState();
+}
 
-  Future<Map<String, Object?>> _loadPrefs() async {
+class _PrefsDumpDialogState extends State<_PrefsDumpDialog> {
+  _CalculatorScreenState get parent => widget.parent;
+  bool _showRaw = false;
+  late DialogSize _currentSize = parent._dialogSize;
+  Map<String, Object?>? _data;
+
+  final Map<String, Map<String, String>> _labels = {
+    "isDegreeMode": {"cs": "Režim úhlů (DEG/RAD)", "en": "Angle mode"},
+    "ttsEnabled": {"cs": "Hlasový výstup", "en": "Voice output"},
+    "speechRate": {"cs": "Rychlost hlasu", "en": "Speech rate"},
+    "speechVolume": {"cs": "Hlasitost", "en": "Volume"},
+    "dotMatrixZoom": {"cs": "Zoom horního displeje", "en": "Upper display zoom"},
+    "resultZoom": {"cs": "Zoom dolního displeje", "en": "Lower display zoom"},
+    "overlineThickness": {"cs": "Tloušťka čárky periody", "en": "Repeating bar thickness"},
+    "alignInputLeft": {"cs": "Zarovnání vstupu vlevo", "en": "Input alignment left"},
+    "dialogFontScale": {"cs": "Velikost písma dialogů", "en": "Dialog font scale"},
+    "usePeriodicNotation": {"cs": "Periodický zápis", "en": "Periodic notation"},
+    "useSixteenSegment": {"cs": "16-segmentový displej", "en": "16-segment display"},
+    "announceExpression": {"cs": "Oznamování příkladu", "en": "Announce expression"},
+    "accessibilityType": {"cs": "Typ usnadnění", "en": "Accessibility type"},
+    "defaultMode": {"cs": "Výchozí režim", "en": "Default mode"},
+    "screenReaderModeState": {"cs": "Režim čtečky", "en": "Screen reader mode"},
+    "devModeEnabled": {"cs": "Vývojářský režim", "en": "Developer mode"},
+    "devAutoDiagnosticEnabled": {"cs": "Autodiagnostika při startu", "en": "Autodiagnostics on startup"},
+    "devDiagnosticDurationMs": {"cs": "Délka diagnostiky (ms)", "en": "Diagnostics duration (ms)"},
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final map = <String, Object?>{};
     for (final k in prefs.getKeys()) {
@@ -710,66 +746,120 @@ class _PrefsDumpDialog extends StatelessWidget {
         map[k] = prefs.get(k);
       }
     }
-    return map;
+    if (mounted) setState(() => _data = map);
+  }
+
+  String _labelFor(String k) => _labels[k]?[parent._isEnglish() ? "en" : "cs"] ?? k;
+
+  String _spokenValue(String k, Object? v) {
+    if (v == null) return parent._s('prázdné', 'empty');
+    if (v is bool) return v ? parent._s('Zapnuto', 'On') : parent._s('Vypnuto', 'Off');
+    if (v is List) return parent._s('${v.length} položek', '${v.length} items');
+    return v.toString();
+  }
+
+  String _buildSummary() {
+    if (_data == null) return '';
+    final buffer = StringBuffer(parent._s('Uložená data. Celkem ', 'Stored data. Total '));
+    buffer.write('${_data!.length} položek. ');
+    for (final entry in _data!.entries) {
+      buffer.write('${_labelFor(entry.key)}: ${_spokenValue(entry.key, entry.value)}. ');
+    }
+    return buffer.toString();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_data == null) {
+      return AlertDialog(
+        content: const Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    final keys = _data!.keys.toList()..sort();
+    final summary = _buildSummary();
+
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
-      semanticLabel: parent._s('Uložená data', 'Stored data'),
       title: Semantics(
         header: true,
-        child: Text(parent._s('Uložená data', 'Stored data')),
+        child: Row(
+          children: [
+            Expanded(child: Text(parent._s('Uložená data', 'Stored data'))),
+            IconButton(
+              icon: Icon(_currentSize == DialogSize.fullscreen
+                  ? Icons.fullscreen_exit
+                  : Icons.fullscreen),
+              onPressed: () => setState(() => _currentSize =
+                  _currentSize == DialogSize.fullscreen
+                      ? DialogSize.compact
+                      : DialogSize.fullscreen),
+            ),
+          ],
+        ),
       ),
-      content: FutureBuilder<Map<String, Object?>>(
-        future: _loadPrefs(),
-        builder: (ctx, snapshot) {
-          if (!snapshot.hasData) {
-            return const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final data = snapshot.data!;
-          if (data.isEmpty) {
-            return Text(parent._s('Žádná data', 'No data'));
-          }
-          final keys = data.keys.toList()..sort();
-          return SizedBox(
-            width: double.maxFinite,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.6,
-              ),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: keys.length,
-                itemBuilder: (c, i) {
-                  final k = keys[i];
-                  final v = data[k];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style.copyWith(fontSize: 12),
-                        children: [
-                          TextSpan(
-                            text: '$k: ',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(text: '${v ?? 'null'}'),
-                        ],
+      content: parent._applyDialogSize(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SwitchListTile(
+              title: Text(parent._s('Zobrazit technické klíče', 'Show raw keys')),
+              value: _showRaw,
+              onChanged: (v) => setState(() => _showRaw = v),
+            ),
+            const Divider(),
+            Expanded(
+              child: Semantics(
+                container: true,
+                liveRegion: true,
+                label: summary,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: keys.length,
+                  itemBuilder: (c, i) {
+                    final k = keys[i];
+                    final v = _data![k];
+                    return Semantics(
+                      container: true,
+                      label: '${_labelFor(k)}: ${_spokenValue(k, v)}',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${_labelFor(k)}: ${v ?? 'null'}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            if (_showRaw)
+                              Text(
+                                '($k)',
+                                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
       actions: [
+        Semantics(
+          label: parent._s('Přečíst vše', 'Read all'),
+          child: FilledButton.icon(
+            icon: const Icon(Icons.volume_up),
+            label: Text(parent._s('Přečíst vše', 'Read all')),
+            onPressed: () => parent.speak(summary, force: true),
+          ),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(parent._l10n.close),
