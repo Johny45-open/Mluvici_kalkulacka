@@ -23,6 +23,7 @@ part 'widgets.dart';
 part 'dialogs.dart';
 part 'voice_set_creation.dart';
 part 'guided_set_creation.dart';
+part 'dev_mode.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

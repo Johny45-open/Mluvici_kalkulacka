@@ -67,6 +67,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   DialogSize _dialogSize = DialogSize.compact;
   DisplayFormat _displayFormat = DisplayFormat.standard;
 
+  // Vývojářský režim (skrytý)
+  bool _devModeEnabled = false;
+  bool _devAutoDiagnosticEnabled = false;
+  int _devDiagnosticDurationMs = 700;
+  String? _devPinCode;
+  int _devTapCount = 0;
+  Timer? _devTapTimer;
+  int _devPinFails = 0;
+  DateTime? _devPinLockUntil;
+  bool _devAutoDiagShown = false;
+
   double _responsiveScale(BuildContext context) {
     final shortest = MediaQuery.of(context).size.shortestSide;
     final s = shortest / 360.0;
@@ -1291,7 +1302,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _mainFocusNode.requestFocus();
       _checkForUpdates();
       _checkForNews();
+      _maybeRunDevAutodiagnostics();
     }
+  }
+
+  void _maybeRunDevAutodiagnostics() {
+    if (_devAutoDiagShown) return;
+    if (!_devModeEnabled || !_devAutoDiagnosticEnabled) return;
+    if (!mounted) return;
+    // Vyžaduje načtenou verzi (late final) – pokud ještě není, odloží se
+    try {
+      // ignore: unnecessary_statements
+      _currentAppVersion;
+    } catch (_) {
+      return;
+    }
+    _devAutoDiagShown = true;
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (mounted && _devModeEnabled && _devAutoDiagnosticEnabled) {
+        _runDisplayDiagnostics();
+      }
+    });
   }
 
   String get _currentNumericVersion {
@@ -1365,6 +1396,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _devTapTimer?.cancel();
     _voiceCreationSession?.dispose();
     _mainFocusNode.dispose();
     _scrollControllerH.dispose();
@@ -1754,12 +1786,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } else if (event.logicalKey == LogicalKeyboardKey.escape ||
           event.logicalKey == LogicalKeyboardKey.delete) {
         clear();
-      } else if (isControl && event.logicalKey == LogicalKeyboardKey.keyD) {
-        if (isShift) {
-          _handleButtonPressed("'→°");
+      } else if (isControl &&
+          isShift &&
+          event.logicalKey == LogicalKeyboardKey.keyD) {
+        // Zachovat původní '→° a zároveň umožnit dev režim přes Ctrl+Shift+Alt+D
+        if (HardwareKeyboard.instance.isAltPressed) {
+          _handleDevShortcut();
         } else {
-          _handleButtonPressed("°→'");
+          _handleButtonPressed("'→°");
         }
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.keyD) {
+        _handleButtonPressed("°→'");
+      } else if (isControl &&
+          isShift &&
+          event.logicalKey == LogicalKeyboardKey.keyJ) {
+        _handleDevShortcut();
       } else if (!isControl && event.logicalKey == LogicalKeyboardKey.keyS) {
         _handleButtonPressed(isShift ? "ASIN" : "SIN");
       } else if (!isControl && event.logicalKey == LogicalKeyboardKey.keyC) {
@@ -3136,6 +3177,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           savedSuggestedMode < CalculatorMode.values.length) {
         _lastSuggestedMode = savedSuggestedMode;
       }
+      _devModeEnabled = prefs.getBool('devModeEnabled') ?? false;
+      _devAutoDiagnosticEnabled =
+          prefs.getBool('devAutoDiagnosticEnabled') ?? false;
+      _devDiagnosticDurationMs =
+          (prefs.getInt('devDiagnosticDurationMs') ?? 700).clamp(200, 3000);
+      _devPinCode = prefs.getString('devPinCode');
     });
     _dialogFontScaleNotifier.value = _dialogFontScale;
     await tts.setSpeechRate(_speechRate);
@@ -3143,6 +3190,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
     if (_ttsVoice != null) await tts.setVoice(_ttsVoice!);
     await tts.setQueueMode(0);
+    if (mounted) _maybeRunDevAutodiagnostics();
   }
 
   void _saveSettings() async {
@@ -3171,6 +3219,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setInt('screenReaderModeState', _screenReaderMode.index);
     await prefs.setInt('dialogSize', _dialogSize.index);
     await prefs.setInt('defaultMode', _defaultMode.index);
+    await prefs.setBool('devModeEnabled', _devModeEnabled);
+    await prefs.setBool(
+      'devAutoDiagnosticEnabled',
+      _devAutoDiagnosticEnabled,
+    );
+    await prefs.setInt('devDiagnosticDurationMs', _devDiagnosticDurationMs);
+    if (_devPinCode != null) {
+      await prefs.setString('devPinCode', _devPinCode!);
+    } else {
+      await prefs.remove('devPinCode');
+    }
   }
 
   void _setDefaultMode(CalculatorMode mode) async {
@@ -3415,6 +3474,192 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Nastavení přístupnosti'),
       builder: (context) => _AccessibilityDialog(parent: this),
     );
+  }
+
+  // ===== Vývojářský režim =====
+  void _handleDevTap() {
+    if (_devPinLockUntil != null &&
+        DateTime.now().isBefore(_devPinLockUntil!)) {
+      speak(
+        _s('Příliš mnoho pokusů, zkuste za chvíli.', 'Too many attempts, try later.'),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _s('Příliš mnoho pokusů, zkuste za chvíli.', 'Too many attempts, try later.'),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    _devTapCount++;
+    _devTapTimer?.cancel();
+    _devTapTimer = Timer(const Duration(seconds: 2), () => _devTapCount = 0);
+    if (_devTapCount >= 7) {
+      _devTapCount = 0;
+      _devTapTimer?.cancel();
+      _onDevActivationRequested();
+    }
+  }
+
+  void _onDevActivationRequested() {
+    if (_devModeEnabled) {
+      _showDevModeDialog();
+      return;
+    }
+    if (_devPinCode == null) {
+      _showDevPinCreateDialog();
+    } else {
+      _showDevPinVerifyDialog(
+        onSuccess: () {
+          setState(() => _devModeEnabled = true);
+          _saveSettings();
+          speak(_s('Vývojářský režim aktivován', 'Developer mode activated'));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(_s('Vývojářský režim aktivován', 'Developer mode activated')),
+              ),
+            );
+          }
+          _showDevModeDialog();
+        },
+      );
+    }
+  }
+
+  void _showDevPinCreateDialog() {
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Nastavit PIN'),
+      barrierDismissible: false,
+      builder: (ctx) => _DevPinDialog(
+        parent: this,
+        mode: _DevPinMode.create,
+        onVerified: () {
+          // již nastaveno v dialogu
+        },
+      ),
+    );
+  }
+
+  void _showDevPinVerifyDialog({VoidCallback? onSuccess}) {
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Zadejte PIN'),
+      barrierDismissible: false,
+      builder: (ctx) => _DevPinDialog(
+        parent: this,
+        mode: _DevPinMode.verify,
+        onVerified: onSuccess,
+      ),
+    );
+  }
+
+  void _showDevPinChangeDialog() {
+    if (_devPinCode == null) {
+      _showDevPinCreateDialog();
+      return;
+    }
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Změnit PIN'),
+      barrierDismissible: false,
+      builder: (ctx) => _DevPinDialog(parent: this, mode: _DevPinMode.change),
+    );
+  }
+
+  void _confirmDeactivateDevMode() {
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Deaktivovat vývojářský režim'),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        semanticLabel: _s('Deaktivovat vývojářský režim', 'Deactivate developer mode'),
+        title: Semantics(
+          header: true,
+          child: Text(_s('Deaktivovat vývojářský režim', 'Deactivate developer mode')),
+        ),
+        content: Text(
+          _s(
+            'Opravdu chcete deaktivovat vývojářský režim? Bude vyžadován PIN pro opětovnou aktivaci.',
+            'Really deactivate developer mode? PIN will be required to reactivate.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // vyžadovat PIN pokud existuje
+              if (_devPinCode != null) {
+                _showDevPinVerifyDialog(
+                  onSuccess: () {
+                    setState(() => _devModeEnabled = false);
+                    _saveSettings();
+                    speak(_s('Vývojářský režim deaktivován', 'Developer mode deactivated'));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(_s('Vývojářský režim deaktivován', 'Developer mode deactivated')),
+                        ),
+                      );
+                    }
+                  },
+                );
+              } else {
+                setState(() => _devModeEnabled = false);
+                _saveSettings();
+                speak(_s('Vývojářský režim deaktivován', 'Developer mode deactivated'));
+              }
+            },
+            child: Text(_s('Deaktivovat', 'Deactivate')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDevModeDialog() {
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Vývojářský režim'),
+      builder: (ctx) => _DevModeDialog(parent: this),
+    );
+  }
+
+  void _runDisplayDiagnostics() {
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Autodiagnostika displejů'),
+      barrierDismissible: false,
+      builder: (ctx) => _DisplayDiagnosticsDialog(parent: this),
+    );
+  }
+
+  void _showVoiceTestDialog() {
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Test hlasu'),
+      builder: (ctx) => _VoiceTestDialog(parent: this),
+    );
+  }
+
+  void _showPrefsDumpDialog() {
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Uložená data'),
+      builder: (ctx) => _PrefsDumpDialog(parent: this),
+    );
+  }
+
+  void _handleDevShortcut() {
+    _onDevActivationRequested();
   }
 
   void _openTtsSystemSettings() async {
@@ -7925,6 +8170,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     _checkForUpdatesManually();
                   },
                 ),
+                if (_devModeEnabled)
+                  _buildMoreOptionTile(
+                    icon: Icons.bug_report,
+                    label: _s('Vývojářský režim', 'Developer mode'),
+                    onTap: () {
+                      Navigator.pop(dialogContext);
+                      _showDevModeDialog();
+                    },
+                  ),
               ],
             ),
           ),
@@ -7997,6 +8251,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               tooltip: l10n.accessibility,
               onPressed: _showAccessibilityDialog,
             ),
+            if (_devModeEnabled)
+              IconButton(
+                icon: const Icon(Icons.bug_report, color: Colors.orange),
+                tooltip: _s('Vývojářský režim', 'Developer mode'),
+                onPressed: _showDevModeDialog,
+              ),
             IconButton(
               icon: const Icon(Icons.more_vert),
               tooltip: l10n.moreOptions,

@@ -2456,6 +2456,30 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 ),
               ],
             ),
+            const Divider(),
+            Semantics(
+              label: widget.parent._s(
+                'Verze aplikace, 7× klepněte pro vývojářský režim',
+                'App version, tap 7 times for developer mode',
+              ),
+              button: true,
+              child: InkWell(
+                onTap: () => widget.parent._handleDevTap(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: Text(
+                      'v${widget.parent._currentAppVersion}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
