@@ -2842,30 +2842,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return result;
   }
 
-  Widget _buildMainResultDisplay() {
+  Widget _buildMainResultDisplay({double fitScale = 1.0}) {
     String res = _lastResult.isEmpty ? '0.' : _lastResult;
     if (res.contains('°')) {
-      return _buildDmsDisplay(res);
+      return _buildDmsDisplay(res, fitScale: fitScale);
     }
     if ((_displayFormat != DisplayFormat.standard) &&
         res.toLowerCase() != 'error') {
-      return _buildScientificTripleDisplay(res);
+      return _buildScientificTripleDisplay(res, fitScale: fitScale);
     }
-    return _buildStandardDisplay(res);
+    return _buildStandardDisplay(res, fitScale: fitScale);
   }
 
-  Widget _buildStandardDisplay(String res) {
+  Widget _buildStandardDisplay(String res, {double fitScale = 1.0}) {
     final scale = _responsiveScale(context);
     return CustomSegmentDisplay(
       value: _normalizeForSegmentDisplay(_toBarNotation(res)),
-      size: 16 * _resultZoom * scale,
+      size: 16 * _resultZoom * scale * fitScale,
       characterCount: 16,
       isSixteenSegment: _useSixteenSegment,
       overlineThickness: _overlineThickness,
     );
   }
 
-  Widget _buildScientificTripleDisplay(String text) {
+  Widget _buildScientificTripleDisplay(String text, {double fitScale = 1.0}) {
     List<String> parts = text.contains('E') ? text.split('E') : [text, '00'];
     String mantissa = parts[0];
     String exponent = parts[1].replaceAll('+', '');
@@ -2877,8 +2877,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        _buildStandardDisplay(mantissa),
-        SizedBox(width: 8 * scale),
+        _buildStandardDisplay(mantissa, fitScale: fitScale),
+        SizedBox(width: 8 * scale * fitScale),
         Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
@@ -2886,13 +2886,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               'x10',
               style: TextStyle(
                 color: Colors.redAccent,
-                fontSize: 10 * scale,
+                fontSize: 10 * scale * fitScale,
                 fontWeight: FontWeight.bold,
               ),
             ),
             CustomSegmentDisplay(
               value: formattedExp,
-              size: 8 * _resultZoom * scale,
+              size: 8 * _resultZoom * scale * fitScale,
               characterCount: 3,
               isSixteenSegment: false,
             ),
@@ -2902,9 +2902,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  Widget _buildDmsDisplay(String text) {
+  Widget _buildDmsDisplay(String text, {double fitScale = 1.0}) {
     // DMS už zobrazujeme na jednom řádku přímo pomocí CustomSegmentDisplay
-    return _buildStandardDisplay(text);
+    return _buildStandardDisplay(text, fitScale: fitScale);
   }
 
   void _changeMode(CalculatorMode mode) {
@@ -3923,15 +3923,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  Widget _buildDotMatrixDisplay() {
+  Widget _buildDotMatrixDisplay({double fitScale = 1.0}) {
     String txt = display.isEmpty
         ? (_hasResult ? "" : "_")
         : "${display.substring(0, _cursorPosition)}_${display.substring(_cursorPosition)}";
     final scale = _responsiveScale(context);
     return CustomDotMatrixDisplay(
       text: _toBarNotation(txt),
-      ledSize: 3.0 * _dotMatrixZoom * scale,
-      ledSpacing: 0.8 * _dotMatrixZoom * scale,
+      ledSize: 3.0 * _dotMatrixZoom * scale * fitScale,
+      ledSpacing: 0.8 * _dotMatrixZoom * scale * fitScale,
       overlineThickness: _overlineThickness,
     );
   }
@@ -8090,36 +8090,72 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               ),
                               SizedBox(height: 4 * s),
                               Expanded(
-                                child: SingleChildScrollView(
-                                  controller: _scrollControllerV,
-                                  scrollDirection: Axis.vertical,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: _alignInputLeft
-                                        ? CrossAxisAlignment.start
-                                        : CrossAxisAlignment.center,
-                                    children: [
-                                      Align(
-                                        alignment: _alignInputLeft
-                                            ? Alignment.centerLeft
-                                            : Alignment.center,
-                                        child: SingleChildScrollView(
-                                          controller: _scrollControllerH,
-                                          scrollDirection: Axis.horizontal,
-                                          child: _buildDotMatrixDisplay(),
+                                child: LayoutBuilder(
+                                  builder: (context, displayConstraints) {
+                                    // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
+                                    final dotLedSize = 3.0 * _dotMatrixZoom * s;
+                                    final dotSpacing = 0.8 * _dotMatrixZoom * s;
+                                    final dotH = dotLedSize * 8 + dotSpacing * 7;
+                                    final segH = 16 * _resultZoom * s * 1.8;
+                                    final gapH = 12 * s;
+                                    final neededH = dotH + segH + gapH;
+                                    final availableH = displayConstraints.maxHeight;
+                                    double fitScale = 1.0;
+                                    if (availableH > 0 && neededH > availableH) {
+                                      fitScale = (availableH / neededH).clamp(
+                                        0.35,
+                                        1.0,
+                                      );
+                                    }
+                                    final needsFallbackScroll = fitScale <= 0.36;
+
+                                    Widget content = Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: _alignInputLeft
+                                          ? CrossAxisAlignment.start
+                                          : CrossAxisAlignment.center,
+                                      children: [
+                                        Align(
+                                          alignment: _alignInputLeft
+                                              ? Alignment.centerLeft
+                                              : Alignment.center,
+                                          child: SingleChildScrollView(
+                                            controller: _scrollControllerH,
+                                            scrollDirection: Axis.horizontal,
+                                            child: _buildDotMatrixDisplay(
+                                              fitScale: fitScale,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      SizedBox(height: 12 * s),
-                                      Align(
-                                        alignment: Alignment.center,
-                                        child: SingleChildScrollView(
-                                          controller: _scrollControllerResultH,
-                                          scrollDirection: Axis.horizontal,
-                                          child: _buildMainResultDisplay(),
+                                        SizedBox(height: 12 * s * fitScale),
+                                        Align(
+                                          alignment: Alignment.center,
+                                          child: SingleChildScrollView(
+                                            controller: _scrollControllerResultH,
+                                            scrollDirection: Axis.horizontal,
+                                            child: _buildMainResultDisplay(
+                                              fitScale: fitScale,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
+                                      ],
+                                    );
+
+                                    if (needsFallbackScroll) {
+                                      // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
+                                      return Scrollbar(
+                                        controller: _scrollControllerV,
+                                        thumbVisibility: true,
+                                        child: SingleChildScrollView(
+                                          controller: _scrollControllerV,
+                                          scrollDirection: Axis.vertical,
+                                          child: content,
+                                        ),
+                                      );
+                                    }
+                                    // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
+                                    return Center(child: content);
+                                  },
                                 ),
                               ),
                             ],
