@@ -1440,7 +1440,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
   }
 
-  void _insertCurrentTime() {
+  Future<void> _insertCurrentTime() async {
     final hms = _getCurrentTimeHms();
     setState(() {
       display = display.substring(0, _cursorPosition) + hms + display.substring(_cursorPosition);
@@ -1528,7 +1528,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return _formatNumber(rate).replaceAll('.', ',');
   }
 
-  void _convertCurrency() {
+  Future<void> _convertCurrency() async {
     try {
       double value;
       if (display.trim().isNotEmpty) {
@@ -2468,7 +2468,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     speak(_spokenForDisplay(newText));
   }
 
-  void _showPeriodEditDialog() {
+  Future<void> _showPeriodEditDialog() async {
     final bool useResult = display.isEmpty && _hasResult;
     final String text =
         useResult ? _lastResult : display.substring(0, _cursorPosition);
@@ -4386,40 +4386,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _showTutorialDialog() {
     final l10n = AppLocalizations.of(context)!;
-    String tutorialText = l10n.tutorialText;
-    if (!kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.android ||
-            defaultTargetPlatform == TargetPlatform.iOS)) {
-      final sections = tutorialText.split('\n\n');
-      if (sections.length > 1) {
-        tutorialText = sections.take(sections.length - 1).join('\n\n');
-      }
-    }
+    final tabs = [
+      (label: l10n.tutorialTabIntro, text: l10n.tutorialIntro),
+      (label: l10n.tutorialTabBasic, text: l10n.tutorialBasic),
+      (label: l10n.tutorialTabScientific, text: l10n.tutorialScientific),
+      (label: l10n.tutorialTabStatistics, text: l10n.tutorialStatistics),
+      (label: l10n.tutorialTabElectrician, text: l10n.tutorialElectrician),
+      (label: l10n.tutorialTabUnit, text: l10n.tutorialUnit),
+      (label: l10n.tutorialTabTime, text: l10n.tutorialTime),
+      (label: l10n.tutorialTabCurrency, text: l10n.tutorialCurrency),
+    ];
     showAppDialog(
       context: context,
       routeSettings: RouteSettings(name: l10n.helpTitle),
-      builder: (context) => AlertDialog(
-        insetPadding: _dialogInsetPadding(),
-        semanticLabel: l10n.helpTitle,
-        title: Semantics(header: true, child: Text(l10n.helpTitle)),
-        content: Focus(
-          autofocus: true,
-          onFocusChange: (hasFocus) {
-            if (hasFocus) speak(tutorialText);
-          },
-          child: Semantics(
-            container: true,
-            child: SingleChildScrollView(child: Text(tutorialText)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: Text(l10n.understand),
-          ),
-        ],
+      builder: (context) => _TutorialDialog(
+        tabs: tabs,
+        parent: this,
+        l10n: l10n,
       ),
     );
   }
@@ -4587,8 +4570,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String label, {
     Color? color,
     String? semanticLabel,
-    VoidCallback? onPressed,
-    VoidCallback? onLongPressed,
+    FutureOr<void> Function()? onPressed,
+    FutureOr<void> Function()? onLongPressed,
     bool expanded = true,
   }) {
     String descriptiveName = semanticLabel ?? _getButtonName(label);
@@ -4647,18 +4630,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
     );
 
+    Future<void> defaultTap() async {
+      if (!['°→\'', '\'→°', 'DMS', '…'].contains(label)) {
+        if (!_isScreenReaderActive) speak(descriptiveName);
+      }
+      await _handleButtonPressed(label);
+    }
+
     Widget buttonWidget = Semantics(
       label: descriptiveName,
       button: true,
       enabled: true,
-      onTap:
-          onPressed ??
-          () {
-            if (!['°→\'', '\'→°', 'DMS', '…'].contains(label)) {
-              if (!_isScreenReaderActive) speak(descriptiveName);
-            }
-            _handleButtonPressed(label);
-          },
+      onTap: () async {
+        if (onPressed != null) {
+          await onPressed();
+        } else {
+          await defaultTap();
+        }
+      },
       child: InkWell(
         excludeFromSemantics:
             true, // Zamezí TalkBacku vidět InkWell jako samostatný prvek
@@ -4666,16 +4655,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           // Mluvíme pouze pokud není aktivní TalkBack, aby nedocházelo k dvojitému čtení
           if (hasFocus && !_isScreenReaderActive) speak(descriptiveName);
         },
-        onTap:
-            onPressed ??
-            () {
-              if (!['°→\'', '\'→°', 'DMS', '…'].contains(label)) {
-                // Pokud je aktivní čtečka, nevoláme speak, protože čtečka přečte label sama.
-                if (!_isScreenReaderActive) speak(descriptiveName);
-              }
-              _handleButtonPressed(label);
-            },
-        onLongPress: onLongPressed,
+        onTap: () async {
+          if (onPressed != null) {
+            await onPressed();
+          } else {
+            await defaultTap();
+          }
+        },
+        onLongPress: onLongPressed == null
+            ? null
+            : () async {
+                await onLongPressed();
+              },
         child: buttonBody,
       ),
     );
@@ -4712,7 +4703,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return records;
   }
 
-  void _addSingleValueToStats() {
+  Future<void> _addSingleValueToStats() async {
     if (!_hasStatsSet) {
       speak(
         _s(
@@ -4801,7 +4792,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  void _handleButtonPressed(String label, {bool silent = false}) {
+  Future<void> _handleButtonPressed(String label, {bool silent = false}) async {
     HapticFeedback.selectionClick();
     bool alreadyHandled = false;
     if (label == '…') {
@@ -5729,17 +5720,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         color: color,
         semanticLabel: _getElectricianButtonSemanticLabel(b),
         expanded: !needScroll,
-        onPressed: () {
+        onPressed: () async {
           if (b == 'M+' && _currentMode == CalculatorMode.statistics) {
-            _addSingleValueToStats();
+            await _addSingleValueToStats();
           } else {
-            _handleButtonPressed(b);
+            await _handleButtonPressed(b);
           }
         },
         onLongPressed: (b == 'M+' && _currentMode == CalculatorMode.statistics)
-            ? _handleMultipleStatisticsAddition
+            ? () async => await _handleMultipleStatisticsAddition()
             : (b == '…')
-                ? _showPeriodEditDialog
+                ? () async => await _showPeriodEditDialog()
                 : null,
       );
     }
@@ -8576,7 +8567,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
-  void _handleMultipleStatisticsAddition() {
+  Future<void> _handleMultipleStatisticsAddition() async {
     if (!_hasStatsSet) {
       speak(
         _s(
@@ -8956,3 +8947,274 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 }
+class _TutorialDialog extends StatefulWidget {
+  final List<({String label, String text})> tabs;
+  final _CalculatorScreenState parent;
+  final AppLocalizations l10n;
+  const _TutorialDialog({
+    required this.tabs,
+    required this.parent,
+    required this.l10n,
+  });
+  @override
+  State<_TutorialDialog> createState() => _TutorialDialogState();
+}
+
+class _TutorialDialogState extends State<_TutorialDialog>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+  late final List<FocusNode> _tabFocusNodes;
+  final FocusNode _tabBarFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: widget.tabs.length, vsync: this);
+    _tabFocusNodes =
+        List.generate(widget.tabs.length, (_) => FocusNode(debugLabel: 'tutorialTab'));
+    _tabController.addListener(_onTabChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _tabFocusNodes.isNotEmpty) {
+        _tabFocusNodes[_tabController.index].requestFocus();
+      }
+    });
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      setState(() {});
+      if (!widget.parent._isScreenReaderActive) {
+        widget.parent.speak(widget.tabs[_tabController.index].text);
+      }
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+      final idx = _tabController.index;
+      if (idx >= 0 && idx < _tabFocusNodes.length) {
+        Future.microtask(() {
+          if (mounted) _tabFocusNodes[idx].requestFocus();
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
+    for (final n in _tabFocusNodes) {
+      n.dispose();
+    }
+    _tabBarFocusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  KeyEventResult _handleTabBarKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final isCtrl = HardwareKeyboard.instance.isControlPressed;
+    if (isCtrl && event.logicalKey == LogicalKeyboardKey.tab) {
+      final isShift = HardwareKeyboard.instance.isShiftPressed;
+      final delta = isShift ? -1 : 1;
+      final next = (_tabController.index + delta) % widget.tabs.length;
+      final normalized = next < 0 ? widget.tabs.length - 1 : next;
+      _tabController.animateTo(normalized);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
+        event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      final delta =
+          event.logicalKey == LogicalKeyboardKey.arrowRight ? 1 : -1;
+      final next = (_tabController.index + delta) % widget.tabs.length;
+      final normalized = next < 0 ? widget.tabs.length - 1 : next;
+      _tabController.animateTo(normalized);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.home) {
+      _tabController.animateTo(0);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.end) {
+      _tabController.animateTo(widget.tabs.length - 1);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.pageDown) {
+      if (_tabController.index < widget.tabs.length - 1) {
+        _tabController.animateTo(_tabController.index + 1);
+        return KeyEventResult.handled;
+      }
+    }
+    if (event.logicalKey == LogicalKeyboardKey.pageUp) {
+      if (_tabController.index > 0) {
+        _tabController.animateTo(_tabController.index - 1);
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      insetPadding: widget.parent._dialogInsetPadding(),
+      semanticLabel: widget.l10n.helpTitle,
+      title: Semantics(header: true, child: Text(widget.l10n.helpTitle)),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+          maxWidth: double.maxFinite,
+        ),
+        child: SizedBox(
+          width: double.maxFinite,
+          height: 460,
+          child: FocusTraversalGroup(
+            policy: WidgetOrderTraversalPolicy(),
+            child: Column(
+              children: [
+                Focus(
+                  focusNode: _tabBarFocusNode,
+                  onKeyEvent: _handleTabBarKey,
+                  child: Semantics(
+                    container: true,
+                    label: widget.parent._s(
+                        'Záložky návodu', 'Tutorial tabs'),
+                    child: TabBar(
+                      controller: _tabController,
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      tabs: [
+                        for (int i = 0; i < widget.tabs.length; i++)
+                          Builder(builder: (context) {
+                            final isSelected =
+                                _tabController.index == i;
+                            final labelCs =
+                                '${widget.tabs[i].label}, karta ${i + 1} z ${widget.tabs.length}${isSelected ? ', vybráno' : ''}';
+                            final labelEn =
+                                '${widget.tabs[i].label}, tab ${i + 1} of ${widget.tabs.length}${isSelected ? ', selected' : ''}';
+                            return Semantics(
+                              button: true,
+                              selected: isSelected,
+                              inMutuallyExclusiveGroup: true,
+                              enabled: true,
+                              focusable: true,
+                              label: widget.parent._s(labelCs, labelEn),
+                              excludeSemantics: false,
+                              child: Focus(
+                                focusNode: _tabFocusNodes[i],
+                                canRequestFocus: true,
+                                skipTraversal: !isSelected,
+                                onKeyEvent: _handleTabBarKey,
+                                child: Tab(text: widget.tabs[i].label),
+                              ),
+                            );
+                          }),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Semantics(
+                    container: true,
+                    label: widget.parent._s(
+                        'Obsah karty ${widget.tabs[_tabController.index].label}',
+                        'Content of ${widget.tabs[_tabController.index].label} tab'),
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        for (final t in widget.tabs)
+                          Focus(
+                            canRequestFocus: true,
+                            skipTraversal: false,
+                            onFocusChange: (hasFocus) {
+                              if (hasFocus &&
+                                  !widget.parent._isScreenReaderActive) {
+                                widget.parent.speak(t.text);
+                              }
+                            },
+                            child: SingleChildScrollView(
+                              controller: _tabController.index ==
+                                      widget.tabs.indexWhere(
+                                          (e) => e.text == t.text)
+                                  ? _scrollController
+                                  : null,
+                              padding: const EdgeInsets.only(top: 8),
+                              child: SelectableText(
+                                t.text,
+                                enableInteractiveSelection: true,
+                                focusNode: null,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: _tabController.index > 0
+                          ? () => _tabController
+                              .animateTo(_tabController.index - 1)
+                          : null,
+                      child: Semantics(
+                        button: true,
+                        enabled: _tabController.index > 0,
+                        label: widget.parent._s(
+                            'Předchozí karta', 'Previous tab'),
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent
+                              ._s('Předchozí', 'Previous')),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Semantics(
+                      liveRegion: true,
+                      label: widget.parent._s(
+                          'Karta ${_tabController.index + 1} z ${widget.tabs.length}',
+                          'Tab ${_tabController.index + 1} of ${widget.tabs.length}'),
+                      child: ExcludeSemantics(
+                        child: Text(
+                          '${_tabController.index + 1} / ${widget.tabs.length}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: _tabController.index <
+                              widget.tabs.length - 1
+                          ? () => _tabController
+                              .animateTo(_tabController.index + 1)
+                          : null,
+                      child: Semantics(
+                        button: true,
+                        enabled: _tabController.index <
+                            widget.tabs.length - 1,
+                        label: widget.parent
+                            ._s('Další karta', 'Next tab'),
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._s('Další', 'Next')),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(widget.l10n.understand),
+        ),
+      ],
+    );
+  }
+}
+

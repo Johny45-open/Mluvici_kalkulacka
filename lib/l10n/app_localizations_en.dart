@@ -57,6 +57,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tutorialText => 'This calculator supports scientific calculations, statistics, electrical formulas, and unit conversions. \n\nKeyboard shortcuts:\nS - Sine (Shift+S for Arcsine)\nC - Cosine (Shift+C for Arccosine)\nT - Tangent (Shift+T for Arctangent)\nP - Pi\nQ - Square root\nEnter - Result\nCtrl+PageDown/PageUp - Switch between functions and numbers page in scientific mode';
 
   @override
+  String get tutorialTabIntro => 'Intro';
+
+  @override
+  String get tutorialTabBasic => 'Basic';
+
+  @override
+  String get tutorialTabScientific => 'Scientific';
+
+  @override
+  String get tutorialTabStatistics => 'Statistics';
+
+  @override
+  String get tutorialTabElectrician => 'Electrical';
+
+  @override
+  String get tutorialTabUnit => 'Units';
+
+  @override
+  String get tutorialTabTime => 'Time';
+
+  @override
+  String get tutorialTabCurrency => 'Currency';
+
+  @override
+  String get tutorialIntro => 'Welcome to Talking Calculator.\n\nBasic controls:\n- On-screen buttons or keyboard.\n- With TalkBack/NVDA use gestures or Tab.\n- Each button announces its function.\n- Result after \'=\' / Enter is announced automatically.\n- History, Advanced functions and Accessibility in the top bar.\n\nGlobal shortcuts:\n- Enter: =  • Backspace: DEL  • Esc/Delete: C  • Ctrl+1 to Ctrl+7: switch mode  • Ctrl+, : accessibility  • Ctrl+Tab / Shift+Ctrl+Tab: next/previous mode';
+
+  @override
+  String get tutorialBasic => 'Basic mode – everyday calculations.\n\nButtons: C (clear), ( ) parentheses, / * - + operators, 0-9 . decimal point, … repeating decimal (tap toggles period, long press opens editor), % percent, DEL, =.\n\nTip: Enter repeating decimals as e.g. 0.1(6) and continue. Short press … moves period left, long press opens manual editor.';
+
+  @override
+  String get tutorialScientific => 'Scientific mode – two pages.\n\nNumbers page: C ( ) / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL =.\nFunctions page (FUNCTIONS): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nToggle NUMBERS/FUNCTIONS at bottom, Ctrl+PageUp/PageDown. DEG/RAD switches degrees/radians. Memory STO/RCL/CLR + variables A-F,X,Y,M and Advanced functions (Trigonometry, Functions, Memory, Repeating, Display NORM/FIX/SCI/ENG).';
+
+  @override
+  String get tutorialStatistics => 'Statistics mode – data sets.\n\nButtons: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: create/rename/delete/switch sets, add fields.\nM+ short: stores display numbers (separator ;) to active set. M+ long / Ctrl+M: enter repeat count.\nMC: clear set. MR: view/edit data. STATS: summary (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN).\nAdvanced: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/MIN/MAX + read last batch. Multiple fields: enter as e.g. 80;2 for WMEAN.';
+
+  @override
+  String get tutorialElectrician => 'Electrical mode – Ohm\'s law & power.\n\nButtons: OHM_V (U) OHM_I (I) OHM_R (R) C ; 7 8 9 / 4 5 6 * 1 2 3 - 0 . DEL + ANS =.\nFirst choose what to calculate (OHM_V/I/R, highlighted), then enter two values separated by ; e.g. 12;4 and =.\nU = I×R, I = U/R, R = U/I. Result is announced with unit and prefix (milli/kilo/mega). Division by zero is announced.';
+
+  @override
+  String get tutorialUnit => 'Unit conversion mode.\n\nCategories: Length, Mass, Area, Volume, Pressure, Time, Voltage, Current, Resistance, Power.\nIn Advanced functions pick category, From and To units (e.g. m → km), enter number and CONVERT. Result is announced and added to history (\"Converted from … to …\").\nKeyboard is numeric only (C 0-9 . DEL =).';
+
+  @override
+  String get tutorialTime => 'Time mode – HH:MM[:SS].\n\nButtons: C : DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 ; NOW =.\nFormat: 12:34 or 12:34:56. Operators + - add/subtract, ; = DIFF (absolute difference). NOW inserts current time. Advanced: TO_SEC (time→seconds), TO_HMS (seconds→time), DIFF. Example: 02:30 + 01:45 = 04:15:00.';
+
+  @override
+  String get tutorialCurrency => 'Currency mode – rates relative to CZK.\n\nNumeric keyboard, pick From / To currency in Advanced functions, CONVERT. Buttons MANAGE RATES (edit/add/delete, CZK=1 fixed) and UPDATE RATES (online CNB, announces \"Updating…\" / \"Rates updated\" / offline error). Last update is shown. Result: \"Converted X EUR to Y USD. Result …\". Rates are persisted.';
+
+  @override
   String get accessibilitySettings => 'Accessibility Settings';
 
   @override

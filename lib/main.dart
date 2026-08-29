@@ -76,7 +76,7 @@ class ScientificCalculatorApp extends StatefulWidget {
 }
 
 class _ScientificCalculatorAppState extends State<ScientificCalculatorApp> {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.dark;
   final _FocusRestoreObserver _focusObserver = _FocusRestoreObserver();
 
   @override
@@ -87,10 +87,29 @@ class _ScientificCalculatorAppState extends State<ScientificCalculatorApp> {
 
   void _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final themeIndex = prefs.getInt('themeMode') ?? 0;
-    setState(() {
-      _themeMode = ThemeMode.values[themeIndex];
-    });
+    final migrated = prefs.getBool('themeMigratedToDark_v780') ?? false;
+    final idx = prefs.getInt('themeMode');
+    ThemeMode next;
+    if (idx == null) {
+      next = ThemeMode.dark;
+      await prefs.setInt('themeMode', ThemeMode.dark.index);
+    } else if (!migrated && idx == ThemeMode.system.index) {
+      next = ThemeMode.dark;
+      await prefs.setInt('themeMode', ThemeMode.dark.index);
+    } else {
+      final safeIdx = idx.clamp(0, ThemeMode.values.length - 1);
+      next = ThemeMode.values[safeIdx];
+    }
+    if (!migrated) {
+      await prefs.setBool('themeMigratedToDark_v780', true);
+    }
+    if (mounted) {
+      setState(() {
+        _themeMode = next;
+      });
+    } else {
+      _themeMode = next;
+    }
   }
 
   void _updateThemeMode(ThemeMode mode) async {

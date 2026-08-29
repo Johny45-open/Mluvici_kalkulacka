@@ -186,8 +186,8 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                                 height: 50 * lbScale,
                                 child: parent.buildButton(
                               b,
-                              onPressed: () {
-                                parent._handleButtonPressed(b);
+                              onPressed: () async {
+                                await parent._handleButtonPressed(b);
                               },
                               expanded: false,
                                 ),
@@ -198,7 +198,7 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (parent._lastAddedBatch.isEmpty) {
                         parent.speak(
                           parent._s(
@@ -423,7 +423,7 @@ child: Text(
                         return SizedBox(
                           width: (w - 4) / 2,
                           height: 50 * s,
-                          child: parent.buildButton('NOW', semanticLabel: parent._l10n.timeNowHint, onPressed: () => parent._insertCurrentTime(), expanded: false),
+                          child: parent.buildButton('NOW', semanticLabel: parent._l10n.timeNowHint, onPressed: () async => parent._insertCurrentTime(), expanded: false),
                         );
                       }),
                       LayoutBuilder(builder: (lbCtx, lbC) {
@@ -432,7 +432,7 @@ child: Text(
                         return SizedBox(
                           width: (w - 4) / 2,
                           height: 50 * s,
-                          child: parent.buildButton('DIFF', semanticLabel: parent._l10n.timeDiffHint, onPressed: () => parent._handleButtonPressed('DIFF'), expanded: false),
+                          child: parent.buildButton('DIFF', semanticLabel: parent._l10n.timeDiffHint, onPressed: () async => await parent._handleButtonPressed('DIFF'), expanded: false),
                         );
                       }),
                       LayoutBuilder(builder: (lbCtx, lbC) {
@@ -441,7 +441,7 @@ child: Text(
                         return SizedBox(
                           width: (w - 4) / 2,
                           height: 50 * s,
-                          child: parent.buildButton('TO_SEC', semanticLabel: parent._l10n.timeToSec, onPressed: () => parent._handleButtonPressed('TO_SEC'), expanded: false),
+                          child: parent.buildButton('TO_SEC', semanticLabel: parent._l10n.timeToSec, onPressed: () async => await parent._handleButtonPressed('TO_SEC'), expanded: false),
                         );
                       }),
                       LayoutBuilder(builder: (lbCtx, lbC) {
@@ -450,7 +450,7 @@ child: Text(
                         return SizedBox(
                           width: (w - 4) / 2,
                           height: 50 * s,
-                          child: parent.buildButton('TO_HMS', semanticLabel: parent._l10n.timeToHms, onPressed: () => parent._handleButtonPressed('TO_HMS'), expanded: false),
+                          child: parent.buildButton('TO_HMS', semanticLabel: parent._l10n.timeToHms, onPressed: () async => await parent._handleButtonPressed('TO_HMS'), expanded: false),
                         );
                       }),
                     ],
