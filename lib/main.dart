@@ -16,6 +16,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'update_checker.dart';
+import 'currency_service.dart';
 
 part 'models.dart';
 part 'calculator_screen.dart';

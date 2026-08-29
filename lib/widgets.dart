@@ -249,6 +249,7 @@ class _CustomSevenSegmentPainter extends CustomPainter {
       false,
       false,
     ], // Jako spodní tečka a čárka
+    ':': [false, false, true, true, false, false, false],
     ' ': [false, false, false, false, false, false, false],
   };
 
@@ -1146,9 +1147,29 @@ class _CustomSixteenSegmentPainter extends CustomPainter {
       false,
       false,
       false,
+      false,
       true,
       false,
     ], // Symbolicky jako spodní čárka a tečka
+    ':': [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+    ],
     ' ': [
       false,
       false,
@@ -1384,6 +1405,8 @@ class _CustomDotMatrixPainter extends CustomPainter {
     '_': [0x10, 0x10, 0x10, 0x10, 0x10],
     ' ': [0x00, 0x00, 0x00, 0x00, 0x00],
     '.': [0x00, 0x00, 0x10, 0x00, 0x00],
+    ':': [0x00, 0x00, 0x0A, 0x00, 0x00],
+    ';': [0x00, 0x00, 0x14, 0x00, 0x00],
     '\u03C0': [0x12, 0x1F, 0x12, 0x1F, 0x12],
     '\u03A0': [0x12, 0x1F, 0x12, 0x1F, 0x12],
     '(': [0x00, 0x0E, 0x11, 0x00, 0x00],
@@ -1400,7 +1423,6 @@ class _CustomDotMatrixPainter extends CustomPainter {
     'ⁿ': [0x00, 0x03, 0x01, 0x03, 0x00],
     ',': [0x00, 0x00, 0x18, 0x00, 0x00],
     '!': [0x00, 0x16, 0x16, 0x00, 0x00],
-    ';': [0x00, 0x00, 0x14, 0x00, 0x00],
   };
 
   @override

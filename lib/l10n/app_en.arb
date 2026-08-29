@@ -36,11 +36,15 @@
   "modeStatistics": "Statistics",
   "modeElectrician": "Electrical",
   "modeUnitConversion": "Unit conversion",
+  "modeTime": "Time",
+  "modeCurrency": "Currency",
   "modeSpeechBasic": "basic mode",
   "modeSpeechScientific": "scientific mode",
   "modeSpeechStatistics": "statistics mode",
   "modeSpeechElectrician": "electrical mode",
   "modeSpeechUnitConversion": "unit conversion mode",
+  "modeSpeechTime": "time mode",
+  "modeSpeechCurrency": "currency mode",
   "switchedToMode": "Switched to {mode}",
   "welcomeMessage": "Welcome to the talking calculator, active mode is {mode}",
   "displayEmpty": "Empty",
@@ -546,5 +550,132 @@
   "yesShort": "YES",
   "noShort": "NO",
   "moreOptions": "More options",
-  "news": "What is new"
+  "news": "What is new",
+  "currencyFromLabel": "From currency",
+  "currencyToLabel": "To currency",
+  "currencyRateLabel": "Rate (CZK per 1 {code})",
+  "@currencyRateLabel": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "currencyManageTitle": "Manage rates",
+  "currencyManageButton": "MANAGE RATES",
+  "currencyUpdateButton": "UPDATE RATES",
+  "currencyUpdating": "Updating rates…",
+  "currencyUpdated": "Rates updated",
+  "currencyLastUpdate": "Last update: {date}",
+  "@currencyLastUpdate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "currencyNoRates": "No rates to display.",
+  "currencyOfflineError": "Failed to update rates. Check connection. Keeping last rates.",
+  "currencyParseError": "Failed to parse CNB rates.",
+  "currencyConverted": "Converted {value} {from} to {to}. Result is {result} {toUnit}. Rate {rate}",
+  "@currencyConverted": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "result": {
+        "type": "String"
+      },
+      "toUnit": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "currencyInvalidRate": "Invalid rate",
+  "currencyCzkLocked": "Koruna rate is fixed at 1.00",
+  "currencyAddTitle": "Add currency",
+  "currencyCodeLabel": "Currency code (e.g. EUR)",
+  "currencyAddButton": "ADD",
+  "timeNow": "NOW",
+  "timeNowHint": "Insert current time",
+  "timeDiff": "DIFF",
+  "timeDiffHint": "Difference of two times",
+  "timeToSec": "TO SEC",
+  "timeToHms": "TO HMS",
+  "timeCurrentIs": "Current time is {time}",
+  "@timeCurrentIs": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeInvalidFormat": "Invalid time format. Use HH:MM or HH:MM:SS.",
+  "timeResult": "Result is {time}",
+  "@timeResult": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeDiffResult": "Difference is {time}",
+  "@timeDiffResult": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeToSecResult": "{hms} is {sec} seconds",
+  "@timeToSecResult": {
+    "placeholders": {
+      "hms": {
+        "type": "String"
+      },
+      "sec": {
+        "type": "String"
+      }
+    }
+  },
+  "timeToHmsResult": "{sec} seconds is {hms}",
+  "@timeToHmsResult": {
+    "placeholders": {
+      "sec": {
+        "type": "String"
+      },
+      "hms": {
+        "type": "String"
+      }
+    }
+  },
+  "timeHelp": "Enter time as HH:MM or HH:MM:SS. Use + or - between times. DIFF gives absolute difference. NOW inserts current time.",
+  "expressionResultIs": "Expression {expression}, {result}",
+  "@expressionResultIs": {
+    "placeholders": {
+      "expression": {
+        "type": "String"
+      },
+      "result": {
+        "type": "String"
+      }
+    }
+  },
+  "announceExpressionState": "Announce expression: {state}",
+  "@announceExpressionState": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  }
 }

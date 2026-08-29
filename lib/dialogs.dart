@@ -396,6 +396,186 @@ child: Text(
       );
     }
 
+    if (parent._currentMode == CalculatorMode.time) {
+      sections.add(
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    parent._l10n.timeHelp,
+                    style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      LayoutBuilder(builder: (lbCtx, lbC) {
+                        final w = lbC.maxWidth.isFinite ? lbC.maxWidth : MediaQuery.of(lbCtx).size.width * 0.85;
+                        final s = parent._responsiveScale(lbCtx);
+                        return SizedBox(
+                          width: (w - 4) / 2,
+                          height: 50 * s,
+                          child: parent.buildButton('NOW', semanticLabel: parent._l10n.timeNowHint, onPressed: () => parent._insertCurrentTime(), expanded: false),
+                        );
+                      }),
+                      LayoutBuilder(builder: (lbCtx, lbC) {
+                        final w = lbC.maxWidth.isFinite ? lbC.maxWidth : MediaQuery.of(lbCtx).size.width * 0.85;
+                        final s = parent._responsiveScale(lbCtx);
+                        return SizedBox(
+                          width: (w - 4) / 2,
+                          height: 50 * s,
+                          child: parent.buildButton('DIFF', semanticLabel: parent._l10n.timeDiffHint, onPressed: () => parent._handleButtonPressed('DIFF'), expanded: false),
+                        );
+                      }),
+                      LayoutBuilder(builder: (lbCtx, lbC) {
+                        final w = lbC.maxWidth.isFinite ? lbC.maxWidth : MediaQuery.of(lbCtx).size.width * 0.85;
+                        final s = parent._responsiveScale(lbCtx);
+                        return SizedBox(
+                          width: (w - 4) / 2,
+                          height: 50 * s,
+                          child: parent.buildButton('TO_SEC', semanticLabel: parent._l10n.timeToSec, onPressed: () => parent._handleButtonPressed('TO_SEC'), expanded: false),
+                        );
+                      }),
+                      LayoutBuilder(builder: (lbCtx, lbC) {
+                        final w = lbC.maxWidth.isFinite ? lbC.maxWidth : MediaQuery.of(lbCtx).size.width * 0.85;
+                        final s = parent._responsiveScale(lbCtx);
+                        return SizedBox(
+                          width: (w - 4) / 2,
+                          height: 50 * s,
+                          child: parent.buildButton('TO_HMS', semanticLabel: parent._l10n.timeToHms, onPressed: () => parent._handleButtonPressed('TO_HMS'), expanded: false),
+                        );
+                      }),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (parent._currentMode == CalculatorMode.currency) {
+      sections.add(
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Semantics(
+                          label: parent._l10n.currencyFromLabel,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: parent._currencyFrom,
+                            isExpanded: true,
+                            isDense: true,
+                            decoration: InputDecoration(labelText: parent._l10n.currencyFromLabel),
+                            items: parent._currencyRates.keys.map((c) => DropdownMenuItem(value: c, child: Text(c, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                            onChanged: (v) {
+                              if (v == null) return;
+                              parent.setState(() => parent._currencyFrom = v);
+                              parent._saveCurrencyRates();
+                              parent.speak(parent._s('Z měny $v', 'From $v'));
+                              setState(() {});
+                            },
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward),
+                      Expanded(
+                        child: Semantics(
+                          label: parent._l10n.currencyToLabel,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: parent._currencyTo,
+                            isExpanded: true,
+                            isDense: true,
+                            decoration: InputDecoration(labelText: parent._l10n.currencyToLabel),
+                            items: parent._currencyRates.keys.map((c) => DropdownMenuItem(value: c, child: Text(c, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                            onChanged: (v) {
+                              if (v == null) return;
+                              parent.setState(() => parent._currencyTo = v);
+                              parent._saveCurrencyRates();
+                              parent.speak(parent._s('Na měnu $v', 'To $v'));
+                              setState(() {});
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      parent._currencyLastUpdate == null
+                          ? parent._s('Kurzy dosud neaktualizovány', 'Rates not yet updated')
+                          : parent._l10n.currencyLastUpdate(parent._formatCurrencyDate(parent._currencyLastUpdate)),
+                      style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: parent._convertCurrency,
+                      icon: const Icon(Icons.sync),
+                      label: Text(parent._s('PŘEVÉST', 'CONVERT')),
+                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Semantics(
+                          label: parent._l10n.currencyUpdateButton,
+                          child: FilledButton.icon(
+                            onPressed: parent._currencyLoading ? null : () async { await parent._updateCurrencyRatesOnline(silent: false); setState(() {}); },
+                            icon: parent._currencyLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh, size: 18),
+                            label: Text(parent._l10n.currencyUpdateButton),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Semantics(
+                          label: parent._l10n.currencyManageTitle,
+                          child: OutlinedButton.icon(
+                            onPressed: () => parent._showCurrencyManagerDialog(),
+                            icon: const Icon(Icons.settings, size: 18),
+                            label: Text(parent._l10n.currencyManageButton, style: const TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (parent._currencyLoading)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Semantics(liveRegion: true, child: Text(parent._l10n.currencyUpdating, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12))),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (parent._currentMode == CalculatorMode.scientific) {
       sections.add(
         _CollapsibleSection(
@@ -783,6 +963,162 @@ child: Text(
             Navigator.pop(context);
           },
           child: Text(parent._s('ZAVŘÍT', 'CLOSE')),
+        ),
+      ],
+    );
+  }
+}
+
+class _CurrencyManagerDialog extends StatefulWidget {
+  final _CalculatorScreenState parent;
+  const _CurrencyManagerDialog({required this.parent});
+  @override
+  State<_CurrencyManagerDialog> createState() => _CurrencyManagerDialogState();
+}
+
+class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
+  late _CalculatorScreenState parent;
+  late Map<String, double> _rates;
+  @override
+  void initState() {
+    super.initState();
+    parent = widget.parent;
+    _rates = Map<String, double>.from(parent._currencyRates);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedKeys = _rates.keys.toList()..sort();
+    return AlertDialog(
+      insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._l10n.currencyManageTitle,
+      title: Semantics(header: true, child: Text(parent._l10n.currencyManageTitle)),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (sortedKeys.isEmpty) Text(parent._l10n.currencyNoRates),
+              ...sortedKeys.map((code) {
+                final isCzk = code == 'CZK';
+                final controller = TextEditingController(text: _rates[code]!.toStringAsFixed(4).replaceAll('.', ','));
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 56, child: Text(code, style: const TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(
+                        child: Semantics(
+                          label: parent._l10n.currencyRateLabel(code),
+                          child: TextField(
+                            controller: controller,
+                            enabled: !isCzk,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: isCzk ? parent._l10n.currencyCzkLocked : parent._l10n.currencyRateLabel(code),
+                              isDense: true,
+                              border: const OutlineInputBorder(),
+                            ),
+                            onSubmitted: (v) {
+                              if (isCzk) return;
+                              final parsed = double.tryParse(v.replaceAll(',', '.').trim());
+                              if (parsed == null || parsed <= 0) {
+                                parent.speak(parent._l10n.currencyInvalidRate);
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(parent._l10n.currencyInvalidRate)));
+                                return;
+                              }
+                              setState(() => _rates[code] = parsed);
+                              parent.speak(parent._s('Kurz $code nastaven na ${v.replaceAll('.', ',')}', 'Rate $code set to $v'));
+                            },
+                            onChanged: (v) {
+                              final parsed = double.tryParse(v.replaceAll(',', '.').trim());
+                              if (parsed != null && parsed > 0 && !isCzk) {
+                                _rates[code] = parsed;
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      if (!isCzk)
+                        IconButton(
+                          tooltip: parent._s('Smazat měnu $code', 'Delete $code'),
+                          icon: const Icon(Icons.delete, size: 20),
+                          onPressed: () {
+                            setState(() => _rates.remove(code));
+                            parent.speak(parent._s('Měna $code smazána', 'Currency $code deleted'));
+                          },
+                        ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 12),
+              Semantics(
+                label: parent._s('Přidat novou měnu', 'Add new currency'),
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    final code = await showDialog<String>(
+                      context: context,
+                      builder: (dCtx) {
+                        final ctrl = TextEditingController();
+                        return AlertDialog(
+                          title: Text(parent._l10n.currencyAddTitle),
+                          content: TextField(
+                            controller: ctrl,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: InputDecoration(labelText: parent._l10n.currencyCodeLabel, border: const OutlineInputBorder()),
+                            maxLength: 3,
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(parent._l10n.cancel)),
+                            FilledButton(onPressed: () => Navigator.pop(dCtx, ctrl.text.trim().toUpperCase()), child: Text(parent._l10n.currencyAddButton)),
+                          ],
+                        );
+                      },
+                    );
+                    if (code != null && code.isNotEmpty) {
+                      if (code.length != 3 || !RegExp(r'^[A-Z]{3}$').hasMatch(code)) {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(parent._s('Neplatný kód měny', 'Invalid currency code'))));
+                        return;
+                      }
+                      if (_rates.containsKey(code)) {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(parent._s('Měna již existuje', 'Currency already exists'))));
+                        return;
+                      }
+                      setState(() => _rates[code] = 1.0);
+                      parent.speak(parent._s('Měna $code přidána', 'Currency $code added'));
+                    }
+                  },
+                  icon: const Icon(Icons.add),
+                  label: Text(parent._l10n.currencyAddTitle),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(parent._l10n.cancel)),
+        FilledButton(
+          onPressed: () {
+            // Validate
+            for (final e in _rates.entries) {
+              if (e.value <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${parent._l10n.currencyInvalidRate}: ${e.key}')));
+                return;
+              }
+            }
+            parent.setState(() => parent._currencyRates = Map<String, double>.from(_rates));
+            if (!parent._currencyRates.containsKey(parent._currencyFrom)) parent._currencyFrom = 'CZK';
+            if (!parent._currencyRates.containsKey(parent._currencyTo)) parent._currencyTo = 'CZK';
+            parent._saveCurrencyRates();
+            parent.speak(parent._s('Kurzy uloženy', 'Rates saved'));
+            Navigator.pop(context);
+            parent.setState(() {});
+          },
+          child: Text(parent._l10n.confirmAction),
         ),
       ],
     );

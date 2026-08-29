@@ -6,6 +6,17 @@ enum CalculatorMode {
   statistics,
   electrician,
   unitConversion,
+  time,
+  currency,
+}
+
+class _TimeInputException implements Exception {
+  final String message;
+
+  const _TimeInputException(this.message);
+
+  @override
+  String toString() => message;
 }
 
 enum AccessibilityType { none, blind, visuallyImpaired }

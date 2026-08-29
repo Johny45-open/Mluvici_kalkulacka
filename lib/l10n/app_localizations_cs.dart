@@ -70,16 +70,6 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String announceExpressionState(Object state) {
-    return 'Oznamovat příklad před výpočtem: $state';
-  }
-
-  @override
-  String expressionResultIs(String expression, String result) {
-    return 'Výpočet $expression. $result';
-  }
-
-  @override
   String angles(Object type) {
     return 'Úhly: $type';
   }
@@ -133,6 +123,12 @@ class AppLocalizationsCs extends AppLocalizations {
   String get modeUnitConversion => 'Převody jednotek';
 
   @override
+  String get modeTime => 'Čas';
+
+  @override
+  String get modeCurrency => 'Měna';
+
+  @override
   String get modeSpeechBasic => 'základní režim';
 
   @override
@@ -146,6 +142,12 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get modeSpeechUnitConversion => 'režim převodů jednotek';
+
+  @override
+  String get modeSpeechTime => 'časový režim';
+
+  @override
+  String get modeSpeechCurrency => 'měnový režim';
 
   @override
   String switchedToMode(Object mode) {
@@ -925,4 +927,123 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get news => 'Novinky';
+
+  @override
+  String get currencyFromLabel => 'Z měny';
+
+  @override
+  String get currencyToLabel => 'Na měnu';
+
+  @override
+  String currencyRateLabel(String code) {
+    return 'Kurz (CZK za 1 $code)';
+  }
+
+  @override
+  String get currencyManageTitle => 'Správa kurzů';
+
+  @override
+  String get currencyManageButton => 'SPRÁVA KURZŮ';
+
+  @override
+  String get currencyUpdateButton => 'AKTUALIZOVAT KURZY';
+
+  @override
+  String get currencyUpdating => 'Aktualizuji kurzy…';
+
+  @override
+  String get currencyUpdated => 'Kurzy aktualizovány';
+
+  @override
+  String currencyLastUpdate(String date) {
+    return 'Poslední aktualizace: $date';
+  }
+
+  @override
+  String get currencyNoRates => 'Žádné kurzy k zobrazení.';
+
+  @override
+  String get currencyOfflineError => 'Nepodařilo se aktualizovat kurzy. Zkontrolujte připojení. Zachovány poslední kurzy.';
+
+  @override
+  String get currencyParseError => 'Nepodařilo se zpracovat kurzy ČNB.';
+
+  @override
+  String currencyConverted(String value, String from, String to, String result, String toUnit, String rate) {
+    return 'Převedeno $value $from na $to. Výsledek je $result $toUnit. Kurz $rate';
+  }
+
+  @override
+  String get currencyInvalidRate => 'Neplatný kurz';
+
+  @override
+  String get currencyCzkLocked => 'Kurz koruny je pevně 1,00';
+
+  @override
+  String get currencyAddTitle => 'Přidat měnu';
+
+  @override
+  String get currencyCodeLabel => 'Kód měny (např. EUR)';
+
+  @override
+  String get currencyAddButton => 'PŘIDAT';
+
+  @override
+  String get timeNow => 'TEĎ';
+
+  @override
+  String get timeNowHint => 'Vložit aktuální čas';
+
+  @override
+  String get timeDiff => 'ROZDÍL';
+
+  @override
+  String get timeDiffHint => 'Rozdíl dvou časů';
+
+  @override
+  String get timeToSec => 'NA SEKUNDY';
+
+  @override
+  String get timeToHms => 'NA ČAS';
+
+  @override
+  String timeCurrentIs(String time) {
+    return 'Aktuální čas je $time';
+  }
+
+  @override
+  String get timeInvalidFormat => 'Neplatný formát času. Použijte HH:MM nebo HH:MM:SS.';
+
+  @override
+  String timeResult(String time) {
+    return 'Výsledek je $time';
+  }
+
+  @override
+  String timeDiffResult(String time) {
+    return 'Rozdíl je $time';
+  }
+
+  @override
+  String timeToSecResult(String hms, String sec) {
+    return '$hms je $sec sekund';
+  }
+
+  @override
+  String timeToHmsResult(String sec, String hms) {
+    return '$sec sekund je $hms';
+  }
+
+  @override
+  String get timeHelp => 'Zadejte čas ve formátu HH:MM nebo HH:MM:SS. Použijte + nebo - mezi časy. Tlačítko ROZDÍL spočítá absolutní rozdíl. TEĎ vloží aktuální čas.';
+
+  @override
+  String expressionResultIs(String expression, String result) {
+    return 'Příklad $expression, $result';
+  }
+
+  @override
+  String announceExpressionState(String state) {
+    return 'Oznamování příkladu: $state';
+  }
 }

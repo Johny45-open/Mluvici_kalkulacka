@@ -57,11 +57,15 @@
   "modeStatistics": "Statistika",
   "modeElectrician": "Elektro",
   "modeUnitConversion": "Převody jednotek",
+  "modeTime": "Čas",
+  "modeCurrency": "Měna",
   "modeSpeechBasic": "základní režim",
   "modeSpeechScientific": "vědecký režim",
   "modeSpeechStatistics": "statistický režim",
   "modeSpeechElectrician": "elektrotechnický režim",
   "modeSpeechUnitConversion": "režim převodů jednotek",
+  "modeSpeechTime": "časový režim",
+  "modeSpeechCurrency": "měnový režim",
   "switchedToMode": "Přepnuto na {mode}",
   "@switchedToMode": {
     "placeholders": {
@@ -618,5 +622,132 @@
   "yesShort": "ANO",
   "noShort": "NE",
   "moreOptions": "Další možnosti",
-  "news": "Novinky"
+  "news": "Novinky",
+  "currencyFromLabel": "Z měny",
+  "currencyToLabel": "Na měnu",
+  "currencyRateLabel": "Kurz (CZK za 1 {code})",
+  "@currencyRateLabel": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "currencyManageTitle": "Správa kurzů",
+  "currencyManageButton": "SPRÁVA KURZŮ",
+  "currencyUpdateButton": "AKTUALIZOVAT KURZY",
+  "currencyUpdating": "Aktualizuji kurzy…",
+  "currencyUpdated": "Kurzy aktualizovány",
+  "currencyLastUpdate": "Poslední aktualizace: {date}",
+  "@currencyLastUpdate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "currencyNoRates": "Žádné kurzy k zobrazení.",
+  "currencyOfflineError": "Nepodařilo se aktualizovat kurzy. Zkontrolujte připojení. Zachovány poslední kurzy.",
+  "currencyParseError": "Nepodařilo se zpracovat kurzy ČNB.",
+  "currencyConverted": "Převedeno {value} {from} na {to}. Výsledek je {result} {toUnit}. Kurz {rate}",
+  "@currencyConverted": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "result": {
+        "type": "String"
+      },
+      "toUnit": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "currencyInvalidRate": "Neplatný kurz",
+  "currencyCzkLocked": "Kurz koruny je pevně 1,00",
+  "currencyAddTitle": "Přidat měnu",
+  "currencyCodeLabel": "Kód měny (např. EUR)",
+  "currencyAddButton": "PŘIDAT",
+  "timeNow": "TEĎ",
+  "timeNowHint": "Vložit aktuální čas",
+  "timeDiff": "ROZDÍL",
+  "timeDiffHint": "Rozdíl dvou časů",
+  "timeToSec": "NA SEKUNDY",
+  "timeToHms": "NA ČAS",
+  "timeCurrentIs": "Aktuální čas je {time}",
+  "@timeCurrentIs": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeInvalidFormat": "Neplatný formát času. Použijte HH:MM nebo HH:MM:SS.",
+  "timeResult": "Výsledek je {time}",
+  "@timeResult": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeDiffResult": "Rozdíl je {time}",
+  "@timeDiffResult": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeToSecResult": "{hms} je {sec} sekund",
+  "@timeToSecResult": {
+    "placeholders": {
+      "hms": {
+        "type": "String"
+      },
+      "sec": {
+        "type": "String"
+      }
+    }
+  },
+  "timeToHmsResult": "{sec} sekund je {hms}",
+  "@timeToHmsResult": {
+    "placeholders": {
+      "sec": {
+        "type": "String"
+      },
+      "hms": {
+        "type": "String"
+      }
+    }
+  },
+  "timeHelp": "Zadejte čas ve formátu HH:MM nebo HH:MM:SS. Použijte + nebo - mezi časy. Tlačítko ROZDÍL spočítá absolutní rozdíl. TEĎ vloží aktuální čas.",
+  "expressionResultIs": "Příklad {expression}, {result}",
+  "@expressionResultIs": {
+    "placeholders": {
+      "expression": {
+        "type": "String"
+      },
+      "result": {
+        "type": "String"
+      }
+    }
+  },
+  "announceExpressionState": "Oznamování příkladu: {state}",
+  "@announceExpressionState": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  }
 }

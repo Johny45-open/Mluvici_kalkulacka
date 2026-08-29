@@ -209,18 +209,6 @@ abstract class AppLocalizations {
   /// **'Voice output: {state}'**
   String voiceOutput(Object state);
 
-  /// No description provided for @announceExpressionState.
-  ///
-  /// In en, this message translates to:
-  /// **'Announce expression before calculation: {state}'**
-  String announceExpressionState(Object state);
-
-  /// No description provided for @expressionResultIs.
-  ///
-  /// In en, this message translates to:
-  /// **'Calculation {expression}. {result}'**
-  String expressionResultIs(String expression, String result);
-
   /// No description provided for @angles.
   ///
   /// In en, this message translates to:
@@ -323,6 +311,18 @@ abstract class AppLocalizations {
   /// **'Unit conversion'**
   String get modeUnitConversion;
 
+  /// No description provided for @modeTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get modeTime;
+
+  /// No description provided for @modeCurrency.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get modeCurrency;
+
   /// No description provided for @modeSpeechBasic.
   ///
   /// In en, this message translates to:
@@ -352,6 +352,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'unit conversion mode'**
   String get modeSpeechUnitConversion;
+
+  /// No description provided for @modeSpeechTime.
+  ///
+  /// In en, this message translates to:
+  /// **'time mode'**
+  String get modeSpeechTime;
+
+  /// No description provided for @modeSpeechCurrency.
+  ///
+  /// In en, this message translates to:
+  /// **'currency mode'**
+  String get modeSpeechCurrency;
 
   /// No description provided for @switchedToMode.
   ///
@@ -1750,6 +1762,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What is new'**
   String get news;
+
+  /// No description provided for @currencyFromLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'From currency'**
+  String get currencyFromLabel;
+
+  /// No description provided for @currencyToLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'To currency'**
+  String get currencyToLabel;
+
+  /// No description provided for @currencyRateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate (CZK per 1 {code})'**
+  String currencyRateLabel(String code);
+
+  /// No description provided for @currencyManageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage rates'**
+  String get currencyManageTitle;
+
+  /// No description provided for @currencyManageButton.
+  ///
+  /// In en, this message translates to:
+  /// **'MANAGE RATES'**
+  String get currencyManageButton;
+
+  /// No description provided for @currencyUpdateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'UPDATE RATES'**
+  String get currencyUpdateButton;
+
+  /// No description provided for @currencyUpdating.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating rates…'**
+  String get currencyUpdating;
+
+  /// No description provided for @currencyUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Rates updated'**
+  String get currencyUpdated;
+
+  /// No description provided for @currencyLastUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Last update: {date}'**
+  String currencyLastUpdate(String date);
+
+  /// No description provided for @currencyNoRates.
+  ///
+  /// In en, this message translates to:
+  /// **'No rates to display.'**
+  String get currencyNoRates;
+
+  /// No description provided for @currencyOfflineError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update rates. Check connection. Keeping last rates.'**
+  String get currencyOfflineError;
+
+  /// No description provided for @currencyParseError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse CNB rates.'**
+  String get currencyParseError;
+
+  /// No description provided for @currencyConverted.
+  ///
+  /// In en, this message translates to:
+  /// **'Converted {value} {from} to {to}. Result is {result} {toUnit}. Rate {rate}'**
+  String currencyConverted(String value, String from, String to, String result, String toUnit, String rate);
+
+  /// No description provided for @currencyInvalidRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid rate'**
+  String get currencyInvalidRate;
+
+  /// No description provided for @currencyCzkLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Koruna rate is fixed at 1.00'**
+  String get currencyCzkLocked;
+
+  /// No description provided for @currencyAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add currency'**
+  String get currencyAddTitle;
+
+  /// No description provided for @currencyCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency code (e.g. EUR)'**
+  String get currencyCodeLabel;
+
+  /// No description provided for @currencyAddButton.
+  ///
+  /// In en, this message translates to:
+  /// **'ADD'**
+  String get currencyAddButton;
+
+  /// No description provided for @timeNow.
+  ///
+  /// In en, this message translates to:
+  /// **'NOW'**
+  String get timeNow;
+
+  /// No description provided for @timeNowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert current time'**
+  String get timeNowHint;
+
+  /// No description provided for @timeDiff.
+  ///
+  /// In en, this message translates to:
+  /// **'DIFF'**
+  String get timeDiff;
+
+  /// No description provided for @timeDiffHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Difference of two times'**
+  String get timeDiffHint;
+
+  /// No description provided for @timeToSec.
+  ///
+  /// In en, this message translates to:
+  /// **'TO SEC'**
+  String get timeToSec;
+
+  /// No description provided for @timeToHms.
+  ///
+  /// In en, this message translates to:
+  /// **'TO HMS'**
+  String get timeToHms;
+
+  /// No description provided for @timeCurrentIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Current time is {time}'**
+  String timeCurrentIs(String time);
+
+  /// No description provided for @timeInvalidFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid time format. Use HH:MM or HH:MM:SS.'**
+  String get timeInvalidFormat;
+
+  /// No description provided for @timeResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Result is {time}'**
+  String timeResult(String time);
+
+  /// No description provided for @timeDiffResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Difference is {time}'**
+  String timeDiffResult(String time);
+
+  /// No description provided for @timeToSecResult.
+  ///
+  /// In en, this message translates to:
+  /// **'{hms} is {sec} seconds'**
+  String timeToSecResult(String hms, String sec);
+
+  /// No description provided for @timeToHmsResult.
+  ///
+  /// In en, this message translates to:
+  /// **'{sec} seconds is {hms}'**
+  String timeToHmsResult(String sec, String hms);
+
+  /// No description provided for @timeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter time as HH:MM or HH:MM:SS. Use + or - between times. DIFF gives absolute difference. NOW inserts current time.'**
+  String get timeHelp;
+
+  /// No description provided for @expressionResultIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Expression {expression}, {result}'**
+  String expressionResultIs(String expression, String result);
+
+  /// No description provided for @announceExpressionState.
+  ///
+  /// In en, this message translates to:
+  /// **'Announce expression: {state}'**
+  String announceExpressionState(String state);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

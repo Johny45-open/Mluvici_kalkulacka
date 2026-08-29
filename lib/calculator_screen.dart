@@ -114,6 +114,68 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ElectricianCalculation _selectedElectricianCalculation =
       ElectricianCalculation.resistance;
 
+  // --- Měnový režim ---
+  Map<String, double> _currencyRates = {
+    'CZK': 1.0,
+    'EUR': 24.55,
+    'USD': 22.10,
+    'GBP': 28.30,
+    'PLN': 5.60,
+    'HUF': 0.064,
+    'CHF': 26.00,
+    'JPY': 0.15,
+  };
+  String _currencyFrom = 'CZK';
+  String _currencyTo = 'EUR';
+  DateTime? _currencyLastUpdate;
+  bool _currencyLoading = false;
+
+  final Map<String, Map<String, dynamic>> _currencySpeechData = {
+    'CZK': {
+      'base': 'koruna',
+      'forms': ['koruna', 'koruny', 'korun', 'koruny'],
+    },
+    'EUR': {
+      'base': 'euro',
+      'forms': ['euro', 'eura', 'eur', 'eura'],
+    },
+    'USD': {
+      'base': 'dolar',
+      'forms': ['dolar', 'dolary', 'dolarů', 'dolaru'],
+    },
+    'GBP': {
+      'base': 'libra',
+      'forms': ['libra', 'libry', 'liber', 'libry'],
+    },
+    'PLN': {
+      'base': 'zlotý',
+      'forms': ['zlotý', 'zloté', 'zlotých', 'zlotého'],
+    },
+    'HUF': {
+      'base': 'forint',
+      'forms': ['forint', 'forinty', 'forintů', 'forintu'],
+    },
+    'CHF': {
+      'base': 'frank',
+      'forms': ['frank', 'franky', 'franků', 'franku'],
+    },
+    'JPY': {
+      'base': 'jen',
+      'forms': ['jen', 'jeny', 'jenů', 'jenu'],
+    },
+  };
+
+  final Map<String, Map<String, String>> _currencySpeechDataEn = {
+    'CZK': {'base': 'koruna', 'plural': 'korunas'},
+    'EUR': {'base': 'euro', 'plural': 'euros'},
+    'USD': {'base': 'dollar', 'plural': 'dollars'},
+    'GBP': {'base': 'pound', 'plural': 'pounds'},
+    'PLN': {'base': 'zloty', 'plural': 'zlotys'},
+    'HUF': {'base': 'forint', 'plural': 'forints'},
+    'CHF': {'base': 'franc', 'plural': 'francs'},
+    'JPY': {'base': 'yen', 'plural': 'yen'},
+  };
+
   String? _lastTtsLocale;
 
   final Map<String, double> _memory = {
@@ -694,6 +756,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     'μ': ['Mikro', 'Micro'],
     'n': ['Nano', 'Nano'],
     'p': ['Piko', 'Pico'],
+    ':': ['Dvojtečka', 'Colon'],
+    'NOW': ['Aktuální čas', 'Current time'],
+    'TEĎ': ['Aktuální čas', 'Current time'],
+    'DIFF': ['Rozdíl časů', 'Time difference'],
+    'ROZDÍL': ['Rozdíl časů', 'Time difference'],
+    'TO_SEC': ['Na sekundy', 'To seconds'],
+    'NA SEKUNDY': ['Na sekundy', 'To seconds'],
+    'TO_HMS': ['Na čas', 'To time'],
+    'NA ČAS': ['Na čas', 'To time'],
   };
 
   double _factorial(int n) {
@@ -800,6 +871,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return l10n.modeSpeechElectrician;
       case CalculatorMode.unitConversion:
         return l10n.modeSpeechUnitConversion;
+      case CalculatorMode.time:
+        return l10n.modeSpeechTime;
+      case CalculatorMode.currency:
+        return l10n.modeSpeechCurrency;
     }
   }
 
@@ -1285,6 +1360,273 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return baseLabel;
   }
 
+  // --- Čas helpers ---
+  int _parseHmsToSeconds(String input) {
+    final s = input.trim();
+    if (s.isEmpty) throw _TimeInputException(_l10n.timeInvalidFormat);
+    if (!s.contains(':')) {
+      // Single number = seconds
+      final v = double.tryParse(s.replaceAll(',', '.'));
+      if (v == null) throw _TimeInputException(_l10n.timeInvalidFormat);
+      return v.round();
+    }
+    final parts = s.split(':');
+    if (parts.length == 2 || parts.length == 3) {
+      final nums = parts.map((p) => int.tryParse(p.trim())).toList();
+      if (nums.any((n) => n == null)) throw _TimeInputException(_l10n.timeInvalidFormat);
+      if (parts.length == 2) {
+        final h = nums[0]!;
+        final m = nums[1]!;
+        if (m < 0 || m >= 60 || h < 0) throw _TimeInputException(_l10n.timeInvalidFormat);
+        return h * 3600 + m * 60;
+      } else {
+        final h = nums[0]!;
+        final m = nums[1]!;
+        final sec = nums[2]!;
+        if (m < 0 || m >= 60 || sec < 0 || sec >= 60 || h < 0) {
+          throw _TimeInputException(_l10n.timeInvalidFormat);
+        }
+        return h * 3600 + m * 60 + sec;
+      }
+    }
+    throw _TimeInputException(_l10n.timeInvalidFormat);
+  }
+
+  String _formatSecondsToHms(int totalSeconds) {
+    final neg = totalSeconds < 0;
+    int sec = totalSeconds.abs();
+    final h = sec ~/ 3600;
+    sec %= 3600;
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    final hms = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    return neg ? '-$hms' : hms;
+  }
+
+  String _formatSecondsToSpeech(int totalSeconds) {
+    final neg = totalSeconds < 0;
+    int sec = totalSeconds.abs();
+    final h = sec ~/ 3600;
+    sec %= 3600;
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    final parts = <String>[];
+    if (h > 0) parts.add(_getTimeUnitSpeech('h', h.toDouble()));
+    if (m > 0 || h > 0) parts.add(_getTimeUnitSpeech('min', m.toDouble()));
+    parts.add(_getTimeUnitSpeech('s', s.toDouble()));
+    // Build spoken number + unit
+    final buffer = StringBuffer();
+    if (neg) buffer.write('${_s('mínus ', 'minus ')}');
+    // We need to inject numbers: e.g. "2 hodiny 15 minut 30 sekund"
+    // _getTimeUnitSpeech returns declension form, we need to prepend number
+    // But for simplicity construct manually
+    String speech = '';
+    if (h > 0) speech += '${_formatSpokenNumber(h.toDouble())} ${_getTimeUnitSpeech('h', h.toDouble(), context: 'base')} ';
+    if (m > 0 || h > 0) {
+      speech += '${_formatSpokenNumber(m.toDouble())} ${_getTimeUnitSpeech('min', m.toDouble(), context: 'base')} ';
+    }
+    speech += '${_formatSpokenNumber(s.toDouble())} ${_getTimeUnitSpeech('s', s.toDouble(), context: 'base')}';
+    if (neg) speech = '${_s('mínus ', 'minus ')}$speech';
+    return speech.trim();
+  }
+
+  String _getTimeUnitSpeech(String unit, double value, {String context = 'base'}) {
+    // Reuse _unitSpeechData for s/min/h
+    return _getUnitSpeech(unit, value: value, context: context);
+  }
+
+  String _getCurrentTimeHms() {
+    final now = DateTime.now();
+    return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+  }
+
+  void _insertCurrentTime() {
+    final hms = _getCurrentTimeHms();
+    setState(() {
+      display = display.substring(0, _cursorPosition) + hms + display.substring(_cursorPosition);
+      _cursorPosition += hms.length;
+      _hasResult = false;
+    });
+    final spoken = _formatSecondsToSpeech(_parseHmsToSeconds(hms));
+    speak(_l10n.timeCurrentIs(spoken));
+  }
+
+  String _calculateTimeResult(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) throw _TimeInputException(_l10n.timeInvalidFormat);
+    // Check for single time -> normalize
+    if (!trimmed.contains('+') && !trimmed.contains('-') && !trimmed.contains(';')) {
+      if (trimmed.contains(':')) {
+        final sec = _parseHmsToSeconds(trimmed);
+        return _formatSecondsToHms(sec);
+      } else {
+        // numeric seconds -> Hms
+        final v = double.tryParse(trimmed.replaceAll(',', '.'));
+        if (v != null) {
+          return _formatSecondsToHms(v.round());
+        }
+        throw _TimeInputException(_l10n.timeInvalidFormat);
+      }
+    }
+    // Split by + or - or ; (treat ; as diff)
+    if (trimmed.contains(';')) {
+      final parts = trimmed.split(';');
+      if (parts.length != 2) throw _TimeInputException(_l10n.timeInvalidFormat);
+      final a = _parseHmsToSeconds(parts[0].trim());
+      final b = _parseHmsToSeconds(parts[1].trim());
+      final diff = (a - b).abs();
+      return _formatSecondsToHms(diff);
+    }
+    // Find operator + or - (last occurrence, but simple)
+    int plusIdx = trimmed.lastIndexOf('+');
+    int minusIdx = trimmed.lastIndexOf('-');
+    // Skip leading minus
+    if (minusIdx == 0) minusIdx = trimmed.indexOf('-', 1);
+    int opIdx = -1;
+    String op = '+';
+    if (plusIdx > 0 && minusIdx > 0) {
+      opIdx = plusIdx > minusIdx ? plusIdx : minusIdx;
+      op = plusIdx > minusIdx ? '+' : '-';
+    } else if (plusIdx > 0) {
+      opIdx = plusIdx;
+      op = '+';
+    } else if (minusIdx > 0) {
+      opIdx = minusIdx;
+      op = '-';
+    }
+    if (opIdx < 0) throw _TimeInputException(_l10n.timeInvalidFormat);
+    final left = trimmed.substring(0, opIdx).trim();
+    final right = trimmed.substring(opIdx + 1).trim();
+    final a = _parseHmsToSeconds(left);
+    final b = _parseHmsToSeconds(right);
+    final res = op == '+' ? a + b : a - b;
+    return _formatSecondsToHms(res);
+  }
+
+  // --- Měna helpers ---
+  String _getCurrencySpeech(String code, double value, {String context = 'base'}) {
+    final absVal = value.abs();
+    final isWhole = absVal == absVal.roundToDouble();
+    final intVal = absVal.round();
+    if (_isEnglish()) {
+      final en = _currencySpeechDataEn[code];
+      if (en == null) return code;
+      if (isWhole && intVal == 1) return en['base']!;
+      return en['plural']!;
+    } else {
+      final cs = _currencySpeechData[code];
+      if (cs == null) return code;
+      final forms = (cs['forms'] as List<String>);
+      if (!isWhole) return forms[3];
+      if (intVal == 1) return forms[0];
+      if (intVal >= 2 && intVal <= 4) return forms[1];
+      return forms[2];
+    }
+  }
+
+  String _formatCurrencyRate(double rate) {
+    return _formatNumber(rate).replaceAll('.', ',');
+  }
+
+  void _convertCurrency() {
+    try {
+      double value;
+      if (display.trim().isNotEmpty) {
+        value = _evaluateExpression(display.trim());
+      } else if (_hasResult) {
+        value = double.parse(_lastResult.replaceAll(',', '.'));
+      } else {
+        throw Exception('no value');
+      }
+      final fromRate = _currencyRates[_currencyFrom]!;
+      final toRate = _currencyRates[_currencyTo]!;
+      if (fromRate == 0 || toRate == 0) throw Exception('zero rate');
+      final result = value * (fromRate / toRate);
+      if (result.isNaN || result.isInfinite) throw Exception('invalid');
+      final resStr = _formatNumber(result);
+      final spokenValue = _formatSpokenNumber(value);
+      final spokenResult = _formatSpokenNumber(result);
+      final fromSpeech = _getCurrencySpeech(_currencyFrom, value);
+      final toSpeech = _getCurrencySpeech(_currencyTo, result);
+      final rateStr = _formatCurrencyRate(toRate / fromRate); // 1 from = X to? Actually show CZK per 1, simpler show course
+      // Show course as 1 from = X to  OR use stored rate display
+      setState(() {
+        _lastResult = resStr;
+        display = '';
+        _hasResult = true;
+        _lastNumericValue = result;
+      });
+      _addToHistory('${value.toString()} $_currencyFrom → $_currencyTo', resStr);
+      speak(
+        _l10n.currencyConverted(spokenValue, fromSpeech, toSpeech, spokenResult, toSpeech, rateStr),
+        force: true,
+      );
+    } catch (_) {
+      speak(_l10n.conversionError, force: true);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_l10n.conversionError)));
+    }
+  }
+
+  String _formatCurrencyDate(DateTime? dt) {
+    if (dt == null) return '-';
+    final d = dt.day.toString().padLeft(2, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final y = dt.year.toString();
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '$d.$m.$y $hh:$mm';
+  }
+
+  Future<void> _updateCurrencyRatesOnline({bool silent = false}) async {
+    if (_currencyLoading) return;
+    setState(() => _currencyLoading = true);
+    if (!silent) speak(_l10n.currencyUpdating);
+    final service = CurrencyService();
+    final result = await service.fetchCnbRates();
+    service.close();
+    if (!mounted) return;
+    setState(() => _currencyLoading = false);
+    if (result != null) {
+      // Merge: keep CZK 1.0, update others, keep manual currencies not in CNB
+      setState(() {
+        for (final e in result.rates.entries) {
+          _currencyRates[e.key] = e.value;
+        }
+        _currencyLastUpdate = DateTime.now();
+      });
+      await _saveCurrencyRates();
+      if (!silent) {
+        speak(_l10n.currencyUpdated, force: true);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_l10n.currencyUpdated)));
+      }
+    } else {
+      if (!silent) {
+        speak(_l10n.currencyOfflineError, force: true);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_l10n.currencyOfflineError)));
+      }
+    }
+  }
+
+  Future<void> _saveCurrencyRates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('currencyRates', jsonEncode(_currencyRates));
+      await prefs.setString('currencyFrom', _currencyFrom);
+      await prefs.setString('currencyTo', _currencyTo);
+      if (_currencyLastUpdate != null) {
+        await prefs.setString('currencyLastUpdate', _currencyLastUpdate!.toIso8601String());
+      }
+    } catch (_) {}
+  }
+
+  void _showCurrencyManagerDialog() {
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Správa kurzů'),
+      builder: (ctx) => _CurrencyManagerDialog(parent: this),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1584,6 +1926,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
         speak(welcome);
       }
+      // Auto-aktualizace kurzů ČNB (silent, max 1× za 24h)
+      try {
+        final needsUpdate = _currencyLastUpdate == null ||
+            DateTime.now().difference(_currencyLastUpdate!).inHours >= 24;
+        if (needsUpdate) {
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) _updateCurrencyRatesOnline(silent: true);
+          });
+        }
+      } catch (_) {}
     } catch (e) {
       debugPrint('TTS Error: $e');
     }
@@ -1671,6 +2023,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return _l10n.modeElectrician;
       case CalculatorMode.unitConversion:
         return _l10n.modeUnitConversion;
+      case CalculatorMode.time:
+        return _l10n.modeTime;
+      case CalculatorMode.currency:
+        return _l10n.modeCurrency;
     }
   }
 
@@ -1841,6 +2197,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _changeMode(CalculatorMode.electrician);
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit5) {
         _changeMode(CalculatorMode.unitConversion);
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit6) {
+        _changeMode(CalculatorMode.time);
+      } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit7) {
+        _changeMode(CalculatorMode.currency);
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.comma) {
         _showAccessibilityDialog();
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.tab) {
@@ -1857,7 +2217,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
-        if (RegExp(r'''[0-9.+\-*/^%()eE°'"a-zA-Z]''').hasMatch(toAppend)) {
+        if (RegExp(r'''[0-9.+\-*/^%()eE°'":;a-zA-Z]''').hasMatch(toAppend)) {
           _handleButtonPressed(toAppend.toUpperCase(), silent: true);
         }
       }
@@ -2312,6 +2672,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         currentExpression =
             '${_getElectricianHistoryName(calculation)}($display)';
         _lastNumericValue = result;
+      } else if (_currentMode == CalculatorMode.time) {
+        try {
+          final timeRes = _calculateTimeResult(display);
+          resStr = timeRes;
+          // Determine speech variant
+          final trimmed = display.trim();
+          if (trimmed.contains(';')) {
+            spoken = _l10n.timeDiffResult(_formatSecondsToSpeech(_parseHmsToSeconds(timeRes)));
+          } else {
+            spoken = _l10n.timeResult(_formatSecondsToSpeech(_parseHmsToSeconds(timeRes)));
+          }
+          _lastNumericValue = _parseHmsToSeconds(timeRes).toDouble();
+        } on _TimeInputException catch (e) {
+          throw _TimeInputException(e.message);
+        }
+      } else if (_currentMode == CalculatorMode.currency) {
+        _convertCurrency();
+        return;
       } else {
         bool isDms = RegExp(r'''\d+(?:\.\d+)?[°'"]''').hasMatch(display);
         bool isTrig =
@@ -2371,6 +2749,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } catch (e) {
       String msg = _l10n.expressionNotUnderstood;
       if (e is _ElectricianInputException) {
+        msg = e.message;
+      } else if (e is _TimeInputException) {
         msg = e.message;
       } else if (e is _MathDomainException) {
         msg = e.message;
@@ -3183,6 +3563,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _devDiagnosticDurationMs =
           (prefs.getInt('devDiagnosticDurationMs') ?? 700).clamp(200, 3000);
       _devPinCode = prefs.getString('devPinCode');
+      // Měna
+      final currencyJson = prefs.getString('currencyRates');
+      if (currencyJson != null) {
+        try {
+          final Map<String, dynamic> decoded = jsonDecode(currencyJson) as Map<String, dynamic>;
+          final map = <String, double>{};
+          decoded.forEach((k, v) => map[k] = (v as num).toDouble());
+          if (map.containsKey('CZK')) _currencyRates = map;
+        } catch (_) {}
+      }
+      _currencyFrom = prefs.getString('currencyFrom') ?? 'CZK';
+      _currencyTo = prefs.getString('currencyTo') ?? 'EUR';
+      if (!_currencyRates.containsKey(_currencyFrom)) _currencyFrom = 'CZK';
+      if (!_currencyRates.containsKey(_currencyTo)) _currencyTo = 'EUR';
+      final currencyDateStr = prefs.getString('currencyLastUpdate');
+      if (currencyDateStr != null) _currencyLastUpdate = DateTime.tryParse(currencyDateStr);
     });
     _dialogFontScaleNotifier.value = _dialogFontScale;
     await tts.setSpeechRate(_speechRate);
@@ -3229,6 +3625,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       await prefs.setString('devPinCode', _devPinCode!);
     } else {
       await prefs.remove('devPinCode');
+    }
+    await prefs.setString('currencyRates', jsonEncode(_currencyRates));
+    await prefs.setString('currencyFrom', _currencyFrom);
+    await prefs.setString('currencyTo', _currencyTo);
+    if (_currencyLastUpdate != null) {
+      await prefs.setString('currencyLastUpdate', _currencyLastUpdate!.toIso8601String());
     }
   }
 
@@ -4961,6 +5363,69 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       append(label, silent: silent);
     } else if (label == 'PCT') {
       _calculatePercentOf();
+    } else if (label == 'NOW' || label == 'TEĎ') {
+      if (_currentMode == CalculatorMode.time) {
+        _insertCurrentTime();
+      } else {
+        append(label, silent: silent);
+      }
+    } else if (label == 'DIFF' || label == 'ROZDÍL') {
+      if (_currentMode == CalculatorMode.time) {
+        append(';', silent: silent);
+        speak(_s('středník, rozdíl', 'semicolon, difference'));
+      } else {
+        append(label, silent: silent);
+      }
+    } else if (label == 'TO_SEC' || label == 'NA SEKUNDY') {
+      if (_currentMode == CalculatorMode.time) {
+        try {
+          if (display.trim().isEmpty && _hasResult) {
+            display = _lastResult;
+          }
+          final sec = _parseHmsToSeconds(display.trim());
+          final secStr = sec.toString();
+          setState(() {
+            _lastResult = secStr;
+            display = '';
+            _hasResult = true;
+            _lastNumericValue = sec.toDouble();
+          });
+          speak(_l10n.timeToSecResult(display.isEmpty ? secStr : display, secStr).replaceAll('.', ','), force: true);
+          _addToHistory(display, secStr);
+        } catch (e) {
+          speak(_l10n.timeInvalidFormat, force: true);
+        }
+      } else {
+        append(label, silent: silent);
+      }
+    } else if (label == 'TO_HMS' || label == 'NA ČAS') {
+      if (_currentMode == CalculatorMode.time) {
+        try {
+          String src = display.trim();
+          if (src.isEmpty && _hasResult) src = _lastResult;
+          double v;
+          if (src.contains(':')) {
+            v = _parseHmsToSeconds(src).toDouble();
+          } else {
+            v = double.parse(src.replaceAll(',', '.'));
+          }
+          final hms = _formatSecondsToHms(v.round());
+          setState(() {
+            _lastResult = hms;
+            display = '';
+            _hasResult = true;
+            _lastNumericValue = v;
+          });
+          speak(_l10n.timeToHmsResult(v.round().toString(), hms), force: true);
+          _addToHistory(src, hms);
+        } catch (e) {
+          speak(_l10n.timeInvalidFormat, force: true);
+        }
+      } else {
+        append(label, silent: silent);
+      }
+    } else if (label == ':') {
+      append(':', silent: silent);
     } else {
       append(label, silent: silent);
     }
@@ -5170,6 +5635,48 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ];
         break;
       case CalculatorMode.unitConversion:
+        btns = [
+          'C',
+          '1',
+          '2',
+          '3',
+          '4',
+          '5',
+          '6',
+          '7',
+          '8',
+          '9',
+          '0',
+          '.',
+          'DEL',
+          '=',
+        ];
+        break;
+      case CalculatorMode.time:
+        btns = [
+          'C',
+          ':',
+          'DEL',
+          '/',
+          '7',
+          '8',
+          '9',
+          '*',
+          '4',
+          '5',
+          '6',
+          '-',
+          '1',
+          '2',
+          '3',
+          '+',
+          '0',
+          ';',
+          'NOW',
+          '=',
+        ];
+        break;
+      case CalculatorMode.currency:
         btns = [
           'C',
           '1',

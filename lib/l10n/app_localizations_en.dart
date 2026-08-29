@@ -70,16 +70,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String announceExpressionState(Object state) {
-    return 'Announce expression before calculation: $state';
-  }
-
-  @override
-  String expressionResultIs(String expression, String result) {
-    return 'Calculation $expression. $result';
-  }
-
-  @override
   String angles(Object type) {
     return 'Angles: $type';
   }
@@ -133,6 +123,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modeUnitConversion => 'Unit conversion';
 
   @override
+  String get modeTime => 'Time';
+
+  @override
+  String get modeCurrency => 'Currency';
+
+  @override
   String get modeSpeechBasic => 'basic mode';
 
   @override
@@ -146,6 +142,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modeSpeechUnitConversion => 'unit conversion mode';
+
+  @override
+  String get modeSpeechTime => 'time mode';
+
+  @override
+  String get modeSpeechCurrency => 'currency mode';
 
   @override
   String switchedToMode(Object mode) {
@@ -925,4 +927,123 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get news => 'What is new';
+
+  @override
+  String get currencyFromLabel => 'From currency';
+
+  @override
+  String get currencyToLabel => 'To currency';
+
+  @override
+  String currencyRateLabel(String code) {
+    return 'Rate (CZK per 1 $code)';
+  }
+
+  @override
+  String get currencyManageTitle => 'Manage rates';
+
+  @override
+  String get currencyManageButton => 'MANAGE RATES';
+
+  @override
+  String get currencyUpdateButton => 'UPDATE RATES';
+
+  @override
+  String get currencyUpdating => 'Updating rates…';
+
+  @override
+  String get currencyUpdated => 'Rates updated';
+
+  @override
+  String currencyLastUpdate(String date) {
+    return 'Last update: $date';
+  }
+
+  @override
+  String get currencyNoRates => 'No rates to display.';
+
+  @override
+  String get currencyOfflineError => 'Failed to update rates. Check connection. Keeping last rates.';
+
+  @override
+  String get currencyParseError => 'Failed to parse CNB rates.';
+
+  @override
+  String currencyConverted(String value, String from, String to, String result, String toUnit, String rate) {
+    return 'Converted $value $from to $to. Result is $result $toUnit. Rate $rate';
+  }
+
+  @override
+  String get currencyInvalidRate => 'Invalid rate';
+
+  @override
+  String get currencyCzkLocked => 'Koruna rate is fixed at 1.00';
+
+  @override
+  String get currencyAddTitle => 'Add currency';
+
+  @override
+  String get currencyCodeLabel => 'Currency code (e.g. EUR)';
+
+  @override
+  String get currencyAddButton => 'ADD';
+
+  @override
+  String get timeNow => 'NOW';
+
+  @override
+  String get timeNowHint => 'Insert current time';
+
+  @override
+  String get timeDiff => 'DIFF';
+
+  @override
+  String get timeDiffHint => 'Difference of two times';
+
+  @override
+  String get timeToSec => 'TO SEC';
+
+  @override
+  String get timeToHms => 'TO HMS';
+
+  @override
+  String timeCurrentIs(String time) {
+    return 'Current time is $time';
+  }
+
+  @override
+  String get timeInvalidFormat => 'Invalid time format. Use HH:MM or HH:MM:SS.';
+
+  @override
+  String timeResult(String time) {
+    return 'Result is $time';
+  }
+
+  @override
+  String timeDiffResult(String time) {
+    return 'Difference is $time';
+  }
+
+  @override
+  String timeToSecResult(String hms, String sec) {
+    return '$hms is $sec seconds';
+  }
+
+  @override
+  String timeToHmsResult(String sec, String hms) {
+    return '$sec seconds is $hms';
+  }
+
+  @override
+  String get timeHelp => 'Enter time as HH:MM or HH:MM:SS. Use + or - between times. DIFF gives absolute difference. NOW inserts current time.';
+
+  @override
+  String expressionResultIs(String expression, String result) {
+    return 'Expression $expression, $result';
+  }
+
+  @override
+  String announceExpressionState(String state) {
+    return 'Announce expression: $state';
+  }
 }
