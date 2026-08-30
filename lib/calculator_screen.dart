@@ -6437,9 +6437,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  String _buildStatsSummarySpeech(int fieldIndex) {
+  List<String> _buildStatsSummarySpeechParts(int fieldIndex) {
     final snapshot = _computeStatisticsSnapshot(fieldIndex);
-    if (snapshot == null) return '';
+    if (snapshot == null) return [];
     final currentSetName = _statsSets[_currentStatsSetIndex].name;
     final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
     final selectedFieldName = fieldNames[fieldIndex];
@@ -6471,17 +6471,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ? null
         : _formatSpokenNumber(snapshot.wmean!);
 
-    String spokenSummary = _s(
+    final parts = <String>[];
+    parts.add(_s(
       'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. Počet hodnot: $dataCount. ',
       'Statistics summary for set $currentSetName, field $selectedFieldName. Count: $dataCount. '
-    );
+    ));
+
     if (_readStatsMemoryValues) {
-      spokenSummary += _s(
+      parts.add(_s(
         'Všechny hodnoty: $allValuesSpoken. ',
         'All values: $allValuesSpoken. '
-      );
+      ));
     }
-    spokenSummary += _s(
+
+    String statsPart = _s(
       'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
           'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
           'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
@@ -6501,14 +6504,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'Mode: $modeSpoken. '
           'Coefficient of variation: $cvSpoken.',
     );
+    
     if (snapshot.wmean != null) {
       final fieldNamesForWmean = _statsSets[_currentStatsSetIndex].fieldNames;
-      spokenSummary += _s(
+      statsPart += _s(
         ' Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}).',
         ' Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}).',
       );
     }
-    return spokenSummary;
+    parts.add(statsPart);
+    return parts;
   }
 
   void _showStatisticsSummaryDialog() {
@@ -6596,7 +6601,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               MapEntry(l10n.statsCv, cvText),
             ];
 
-            final spokenSummary = _buildStatsSummarySpeech(_selectedFieldIndex);
+            final parts = _buildStatsSummarySpeechParts(_selectedFieldIndex);
+            String spokenSummary;
+            if (_isScreenReaderActive) {
+                // Pořadí: [0] (Stav pole), [2] (Statistický souhrn), [1] (Hodnoty, pokud existují)
+                spokenSummary = parts[0] + parts.last;
+                if (parts.length == 3) {
+                    spokenSummary += parts[1];
+                }
+            } else {
+                spokenSummary = parts.join(' ');
+            }
 
             if (!_statsSummaryInitialized) {
               _statsSummaryInitialized = true;
@@ -6643,23 +6658,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           if (fieldNames.length > 1) ...[
                             const SizedBox(height: 4),
                             InkWell(
-                              onTap: () {
-                                final nextIndex =
-                                    (_selectedFieldIndex + 1) %
-                                    fieldNames.length;
-                                final nextSummary = _buildStatsSummarySpeech(
-                                  nextIndex,
-                                );
-                                setState(() => _selectedFieldIndex = nextIndex);
-                                setSummaryState(() {});
-                                speak(
-                                  _s(
-                                        'Vybráno pole ${fieldNames[nextIndex]}. ',
-                                        'Selected field ${fieldNames[nextIndex]}. ',
-                                      ) +
-                                      nextSummary,
-                                );
-                              },
+                                onTap: () {
+                                  final nextIndex =
+                                      (_selectedFieldIndex + 1) %
+                                      fieldNames.length;
+                                  final parts = _buildStatsSummarySpeechParts(nextIndex);
+                                  String nextSummary;
+                                  if (_isScreenReaderActive) {
+                                    nextSummary = parts[0] + parts.last;
+                                    if (parts.length == 3) {
+                                      nextSummary += parts[1];
+                                    }
+                                  } else {
+                                    nextSummary = parts.join(' ');
+                                  }
+                                  setState(() => _selectedFieldIndex = nextIndex);
+                                  setSummaryState(() {});
+                                  speak(
+                                    _s(
+                                          'Vybráno pole ${fieldNames[nextIndex]}. ',
+                                          'Selected field ${fieldNames[nextIndex]}. ',
+                                        ) +
+                                        nextSummary,
+                                  );
+                                },
+
                               child: Semantics(
                                 liveRegion: true,
                                 label: _s(
