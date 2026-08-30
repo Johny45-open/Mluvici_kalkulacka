@@ -4769,10 +4769,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
                 'No statistics set created. Enter a name for a new set first.',
               ),);
+        _showCreateStatsSetDialog(context);
       }
-      _showCreateStatsSetDialog(context, () {
-        _addSingleValueToStats();
-      });
       return;
     }
     if (display.isEmpty) {
@@ -6000,9 +5998,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         isDense: true,
                       ),
                     ),
-                  ),
-                );
-              }),
+                          ),
+                      }),
             ),
           ),
           actions: [
@@ -7173,8 +7170,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showCreateStatsSetDialog(
-    BuildContext context,
-    VoidCallback onUpdated, {
+    BuildContext context, {
     List<StatisticsRecord>? recordsToRepeat,
   }) {
     final l10n = _l10n;
@@ -7355,19 +7351,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         _selectedFieldIndex = 0;
                       });
                       _saveStatsData();
-                      onUpdated();
                       Navigator.pop(ctx);
 
-                      if (recordsToRepeat != null) {
+                      final pendingRecords = recordsToRepeat;
+                      if (pendingRecords != null && pendingRecords.isNotEmpty) {
                         speak(
                           _s(
-                            'Sada $newName vytvořena. Nyní můžete zadat počet opakování pro vložení hodnot.',
-                            'Set $newName created. You can now enter the number of repetitions to insert the values.',
+                            'Sada $newName byla vytvořena.',
+                            'Set $newName has been created.',
                           ),
                         );
-                        _showRepeatDialog(recordsToRepeat);
+                        if (pendingRecords.length >= 2) {
+                          _showStatsSaveReviewDialog(pendingRecords,
+                              onConfirm: () =>
+                                  _showRepeatDialog(pendingRecords));
+                        } else {
+                          _showRepeatDialog(pendingRecords);
+                        }
                       } else {
                         speak(l10n.statsSetCreatedAnnouncement(newName));
+                        _returnFocusToKeyboard();
                       }
                     }
                     else {
@@ -8105,7 +8108,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      ...editableRecords.asMap().entries.map((entry) {
+                       ...editableRecords.asMap().entries.map((entry) {
                         final idx = entry.key + 1;
                         final rowTextVis = entry.value.values
                             .map((v) => _formatNumberSmart(v))
@@ -8117,42 +8120,50 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           'Hodnota $idx: $rowText',
                           'Value $idx: $rowText',
                         );
-                        return Semantics(
-                          container: true,
-                          label: rowLabel,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: ExcludeSemantics(
-                                    child: _PeriodicText(
-                                      '$idx. $rowTextVis',
-                                      overlineThickness: _overlineThickness,
+                        return Focus(
+                          autofocus: idx == 1,
+                          onFocusChange: (hasFocus) {
+                            if (hasFocus && !_isScreenReaderActive) {
+                              speak(rowLabel);
+                            }
+                          },
+                          child: Semantics(
+                            container: true,
+                            label: rowLabel,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: ExcludeSemantics(
+                                      child: _PeriodicText(
+                                        '$idx. $rowTextVis',
+                                        overlineThickness: _overlineThickness,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                IconButton(
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    size: 20,
-                                    color: Colors.blue,
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      size: 20,
+                                      color: Colors.blue,
+                                    ),
+                                    tooltip: _s(
+                                      'Upravit hodnotu $idx',
+                                      'Edit value $idx',
+                                    ),
+                                    onPressed: () =>
+                                        _showEditReviewRecordDialog(
+                                          entry.key,
+                                          editableRecords,
+                                          dialogContext,
+                                          setStateDialog,
+                                        ),
                                   ),
-                                  tooltip: _s(
-                                    'Upravit hodnotu $idx',
-                                    'Edit value $idx',
-                                  ),
-                                  onPressed: () =>
-                                      _showEditReviewRecordDialog(
-                                        entry.key,
-                                        editableRecords,
-                                        dialogContext,
-                                        setStateDialog,
-                                      ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );
