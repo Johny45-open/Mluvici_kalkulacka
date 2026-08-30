@@ -185,11 +185,11 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                                 width: (lbWidth - 12) / 4,
                                 height: 50 * lbScale,
                                 child: parent.buildButton(
-                              b,
-                              onPressed: () async {
-                                await parent._handleButtonPressed(b);
-                              },
-                              expanded: false,
+                                  b,
+                                  onPressed: () async {
+                                    await parent._handleButtonPressed(b);
+                                  },
+                                  expanded: false,
                                 ),
                               );
                             },
@@ -228,19 +228,19 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                         );
                       }
                     },
-child: Text(
+                    child: Text(
                       parent._s(
                         'Přečíst naposledy vložená data',
                         'Read last added data',
                       ),
                     ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
     }
 
     if (parent._currentMode == CalculatorMode.unitConversion) {
@@ -408,7 +408,10 @@ child: Text(
                 children: [
                   Text(
                     parent._l10n.timeHelp,
-                    style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
@@ -417,42 +420,82 @@ child: Text(
                     spacing: 4,
                     runSpacing: 4,
                     children: [
-                      LayoutBuilder(builder: (lbCtx, lbC) {
-                        final w = lbC.maxWidth.isFinite ? lbC.maxWidth : MediaQuery.of(lbCtx).size.width * 0.85;
-                        final s = parent._responsiveScale(lbCtx);
-                        return SizedBox(
-                          width: (w - 4) / 2,
-                          height: 50 * s,
-                          child: parent.buildButton('NOW', semanticLabel: parent._l10n.timeNowHint, onPressed: () async => parent._insertCurrentTime(), expanded: false),
-                        );
-                      }),
-                      LayoutBuilder(builder: (lbCtx, lbC) {
-                        final w = lbC.maxWidth.isFinite ? lbC.maxWidth : MediaQuery.of(lbCtx).size.width * 0.85;
-                        final s = parent._responsiveScale(lbCtx);
-                        return SizedBox(
-                          width: (w - 4) / 2,
-                          height: 50 * s,
-                          child: parent.buildButton('DIFF', semanticLabel: parent._l10n.timeDiffHint, onPressed: () async => await parent._handleButtonPressed('DIFF'), expanded: false),
-                        );
-                      }),
-                      LayoutBuilder(builder: (lbCtx, lbC) {
-                        final w = lbC.maxWidth.isFinite ? lbC.maxWidth : MediaQuery.of(lbCtx).size.width * 0.85;
-                        final s = parent._responsiveScale(lbCtx);
-                        return SizedBox(
-                          width: (w - 4) / 2,
-                          height: 50 * s,
-                          child: parent.buildButton('TO_SEC', semanticLabel: parent._l10n.timeToSec, onPressed: () async => await parent._handleButtonPressed('TO_SEC'), expanded: false),
-                        );
-                      }),
-                      LayoutBuilder(builder: (lbCtx, lbC) {
-                        final w = lbC.maxWidth.isFinite ? lbC.maxWidth : MediaQuery.of(lbCtx).size.width * 0.85;
-                        final s = parent._responsiveScale(lbCtx);
-                        return SizedBox(
-                          width: (w - 4) / 2,
-                          height: 50 * s,
-                          child: parent.buildButton('TO_HMS', semanticLabel: parent._l10n.timeToHms, onPressed: () async => await parent._handleButtonPressed('TO_HMS'), expanded: false),
-                        );
-                      }),
+                      LayoutBuilder(
+                        builder: (lbCtx, lbC) {
+                          final w = lbC.maxWidth.isFinite
+                              ? lbC.maxWidth
+                              : MediaQuery.of(lbCtx).size.width * 0.85;
+                          final s = parent._responsiveScale(lbCtx);
+                          return SizedBox(
+                            width: (w - 4) / 2,
+                            height: 50 * s,
+                            child: parent.buildButton(
+                              'NOW',
+                              semanticLabel: parent._l10n.timeNowHint,
+                              onPressed: () async =>
+                                  parent._insertCurrentTime(),
+                              expanded: false,
+                            ),
+                          );
+                        },
+                      ),
+                      LayoutBuilder(
+                        builder: (lbCtx, lbC) {
+                          final w = lbC.maxWidth.isFinite
+                              ? lbC.maxWidth
+                              : MediaQuery.of(lbCtx).size.width * 0.85;
+                          final s = parent._responsiveScale(lbCtx);
+                          return SizedBox(
+                            width: (w - 4) / 2,
+                            height: 50 * s,
+                            child: parent.buildButton(
+                              'DIFF',
+                              semanticLabel: parent._l10n.timeDiffHint,
+                              onPressed: () async =>
+                                  await parent._handleButtonPressed('DIFF'),
+                              expanded: false,
+                            ),
+                          );
+                        },
+                      ),
+                      LayoutBuilder(
+                        builder: (lbCtx, lbC) {
+                          final w = lbC.maxWidth.isFinite
+                              ? lbC.maxWidth
+                              : MediaQuery.of(lbCtx).size.width * 0.85;
+                          final s = parent._responsiveScale(lbCtx);
+                          return SizedBox(
+                            width: (w - 4) / 2,
+                            height: 50 * s,
+                            child: parent.buildButton(
+                              'TO_SEC',
+                              semanticLabel: parent._l10n.timeToSec,
+                              onPressed: () async =>
+                                  await parent._handleButtonPressed('TO_SEC'),
+                              expanded: false,
+                            ),
+                          );
+                        },
+                      ),
+                      LayoutBuilder(
+                        builder: (lbCtx, lbC) {
+                          final w = lbC.maxWidth.isFinite
+                              ? lbC.maxWidth
+                              : MediaQuery.of(lbCtx).size.width * 0.85;
+                          final s = parent._responsiveScale(lbCtx);
+                          return SizedBox(
+                            width: (w - 4) / 2,
+                            height: 50 * s,
+                            child: parent.buildButton(
+                              'TO_HMS',
+                              semanticLabel: parent._l10n.timeToHms,
+                              onPressed: () async =>
+                                  await parent._handleButtonPressed('TO_HMS'),
+                              expanded: false,
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ],
@@ -482,8 +525,21 @@ child: Text(
                             initialValue: parent._currencyFrom,
                             isExpanded: true,
                             isDense: true,
-                            decoration: InputDecoration(labelText: parent._l10n.currencyFromLabel),
-                            items: parent._currencyRates.keys.map((c) => DropdownMenuItem(value: c, child: Text(c, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                            decoration: InputDecoration(
+                              labelText: parent._l10n.currencyFromLabel,
+                            ),
+                            items: parent._currencyRates.keys
+                                .map(
+                                  (c) => DropdownMenuItem(
+                                    value: c,
+                                    child: Text(
+                                      c,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                             onChanged: (v) {
                               if (v == null) return;
                               parent.setState(() => parent._currencyFrom = v);
@@ -502,8 +558,21 @@ child: Text(
                             initialValue: parent._currencyTo,
                             isExpanded: true,
                             isDense: true,
-                            decoration: InputDecoration(labelText: parent._l10n.currencyToLabel),
-                            items: parent._currencyRates.keys.map((c) => DropdownMenuItem(value: c, child: Text(c, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
+                            decoration: InputDecoration(
+                              labelText: parent._l10n.currencyToLabel,
+                            ),
+                            items: parent._currencyRates.keys
+                                .map(
+                                  (c) => DropdownMenuItem(
+                                    value: c,
+                                    child: Text(
+                                      c,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                             onChanged: (v) {
                               if (v == null) return;
                               parent.setState(() => parent._currencyTo = v);
@@ -521,9 +590,19 @@ child: Text(
                     liveRegion: true,
                     child: Text(
                       parent._currencyLastUpdate == null
-                          ? parent._s('Kurzy dosud neaktualizovány', 'Rates not yet updated')
-                          : parent._l10n.currencyLastUpdate(parent._formatCurrencyDate(parent._currencyLastUpdate)),
-                      style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                          ? parent._s(
+                              'Kurzy dosud neaktualizovány',
+                              'Rates not yet updated',
+                            )
+                          : parent._l10n.currencyLastUpdate(
+                              parent._formatCurrencyDate(
+                                parent._currencyLastUpdate,
+                              ),
+                            ),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -534,7 +613,9 @@ child: Text(
                       onPressed: parent._convertCurrency,
                       icon: const Icon(Icons.sync),
                       label: Text(parent._s('PŘEVÉST', 'CONVERT')),
-                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.all(16),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -544,8 +625,23 @@ child: Text(
                         child: Semantics(
                           label: parent._l10n.currencyUpdateButton,
                           child: FilledButton.icon(
-                            onPressed: parent._currencyLoading ? null : () async { await parent._updateCurrencyRatesOnline(silent: false); setState(() {}); },
-                            icon: parent._currencyLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh, size: 18),
+                            onPressed: parent._currencyLoading
+                                ? null
+                                : () async {
+                                    await parent._updateCurrencyRatesOnline(
+                                      silent: false,
+                                    );
+                                    setState(() {});
+                                  },
+                            icon: parent._currencyLoading
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.refresh, size: 18),
                             label: Text(parent._l10n.currencyUpdateButton),
                           ),
                         ),
@@ -555,9 +651,13 @@ child: Text(
                         child: Semantics(
                           label: parent._l10n.currencyManageTitle,
                           child: OutlinedButton.icon(
-                            onPressed: () => parent._showCurrencyManagerDialog(),
+                            onPressed: () =>
+                                parent._showCurrencyManagerDialog(),
                             icon: const Icon(Icons.settings, size: 18),
-                            label: Text(parent._l10n.currencyManageButton, style: const TextStyle(fontSize: 12)),
+                            label: Text(
+                              parent._l10n.currencyManageButton,
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           ),
                         ),
                       ),
@@ -566,7 +666,14 @@ child: Text(
                   if (parent._currencyLoading)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: Semantics(liveRegion: true, child: Text(parent._l10n.currencyUpdating, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12))),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          parent._l10n.currencyUpdating,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -591,19 +698,18 @@ child: Text(
                   b,
                 ) {
                   return LayoutBuilder(
-                            builder: (lbCtx, lbConstraints) {
-                              final lbWidth = lbConstraints.maxWidth.isFinite
-                                  ? lbConstraints.maxWidth
-                                  : MediaQuery.of(lbCtx).size.width * 0.85;
-                              final lbScale = parent._responsiveScale(lbCtx);
-                              return SizedBox(
-                                width: (lbWidth - 12) / 4,
-                                height: 50 * lbScale,
-                                child: parent.buildButton(b, expanded: false
-                                ),
-                              );
-                            },
-                          );
+                    builder: (lbCtx, lbConstraints) {
+                      final lbWidth = lbConstraints.maxWidth.isFinite
+                          ? lbConstraints.maxWidth
+                          : MediaQuery.of(lbCtx).size.width * 0.85;
+                      final lbScale = parent._responsiveScale(lbCtx);
+                      return SizedBox(
+                        width: (lbWidth - 12) / 4,
+                        height: 50 * lbScale,
+                        child: parent.buildButton(b, expanded: false),
+                      );
+                    },
+                  );
                 }).toList(),
               ),
             ),
@@ -643,19 +749,18 @@ child: Text(
                     'PCT',
                   ].map((b) {
                     return LayoutBuilder(
-                            builder: (lbCtx, lbConstraints) {
-                              final lbWidth = lbConstraints.maxWidth.isFinite
-                                  ? lbConstraints.maxWidth
-                                  : MediaQuery.of(lbCtx).size.width * 0.85;
-                              final lbScale = parent._responsiveScale(lbCtx);
-                              return SizedBox(
-                                width: (lbWidth - 12) / 4,
-                                height: 50 * lbScale,
-                                child: parent.buildButton(b, expanded: false
-                                ),
-                              );
-                            },
-                          );
+                      builder: (lbCtx, lbConstraints) {
+                        final lbWidth = lbConstraints.maxWidth.isFinite
+                            ? lbConstraints.maxWidth
+                            : MediaQuery.of(lbCtx).size.width * 0.85;
+                        final lbScale = parent._responsiveScale(lbCtx);
+                        return SizedBox(
+                          width: (lbWidth - 12) / 4,
+                          height: 50 * lbScale,
+                          child: parent.buildButton(b, expanded: false),
+                        );
+                      },
+                    );
                   }).toList(),
             ),
           ),
@@ -677,19 +782,18 @@ child: Text(
                   runSpacing: 4,
                   children: ['STO', 'RCL', 'CLR'].map((b) {
                     return LayoutBuilder(
-                            builder: (lbCtx, lbConstraints) {
-                              final lbWidth = lbConstraints.maxWidth.isFinite
-                                  ? lbConstraints.maxWidth
-                                  : MediaQuery.of(lbCtx).size.width * 0.85;
-                              final lbScale = parent._responsiveScale(lbCtx);
-                              return SizedBox(
-                                width: (lbWidth - 8) / 3.2,
-                                height: 50 * lbScale,
-                                child: parent.buildButton(b, expanded: false
-                                ),
-                              );
-                            },
-                          );
+                      builder: (lbCtx, lbConstraints) {
+                        final lbWidth = lbConstraints.maxWidth.isFinite
+                            ? lbConstraints.maxWidth
+                            : MediaQuery.of(lbCtx).size.width * 0.85;
+                        final lbScale = parent._responsiveScale(lbCtx);
+                        return SizedBox(
+                          width: (lbWidth - 8) / 3.2,
+                          height: 50 * lbScale,
+                          child: parent.buildButton(b, expanded: false),
+                        );
+                      },
+                    );
                   }).toList(),
                 ),
                 const Divider(),
@@ -701,23 +805,26 @@ child: Text(
                     b,
                   ) {
                     return LayoutBuilder(
-                            builder: (lbCtx, lbConstraints) {
-                              final lbWidth = lbConstraints.maxWidth.isFinite
-                                  ? lbConstraints.maxWidth
-                                  : MediaQuery.of(lbCtx).size.width * 0.85;
-                              final lbScale = parent._responsiveScale(lbCtx);
-                              return SizedBox(
-                                width: (lbWidth - 12) / 4,
-                                height: 50 * lbScale,
-                                child: parent.buildButton(
-                        b,
-                        semanticLabel: parent._s('Proměnná $b', 'Variable $b'),
-                        onPressed: () => parent._handleMemoryVariable(b),
-                        expanded: false,
-                                ),
-                              );
-                            },
-                          );
+                      builder: (lbCtx, lbConstraints) {
+                        final lbWidth = lbConstraints.maxWidth.isFinite
+                            ? lbConstraints.maxWidth
+                            : MediaQuery.of(lbCtx).size.width * 0.85;
+                        final lbScale = parent._responsiveScale(lbCtx);
+                        return SizedBox(
+                          width: (lbWidth - 12) / 4,
+                          height: 50 * lbScale,
+                          child: parent.buildButton(
+                            b,
+                            semanticLabel: parent._s(
+                              'Proměnná $b',
+                              'Variable $b',
+                            ),
+                            onPressed: () => parent._handleMemoryVariable(b),
+                            expanded: false,
+                          ),
+                        );
+                      },
+                    );
                   }).toList(),
                 ),
                 const Divider(),
@@ -730,7 +837,12 @@ child: Text(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.delete_forever, size: 18),
-                      label: Text(parent._s('Vymazat všechny proměnné', 'Clear all variables')),
+                      label: Text(
+                        parent._s(
+                          'Vymazat všechny proměnné',
+                          'Clear all variables',
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.redAccent,
                         foregroundColor: Colors.white,
@@ -767,11 +879,11 @@ child: Text(
                             ? lbConstraints.maxWidth
                             : MediaQuery.of(lbCtx).size.width * 0.85;
                         final lbScale = parent._responsiveScale(lbCtx);
-                        final hasPeriod = RegExp(
-                          r'\(\d+\)$',
-                        ).hasMatch(parent.display.isEmpty && parent._hasResult
-                            ? parent._lastResult
-                            : parent.display);
+                        final hasPeriod = RegExp(r'\(\d+\)$').hasMatch(
+                          parent.display.isEmpty && parent._hasResult
+                              ? parent._lastResult
+                              : parent.display,
+                        );
                         final toggleLabel = parent._s(
                           'Přepnout periodu, krátký stisk posune periodu o číslici vlevo, při celé desetinné části ji odstraní. Klávesová zkratka Ctrl+Shift+P',
                           'Toggle period, tap moves period one digit left, removes it when whole fraction is repeating. Shortcut Ctrl+Shift+P',
@@ -992,7 +1104,10 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
       semanticLabel: parent._l10n.currencyManageTitle,
-      title: Semantics(header: true, child: Text(parent._l10n.currencyManageTitle)),
+      title: Semantics(
+        header: true,
+        child: Text(parent._l10n.currencyManageTitle),
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
@@ -1002,37 +1117,64 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
               if (sortedKeys.isEmpty) Text(parent._l10n.currencyNoRates),
               ...sortedKeys.map((code) {
                 final isCzk = code == 'CZK';
-                final controller = TextEditingController(text: _rates[code]!.toStringAsFixed(4).replaceAll('.', ','));
+                final controller = TextEditingController(
+                  text: _rates[code]!.toStringAsFixed(4).replaceAll('.', ','),
+                );
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
                     children: [
-                      SizedBox(width: 56, child: Text(code, style: const TextStyle(fontWeight: FontWeight.bold))),
+                      SizedBox(
+                        width: 56,
+                        child: Text(
+                          code,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
                       Expanded(
                         child: Semantics(
                           label: parent._l10n.currencyRateLabel(code),
                           child: TextField(
                             controller: controller,
                             enabled: !isCzk,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                             decoration: InputDecoration(
-                              labelText: isCzk ? parent._l10n.currencyCzkLocked : parent._l10n.currencyRateLabel(code),
+                              labelText: isCzk
+                                  ? parent._l10n.currencyCzkLocked
+                                  : parent._l10n.currencyRateLabel(code),
                               isDense: true,
                               border: const OutlineInputBorder(),
                             ),
                             onSubmitted: (v) {
                               if (isCzk) return;
-                              final parsed = double.tryParse(v.replaceAll(',', '.').trim());
+                              final parsed = double.tryParse(
+                                v.replaceAll(',', '.').trim(),
+                              );
                               if (parsed == null || parsed <= 0) {
                                 parent.speak(parent._l10n.currencyInvalidRate);
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(parent._l10n.currencyInvalidRate)));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      parent._l10n.currencyInvalidRate,
+                                    ),
+                                  ),
+                                );
                                 return;
                               }
                               setState(() => _rates[code] = parsed);
-                              parent.speak(parent._s('Kurz $code nastaven na ${v.replaceAll('.', ',')}', 'Rate $code set to $v'));
+                              parent.speak(
+                                parent._s(
+                                  'Kurz $code nastaven na ${v.replaceAll('.', ',')}',
+                                  'Rate $code set to $v',
+                                ),
+                              );
                             },
                             onChanged: (v) {
-                              final parsed = double.tryParse(v.replaceAll(',', '.').trim());
+                              final parsed = double.tryParse(
+                                v.replaceAll(',', '.').trim(),
+                              );
                               if (parsed != null && parsed > 0 && !isCzk) {
                                 _rates[code] = parsed;
                               }
@@ -1043,11 +1185,19 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                       const SizedBox(width: 4),
                       if (!isCzk)
                         IconButton(
-                          tooltip: parent._s('Smazat měnu $code', 'Delete $code'),
+                          tooltip: parent._s(
+                            'Smazat měnu $code',
+                            'Delete $code',
+                          ),
                           icon: const Icon(Icons.delete, size: 20),
                           onPressed: () {
                             setState(() => _rates.remove(code));
-                            parent.speak(parent._s('Měna $code smazána', 'Currency $code deleted'));
+                            parent.speak(
+                              parent._s(
+                                'Měna $code smazána',
+                                'Currency $code deleted',
+                              ),
+                            );
                           },
                         ),
                     ],
@@ -1068,27 +1218,62 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                           content: TextField(
                             controller: ctrl,
                             textCapitalization: TextCapitalization.characters,
-                            decoration: InputDecoration(labelText: parent._l10n.currencyCodeLabel, border: const OutlineInputBorder()),
+                            decoration: InputDecoration(
+                              labelText: parent._l10n.currencyCodeLabel,
+                              border: const OutlineInputBorder(),
+                            ),
                             maxLength: 3,
                           ),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(dCtx), child: Text(parent._l10n.cancel)),
-                            FilledButton(onPressed: () => Navigator.pop(dCtx, ctrl.text.trim().toUpperCase()), child: Text(parent._l10n.currencyAddButton)),
+                            TextButton(
+                              onPressed: () => Navigator.pop(dCtx),
+                              child: Text(parent._l10n.cancel),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(
+                                dCtx,
+                                ctrl.text.trim().toUpperCase(),
+                              ),
+                              child: Text(parent._l10n.currencyAddButton),
+                            ),
                           ],
                         );
                       },
                     );
                     if (code != null && code.isNotEmpty) {
-                      if (code.length != 3 || !RegExp(r'^[A-Z]{3}$').hasMatch(code)) {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(parent._s('Neplatný kód měny', 'Invalid currency code'))));
+                      if (code.length != 3 ||
+                          !RegExp(r'^[A-Z]{3}$').hasMatch(code)) {
+                        if (mounted)
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                parent._s(
+                                  'Neplatný kód měny',
+                                  'Invalid currency code',
+                                ),
+                              ),
+                            ),
+                          );
                         return;
                       }
                       if (_rates.containsKey(code)) {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(parent._s('Měna již existuje', 'Currency already exists'))));
+                        if (mounted)
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                parent._s(
+                                  'Měna již existuje',
+                                  'Currency already exists',
+                                ),
+                              ),
+                            ),
+                          );
                         return;
                       }
                       setState(() => _rates[code] = 1.0);
-                      parent.speak(parent._s('Měna $code přidána', 'Currency $code added'));
+                      parent.speak(
+                        parent._s('Měna $code přidána', 'Currency $code added'),
+                      );
                     }
                   },
                   icon: const Icon(Icons.add),
@@ -1100,19 +1285,32 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(parent._l10n.cancel)),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(parent._l10n.cancel),
+        ),
         FilledButton(
           onPressed: () {
             // Validate
             for (final e in _rates.entries) {
               if (e.value <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${parent._l10n.currencyInvalidRate}: ${e.key}')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${parent._l10n.currencyInvalidRate}: ${e.key}',
+                    ),
+                  ),
+                );
                 return;
               }
             }
-            parent.setState(() => parent._currencyRates = Map<String, double>.from(_rates));
-            if (!parent._currencyRates.containsKey(parent._currencyFrom)) parent._currencyFrom = 'CZK';
-            if (!parent._currencyRates.containsKey(parent._currencyTo)) parent._currencyTo = 'CZK';
+            parent.setState(
+              () => parent._currencyRates = Map<String, double>.from(_rates),
+            );
+            if (!parent._currencyRates.containsKey(parent._currencyFrom))
+              parent._currencyFrom = 'CZK';
+            if (!parent._currencyRates.containsKey(parent._currencyTo))
+              parent._currencyTo = 'CZK';
             parent._saveCurrencyRates();
             parent.speak(parent._s('Kurzy uloženy', 'Rates saved'));
             Navigator.pop(context);
@@ -1214,7 +1412,10 @@ class _NewsDialogState extends State<_NewsDialog> {
       if (!loadMore) {
         final focused = widget.initialFocusVersion;
         if (focused != null && result.releases.isNotEmpty) {
-          final matching = _findVersion(result.releases, focused.normalizedVersion);
+          final matching = _findVersion(
+            result.releases,
+            focused.normalizedVersion,
+          );
           if (matching != null && matching.plainTextBody.isNotEmpty) {
             Future.delayed(const Duration(milliseconds: 600), () {
               if (mounted) {
@@ -1317,19 +1518,24 @@ class _NewsDialogState extends State<_NewsDialog> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = releases
-          .map((r) => {
-                'tag_name': r.tagName,
-                'html_url': r.htmlUrl,
-                'body': r.body,
-              })
+          .map(
+            (r) => {
+              'tag_name': r.tagName,
+              'html_url': r.htmlUrl,
+              'body': r.body,
+            },
+          )
           .toList();
       await prefs.setString('news_cache_json', jsonEncode(jsonList));
-      await prefs.setString('news_cache_timestamp', DateTime.now().toIso8601String());
+      await prefs.setString(
+        'news_cache_timestamp',
+        DateTime.now().toIso8601String(),
+      );
     } catch (_) {}
   }
 
   Future<({List<GitHubReleaseInfo> releases, String? timestamp})?>
-      _loadCached() async {
+  _loadCached() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = prefs.getString('news_cache_json');
@@ -1338,11 +1544,13 @@ class _NewsDialogState extends State<_NewsDialog> {
       final List<dynamic> decoded = jsonDecode(jsonStr) as List<dynamic>;
       final releases = decoded
           .whereType<Map<String, dynamic>>()
-          .map((m) => GitHubReleaseInfo(
-                tagName: (m['tag_name'] as String?) ?? '',
-                htmlUrl: m['html_url'] as String?,
-                body: m['body'] as String?,
-              ))
+          .map(
+            (m) => GitHubReleaseInfo(
+              tagName: (m['tag_name'] as String?) ?? '',
+              htmlUrl: m['html_url'] as String?,
+              body: m['body'] as String?,
+            ),
+          )
           .toList();
       if (releases.isEmpty) return null;
       return (releases: releases, timestamp: timestamp);
@@ -1460,13 +1668,13 @@ class _NewsDialogState extends State<_NewsDialog> {
     return AlertDialog(
       insetPadding: widget.parent._dialogInsetPadding(),
       semanticLabel: widget.parent._s('Novinky', 'What is new'),
-        title: Semantics(
-          header: true,
-          child: Text(widget.parent._s('Novinky', 'What is new')),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: _loading
+      title: Semantics(
+        header: true,
+        child: Text(widget.parent._s('Novinky', 'What is new')),
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _loading
             ? const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(child: CircularProgressIndicator()),
@@ -1484,11 +1692,16 @@ class _NewsDialogState extends State<_NewsDialog> {
                       Text(_error!),
                       const SizedBox(height: 16),
                       Semantics(
-                        label: widget.parent._s('Zkusit znovu načíst novinky', 'Try loading news again'),
+                        label: widget.parent._s(
+                          'Zkusit znovu načíst novinky',
+                          'Try loading news again',
+                        ),
                         child: FilledButton.icon(
                           onPressed: () => _loadReleases(),
                           icon: const Icon(Icons.refresh),
-                          label: Text(widget.parent._s('Zkusit znovu', 'Retry')),
+                          label: Text(
+                            widget.parent._s('Zkusit znovu', 'Retry'),
+                          ),
                         ),
                       ),
                     ],
@@ -1512,7 +1725,9 @@ class _NewsDialogState extends State<_NewsDialog> {
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.errorContainer,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.errorContainer,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Column(
@@ -1521,7 +1736,9 @@ class _NewsDialogState extends State<_NewsDialog> {
                                   Text(
                                     _error!,
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onErrorContainer,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onErrorContainer,
                                     ),
                                   ),
                                   if (_cachedTimestamp != null) ...[
@@ -1533,17 +1750,27 @@ class _NewsDialogState extends State<_NewsDialog> {
                                       ),
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Theme.of(context).colorScheme.onErrorContainer,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onErrorContainer,
                                       ),
                                     ),
                                   ],
                                   const SizedBox(height: 8),
                                   Semantics(
-                                    label: widget.parent._s('Zkusit znovu načíst novinky', 'Try loading news again'),
+                                    label: widget.parent._s(
+                                      'Zkusit znovu načíst novinky',
+                                      'Try loading news again',
+                                    ),
                                     child: FilledButton.icon(
                                       onPressed: () => _loadReleases(),
                                       icon: const Icon(Icons.refresh),
-                                      label: Text(widget.parent._s('Zkusit znovu', 'Retry')),
+                                      label: Text(
+                                        widget.parent._s(
+                                          'Zkusit znovu',
+                                          'Retry',
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -1578,7 +1805,9 @@ class _NewsDialogState extends State<_NewsDialog> {
                                 'Co je nového v této verzi',
                                 'What is new in this version',
                               ),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -1587,8 +1816,13 @@ class _NewsDialogState extends State<_NewsDialog> {
                           Semantics(
                             header: true,
                             child: Text(
-                              widget.parent._s('Starší verze', 'Older versions'),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              widget.parent._s(
+                                'Starší verze',
+                                'Older versions',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -1596,8 +1830,13 @@ class _NewsDialogState extends State<_NewsDialog> {
                           Semantics(
                             header: true,
                             child: Text(
-                              widget.parent._s('Seznam novinek', 'Release list'),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              widget.parent._s(
+                                'Seznam novinek',
+                                'Release list',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -1607,7 +1846,9 @@ class _NewsDialogState extends State<_NewsDialog> {
                               (release) =>
                                   widget.initialFocusVersion == null ||
                                   release.normalizedVersion !=
-                                      widget.initialFocusVersion!.normalizedVersion,
+                                      widget
+                                          .initialFocusVersion!
+                                          .normalizedVersion,
                             )
                             .map(_buildReleaseTile),
                         if (_hasMore && !_showingCached) ...[
@@ -1624,9 +1865,15 @@ class _NewsDialogState extends State<_NewsDialog> {
                                       'Load older release notes',
                                     ),
                                     child: FilledButton.tonalIcon(
-                                      onPressed: () => _loadReleases(loadMore: true),
+                                      onPressed: () =>
+                                          _loadReleases(loadMore: true),
                                       icon: const Icon(Icons.expand_more),
-                                      label: Text(widget.parent._s('Načíst starší verze', 'Load older versions')),
+                                      label: Text(
+                                        widget.parent._s(
+                                          'Načíst starší verze',
+                                          'Load older versions',
+                                        ),
+                                      ),
                                     ),
                                   ),
                           ),
@@ -1635,8 +1882,14 @@ class _NewsDialogState extends State<_NewsDialog> {
                           const SizedBox(height: 8),
                           Center(
                             child: Text(
-                              widget.parent._s('Žádné další verze.', 'No more versions.'),
-                              style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                              widget.parent._s(
+                                'Žádné další verze.',
+                                'No more versions.',
+                              ),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
                           ),
                         ],
@@ -1646,12 +1899,12 @@ class _NewsDialogState extends State<_NewsDialog> {
                 ),
               ),
       ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(widget.parent._s('Zavřít', 'Close')),
-          ),
-        ],
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(widget.parent._s('Zavřít', 'Close')),
+        ),
+      ],
     );
   }
 }
@@ -1736,9 +1989,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 },
                 child: Text(
                   widget.parent._s(
-                    'Periodický zápis výsledků',
-                    'Repeating decimal notation for results',
-                  ) +
+                        'Periodický zápis výsledků',
+                        'Repeating decimal notation for results',
+                      ) +
                       ': ' +
                       (widget.parent._usePeriodicNotation
                           ? widget.parent._s('Zapnuto', 'On')
@@ -2188,21 +2441,24 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zmenšit zoom horního řádku',
-                        'Decrease upper line zoom',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustDotMatrixZoom(-0.1),
-                        child: ExcludeSemantics(child: const Text('-')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zmenšit zoom horního řádku',
+                          'Decrease upper line zoom',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustDotMatrixZoom(-0.1),
+                          child: ExcludeSemantics(child: const Text('-')),
+                        ),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
                         liveRegion: true,
+                        container: true,
                         label: widget.parent._s(
                           'Hodnota zoomu: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
                           'Zoom value: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
@@ -2214,15 +2470,17 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         ),
                       ),
                     ),
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zvětšit zoom horního řádku',
-                        'Increase upper line zoom',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustDotMatrixZoom(0.1),
-                        child: ExcludeSemantics(child: const Text('+')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zvětšit zoom horního řádku',
+                          'Increase upper line zoom',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustDotMatrixZoom(0.1),
+                          child: ExcludeSemantics(child: const Text('+')),
+                        ),
                       ),
                     ),
                   ],
@@ -2242,21 +2500,24 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zmenšit zoom dolního řádku',
-                        'Decrease lower line zoom',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustResultZoom(-0.1),
-                        child: ExcludeSemantics(child: const Text('-')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zmenšit zoom dolního řádku',
+                          'Decrease lower line zoom',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustResultZoom(-0.1),
+                          child: ExcludeSemantics(child: const Text('-')),
+                        ),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
                         liveRegion: true,
+                        container: true,
                         label: widget.parent._s(
                           'Hodnota zoomu: ${(widget.parent._resultZoom * 100).toInt()} %',
                           'Zoom value: ${(widget.parent._resultZoom * 100).toInt()} %',
@@ -2268,15 +2529,17 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         ),
                       ),
                     ),
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zvětšit zoom dolního řádku',
-                        'Increase lower line zoom',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustResultZoom(0.1),
-                        child: ExcludeSemantics(child: const Text('+')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zvětšit zoom dolního řádku',
+                          'Increase lower line zoom',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustResultZoom(0.1),
+                          child: ExcludeSemantics(child: const Text('+')),
+                        ),
                       ),
                     ),
                   ],
@@ -2351,21 +2614,24 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zmenšit tloušťku periodické čárky',
-                        'Decrease repeating bar thickness',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustOverlineThickness(-0.2),
-                        child: ExcludeSemantics(child: const Text('-')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zmenšit tloušťku periodické čárky',
+                          'Decrease repeating bar thickness',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustOverlineThickness(-0.2),
+                          child: ExcludeSemantics(child: const Text('-')),
+                        ),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
                         liveRegion: true,
+                        container: true,
                         label: widget.parent._s(
                           'Tloušťka periodické čárky: ${(widget.parent._overlineThickness * 100).toInt()} %',
                           'Repeating bar thickness: ${(widget.parent._overlineThickness * 100).toInt()} %',
@@ -2377,15 +2643,17 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         ),
                       ),
                     ),
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zvětšit tloušťku periodické čárky',
-                        'Increase repeating bar thickness',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustOverlineThickness(0.2),
-                        child: ExcludeSemantics(child: const Text('+')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zvětšit tloušťku periodické čárky',
+                          'Increase repeating bar thickness',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustOverlineThickness(0.2),
+                          child: ExcludeSemantics(child: const Text('+')),
+                        ),
                       ),
                     ),
                   ],
@@ -2456,21 +2724,24 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zmenšit písmo dialogů',
-                        'Decrease dialog font size',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustDialogFontScale(-0.1),
-                        child: ExcludeSemantics(child: const Text('-')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zmenšit písmo dialogů',
+                          'Decrease dialog font size',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustDialogFontScale(-0.1),
+                          child: ExcludeSemantics(child: const Text('-')),
+                        ),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
                         liveRegion: true,
+                        container: true,
                         label: widget.parent._s(
                           'Hodnota velikosti písma dialogů: ${(widget.parent._dialogFontScale * 100).toInt()} %',
                           'Dialog font size value: ${(widget.parent._dialogFontScale * 100).toInt()} %',
@@ -2482,15 +2753,17 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         ),
                       ),
                     ),
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zvětšit písmo dialogů',
-                        'Increase dialog font size',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustDialogFontScale(0.1),
-                        child: ExcludeSemantics(child: const Text('+')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zvětšit písmo dialogů',
+                          'Increase dialog font size',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustDialogFontScale(0.1),
+                          child: ExcludeSemantics(child: const Text('+')),
+                        ),
                       ),
                     ),
                   ],
@@ -2518,21 +2791,24 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zmenšit písmo tlačítek',
-                        'Decrease keyboard button font size',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustKeyboardFontScale(-0.1),
-                        child: ExcludeSemantics(child: const Text('-')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zmenšit písmo tlačítek',
+                          'Decrease keyboard button font size',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustKeyboardFontScale(-0.1),
+                          child: ExcludeSemantics(child: const Text('-')),
+                        ),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
                         liveRegion: true,
+                        container: true,
                         label: widget.parent._s(
                           'Hodnota velikosti písma tlačítek: ${(widget.parent._keyboardFontScale * 100).toInt()} %',
                           'Keyboard button font size value: ${(widget.parent._keyboardFontScale * 100).toInt()} %',
@@ -2544,15 +2820,17 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         ),
                       ),
                     ),
-                    Semantics(
-                      label: widget.parent._s(
-                        'Zvětšit písmo tlačítek',
-                        'Increase keyboard button font size',
-                      ),
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustKeyboardFontScale(0.1),
-                        child: ExcludeSemantics(child: const Text('+')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zvětšit písmo tlačítek',
+                          'Increase keyboard button font size',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustKeyboardFontScale(0.1),
+                          child: ExcludeSemantics(child: const Text('+')),
+                        ),
                       ),
                     ),
                   ],
@@ -2591,7 +2869,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         children: [
                           SizedBox(
                             width: 60,
-                            height: 44 * widget.parent._responsiveScale(context),
+                            height:
+                                44 * widget.parent._responsiveScale(context),
                             child: widget.parent.buildButton(
                               '7',
                               expanded: false,
@@ -2600,7 +2879,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                           ),
                           SizedBox(
                             width: 60,
-                            height: 44 * widget.parent._responsiveScale(context),
+                            height:
+                                44 * widget.parent._responsiveScale(context),
                             child: widget.parent.buildButton(
                               '8',
                               expanded: false,
@@ -2609,7 +2889,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                           ),
                           SizedBox(
                             width: 60,
-                            height: 44 * widget.parent._responsiveScale(context),
+                            height:
+                                44 * widget.parent._responsiveScale(context),
                             child: widget.parent.buildButton(
                               '9',
                               expanded: false,
@@ -2636,18 +2917,21 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Semantics(
-                      label: widget.parent._l10n.decreaseSpeechRate,
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustSpeechRate(-0.1),
-                        child: ExcludeSemantics(child: const Text('-')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._l10n.decreaseSpeechRate,
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustSpeechRate(-0.1),
+                          child: ExcludeSemantics(child: const Text('-')),
+                        ),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
                         liveRegion: true,
+                        container: true,
                         label: widget.parent._l10n.speechRateValue(
                           (widget.parent._speechRate * 100).toInt(),
                         ),
@@ -2658,12 +2942,14 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         ),
                       ),
                     ),
-                    Semantics(
-                      label: widget.parent._l10n.increaseSpeechRate,
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustSpeechRate(0.1),
-                        child: ExcludeSemantics(child: const Text('+')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._l10n.increaseSpeechRate,
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustSpeechRate(0.1),
+                          child: ExcludeSemantics(child: const Text('+')),
+                        ),
                       ),
                     ),
                   ],
@@ -2687,18 +2973,21 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Semantics(
-                      label: widget.parent._l10n.decreaseVolume,
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustSpeechVolume(-0.1),
-                        child: ExcludeSemantics(child: const Text('-')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._l10n.decreaseVolume,
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustSpeechVolume(-0.1),
+                          child: ExcludeSemantics(child: const Text('-')),
+                        ),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Semantics(
                         liveRegion: true,
+                        container: true,
                         label: widget.parent._s(
                           'Aktuální hlasitost: ${(widget.parent._speechVolume * 100).toInt()} %',
                           'Current volume: ${(widget.parent._speechVolume * 100).toInt()} %',
@@ -2710,12 +2999,14 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         ),
                       ),
                     ),
-                    Semantics(
-                      label: widget.parent._l10n.increaseVolume,
-                      button: true,
-                      child: ElevatedButton(
-                        onPressed: () => _adjustSpeechVolume(0.1),
-                        child: ExcludeSemantics(child: const Text('+')),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._l10n.increaseVolume,
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustSpeechVolume(0.1),
+                          child: ExcludeSemantics(child: const Text('+')),
+                        ),
                       ),
                     ),
                   ],
@@ -2754,32 +3045,36 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.restore),
                         onPressed: () async {
-                          final confirmed =
-                              await widget.parent.showAppDialog<bool>(
-                            context: context,
-                            routeSettings: const RouteSettings(
-                              name: 'Potvrzení',
-                            ),
-                            builder: (ctx) => AlertDialog(
-      insetPadding: widget.parent._dialogInsetPadding(),
-                              semanticLabel:
-                                  widget.parent._l10n.confirmationTitle,
-                              title: Text(
-                                widget.parent._l10n.confirmationTitle,
-                              ),
-                              content: Text(widget.parent._l10n.restoreConfirm),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: Text(widget.parent._l10n.noShort),
+                          final confirmed = await widget.parent
+                              .showAppDialog<bool>(
+                                context: context,
+                                routeSettings: const RouteSettings(
+                                  name: 'Potvrzení',
                                 ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: Text(widget.parent._l10n.yesShort),
+                                builder: (ctx) => AlertDialog(
+                                  insetPadding: widget.parent
+                                      ._dialogInsetPadding(),
+                                  semanticLabel:
+                                      widget.parent._l10n.confirmationTitle,
+                                  title: Text(
+                                    widget.parent._l10n.confirmationTitle,
+                                  ),
+                                  content: Text(
+                                    widget.parent._l10n.restoreConfirm,
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: Text(widget.parent._l10n.noShort),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: Text(widget.parent._l10n.yesShort),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          );
+                              );
                           if (confirmed == true) {
                             widget.parent._importBackup();
                             if (context.mounted) Navigator.pop(context);
@@ -2899,8 +3194,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   void _adjustDialogFontScale(double delta) {
     setState(() {
       widget.parent.setState(() {
-        widget.parent._dialogFontScale = (widget.parent._dialogFontScale + delta)
-            .clamp(0.5, 5.0);
+        widget.parent._dialogFontScale =
+            (widget.parent._dialogFontScale + delta).clamp(0.5, 5.0);
         widget.parent._dialogFontScaleNotifier.value =
             widget.parent._dialogFontScale;
       });
@@ -2933,8 +3228,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   void _adjustOverlineThickness(double delta) {
     setState(() {
       widget.parent.setState(() {
-        widget.parent._overlineThickness = (widget.parent._overlineThickness + delta)
-            .clamp(0.8, 4.0);
+        widget.parent._overlineThickness =
+            (widget.parent._overlineThickness + delta).clamp(0.8, 4.0);
       });
       widget.parent._saveSettings();
     });
