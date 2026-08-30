@@ -80,15 +80,12 @@ class _VoiceSetCreationSession {
       force: true,
     );
     if (parent.mounted) {
-      ScaffoldMessenger.of(parent.context).showSnackBar(
-        SnackBar(
-          content: Text(
-            parent._s(
-              'Hlasové rozpoznávání není dostupné.',
-              'Speech recognition is not available.',
-            ),
-          ),
+      parent._showAccessibleSnackBar(
+        parent._s(
+          'Hlasové rozpoznávání není dostupné.',
+          'Speech recognition is not available.',
         ),
+        scaffoldContext: parent.context,
       );
     }
   }

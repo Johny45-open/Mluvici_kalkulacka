@@ -459,8 +459,9 @@ extension on _CalculatorScreenState {
                         final parsed = _parseNumberAnswer(countController.text);
                         if (parsed == null || parsed < 1 || parsed > 10) {
                           speak(_s('Zadejte číslo 1 až 10.', 'Enter a number 1 to 10.'), force: true);
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(content: Text(_s('Zadejte číslo 1 až 10.', 'Enter a number 1 to 10.'))),
+                          _showAccessibleSnackBar(
+                            _s('Zadejte číslo 1 až 10.', 'Enter a number 1 to 10.'),
+                            scaffoldContext: this.context,
                           );
                           return;
                         }
@@ -493,8 +494,9 @@ extension on _CalculatorScreenState {
                         if (duplicate) {
                           speak(_s('Název $finalName už existuje. Zvolte jiný.', 'Name $finalName already exists. Choose another.'), force: true);
                           // Použij root context (this.context) pro ScaffoldMessenger – dialogový context nemusí mít Scaffold
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(content: Text(_s('Název $finalName už existuje.', 'Name $finalName already exists.'))),
+                          _showAccessibleSnackBar(
+                            _s('Název $finalName už existuje.', 'Name $finalName already exists.'),
+                            scaffoldContext: this.context,
                           );
                           setDialogState(() => step = 0);
                           Future.delayed(const Duration(milliseconds: 300), () => speakStep(0));
@@ -555,8 +557,9 @@ extension on _CalculatorScreenState {
                         );
                       } catch (e) {
                         debugPrint('Guided wizard confirm error: $e');
-                        ScaffoldMessenger.of(this.context).showSnackBar(
-                          SnackBar(content: Text(_s('Chyba při vytváření sady: $e', 'Error creating set: $e'))),
+                        _showAccessibleSnackBar(
+                          _s('Chyba při vytváření sady: $e', 'Error creating set: $e'),
+                          scaffoldContext: this.context,
                         );
                       }
                     },

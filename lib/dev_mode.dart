@@ -290,8 +290,9 @@ class _DevModeDialogState extends State<_DevModeDialog> {
                     parent._saveSettings();
                     parent.speak(parent._s('Nastavení uloženo', 'Settings saved'));
                     if (parent.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(parent._s('Nastavení uloženo', 'Settings saved'))),
+                      parent._showAccessibleSnackBar(
+                        parent._s('Nastavení uloženo', 'Settings saved'),
+                        scaffoldContext: context,
                       );
                     }
                   },
@@ -303,12 +304,9 @@ class _DevModeDialogState extends State<_DevModeDialog> {
                     await prefs.remove('modeQuestionAsked');
                     await prefs.remove('accessibilityType');
                     if (parent.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            parent._s('Onboarding resetován', 'Onboarding reset'),
-                          ),
-                        ),
+                      parent._showAccessibleSnackBar(
+                        parent._s('Onboarding resetován', 'Onboarding reset'),
+                        scaffoldContext: context,
                       );
                     }
                     parent.speak(parent._s('Onboarding resetován', 'Onboarding reset'));
@@ -1077,8 +1075,9 @@ class _DevPinDialogState extends State<_DevPinDialog> {
               Navigator.pop(context);
               parent.speak(parent._s('PIN nastaven. Vývojářský režim aktivován', 'PIN set. Developer mode activated'));
               if (parent.mounted) {
-                ScaffoldMessenger.of(parent.context).showSnackBar(
-                  SnackBar(content: Text(parent._s('PIN nastaven', 'PIN set'))),
+                parent._showAccessibleSnackBar(
+                  parent._s('PIN nastaven', 'PIN set'),
+                  scaffoldContext: parent.context,
                 );
               }
               widget.onVerified?.call();
@@ -1121,8 +1120,9 @@ class _DevPinDialogState extends State<_DevPinDialog> {
               Navigator.pop(context);
               parent.speak(parent._s('PIN změněn', 'PIN changed'));
               if (parent.mounted) {
-                ScaffoldMessenger.of(parent.context).showSnackBar(
-                  SnackBar(content: Text(parent._s('PIN změněn', 'PIN changed'))),
+                parent._showAccessibleSnackBar(
+                  parent._s('PIN změněn', 'PIN changed'),
+                  scaffoldContext: parent.context,
                 );
               }
             }

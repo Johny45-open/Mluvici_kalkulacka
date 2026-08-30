@@ -1563,7 +1563,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     } catch (_) {
       speak(_l10n.conversionError, force: true);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_l10n.conversionError)));
+      _showAccessibleSnackBar(_l10n.conversionError);
     }
   }
 
@@ -1597,12 +1597,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       await _saveCurrencyRates();
       if (!silent) {
         speak(_l10n.currencyUpdated, force: true);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_l10n.currencyUpdated)));
+        _showAccessibleSnackBar(_l10n.currencyUpdated);
       }
     } else {
       if (!silent) {
         speak(_l10n.currencyOfflineError, force: true);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_l10n.currencyOfflineError)));
+        _showAccessibleSnackBar(_l10n.currencyOfflineError);
       }
     }
   }
@@ -1806,9 +1806,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       await _showUpdateDialog(release);
     } else {
       speak(_l10n.appIsCurrent);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_l10n.appIsCurrent)));
+      _showAccessibleSnackBar(_l10n.appIsCurrent);
     }
   }
 
@@ -1872,16 +1870,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
                   } catch (e) {
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          _s(
+                    _showAccessibleSnackBar(_s(
                             'Nelze otevřít prohlížeč: $e',
                             'Could not open browser: $e',
-                          ),
-                        ),
-                      ),
-                    );
+                          ),);
                   }
                 }
               },
@@ -2086,6 +2078,40 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  void _announce(String message, [BuildContext? ctx]) {
+    if (message.isEmpty || !mounted) return;
+    final c = ctx ?? context;
+    TextDirection dir = TextDirection.ltr;
+    try {
+      dir = Directionality.of(c);
+    } catch (_) {
+      dir = TextDirection.ltr;
+    }
+    SemanticsService.announce(message, dir);
+  }
+
+  void _showAccessibleSnackBar(
+    String message, {
+    Widget? visualContent,
+    Duration duration = const Duration(seconds: 4),
+    BuildContext? scaffoldContext,
+    String? announceMessage,
+  }) {
+    if (!mounted || message.isEmpty) return;
+    final c = scaffoldContext ?? context;
+    ScaffoldMessenger.of(c).showSnackBar(
+      SnackBar(
+        content: visualContent ?? Text(message),
+        duration: duration,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(12),
+        dismissDirection: DismissDirection.horizontal,
+      ),
+    );
+    final toAnnounce = announceMessage ?? message;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _announce(toAnnounce, c));
+  }
+
   String _formatForSpeech(String text) {
     final l10n = _l10n;
     String processed = _spokenForDisplay(text).replaceAll('\u03C0', l10n.piSpoken);
@@ -2276,9 +2302,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           setState(() => _isStoreMode = false);
           speak(_l10n.cannotStoreExpression, force: true);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_l10n.cannotStoreExpression)),
-            );
+            _showAccessibleSnackBar(_l10n.cannotStoreExpression);
           }
           return;
         }
@@ -2298,14 +2322,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _saveStatsData();
       speak(_l10n.savedToVariable(name, valStrSpoken));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: _PeriodicText(
+        _showAccessibleSnackBar(_l10n.savedToVariable(name, valStrVis), visualContent: _PeriodicText(
               _l10n.savedToVariable(name, valStrVis),
               overlineThickness: _overlineThickness,
-            ),
-          ),
-        );
+            ));
       }
     } else if (_isRecallMode) {
       String valStrVis =
@@ -2314,14 +2334,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       append(_formatNumber(_memory[name]!), silent: true);
       speak(_l10n.recalledFromVariable(name, valStrSpoken));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: _PeriodicText(
+        _showAccessibleSnackBar(_l10n.recalledFromVariable(name, valStrVis), visualContent: _PeriodicText(
               _l10n.recalledFromVariable(name, valStrVis),
               overlineThickness: _overlineThickness,
-            ),
-          ),
-        );
+            ));
       }
       _isRecallMode = false;
     } else {
@@ -3886,13 +3902,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _s('Příliš mnoho pokusů, zkuste za chvíli.', 'Too many attempts, try later.'),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _s('Příliš mnoho pokusů, zkuste za chvíli.', 'Too many attempts, try later.'),
-            ),
-          ),
-        );
+        _showAccessibleSnackBar(_s('Příliš mnoho pokusů, zkuste za chvíli.', 'Too many attempts, try later.'),);
       }
       return;
     }
@@ -3920,11 +3930,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           _saveSettings();
           speak(_s('Vývojářský režim aktivován', 'Developer mode activated'));
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(_s('Vývojářský režim aktivován', 'Developer mode activated')),
-              ),
-            );
+            _showAccessibleSnackBar(_s('Vývojářský režim aktivován', 'Developer mode activated'));
           }
           _showDevModeDialog();
         },
@@ -4006,11 +4012,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     _saveSettings();
                     speak(_s('Vývojářský režim deaktivován', 'Developer mode deactivated'));
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_s('Vývojářský režim deaktivován', 'Developer mode deactivated')),
-                        ),
-                      );
+                      _showAccessibleSnackBar(_s('Vývojářský režim deaktivován', 'Developer mode deactivated'));
                     }
                   },
                 );
@@ -4712,16 +4714,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _s(
+        _showAccessibleSnackBar(_s(
                 'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
                 'No statistics set created. Enter a name for a new set first.',
-              ),
-            ),
-          ),
-        );
+              ),);
       }
       _showCreateStatsSetDialog(context, () {
         _addSingleValueToStats();
@@ -4736,16 +4732,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _s(
+        _showAccessibleSnackBar(_s(
                 'Displej je prázdný. Zadejte číslo k uložení.',
                 'Display is empty. Enter a number to store.',
-              ),
-            ),
-          ),
-        );
+              ),);
       }
       return;
     }
@@ -4757,16 +4747,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           _s('Žádná platná čísla k uložení.', 'No valid numbers to store.'),
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                _s(
+          _showAccessibleSnackBar(_s(
                   'Žádná platná čísla k uložení.',
                   'No valid numbers to store.',
-                ),
-              ),
-            ),
-          );
+                ),);
         }
         return;
       }
@@ -4785,9 +4769,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             );
       speak(msg);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(msg)));
+        _showAccessibleSnackBar(msg);
       }
     }
   }
@@ -4880,13 +4862,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (!_hasStatsSet) {
           speak(_s('Není vytvořena žádná sada.', 'No set created.'));
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  _s('Není vytvořena žádná sada.', 'No set created.'),
-                ),
-              ),
-            );
+            _showAccessibleSnackBar(_s('Není vytvořena žádná sada.', 'No set created.'),);
           }
           return;
         }
@@ -4902,16 +4878,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ),
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                _s(
+          _showAccessibleSnackBar(_s(
                   'Paměť sady $setName byla smazána.',
                   'Memory of set $setName was cleared.',
-                ),
-              ),
-            ),
-          );
+                ),);
         }
       } else {
         speak(
@@ -4926,22 +4896,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (!_hasStatsSet) {
           speak(_s('Není vytvořena žádná sada.', 'No set created.'));
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  _s('Není vytvořena žádná sada.', 'No set created.'),
-                ),
-              ),
-            );
+            _showAccessibleSnackBar(_s('Není vytvořena žádná sada.', 'No set created.'),);
           }
           return;
         }
         if (_statsMemory.isEmpty) {
           speak(_statsEmptyMessage());
           if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(_statsEmptyMessage())));
+            _showAccessibleSnackBar(_statsEmptyMessage());
           }
         } else {
           _showStatisticsMemoryDialog();
@@ -4959,22 +4921,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (!_hasStatsSet) {
           speak(_s('Není vytvořena žádná sada.', 'No set created.'));
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  _s('Není vytvořena žádná sada.', 'No set created.'),
-                ),
-              ),
-            );
+            _showAccessibleSnackBar(_s('Není vytvořena žádná sada.', 'No set created.'),);
           }
           return;
         }
         if (_statsMemory.isEmpty) {
           speak(_statsEmptyMessage());
           if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(_statsEmptyMessage())));
+            _showAccessibleSnackBar(_statsEmptyMessage());
           }
         } else {
           _showStatisticsSummaryDialog();
@@ -5214,17 +5168,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _isStoreMode = true;
       speak(_l10n.selectMemory);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(_l10n.selectMemory)));
+        _showAccessibleSnackBar(_l10n.selectMemory);
       }
     } else if (label == 'RCL') {
       _isRecallMode = true;
       speak(_l10n.selectMemoryRecall);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(_l10n.selectMemoryRecall)));
+        _showAccessibleSnackBar(_l10n.selectMemoryRecall);
       }
     } else if (label == 'CLR') {
       setState(() {
@@ -5233,9 +5183,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _saveStatsData();
       speak(_l10n.memoryCleared);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(_l10n.memoryCleared)));
+        _showAccessibleSnackBar(_l10n.memoryCleared);
       }
     } else if (_memory.containsKey(label)) {
       _handleMemoryVariable(label);
@@ -5925,16 +5873,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           );
     speak(removedMsg);
     if (mounted) {
-      ScaffoldMessenger.of(
-        dialogContext,
-      ).showSnackBar(SnackBar(content: Text(removedMsg)));
+      _showAccessibleSnackBar(removedMsg, scaffoldContext: dialogContext);
     }
     if (_statsMemory.isEmpty) {
       speak(_statsEmptyMessage());
       if (mounted) {
-        ScaffoldMessenger.of(
-          dialogContext,
-        ).showSnackBar(SnackBar(content: Text(_statsEmptyMessage())));
+        _showAccessibleSnackBar(
+          _statsEmptyMessage(),
+          scaffoldContext: dialogContext,
+        );
       }
       Navigator.pop(dialogContext);
     }
@@ -6047,9 +5994,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         );
                   speak(editedMsg);
                   if (mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(editedMsg)));
+                    _showAccessibleSnackBar(editedMsg);
                   }
                 } else {
                   speak(_s('Neplatná hodnota', 'Invalid value'));
@@ -6521,9 +6466,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             if (snapshot == null) {
               speak(_statsEmptyMessage());
               if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(_statsEmptyMessage())));
+                _showAccessibleSnackBar(_statsEmptyMessage());
               }
               Navigator.pop(dialogContext);
               return const SizedBox.shrink();
@@ -7083,7 +7026,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
       speak(msg, force: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        _showAccessibleSnackBar(msg);
       }
     }
 
@@ -7100,7 +7043,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         final err = _s('Název pole nesmí být prázdný.', 'Field name must not be empty.');
         speak(err, force: true);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+          _showAccessibleSnackBar(err);
         }
         return;
       }
@@ -7148,7 +7091,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
       speak(msg, force: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        _showAccessibleSnackBar(msg);
       }
     }
 
@@ -7735,9 +7678,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (value == null) {
       speak(l10n.infoNoResult);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.infoNoResult)));
+        _showAccessibleSnackBar(l10n.infoNoResult);
       }
       return;
     }
@@ -8086,9 +8027,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               });
               speak(_l10n.historyCleared);
               if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(_l10n.historyCleared)));
+                _showAccessibleSnackBar(_l10n.historyCleared);
               }
               Navigator.pop(context);
             },
@@ -8116,7 +8055,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final msg = _s('Paměť je již prázdná.', 'Memory is already empty.');
       speak(msg);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        _showAccessibleSnackBar(msg);
       }
       return;
     }
@@ -8152,7 +8091,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               _saveStatsData();
               speak(_l10n.memoryCleared);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_l10n.memoryCleared)));
+                _showAccessibleSnackBar(_l10n.memoryCleared);
               }
               Navigator.pop(ctx);
               // Zavřít i rodičovský dialog Pokročilé funkce pokud byl předán
@@ -8221,9 +8160,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     speak(spoken);
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(spoken)));
+      _showAccessibleSnackBar(spoken);
     }
   }
 

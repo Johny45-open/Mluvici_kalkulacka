@@ -990,15 +990,12 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                         ),
                       );
                       if (parent.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              parent._s(
-                                'Nastaveno standardní zobrazení',
-                                'Standard display set',
-                              ),
-                            ),
+                        parent._showAccessibleSnackBar(
+                          parent._s(
+                            'Nastaveno standardní zobrazení',
+                            'Standard display set',
                           ),
+                          scaffoldContext: ctx,
                         );
                       }
                     },
@@ -1154,12 +1151,9 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                               );
                               if (parsed == null || parsed <= 0) {
                                 parent.speak(parent._l10n.currencyInvalidRate);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      parent._l10n.currencyInvalidRate,
-                                    ),
-                                  ),
+                                parent._showAccessibleSnackBar(
+                                  parent._l10n.currencyInvalidRate,
+                                  scaffoldContext: context,
                                 );
                                 return;
                               }
@@ -1244,29 +1238,23 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                       if (code.length != 3 ||
                           !RegExp(r'^[A-Z]{3}$').hasMatch(code)) {
                         if (mounted)
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                parent._s(
-                                  'Neplatný kód měny',
-                                  'Invalid currency code',
-                                ),
-                              ),
+                          parent._showAccessibleSnackBar(
+                            parent._s(
+                              'Neplatný kód měny',
+                              'Invalid currency code',
                             ),
+                            scaffoldContext: context,
                           );
                         return;
                       }
                       if (_rates.containsKey(code)) {
                         if (mounted)
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                parent._s(
-                                  'Měna již existuje',
-                                  'Currency already exists',
-                                ),
-                              ),
+                          parent._showAccessibleSnackBar(
+                            parent._s(
+                              'Měna již existuje',
+                              'Currency already exists',
                             ),
+                            scaffoldContext: context,
                           );
                         return;
                       }
@@ -1294,12 +1282,9 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
             // Validate
             for (final e in _rates.entries) {
               if (e.value <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${parent._l10n.currencyInvalidRate}: ${e.key}',
-                    ),
-                  ),
+                parent._showAccessibleSnackBar(
+                  '${parent._l10n.currencyInvalidRate}: ${e.key}',
+                  scaffoldContext: context,
                 );
                 return;
               }
@@ -1459,8 +1444,9 @@ class _NewsDialogState extends State<_NewsDialog> {
           _loadingMore = false;
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_errorMessageForType(result.errorType!))),
+          widget.parent._showAccessibleSnackBar(
+            _errorMessageForType(result.errorType!),
+            scaffoldContext: context,
           );
         }
       } else {
