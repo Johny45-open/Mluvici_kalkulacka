@@ -9068,14 +9068,20 @@ class _TutorialDialogState extends State<_TutorialDialog>
         child: SizedBox(
           width: double.maxFinite,
           height: 460,
-          child: FocusTraversalGroup(
-            policy: WidgetOrderTraversalPolicy(),
-            child: Column(
-              children: [
-                Focus(
-                  focusNode: _tabBarFocusNode,
-                  onKeyEvent: _handleTabBarKey,
-                  child: Semantics(
+          child: Focus(
+            onKeyEvent: _handleTabBarKey,
+            skipTraversal: true,
+            canRequestFocus: false,
+            child: FocusTraversalGroup(
+              policy: WidgetOrderTraversalPolicy(),
+              child: Column(
+                children: [
+                  Focus(
+                    focusNode: _tabBarFocusNode,
+                    onKeyEvent: _handleTabBarKey,
+                    skipTraversal: true,
+                    canRequestFocus: false,
+                    child: Semantics(
                     container: true,
                     label: widget.parent._s(
                         'Záložky návodu', 'Tutorial tabs'),
@@ -9125,14 +9131,10 @@ class _TutorialDialogState extends State<_TutorialDialog>
                       children: [
                         for (final t in widget.tabs)
                           Focus(
-                            canRequestFocus: true,
-                            skipTraversal: false,
-                            onFocusChange: (hasFocus) {
-                              if (hasFocus &&
-                                  !widget.parent._isScreenReaderActive) {
-                                widget.parent.speak(t.text);
-                              }
-                            },
+                            canRequestFocus: false,
+                            skipTraversal: true,
+                            descendantsAreFocusable: true,
+                            descendantsAreTraversable: false,
                             child: SingleChildScrollView(
                               controller: _tabController.index ==
                                       widget.tabs.indexWhere(
@@ -9204,6 +9206,7 @@ class _TutorialDialogState extends State<_TutorialDialog>
                   ],
                 ),
               ],
+            ),
             ),
           ),
         ),
