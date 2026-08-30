@@ -4769,7 +4769,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
                 'No statistics set created. Enter a name for a new set first.',
               ),);
-        _showCreateStatsSetDialog(context);
+        List<StatisticsRecord>? recordsToSave;
+        if (display.isNotEmpty) {
+          try {
+            recordsToSave = _parseDisplayToRecords(display);
+          } catch (_) {
+            // Hodnoty ze displeje nepůjí zopakovat – po uložení bude
+            // ohlášen pouze vznik sady.
+          }
+        }
+        _showCreateStatsSetDialog(context, recordsToSave: recordsToSave);
       }
       return;
     }
@@ -5998,8 +6007,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         isDense: true,
                       ),
                     ),
-                          ),
-                      }),
+                  ),
+                );
+              }),
             ),
           ),
           actions: [
@@ -7172,6 +7182,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showCreateStatsSetDialog(
     BuildContext context, {
     List<StatisticsRecord>? recordsToRepeat,
+    List<StatisticsRecord>? recordsToSave,
   }) {
     final l10n = _l10n;
     final defaultName = l10n.statsSetDefaultName(_statsSets.length + 1);
@@ -7353,24 +7364,40 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       _saveStatsData();
                       Navigator.pop(ctx);
 
-                      final pendingRecords = recordsToRepeat;
-                      if (pendingRecords != null && pendingRecords.isNotEmpty) {
-                        speak(
-                          _s(
-                            'Sada $newName byla vytvořena.',
-                            'Set $newName has been created.',
-                          ),
-                        );
-                        if (pendingRecords.length >= 2) {
-                          _showStatsSaveReviewDialog(pendingRecords,
-                              onConfirm: () =>
-                                  _showRepeatDialog(pendingRecords));
-                        } else {
-                          _showRepeatDialog(pendingRecords);
-                        }
+                      final repeatRecords = recordsToRepeat;
+                      if (repeatRecords != null && repeatRecords.isNotEmpty) {
+                        Future.delayed(const Duration(milliseconds: 200), () {
+                          if (!mounted) return;
+                          speak(
+                            _s(
+                              'Sada $newName byla vytvořena.',
+                              'Set $newName has been created.',
+                            ),
+                          );
+                          if (repeatRecords.length >= 2) {
+                            _showStatsSaveReviewDialog(repeatRecords,
+                                onConfirm: () =>
+                                    _showRepeatDialog(repeatRecords));
+                          } else {
+                            _showRepeatDialog(repeatRecords);
+                          }
+                        });
                       } else {
-                        speak(l10n.statsSetCreatedAnnouncement(newName));
-                        _returnFocusToKeyboard();
+                        final saveRecords = recordsToSave;
+                        if (saveRecords != null && saveRecords.isNotEmpty) {
+                          Future.delayed(const Duration(milliseconds: 200), () {
+                            if (!mounted) return;
+                            if (saveRecords.length >= 2) {
+                              _showStatsSaveReviewDialog(saveRecords);
+                            } else {
+                              _addValuesToStats(saveRecords, 1);
+                              _returnFocusToKeyboard();
+                            }
+                          });
+                        } else {
+                          speak(l10n.statsSetCreatedAnnouncement(newName));
+                          _returnFocusToKeyboard();
+                        }
                       }
                     }
                     else {
@@ -8070,10 +8097,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     void closeDialog(BuildContext dialogContext, {VoidCallback? after}) {
       Navigator.pop(dialogContext);
-      _returnFocusToKeyboard();
-      final callback = after;
-      if (callback != null) {
-        Future.microtask(callback);
+      if (after != null) {
+        // Následný dialog převezme fokus. Odložení zajišťuje, že se
+        // otevře až po tom, co _FocusRestoreObserver vrátil fokus zpět
+        // (po 150 ms), jinak by ho následnému dialogu vytrhl.
+        final callback = after;
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) callback();
+        });
+      } else {
+        _returnFocusToKeyboard();
       }
     }
 
@@ -8173,6 +8206,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
               ),
             ),
+          ),
           ),
           actions: [
             TextButton(
@@ -8444,9 +8478,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         } catch (_) {}
       }
 
-      _showCreateStatsSetDialog(context, () {
-        _handleMultipleStatisticsAddition();
-      }, recordsToRepeat: recordsToRepeat);
+      _showCreateStatsSetDialog(context, recordsToRepeat: recordsToRepeat);
       return;
     }
     if (display.isEmpty) {
