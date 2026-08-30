@@ -420,12 +420,16 @@ extension on _CalculatorScreenState {
                     Future.delayed(const Duration(milliseconds: 400), () => speakStep(step));
                   }
                 },
-                child: SingleChildScrollView(child: content),
+                child: FocusTraversalGroup(
+                  policy: ReadingOrderTraversalPolicy(),
+                  child: SingleChildScrollView(child: content),
+                ),
               ),
               actions: [
                 TextButton(
                   onPressed: () {
                     Navigator.pop(ctx);
+                    _returnFocusToKeyboard();
                     Future.delayed(const Duration(milliseconds: 100), () {
                       for (final c in fieldNameControllers) {
                         try { c.dispose(); } catch (_) {}
@@ -537,8 +541,9 @@ extension on _CalculatorScreenState {
                           _selectedFieldIndex = 0;
                         });
                         _saveStatsData();
-                        // Nejdřív zavřít dialog, až potom dispose kontrolerů
+                        // Nejdřív zavřít dialog, než vrátit fokus a dispose kontrolerů
                         Navigator.pop(ctx);
+                        Future.microtask(() => this._returnFocusToKeyboard());
                         // Dispose až po pop, aby nedošlo k použití po dispose během animace
                         Future.delayed(const Duration(milliseconds: 100), () {
                           for (final c in fieldNameControllers) {

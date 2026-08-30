@@ -26,6 +26,8 @@ part 'dialogs.dart';
 part 'voice_set_creation.dart';
 part 'guided_set_creation.dart';
 part 'dev_mode.dart';
+part 'stats_storage.dart';
+part 'stats_sets_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -21,8 +21,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     'com.example.mluvici_kalkulacka/accessibility',
   );
 
-  final FlutterTts tts = FlutterTts();
-  final FocusNode _mainFocusNode = FocusNode();
+   final FlutterTts tts = FlutterTts();
+   final FocusNode _mainFocusNode = FocusNode();
+
+   void _returnFocusToKeyboard() {
+     Future.delayed(const Duration(milliseconds: 150), () {
+       if (mounted && _mainFocusNode.hasFocus == false) {
+         _mainFocusNode.requestFocus();
+       }
+     });
+   }
   String display = '';
   int _cursorPosition = 0;
   String _lastResult = '0.';
@@ -41,6 +49,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _isDegreeMode = true;
   bool _useSixteenSegment = false;
   bool _announceExpression = false;
+  bool _readStatsMemoryValues = true;
   final bool _sayWelcome = true;
   AccessibilityType _accessibilityType = AccessibilityType.none;
   double _fontSizeMultiplier = 1.0;
@@ -191,11 +200,52 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   };
 
   final List<StatisticsSet> _statsSets = [];
+  final List<StatisticsFolder> _statsFolders = [];
   int _currentStatsSetIndex = 0;
   int _selectedFieldIndex = 0;
   List<StatisticsRecord> _lastAddedBatch = [];
   bool _statsSummaryInitialized = false;
   _VoiceSetCreationSession? _voiceCreationSession;
+
+  // --- Organizace sad: barvy, ikony, složky ---
+  static const List<Color> _statsPalette = [
+    Color(0xFF42A5F5), // modrá
+    Color(0xFF66BB6A), // zelená
+    Color(0xFFFFA726), // oranžová
+    Color(0xFFEF5350), // červená
+    Color(0xFFAB47BC), // fialová
+    Color(0xFF26C6DA), // tyrkysová
+    Color(0xFFFFCA28), // žlutá
+    Color(0xFF8D6E63), // hnědá
+  ];
+  static const List<String> _statsIconNames = [
+    'dataset',
+    'school',
+    'work',
+    'home',
+    'lab',
+    'chart',
+    'folder',
+    'star',
+  ];
+  static const Map<String, IconData> _statsIconMap = {
+    'dataset': Icons.dataset,
+    'school': Icons.school,
+    'work': Icons.work,
+    'home': Icons.home,
+    'lab': Icons.science,
+    'chart': Icons.bar_chart,
+    'folder': Icons.folder,
+    'star': Icons.star,
+  };
+  Color _statsColorFor(int idx) => _statsPalette[idx.clamp(0, _statsPalette.length - 1)];
+  IconData _statsIconFor(String name) => _statsIconMap[name] ?? Icons.dataset;
+  String _statsFolderName(String? folderId) {
+    if (folderId == null) return _s('Bez složky', 'No folder');
+    final f = _statsFolders.where((e) => e.id == folderId).toList();
+    if (f.isEmpty) return _s('Bez složky', 'No folder');
+    return f.first.name;
+  }
 
   bool get _hasStatsSet => _statsSets.isNotEmpty;
 
@@ -3510,6 +3560,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _usePeriodicNotation = prefs.getBool('usePeriodicNotation') ?? true;
       _useSixteenSegment = prefs.getBool('useSixteenSegment') ?? false;
       _announceExpression = prefs.getBool('announceExpression') ?? false;
+      _readStatsMemoryValues = prefs.getBool('readStatsMemoryValues') ?? true;
       _accessibilityType =
           AccessibilityType.values[prefs.getInt('accessibilityType') ?? 0];
       _speechRate = prefs.getDouble('speechRate') ?? 0.5;
@@ -3619,6 +3670,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setBool('usePeriodicNotation', _usePeriodicNotation);
     await prefs.setBool('useSixteenSegment', _useSixteenSegment);
     await prefs.setBool('announceExpression', _announceExpression);
+    await prefs.setBool('readStatsMemoryValues', _readStatsMemoryValues);
     await prefs.setInt('accessibilityType', _accessibilityType.index);
     await prefs.setDouble('speechRate', _speechRate);
     await prefs.setDouble('speechVolume', _speechVolume);
@@ -3732,35 +3784,34 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Future<void> _loadStatsData() async {
+    final res = await StatsStorage.load();
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      final statsJson = prefs.getString('statsSets');
-      if (statsJson != null) {
-        _statsSets.clear();
-        _statsSets.addAll(
-          (jsonDecode(statsJson) as List)
-              .map((e) => StatisticsSet.fromJson(e as Map<String, dynamic>))
-              .toList(),
-        );
+      _statsSets.clear();
+      _statsSets.addAll(res.sets);
+      _statsFolders.clear();
+      _statsFolders.addAll(res.folders);
+      _currentStatsSetIndex = res.currentIndex;
+      // Bezpečné ošetření indexu
+      if (_statsSets.isNotEmpty && _currentStatsSetIndex >= _statsSets.length) {
+        _currentStatsSetIndex = 0;
       }
-      _currentStatsSetIndex = prefs.getInt('currentStatsSetIndex') ?? 0;
       final memJson = prefs.getString('memoryVariables');
       if (memJson != null) {
-        final decoded = jsonDecode(memJson) as Map<String, dynamic>;
-        decoded.forEach(
-          (key, value) => _memory[key] = (value as num).toDouble(),
-        );
+        try {
+          final decoded = jsonDecode(memJson) as Map<String, dynamic>;
+          decoded.forEach(
+            (key, value) => _memory[key] = (value as num).toDouble(),
+          );
+        } catch (_) {}
       }
     });
   }
 
   void _saveStatsData() async {
+    // Udržet updatedAt/lastUsedAt aktuální
+    await StatsStorage.save(sets: _statsSets, folders: _statsFolders, currentIndex: _currentStatsSetIndex);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'statsSets',
-      jsonEncode(_statsSets.map((s) => s.toJson()).toList()),
-    );
-    await prefs.setInt('currentStatsSetIndex', _currentStatsSetIndex);
     await prefs.setString('memoryVariables', jsonEncode(_memory));
   }
 
@@ -6414,10 +6465,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         : _formatSpokenNumber(snapshot.wmean!);
 
     String spokenSummary = _s(
-      'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. '
-          'Počet hodnot: $dataCount. '
-          'Všechny hodnoty: $allValuesSpoken. '
-          'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
+      'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. Počet hodnot: $dataCount. ',
+      'Statistics summary for set $currentSetName, field $selectedFieldName. Count: $dataCount. '
+    );
+    if (_readStatsMemoryValues) {
+      spokenSummary += _s(
+        'Všechny hodnoty: $allValuesSpoken. ',
+        'All values: $allValuesSpoken. '
+      );
+    }
+    spokenSummary += _s(
+      'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
           'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
           'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
           'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
@@ -6426,10 +6484,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'Maximum: ${_formatSpokenNumber(snapshot.max)}. '
           'Modus: $modeSpoken. '
           'Variační koeficient: $cvSpoken.',
-      'Statistics summary for set $currentSetName, field $selectedFieldName. '
-          'Count: $dataCount. '
-          'All values: $allValuesSpoken. '
-          'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
+      'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
           'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
           'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
           'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
@@ -6638,32 +6693,48 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               ),
                             ),
                           ],
-                          const Divider(height: 8),
-                          Semantics(
-                            header: true,
-                            label: l10n.statsAllValuesSection,
-                            child: ExcludeSemantics(
-                              child: Text(
-                                l10n.statsAllValuesSection,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                          CheckboxListTile(
+                            title: Text(_s('Číst hodnoty v paměti', 'Read values in memory')),
+                            value: _readStatsMemoryValues,
+                            onChanged: (v) {
+                              setState(() {
+                                _readStatsMemoryValues = v ?? true;
+                                _saveSettings();
+                              });
+                              setSummaryState(() {});
+                              speak(_readStatsMemoryValues
+                                  ? _s('Čtení hodnot zapnuto', 'Reading values enabled')
+                                  : _s('Čtení hodnot vypnuto', 'Reading values disabled'));
+                            },
+                          ),
+                          if (_readStatsMemoryValues) ...[
+                            const Divider(height: 8),
+                            Semantics(
+                              header: true,
+                              label: l10n.statsAllValuesSection,
+                              child: ExcludeSemantics(
+                                child: Text(
+                                  l10n.statsAllValuesSection,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Semantics(
-                            label: _s(
-                              'Všechny hodnoty pole $selectedFieldName: $allValuesSpoken',
-                              'All values of field $selectedFieldName: $allValuesSpoken',
-                            ),
-                            child: ExcludeSemantics(
-                              child: _PeriodicText(
-                                allValues,
-                                overlineThickness: _overlineThickness,
+                            const SizedBox(height: 8),
+                            Semantics(
+                              label: _s(
+                                'Všechny hodnoty pole $selectedFieldName: $allValuesSpoken',
+                                'All values of field $selectedFieldName: $allValuesSpoken',
+                              ),
+                              child: ExcludeSemantics(
+                                child: _PeriodicText(
+                                  allValues,
+                                  overlineThickness: _overlineThickness,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                           const SizedBox(height: 16),
                           Semantics(
                             header: true,
@@ -6732,201 +6803,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showStatsSetsDialog() {
-    final l10n = _l10n;
-
     showAppDialog<void>(
       context: context,
-      routeSettings: RouteSettings(name: l10n.statsSetsTitle),
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-        insetPadding: _dialogInsetPadding(),
-              semanticLabel: l10n.statsSetsTitle,
-              title: Semantics(header: true, child: Text(l10n.statsSetsTitle)),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.60),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Expanded(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: _statsSets.length,
-                          itemBuilder: (ctx, index) {
-                            final set = _statsSets[index];
-                            final isCurrent = index == _currentStatsSetIndex;
-                            final count = set.records.length;
-                            final countForm = _getStatsCountForm(count);
-                            final titleText = '${set.name} ($count $countForm)';
-
-                            final fieldsLabel = set.fieldNames
-                                .asMap()
-                                .entries
-                                .map((e) {
-                                  final unitCode = e.key < set.fieldUnits.length
-                                      ? set.fieldUnits[e.key]
-                                      : null;
-                                  final name = e.value;
-                                  return unitCode != null
-                                      ? '$name, ${_getUnitSpeech(unitCode)}'
-                                      : name;
-                                })
-                                .join(', ');
-                            final semanticsLabel = isCurrent
-                                ? '${set.name}, $count $countForm. Pole: $fieldsLabel. Vybráno jako aktivní sada.'
-                                : '${set.name}, $count $countForm. Pole: $fieldsLabel. Poklepáním vyberete jako aktivní sadu.';
-
-                            final fieldsText = set.fieldNames
-                                .asMap()
-                                .entries
-                                .map((e) {
-                                  final unitCode = e.key < set.fieldUnits.length
-                                      ? set.fieldUnits[e.key]
-                                      : null;
-                                  return unitCode != null
-                                      ? '${e.value} (${_getUnitSpeech(unitCode)})'
-                                      : e.value;
-                                })
-                                .join(', ');
-
-                            return Semantics(
-                              container: true,
-                              label: semanticsLabel,
-                              child: ListTile(
-                                selected: isCurrent,
-                                selectedTileColor: Colors.blue.withOpacity(0.1),
-                                title: ExcludeSemantics(
-                                  child: Text(
-                                    titleText,
-                                    style: TextStyle(
-                                      fontWeight: isCurrent
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                                subtitle: ExcludeSemantics(
-                                  child: Text(
-                                    fieldsText,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.view_list),
-                                      tooltip: _s(
-                                        'Upravit pole',
-                                        'Edit fields',
-                                      ),
-                                      onPressed: () {
-                                        _showEditStatsSetDialog(
-                                          context,
-                                          index,
-                                          () {
-                                            setStateDialog(() {});
-                                            setState(() {});
-                                          },
-                                        );
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.edit),
-                                      tooltip: l10n.statsSetsRename,
-                                      onPressed: () {
-                                        _showRenameStatsSetDialog(
-                                          context,
-                                          index,
-                                          () {
-                                            setStateDialog(() {});
-                                            setState(() {});
-                                          },
-                                        );
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete),
-                                      tooltip: l10n.statsSetsDelete,
-                                      onPressed: () {
-                                        setStateDialog(() {
-                                          _deleteStatsSet(index);
-                                        });
-                                        setState(() {});
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                onTap: () {
-                                  setStateDialog(() {
-                                    _currentStatsSetIndex = index;
-                                  });
-                                  setState(() {
-                                    if (_selectedFieldIndex >=
-                                        _currentFieldCount) {
-                                      _selectedFieldIndex = 0;
-                                    }
-                                  });
-                                  final announcement = l10n
-                                      .statsSetSelectedAnnouncement(
-                                        set.name,
-                                        count,
-                                        _getStatsCountForm(count),
-                                      );
-                                  speak(announcement);
-                                },
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      Semantics(
-                        label: _s(
-                          'Průvodce vytvořením sady bez diakritiky',
-                          'Set creation wizard without diacritics',
-                        ),
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.assistant, size: 18),
-                          label: Text(_s('Průvodce vytvořením', 'Creation wizard')),
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            // Počkat na dokončení pop animace, jinak může dojít k race kde nový dialog je připojen ke staré routě
-                            Future.delayed(const Duration(milliseconds: 200), () {
-                              if (mounted) _showGuidedStatsCreationDialog();
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.add),
-                        label: Text(l10n.statsSetsCreate),
-                        onPressed: () {
-                          _showCreateStatsSetDialog(context, () {
-                            setStateDialog(() {});
-                            setState(() {});
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: Text(l10n.close),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      routeSettings: RouteSettings(name: _l10n.statsSetsTitle),
+      builder: (dialogContext) => _StatsSetsDialog(parent: this),
     );
   }
 
@@ -7315,21 +7195,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         insetPadding: _dialogInsetPadding(),
               semanticLabel: l10n.statsSetsCreate,
               title: Text(l10n.statsSetsCreate),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Semantics(
-                      label: l10n.statsSetNameLabel,
-                      child: TextField(
-                        controller: controller,
-                        autofocus: true,
-                        decoration: InputDecoration(
-                          labelText: l10n.statsSetNameLabel,
+              content: FocusTraversalGroup(
+                policy: ReadingOrderTraversalPolicy(),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Semantics(
+                        label: l10n.statsSetNameLabel,
+                        child: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            labelText: l10n.statsSetNameLabel,
+                          ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 16),
                     Text(
                       _s('Názvy a jednotky polí:', 'Field names and units:'),
@@ -7413,16 +7295,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         ),
                       );
                     }),
-                    TextButton.icon(
-                      icon: const Icon(Icons.add, size: 18),
-                      label: Text(_s('Přidat pole', 'Add field')),
-                      onPressed: () {
-                        setDialogState(() {
-                          fieldControllers.add(
-                            TextEditingController(
-                              text: _s(
-                                'Pole ${fieldControllers.length + 1}',
-                                'Field ${fieldControllers.length + 1}',
+                        TextButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(_s('Přidat pole', 'Add field')),
+                        onPressed: () {
+                          setDialogState(() {
+                            fieldControllers.add(
+                              TextEditingController(
+                                text: _s(
+                                  'Pole ${fieldControllers.length + 1}',
+                              'Field ${fieldControllers.length + 1}',
                               ),
                             ),
                           );
@@ -7433,9 +7315,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
+            ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _returnFocusToKeyboard();
+                   },
                   child: Text(l10n.cancel),
                 ),
                 TextButton(
@@ -7483,6 +7369,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       } else {
                         speak(l10n.statsSetCreatedAnnouncement(newName));
                       }
+                    }
+                    else {
+                      if (mounted) Navigator.pop(ctx);
+                      _returnFocusToKeyboard();
                     }
                   },
                   child: Text(l10n.confirmAction),
@@ -8164,13 +8054,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  void _showStatsSaveReviewDialog(List<StatisticsRecord> records) {
+  void _showStatsSaveReviewDialog(
+    List<StatisticsRecord> records, {
+    VoidCallback? onConfirm,
+  }) {
     final l10n = _l10n;
     final setName = _statsSets[_currentStatsSetIndex].name;
     final editableRecords = records
         .map((r) => StatisticsRecord(values: List.from(r.values)))
         .toList();
     final summary = l10n.statsReviewSummary(editableRecords.length, setName);
+
+    void closeDialog(BuildContext dialogContext, {VoidCallback? after}) {
+      Navigator.pop(dialogContext);
+      _returnFocusToKeyboard();
+      final callback = after;
+      if (callback != null) {
+        Future.microtask(callback);
+      }
+    }
 
     showAppDialog(
       context: context,
@@ -8184,7 +8086,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             container: true,
             label: summary,
             liveRegion: true,
-            child: SizedBox(
+            child: FocusTraversalGroup(
+              policy: ReadingOrderTraversalPolicy(),
+              child: SizedBox(
               width: double.maxFinite,
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.70),
@@ -8261,14 +8165,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
+              onPressed: () => closeDialog(dialogContext),
               child: Text(l10n.cancel),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _addValuesToStats(editableRecords, 1);
-              },
+              onPressed: () => closeDialog(dialogContext,
+                  after: () => onConfirm == null
+                      ? _addValuesToStats(editableRecords, 1)
+                      : onConfirm()),
               child: Text(l10n.confirmAction),
             ),
           ],
@@ -8394,107 +8298,116 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: RouteSettings(name: l10n.statsRepeatTitle),
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-        insetPadding: _dialogInsetPadding(),
-          semanticLabel: l10n.statsRepeatTitle,
-          title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.62),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      summary,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...editableRecords.asMap().entries.map((entry) {
-                      final idx = entry.key + 1;
-                      final rowTextVis = entry.value.values
-                          .map((v) => _formatNumberSmart(v))
-                          .join('; ');
-                      final rowText = entry.value.values
-                          .map((v) => _formatNumber(v))
-                          .join('; ');
-                      final rowLabel = _s(
-                        'Hodnota $idx: $rowText',
-                        'Value $idx: $rowText',
-                      );
-                      return Semantics(
-                        container: true,
-                        label: rowLabel,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: ExcludeSemantics(
-                                    child: _PeriodicText(
-                                      '$idx. $rowTextVis',
-                                      overlineThickness: _overlineThickness,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    size: 20,
-                                    color: Colors.blue,
-                                  ),
-                                tooltip: _s(
-                                  'Upravit hodnotu $idx',
-                                  'Edit value $idx',
-                                ),
-                                onPressed: () => _showEditReviewRecordDialog(
-                                  entry.key,
-                                  editableRecords,
-                                  dialogContext,
-                                  setStateDialog,
-                                ),
-                              ),
-                            ],
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+          insetPadding: _dialogInsetPadding(),
+            semanticLabel: l10n.statsRepeatTitle,
+            title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.62),
+                child: FocusTraversalGroup(
+                  policy: ReadingOrderTraversalPolicy(),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          summary,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
                         ),
-                      );
-                    }),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: controller,
-                      keyboardType: TextInputType.number,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: l10n.statsRepeatLabel,
-                      ),
+                        const SizedBox(height: 8),
+                        ...editableRecords.asMap().entries.map((entry) {
+                          final idx = entry.key + 1;
+                          final rowTextVis = entry.value.values
+                              .map((v) => _formatNumberSmart(v))
+                              .join('; ');
+                          final rowText = entry.value.values
+                              .map((v) => _formatNumber(v))
+                              .join('; ');
+                          final rowLabel = _s(
+                            'Hodnota $idx: $rowText',
+                            'Value $idx: $rowText',
+                          );
+                          return Semantics(
+                            container: true,
+                            label: rowLabel,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: ExcludeSemantics(
+                                        child: _PeriodicText(
+                                          '$idx. $rowTextVis',
+                                          overlineThickness: _overlineThickness,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        size: 20,
+                                        color: Colors.blue,
+                                      ),
+                                    tooltip: _s(
+                                      'Upravit hodnotu $idx',
+                                      'Edit value $idx',
+                                    ),
+                                    onPressed: () => _showEditReviewRecordDialog(
+                                      entry.key,
+                                      editableRecords,
+                                      dialogContext,
+                                      setStateDialog,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            labelText: l10n.statsRepeatLabel,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10n.cancel),
-            ),
-            TextButton(
-              onPressed: () {
-                int count = int.tryParse(controller.text) ?? 1;
-                _addValuesToStats(editableRecords, count);
-                Navigator.pop(dialogContext);
-              },
-              child: Text(l10n.confirmAction),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  _returnFocusToKeyboard();
+                },
+                child: Text(l10n.cancel),
+              ),
+              TextButton(
+                onPressed: () {
+                  int count = int.tryParse(controller.text) ?? 1;
+                  _addValuesToStats(editableRecords, count);
+                  Navigator.pop(dialogContext);
+                  _returnFocusToKeyboard();
+                },
+                child: Text(l10n.confirmAction),
+              ),
+            ],
+          );
+        },
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
