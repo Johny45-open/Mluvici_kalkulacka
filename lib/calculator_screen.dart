@@ -4505,6 +4505,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       (label: l10n.tutorialTabBasic, text: l10n.tutorialBasic),
       (label: l10n.tutorialTabScientific, text: l10n.tutorialScientific),
       (label: l10n.tutorialTabStatistics, text: l10n.tutorialStatistics),
+      (label: l10n.tutorialTabStatsManagement, text: l10n.tutorialStatsManagement),
       (label: l10n.tutorialTabElectrician, text: l10n.tutorialElectrician),
       (label: l10n.tutorialTabUnit, text: l10n.tutorialUnit),
       (label: l10n.tutorialTabTime, text: l10n.tutorialTime),
@@ -9594,8 +9595,8 @@ class _TutorialDialogState extends State<_TutorialDialog>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final List<FocusNode> _tabFocusNodes;
-  final FocusNode _tabBarFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _contentFocusNode = FocusNode(debugLabel: 'tutorialContent');
 
   @override
   void initState() {
@@ -9604,16 +9605,19 @@ class _TutorialDialogState extends State<_TutorialDialog>
     _tabFocusNodes =
         List.generate(widget.tabs.length, (_) => FocusNode(debugLabel: 'tutorialTab'));
     _tabController.addListener(_onTabChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _tabFocusNodes.isNotEmpty) {
-        _tabFocusNodes[_tabController.index].requestFocus();
-      }
-    });
   }
 
   void _onTabChanged() {
     if (!_tabController.indexIsChanging) {
       setState(() {});
+      final label = widget.tabs[_tabController.index].label;
+      SemanticsService.announce(
+        widget.parent._s(
+          'Karta ${_tabController.index + 1} z ${widget.tabs.length}: $label',
+          'Tab ${_tabController.index + 1} of ${widget.tabs.length}: $label',
+        ),
+        TextDirection.ltr,
+      );
       if (!widget.parent._isScreenReaderActive) {
         widget.parent.speak(widget.tabs[_tabController.index].text);
       }
@@ -9622,7 +9626,7 @@ class _TutorialDialogState extends State<_TutorialDialog>
       }
       final idx = _tabController.index;
       if (idx >= 0 && idx < _tabFocusNodes.length) {
-        Future.microtask(() {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _tabFocusNodes[idx].requestFocus();
         });
       }
@@ -9636,12 +9640,12 @@ class _TutorialDialogState extends State<_TutorialDialog>
     for (final n in _tabFocusNodes) {
       n.dispose();
     }
-    _tabBarFocusNode.dispose();
     _scrollController.dispose();
+    _contentFocusNode.dispose();
     super.dispose();
   }
 
-  KeyEventResult _handleTabBarKey(FocusNode node, KeyEvent event) {
+  KeyEventResult _handleTabKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final isCtrl = HardwareKeyboard.instance.isControlPressed;
     if (isCtrl && event.logicalKey == LogicalKeyboardKey.tab) {
@@ -9654,18 +9658,23 @@ class _TutorialDialogState extends State<_TutorialDialog>
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
         event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      if (!node.hasPrimaryFocus) return KeyEventResult.ignored;
       final delta =
           event.logicalKey == LogicalKeyboardKey.arrowRight ? 1 : -1;
-      final next = (_tabController.index + delta) % widget.tabs.length;
-      final normalized = next < 0 ? widget.tabs.length - 1 : next;
-      _tabController.animateTo(normalized);
+      final next = _tabController.index + delta;
+      if (next < 0 || next >= widget.tabs.length) {
+        return KeyEventResult.ignored;
+      }
+      _tabController.animateTo(next);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.home) {
+      if (!node.hasPrimaryFocus) return KeyEventResult.ignored;
       _tabController.animateTo(0);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.end) {
+      if (!node.hasPrimaryFocus) return KeyEventResult.ignored;
       _tabController.animateTo(widget.tabs.length - 1);
       return KeyEventResult.handled;
     }
@@ -9674,79 +9683,68 @@ class _TutorialDialogState extends State<_TutorialDialog>
         _tabController.animateTo(_tabController.index + 1);
         return KeyEventResult.handled;
       }
+      return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.pageUp) {
       if (_tabController.index > 0) {
         _tabController.animateTo(_tabController.index - 1);
         return KeyEventResult.handled;
       }
+      return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      insetPadding: widget.parent._dialogInsetPadding(),
-      semanticLabel: widget.l10n.helpTitle,
-      title: Semantics(header: true, child: Text(widget.l10n.helpTitle)),
-      content: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-          maxWidth: double.maxFinite,
-        ),
-        child: SizedBox(
-          width: double.maxFinite,
-          height: 460,
-          child: Focus(
-            onKeyEvent: _handleTabBarKey,
-            skipTraversal: true,
-            canRequestFocus: false,
-            child: FocusTraversalGroup(
-              policy: WidgetOrderTraversalPolicy(),
-              child: Column(
-                children: [
-                  Focus(
-                    focusNode: _tabBarFocusNode,
-                    onKeyEvent: _handleTabBarKey,
-                    skipTraversal: true,
-                    canRequestFocus: false,
-                    child: Semantics(
-                    container: true,
-                    label: widget.parent._s(
-                        'Záložky návodu', 'Tutorial tabs'),
-                    child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      tabs: [
-                        for (int i = 0; i < widget.tabs.length; i++)
-                          Builder(builder: (context) {
-                            final isSelected =
-                                _tabController.index == i;
-                            final labelCs =
-                                '${widget.tabs[i].label}, karta ${i + 1} z ${widget.tabs.length}${isSelected ? ', vybráno' : ''}';
-                            final labelEn =
-                                '${widget.tabs[i].label}, tab ${i + 1} of ${widget.tabs.length}${isSelected ? ', selected' : ''}';
-                            return Semantics(
-                              button: true,
-                              selected: isSelected,
-                              inMutuallyExclusiveGroup: true,
-                              enabled: true,
-                              focusable: true,
-                              label: widget.parent._s(labelCs, labelEn),
-                              excludeSemantics: false,
-                              child: Focus(
-                                focusNode: _tabFocusNodes[i],
-                                canRequestFocus: true,
-                                skipTraversal: !isSelected,
-                                onKeyEvent: _handleTabBarKey,
-                                child: Tab(text: widget.tabs[i].label),
-                              ),
-                            );
-                          }),
-                      ],
-                    ),
+    return FocusTraversalGroup(
+      policy: ReadingOrderTraversalPolicy(),
+      child: AlertDialog(
+        insetPadding: widget.parent._dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(widget.l10n.helpTitle)),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+            maxWidth: double.maxFinite,
+          ),
+          child: SizedBox(
+            width: double.maxFinite,
+            height: 460,
+            child: Column(
+              children: [
+                Semantics(
+                  container: true,
+                  label: widget.parent._s(
+                      'Záložky návodu', 'Tutorial tabs'),
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    tabs: [
+                      for (int i = 0; i < widget.tabs.length; i++)
+                        Builder(builder: (context) {
+                          final isSelected =
+                              _tabController.index == i;
+                          final labelCs =
+                              '${widget.tabs[i].label}, karta ${i + 1} z ${widget.tabs.length}${isSelected ? ', vybráno' : ''}';
+                          final labelEn =
+                              '${widget.tabs[i].label}, tab ${i + 1} of ${widget.tabs.length}${isSelected ? ', selected' : ''}';
+                          return Semantics(
+                            selected: isSelected,
+                            inMutuallyExclusiveGroup: true,
+                            label: widget.parent._s(labelCs, labelEn),
+                            excludeSemantics: true,
+                            child: Focus(
+                              focusNode: _tabFocusNodes[i],
+                              autofocus: isSelected,
+                              canRequestFocus: true,
+                              skipTraversal: false,
+                              onKeyEvent: _handleTabKey,
+                              child: Tab(text: widget.tabs[i].label),
+                            ),
+                          );
+                        }),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -9759,23 +9757,22 @@ class _TutorialDialogState extends State<_TutorialDialog>
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        for (final t in widget.tabs)
+                        for (int idx = 0; idx < widget.tabs.length; idx++)
                           Focus(
-                            canRequestFocus: false,
-                            skipTraversal: true,
+                            focusNode: idx == _tabController.index ? _contentFocusNode : null,
+                            canRequestFocus: idx == _tabController.index,
+                            skipTraversal: false,
                             descendantsAreFocusable: true,
-                            descendantsAreTraversable: false,
+                            descendantsAreTraversable: true,
                             child: SingleChildScrollView(
-                              controller: _tabController.index ==
-                                      widget.tabs.indexWhere(
-                                          (e) => e.text == t.text)
+                              controller: idx == _tabController.index
                                   ? _scrollController
                                   : null,
                               padding: const EdgeInsets.only(top: 8),
-                              child: SelectableText(
-                                t.text,
-                                enableInteractiveSelection: true,
-                                focusNode: null,
+                              child: SelectionArea(
+                                child: Text(
+                                  widget.tabs[idx].text,
+                                ),
                               ),
                             ),
                           ),
@@ -9803,16 +9800,10 @@ class _TutorialDialogState extends State<_TutorialDialog>
                       ),
                     ),
                     const Spacer(),
-                    Semantics(
-                      liveRegion: true,
-                      label: widget.parent._s(
-                          'Karta ${_tabController.index + 1} z ${widget.tabs.length}',
-                          'Tab ${_tabController.index + 1} of ${widget.tabs.length}'),
-                      child: ExcludeSemantics(
-                        child: Text(
-                          '${_tabController.index + 1} / ${widget.tabs.length}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
+                    ExcludeSemantics(
+                      child: Text(
+                        '${_tabController.index + 1} / ${widget.tabs.length}',
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
                     const Spacer(),
@@ -9837,16 +9828,15 @@ class _TutorialDialogState extends State<_TutorialDialog>
                 ),
               ],
             ),
-            ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(widget.l10n.understand),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(widget.l10n.understand),
-        ),
-      ],
     );
   }
 }
