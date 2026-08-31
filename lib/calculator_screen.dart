@@ -50,6 +50,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _useSixteenSegment = false;
   bool _announceExpression = false;
   bool _readStatsMemoryValues = true;
+  List<StatsSummarySection> _statsSummaryOrder = [
+    StatsSummarySection.header,
+    StatsSummarySection.dataValues,
+    StatsSummarySection.computed,
+  ];
   final bool _sayWelcome = true;
   AccessibilityType _accessibilityType = AccessibilityType.none;
   double _fontSizeMultiplier = 1.0;
@@ -3630,6 +3635,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _devDiagnosticDurationMs =
           (prefs.getInt('devDiagnosticDurationMs') ?? 700).clamp(200, 3000);
       _devPinCode = prefs.getString('devPinCode');
+      // Pořadí statistického souhrnu
+      final orderList = prefs.getStringList('statsSummaryOrder');
+      if (orderList != null && orderList.isNotEmpty) {
+        final parsed = <StatsSummarySection>[];
+        for (final s in orderList) {
+          for (final v in StatsSummarySection.values) {
+            if (v.name == s) {
+              parsed.add(v);
+              break;
+            }
+          }
+        }
+        if (parsed.length == StatsSummarySection.values.length &&
+            parsed.toSet().length == parsed.length) {
+          _statsSummaryOrder = parsed;
+        }
+      }
       // Měna
       final currencyJson = prefs.getString('currencyRates');
       if (currencyJson != null) {
@@ -3700,6 +3722,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (_currencyLastUpdate != null) {
       await prefs.setString('currencyLastUpdate', _currencyLastUpdate!.toIso8601String());
     }
+    await prefs.setStringList('statsSummaryOrder', _statsSummaryOrder.map((e) => e.name).toList());
   }
 
   void _setDefaultMode(CalculatorMode mode) async {
@@ -6437,9 +6460,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  List<String> _buildStatsSummarySpeechParts(int fieldIndex) {
+  Map<StatsSummarySection, String> _buildStatsSummaryPartsMap(int fieldIndex) {
     final snapshot = _computeStatisticsSnapshot(fieldIndex);
-    if (snapshot == null) return [];
+    if (snapshot == null) return {};
     final currentSetName = _statsSets[_currentStatsSetIndex].name;
     final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
     final selectedFieldName = fieldNames[fieldIndex];
@@ -6471,20 +6494,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ? null
         : _formatSpokenNumber(snapshot.wmean!);
 
-    final parts = <String>[];
-    parts.add(_s(
+    final header = _s(
       'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. Počet hodnot: $dataCount. ',
-      'Statistics summary for set $currentSetName, field $selectedFieldName. Count: $dataCount. '
-    ));
+      'Statistics summary for set $currentSetName, field $selectedFieldName. Count: $dataCount. ',
+    );
 
-    if (_readStatsMemoryValues) {
-      parts.add(_s(
-        'Všechny hodnoty: $allValuesSpoken. ',
-        'All values: $allValuesSpoken. '
-      ));
-    }
+    final values = _readStatsMemoryValues
+        ? _s(
+            'Všechny hodnoty: $allValuesSpoken. ',
+            'All values: $allValuesSpoken. ',
+          )
+        : '';
 
-    String statsPart = _s(
+    String computed = _s(
       'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
           'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
           'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
@@ -6504,16 +6526,106 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'Mode: $modeSpoken. '
           'Coefficient of variation: $cvSpoken.',
     );
-    
     if (snapshot.wmean != null) {
       final fieldNamesForWmean = _statsSets[_currentStatsSetIndex].fieldNames;
-      statsPart += _s(
+      computed += _s(
         ' Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}).',
         ' Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}).',
       );
     }
-    parts.add(statsPart);
+
+    return {
+      StatsSummarySection.header: header,
+      StatsSummarySection.dataValues: values,
+      StatsSummarySection.computed: computed,
+    };
+  }
+
+  List<String> _buildStatsSummarySpeechParts(int fieldIndex) {
+    final map = _buildStatsSummaryPartsMap(fieldIndex);
+    if (map.isEmpty) return [];
+    final parts = <String>[];
+    parts.add(map[StatsSummarySection.header]!);
+    final values = map[StatsSummarySection.dataValues]!;
+    if (values.isNotEmpty) parts.add(values);
+    parts.add(map[StatsSummarySection.computed]!);
     return parts;
+  }
+
+  String _getOrderedSpokenSummary(int fieldIndex) {
+    final map = _buildStatsSummaryPartsMap(fieldIndex);
+    if (map.isEmpty) return '';
+    final buffer = StringBuffer();
+    for (final section in _statsSummaryOrder) {
+      final part = map[section] ?? '';
+      if (part.isEmpty) continue;
+      buffer.write(part);
+      if (!part.endsWith(' ')) buffer.write(' ');
+    }
+    return buffer.toString().trim();
+  }
+
+  String _getStatsSummarySectionLabel(StatsSummarySection s) {
+    switch (s) {
+      case StatsSummarySection.header:
+        return _s('Hlavička souhrnu', 'Summary header');
+      case StatsSummarySection.dataValues:
+        return _s('Hodnoty v paměti', 'Memory values');
+      case StatsSummarySection.computed:
+        return _s('Vypočtené statistiky', 'Computed statistics');
+    }
+  }
+
+  String _getStatsSummarySectionDescription(StatsSummarySection s) {
+    switch (s) {
+      case StatsSummarySection.header:
+        return _s('Název sady, pole a počet hodnot', 'Set name, field and count');
+      case StatsSummarySection.dataValues:
+        return _s('Seznam všech hodnot', 'List of all values');
+      case StatsSummarySection.computed:
+        return _s('Průměr, součet, rozptyl, odchylka, medián, min, max, modus, CV', 'Mean, sum, variance, SD, median, min, max, mode, CV');
+    }
+  }
+
+  void _moveStatsSummarySection(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) return;
+    setState(() {
+      final item = _statsSummaryOrder.removeAt(oldIndex);
+      int insertAt = newIndex;
+      if (newIndex > oldIndex) insertAt = newIndex - 1;
+      // ReorderableListView newIndex is insertion index after removal, adjust
+      // For up/down buttons we call directly with target index
+      _statsSummaryOrder.insert(insertAt, item);
+    });
+    _saveSettings();
+    final orderSpoken = _statsSummaryOrder.map((e) => _getStatsSummarySectionLabel(e)).join(', ');
+    speak(_s('Pořadí změněno: $orderSpoken', 'Order changed: $orderSpoken'));
+  }
+
+  void _moveStatsSummarySectionByOffset(int index, int offset) {
+    final newIndex = index + offset;
+    if (newIndex < 0 || newIndex >= _statsSummaryOrder.length) return;
+    setState(() {
+      final item = _statsSummaryOrder.removeAt(index);
+      _statsSummaryOrder.insert(newIndex, item);
+    });
+    _saveSettings();
+    final label = _getStatsSummarySectionLabel(_statsSummaryOrder[newIndex]);
+    final dir = offset < 0 ? _s('výše', 'up') : _s('níže', 'down');
+    speak(_s('$label přesunuto $dir', '$label moved $dir'));
+    _announce(_s('$label přesunuto $dir', '$label moved $dir'));
+  }
+
+  void _resetStatsSummaryOrder() {
+    setState(() {
+      _statsSummaryOrder = [
+        StatsSummarySection.header,
+        StatsSummarySection.dataValues,
+        StatsSummarySection.computed,
+      ];
+    });
+    _saveSettings();
+    speak(_s('Pořadí obnoveno na výchozí', 'Order reset to default'));
   }
 
   void _showStatisticsSummaryDialog() {
@@ -6601,17 +6713,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               MapEntry(l10n.statsCv, cvText),
             ];
 
-            final parts = _buildStatsSummarySpeechParts(_selectedFieldIndex);
-            String spokenSummary;
-            if (_isScreenReaderActive) {
-                // Pořadí: [0] (Stav pole), [2] (Statistický souhrn), [1] (Hodnoty, pokud existují)
-                spokenSummary = parts[0] + parts.last;
-                if (parts.length == 3) {
-                    spokenSummary += parts[1];
-                }
-            } else {
-                spokenSummary = parts.join(' ');
-            }
+            final spokenSummary = _getOrderedSpokenSummary(_selectedFieldIndex);
 
             if (!_statsSummaryInitialized) {
               _statsSummaryInitialized = true;
@@ -6662,25 +6764,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   final nextIndex =
                                       (_selectedFieldIndex + 1) %
                                       fieldNames.length;
-                                  final parts = _buildStatsSummarySpeechParts(nextIndex);
-                                  String nextSummary;
-                                  if (_isScreenReaderActive) {
-                                    nextSummary = parts[0] + parts.last;
-                                    if (parts.length == 3) {
-                                      nextSummary += parts[1];
-                                    }
-                                  } else {
-                                    nextSummary = parts.join(' ');
-                                  }
+                                  final nextSummary = _getOrderedSpokenSummary(nextIndex);
                                   setState(() => _selectedFieldIndex = nextIndex);
                                   setSummaryState(() {});
-                                  speak(
-                                    _s(
-                                          'Vybráno pole ${fieldNames[nextIndex]}. ',
-                                          'Selected field ${fieldNames[nextIndex]}. ',
-                                        ) +
-                                        nextSummary,
-                                  );
+                                  final msg = _s(
+                                        'Vybráno pole ${fieldNames[nextIndex]}. ',
+                                        'Selected field ${fieldNames[nextIndex]}. ',
+                                      ) +
+                                      nextSummary;
+                                  if (_isScreenReaderActive) {
+                                    _announce(msg, context);
+                                  }
+                                  speak(msg, force: true);
                                 },
 
                               child: Semantics(
@@ -6732,9 +6827,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 _saveSettings();
                               });
                               setSummaryState(() {});
-                              speak(_readStatsMemoryValues
+                              final statusMsg = _readStatsMemoryValues
                                   ? _s('Čtení hodnot zapnuto', 'Reading values enabled')
-                                  : _s('Čtení hodnot vypnuto', 'Reading values disabled'));
+                                  : _s('Čtení hodnot vypnuto', 'Reading values disabled');
+                              // Po přepnutí přečíst stav + celý souhrn (v obou režimech)
+                              final ordered = _getOrderedSpokenSummary(_selectedFieldIndex);
+                              final full = ordered.isNotEmpty ? '$statusMsg. $ordered' : statusMsg;
+                              if (_isScreenReaderActive) {
+                                _announce(full, context);
+                              }
+                              speak(full, force: true);
+                              _showAccessibleSnackBar(statusMsg, announceMessage: full, scaffoldContext: context);
                             },
                           ),
                           if (_readStatsMemoryValues) ...[
@@ -7468,6 +7571,449 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     final activeSetName = _statsSets[_currentStatsSetIndex].name;
     speak(l10n.statsSetDeletedAnnouncement(deletedName, activeSetName));
+  }
+
+  void _duplicateStatsSet(int index, VoidCallback onUpdated) {
+    final orig = _statsSets[index];
+    final copyName = _s('${orig.name} – kopie', '${orig.name} – copy');
+    final newSet = StatisticsSet(
+      name: copyName,
+      fieldNames: List<String>.from(orig.fieldNames),
+      fieldUnits: List<String?>.from(orig.fieldUnits),
+      records: orig.records.map((r) => StatisticsRecord(values: List<double>.from(r.values))).toList(),
+      folderId: orig.folderId,
+      colorIndex: orig.colorIndex,
+      iconName: orig.iconName,
+    );
+    setState(() => _statsSets.add(newSet));
+    _saveStatsData();
+    onUpdated();
+    speak(_s('Sada $copyName vytvořena kopírováním', 'Set $copyName created by copying'), force: true);
+    if (mounted) _showAccessibleSnackBar(_s('Sada $copyName zkopírována', 'Set $copyName copied'));
+  }
+
+  void _toggleStatsSetPinned(int index, VoidCallback onUpdated) {
+    setState(() => _statsSets[index].pinned = !_statsSets[index].pinned);
+    _saveStatsData();
+    onUpdated();
+    final pinned = _statsSets[index].pinned;
+    speak(pinned ? _s('Sada připnuta', 'Set pinned') : _s('Sada odepnuta', 'Set unpinned'), force: true);
+  }
+
+  void _toggleStatsSetArchived(int index, VoidCallback onUpdated) {
+    setState(() => _statsSets[index].archived = !_statsSets[index].archived);
+    _saveStatsData();
+    onUpdated();
+    final archived = _statsSets[index].archived;
+    speak(archived ? _s('Sada archivována', 'Set archived') : _s('Sada obnovena', 'Set restored'), force: true);
+  }
+
+  void _showMoveStatsSetDialog(BuildContext context, int index, VoidCallback onUpdated) {
+    final set = _statsSets[index];
+    String? selectedFolderId = set.folderId;
+    showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: _s('Přesunout sadu', 'Move set')),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setDlg) {
+          return AlertDialog(
+            insetPadding: _dialogInsetPadding(),
+            semanticLabel: _s('Přesunout sadu ${set.name}', 'Move set ${set.name}'),
+            title: Semantics(header: true, child: Text(_s('Přesunout sadu', 'Move set') + ' "${set.name}"')),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String?>(
+                    title: Text(_s('Bez složky', 'No folder')),
+                    value: null,
+                    groupValue: selectedFolderId,
+                    onChanged: (v) => setDlg(() => selectedFolderId = v),
+                  ),
+                  ..._statsFolders.map((f) => RadioListTile<String?>(
+                        title: Row(children: [
+                          CircleAvatar(backgroundColor: _statsColorFor(f.colorIndex), radius: 10, child: Icon(_statsIconFor(f.iconName), size: 12, color: Colors.white)),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(f.name)),
+                        ]),
+                        value: f.id,
+                        groupValue: selectedFolderId,
+                        onChanged: (v) => setDlg(() => selectedFolderId = v),
+                      )),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+              FilledButton(
+                onPressed: () {
+                  final oldFolder = _statsFolderName(set.folderId);
+                  final newFolder = _statsFolderName(selectedFolderId);
+                  setState(() => set.folderId = selectedFolderId);
+                  _saveStatsData();
+                  onUpdated();
+                  setDlg(() {});
+                  Navigator.pop(ctx);
+                  speak(_s('Sada ${set.name} přesunuta z $oldFolder do $newFolder', 'Set ${set.name} moved from $oldFolder to $newFolder'), force: true);
+                },
+                child: Text(_s('Přesunout', 'Move')),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  void _showCopyStatsSetToFolderDialog(BuildContext context, int index, VoidCallback onUpdated) {
+    final set = _statsSets[index];
+    String? selectedFolderId = set.folderId;
+    showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: _s('Kopírovat sadu', 'Copy set')),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setDlg) {
+          return AlertDialog(
+            insetPadding: _dialogInsetPadding(),
+            semanticLabel: _s('Kopírovat sadu ${set.name}', 'Copy set ${set.name}'),
+            title: Semantics(header: true, child: Text(_s('Kopírovat sadu', 'Copy set') + ' "${set.name}"')),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_s('Vyberte cílovou složku pro kopii:', 'Select target folder for copy:')),
+                  RadioListTile<String?>(
+                    title: Text(_s('Bez složky', 'No folder')),
+                    value: null,
+                    groupValue: selectedFolderId,
+                    onChanged: (v) => setDlg(() => selectedFolderId = v),
+                  ),
+                  ..._statsFolders.map((f) => RadioListTile<String?>(
+                        title: Row(children: [
+                          CircleAvatar(backgroundColor: _statsColorFor(f.colorIndex), radius: 10, child: Icon(_statsIconFor(f.iconName), size: 12, color: Colors.white)),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(f.name)),
+                        ]),
+                        value: f.id,
+                        groupValue: selectedFolderId,
+                        onChanged: (v) => setDlg(() => selectedFolderId = v),
+                      )),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+              FilledButton(
+                onPressed: () {
+                  final copyName = _s('${set.name} – kopie', '${set.name} – copy');
+                  final newSet = StatisticsSet(
+                    name: copyName,
+                    fieldNames: List<String>.from(set.fieldNames),
+                    fieldUnits: List<String?>.from(set.fieldUnits),
+                    records: set.records.map((r) => StatisticsRecord(values: List<double>.from(r.values))).toList(),
+                    folderId: selectedFolderId,
+                    colorIndex: set.colorIndex,
+                    iconName: set.iconName,
+                  );
+                  setState(() => _statsSets.add(newSet));
+                  _saveStatsData();
+                  onUpdated();
+                  Navigator.pop(ctx);
+                  speak(_s('Kopie $copyName vytvořena ve složce ${_statsFolderName(selectedFolderId)}', 'Copy $copyName created in folder ${_statsFolderName(selectedFolderId)}'), force: true);
+                },
+                child: Text(_s('Kopírovat', 'Copy')),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  void _showStatsColorIconPicker(BuildContext context, int index, VoidCallback onUpdated) {
+    final set = _statsSets[index];
+    int draftColor = set.colorIndex;
+    String draftIcon = set.iconName;
+    showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: _s('Barva a ikona', 'Color and icon')),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setDlg) {
+          return AlertDialog(
+            insetPadding: _dialogInsetPadding(),
+            semanticLabel: _s('Barva a ikona sady', 'Set color and icon'),
+            title: Semantics(header: true, child: Text(_s('Barva a ikona', 'Color and icon') + ' "${set.name}"')),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_s('Barva:', 'Color:'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: List.generate(_statsPalette.length, (i) {
+                      final selected = draftColor == i;
+                      return Semantics(
+                        label: _s('Barva ${i + 1}${selected ? ', vybrána' : ''}', 'Color ${i + 1}${selected ? ', selected' : ''}'),
+                        button: true,
+                        child: InkWell(
+                          onTap: () => setDlg(() => draftColor = i),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: _statsPalette[i],
+                              shape: BoxShape.circle,
+                              border: Border.all(color: selected ? Colors.black : Colors.transparent, width: 3),
+                            ),
+                            child: selected ? const Icon(Icons.check, color: Colors.white) : null,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(_s('Ikona:', 'Icon:'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _statsIconNames.map((name) {
+                      final selected = draftIcon == name;
+                      return Semantics(
+                        label: _s('Ikona $name${selected ? ', vybrána' : ''}', 'Icon $name${selected ? ', selected' : ''}'),
+                        button: true,
+                        child: InkWell(
+                          onTap: () => setDlg(() => draftIcon = name),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: selected ? _statsColorFor(draftColor) : Colors.grey.shade200,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: selected ? Colors.black : Colors.grey, width: selected ? 3 : 1),
+                            ),
+                            child: Icon(_statsIconFor(name), color: selected ? Colors.white : Colors.black54),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: CircleAvatar(backgroundColor: _statsColorFor(draftColor), radius: 24, child: Icon(_statsIconFor(draftIcon), color: Colors.white)),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+              FilledButton(
+                onPressed: () {
+                  setState(() {
+                    set.colorIndex = draftColor;
+                    set.iconName = draftIcon;
+                  });
+                  _saveStatsData();
+                  onUpdated();
+                  Navigator.pop(ctx);
+                  speak(_s('Barva a ikona sady ${set.name} změněny', 'Color and icon of set ${set.name} changed'), force: true);
+                },
+                child: Text(_l10n.confirmAction),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  void _showCreateStatsFolderDialog(BuildContext context, VoidCallback onUpdated) {
+    final controller = TextEditingController();
+    int draftColor = 0;
+    String draftIcon = 'folder';
+    showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: _s('Nová složka', 'New folder')),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setDlg) {
+          return AlertDialog(
+            insetPadding: _dialogInsetPadding(),
+            semanticLabel: _s('Nová složka', 'New folder'),
+            title: Semantics(header: true, child: Text(_s('Nová složka', 'New folder'))),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(controller: controller, autofocus: true, decoration: InputDecoration(labelText: _s('Název složky', 'Folder name'))),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    children: List.generate(_statsPalette.length, (i) => ChoiceChip(label: Text('${i + 1}'), selected: draftColor == i, onSelected: (_) => setDlg(() => draftColor = i))),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    children: _statsIconNames.map((n) => ChoiceChip(label: Icon(_statsIconFor(n), size: 16), selected: draftIcon == n, onSelected: (_) => setDlg(() => draftIcon = n))).toList(),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+              FilledButton(
+                onPressed: () {
+                  final name = controller.text.trim();
+                  if (name.isEmpty) {
+                    speak(_s('Název nesmí být prázdný', 'Name must not be empty'), force: true);
+                    return;
+                  }
+                  if (_statsFolders.any((f) => f.name.toLowerCase() == name.toLowerCase())) {
+                    speak(_s('Složka s tímto názvem již existuje', 'Folder with this name already exists'), force: true);
+                    return;
+                  }
+                  final folder = StatisticsFolder(id: _generateStatsId(), name: name, colorIndex: draftColor, iconName: draftIcon, sortOrder: _statsFolders.length);
+                  setState(() => _statsFolders.add(folder));
+                  _saveStatsData();
+                  onUpdated();
+                  Navigator.pop(ctx);
+                  speak(_s('Složka $name vytvořena', 'Folder $name created'), force: true);
+                },
+                child: Text(_l10n.confirmAction),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  void _showRenameStatsFolderDialog(BuildContext context, StatisticsFolder folder, VoidCallback onUpdated) {
+    final controller = TextEditingController(text: folder.name);
+    showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: _s('Přejmenovat složku', 'Rename folder')),
+      builder: (ctx) {
+        return AlertDialog(
+          insetPadding: _dialogInsetPadding(),
+          title: Text(_s('Přejmenovat složku', 'Rename folder')),
+          content: TextField(controller: controller, autofocus: true, decoration: InputDecoration(labelText: _s('Název složky', 'Folder name'))),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+            FilledButton(
+              onPressed: () {
+                final newName = controller.text.trim();
+                if (newName.isEmpty) return;
+                setState(() => folder.name = newName);
+                _saveStatsData();
+                onUpdated();
+                Navigator.pop(ctx);
+                speak(_s('Složka přejmenována na $newName', 'Folder renamed to $newName'), force: true);
+              },
+              child: Text(_l10n.confirmAction),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showManageFoldersDialog(BuildContext context, VoidCallback onUpdated) {
+    showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: _s('Správa složek', 'Manage folders')),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setDlg) {
+          return AlertDialog(
+            insetPadding: _dialogInsetPadding(),
+            semanticLabel: _s('Správa složek', 'Manage folders'),
+            title: Semantics(header: true, child: Text(_s('Správa složek', 'Manage folders'))),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_statsFolders.isEmpty) Text(_s('Žádné složky', 'No folders'), style: const TextStyle(fontStyle: FontStyle.italic)),
+                    ..._statsFolders.map((f) => ListTile(
+                          leading: CircleAvatar(backgroundColor: _statsColorFor(f.colorIndex), child: Icon(_statsIconFor(f.iconName), color: Colors.white, size: 16)),
+                          title: Text(f.name),
+                          subtitle: Text(_s('${_statsSets.where((s) => s.folderId == f.id).length} sad', '${_statsSets.where((s) => s.folderId == f.id).length} sets')),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (v) {
+                              if (v == 'rename') _showRenameStatsFolderDialog(ctx, f, () { onUpdated(); setDlg(() {}); });
+                              if (v == 'color') {
+                                int dc = f.colorIndex;
+                                String di = f.iconName;
+                                showAppDialog<void>(context: ctx, builder: (c2) => StatefulBuilder(builder: (c2, s2) => AlertDialog(
+                                      title: Text(_s('Barva a ikona', 'Color and icon')),
+                                      content: Column(mainAxisSize: MainAxisSize.min, children: [
+                                        Wrap(spacing: 6, children: List.generate(_statsPalette.length, (i) => ChoiceChip(label: Text('${i+1}'), selected: dc==i, onSelected: (_)=> s2(()=>dc=i)))),
+                                        Wrap(spacing: 6, children: _statsIconNames.map((n)=> ChoiceChip(label: Icon(_statsIconFor(n),size:16), selected: di==n, onSelected: (_)=> s2(()=>di=n))).toList()),
+                                      ]),
+                                      actions: [TextButton(onPressed: ()=>Navigator.pop(c2), child: Text(_l10n.cancel)), FilledButton(onPressed: (){ setState(()=>{f.colorIndex=dc, f.iconName=di}); _saveStatsData(); onUpdated(); setDlg((){}); Navigator.pop(c2);}, child: Text(_l10n.confirmAction))],
+                                    )));
+                              }
+                              if (v == 'delete') {
+                                showAppDialog<void>(context: ctx, builder: (c2) => AlertDialog(
+                                      title: Text(_s('Smazat složku?', 'Delete folder?')),
+                                      content: Text(_s('Složka ${f.name} bude smazána, sady zůstanou v Bez složky.', 'Folder ${f.name} will be deleted, sets will remain in No folder.')),
+                                      actions: [
+                                        TextButton(onPressed: ()=>Navigator.pop(c2), child: Text(_l10n.cancel)),
+                                        FilledButton(onPressed: (){ setState((){ _statsFolders.remove(f); for(final s in _statsSets){ if(s.folderId==f.id) s.folderId=null; } }); _saveStatsData(); onUpdated(); setDlg((){}); Navigator.pop(c2); speak(_s('Složka ${f.name} smazána','Folder ${f.name} deleted'), force:true);}, child: Text(_s('Smazat','Delete'))),
+                                      ],
+                                    ));
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem(value: 'rename', child: Text(_s('Přejmenovat','Rename'))),
+                              PopupMenuItem(value: 'color', child: Text(_s('Barva/ikona','Color/icon'))),
+                              PopupMenuItem(value: 'delete', child: Text(_s('Smazat','Delete'))),
+                            ],
+                          ),
+                        )),
+                    const Divider(),
+                    FilledButton.icon(onPressed: () => _showCreateStatsFolderDialog(ctx, () { onUpdated(); setDlg(() {}); }), icon: const Icon(Icons.create_new_folder), label: Text(_s('Nová složka','New folder'))),
+                  ],
+                ),
+              ),
+            ),
+            actions: [TextButton(onPressed: ()=>Navigator.pop(ctx), child: Text(_l10n.close))],
+          );
+        });
+      },
+    );
+  }
+
+  @visibleForTesting
+  void showEditStatsSetDialogForTest(BuildContext context, int index) {
+    _showEditStatsSetDialog(context, index, () {});
+  }
+
+  void _showDeleteStatsSetConfirmation(BuildContext context, int index, VoidCallback onUpdated) {
+    final name = _statsSets[index].name;
+    showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(name: _s('Smazat sadu?', 'Delete set?')),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        title: Text(_s('Smazat sadu?', 'Delete set?')),
+        content: Text(_s('Opravdu smazat sadu "$name"? Tato akce je nevratná.', 'Really delete set "$name"? This cannot be undone.')),
+        actions: [
+          TextButton(onPressed: ()=>Navigator.pop(ctx), child: Text(_l10n.cancel)),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteStatsSet(index);
+              onUpdated();
+            },
+            child: Text(_s('Smazat','Delete')),
+          ),
+        ],
+      ),
+    );
   }
 
   // --- Helpers pro diakritiku: vstup bez háčků, čtení s háčky ---

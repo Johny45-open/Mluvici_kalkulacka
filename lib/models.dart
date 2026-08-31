@@ -29,6 +29,8 @@ enum ScreenReaderMode { auto, on, off }
 
 enum DialogSize { compact, wide, fullscreen }
 
+enum StatsSummarySection { header, dataValues, computed }
+
 class _ElectricianInputException implements Exception {
   final String message;
 

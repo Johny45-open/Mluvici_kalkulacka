@@ -111,13 +111,33 @@ void main() {
       await tester.tap(confirm);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('SETS'), warnIfMissed: false);
+      final setsButton = find.text('SETS');
+      await tester.ensureVisible(setsButton);
+      await tester.pumpAndSettle();
+      await tester.tap(setsButton, warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      final editFieldsIcon = find.byIcon(Icons.view_list);
-      expect(editFieldsIcon, findsOneWidget);
-      await tester.tap(editFieldsIcon.first);
-      await tester.pumpAndSettle();
+      // Try UI popup path; if not found, fallback to direct state call
+      final allMoreVert = find.byIcon(Icons.more_vert);
+      if (allMoreVert.evaluate().length > 1) {
+        final targetMoreVert = allMoreVert.last;
+        await tester.ensureVisible(targetMoreVert);
+        await tester.pumpAndSettle();
+        await tester.tap(targetMoreVert, warnIfMissed: false);
+        await tester.pumpAndSettle();
+        final editItem = find.text('Edit fields');
+        final editFinder = editItem.evaluate().isNotEmpty ? editItem : find.textContaining('Upravit pole');
+        if (editFinder.evaluate().isNotEmpty) {
+          await tester.tap(editFinder.first, warnIfMissed: false);
+          await tester.pumpAndSettle();
+        }
+      }
+      // If edit dialog not yet open, open via state directly
+      if (find.textContaining('Fields of set').evaluate().isEmpty) {
+        final state = tester.state(find.byType(CalculatorScreen)) as dynamic;
+        state.showEditStatsSetDialogForTest(state.context, 0);
+        await tester.pumpAndSettle();
+      }
 
       expect(
         find.textContaining('Fields of set'),

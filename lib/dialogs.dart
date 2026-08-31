@@ -3000,6 +3000,132 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ],
             ),
             const SizedBox(height: 16),
+            // Pořadí statistického souhrnu – přístupné přes tlačítka Nahoru/Dolů
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  label: widget.parent._s('Pořadí čtení statistického souhrnu', 'Statistics summary reading order'),
+                  child: ExcludeSemantics(
+                    child: Text(
+                      widget.parent._s('Pořadí čtení statistického souhrnu', 'Statistics summary reading order'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Semantics(
+                  container: true,
+                  label: widget.parent._s(
+                    'Nastavte pořadí, v jakém se čtou části statistického souhrnu. Použijte tlačítka Posunout výše/níže. Pořadí se čte odshora dolů.',
+                    'Set the order in which parts of the statistics summary are read. Use Move up/down buttons. Order is read top to bottom.',
+                  ),
+                  child: Text(
+                    widget.parent._s(
+                      'Nastavte pořadí čtení. První položka se přečte jako první.',
+                      'Set reading order. First item is read first.',
+                    ),
+                    style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...List.generate(widget.parent._statsSummaryOrder.length, (i) {
+                  final section = widget.parent._statsSummaryOrder[i];
+                  final label = widget.parent._getStatsSummarySectionLabel(section);
+                  final desc = widget.parent._getStatsSummarySectionDescription(section);
+                  final isFirst = i == 0;
+                  final isLast = i == widget.parent._statsSummaryOrder.length - 1;
+                  return Semantics(
+                    container: true,
+                    label: widget.parent._s('$label, pozice ${i + 1} z ${widget.parent._statsSummaryOrder.length}, $desc', '$label, position ${i + 1} of ${widget.parent._statsSummaryOrder.length}, $desc'),
+                    child: Card(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Row(
+                          children: [
+                            Semantics(
+                              label: widget.parent._s('Položka pořadí $label', 'Order item $label'),
+                              child: const Icon(Icons.drag_handle, size: 18),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  Text(desc, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                            Semantics(
+                              label: widget.parent._s('Posunout $label výše', 'Move $label up'),
+                              button: true,
+                              enabled: !isFirst,
+                              child: IconButton(
+                                icon: const Icon(Icons.arrow_upward, size: 18),
+                                tooltip: widget.parent._s('Posunout výše', 'Move up'),
+                                onPressed: isFirst
+                                    ? null
+                                    : () {
+                                        setState(() => widget.parent._moveStatsSummarySectionByOffset(i, -1));
+                                      },
+                              ),
+                            ),
+                            Semantics(
+                              label: widget.parent._s('Posunout $label níže', 'Move $label down'),
+                              button: true,
+                              enabled: !isLast,
+                              child: IconButton(
+                                icon: const Icon(Icons.arrow_downward, size: 18),
+                                tooltip: widget.parent._s('Posunout níže', 'Move down'),
+                                onPressed: isLast
+                                    ? null
+                                    : () {
+                                        setState(() => widget.parent._moveStatsSummarySectionByOffset(i, 1));
+                                      },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Semantics(
+                      label: widget.parent._s('Obnovit výchozí pořadí', 'Reset to default order'),
+                      child: OutlinedButton.icon(
+                        onPressed: () => setState(() => widget.parent._resetStatsSummaryOrder()),
+                        icon: const Icon(Icons.restart_alt, size: 16),
+                        label: Text(widget.parent._s('Výchozí', 'Default')),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Semantics(
+                      label: widget.parent._s('Přečíst náhled souhrnu v aktuálním pořadí', 'Read preview of summary in current order'),
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          if (widget.parent._statsSets.isEmpty || widget.parent._statsMemory.isEmpty) {
+                            widget.parent.speak(widget.parent._s('Žádná data k náhledu', 'No data for preview'), force: true);
+                            return;
+                          }
+                          final preview = widget.parent._getOrderedSpokenSummary(widget.parent._selectedFieldIndex);
+                          widget.parent.speak(preview, force: true);
+                          widget.parent._announce(preview);
+                        },
+                        icon: const Icon(Icons.volume_up, size: 16),
+                        label: Text(widget.parent._s('Přehrát náhled', 'Play preview')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             const Divider(),
             Column(
               children: [
