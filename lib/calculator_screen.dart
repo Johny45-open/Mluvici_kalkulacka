@@ -3998,6 +3998,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  void _showStatsSummaryReadingOrderDialog() {
+    showAppDialog(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Pořadí čtení statistického souhrnu'),
+      builder: (context) => _StatsSummaryReadingOrderDialog(parent: this),
+    );
+  }
+
   // ===== Vývojářský režim =====
   void _handleDevTap() {
     if (_devPinLockUntil != null &&
@@ -6887,7 +6895,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               child: TextButton.icon(
                                 onPressed: () {
                                   Navigator.pop(dialogContext);
-                                  _showAccessibilityDialog();
+                                  _showStatsSummaryReadingOrderDialog();
                                 },
                                 icon: const Icon(Icons.reorder, size: 16),
                                 label: Text(_s('Pořadí čtení', 'Reading order')),
@@ -9280,6 +9288,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   onTap: () {
                     Navigator.pop(dialogContext);
                     _checkForUpdatesManually();
+                  },
+                ),
+                _buildMoreOptionTile(
+                  icon: Icons.reorder,
+                  label: _s('Pořadí čtení statistického souhrnu', 'Statistics summary reading order'),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _showStatsSummaryReadingOrderDialog();
                   },
                 ),
                 if (_devModeEnabled)
