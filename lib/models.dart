@@ -31,6 +31,8 @@ enum DialogSize { compact, wide, fullscreen }
 
 enum StatsSummarySection { header, dataValues, computed }
 
+enum StatsComputedItem { mean, sum, variance, sd, median, min, max, mode, cv, wmean }
+
 class _ElectricianInputException implements Exception {
   final String message;
 

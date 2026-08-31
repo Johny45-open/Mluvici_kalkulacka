@@ -55,6 +55,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     StatsSummarySection.dataValues,
     StatsSummarySection.computed,
   ];
+  List<StatsComputedItem> _statsComputedOrder = [
+    StatsComputedItem.mean,
+    StatsComputedItem.sum,
+    StatsComputedItem.variance,
+    StatsComputedItem.sd,
+    StatsComputedItem.median,
+    StatsComputedItem.min,
+    StatsComputedItem.max,
+    StatsComputedItem.mode,
+    StatsComputedItem.cv,
+    StatsComputedItem.wmean,
+  ];
   final bool _sayWelcome = true;
   AccessibilityType _accessibilityType = AccessibilityType.none;
   double _fontSizeMultiplier = 1.0;
@@ -3652,6 +3664,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           _statsSummaryOrder = parsed;
         }
       }
+      // Pořadí položek uvnitř Vypočtené statistiky
+      final computedOrderList = prefs.getStringList('statsComputedOrder');
+      if (computedOrderList != null && computedOrderList.isNotEmpty) {
+        final parsed = <StatsComputedItem>[];
+        for (final s in computedOrderList) {
+          for (final v in StatsComputedItem.values) {
+            if (v.name == s) {
+              parsed.add(v);
+              break;
+            }
+          }
+        }
+        if (parsed.length == StatsComputedItem.values.length &&
+            parsed.toSet().length == parsed.length) {
+          _statsComputedOrder = parsed;
+        }
+      }
       // Měna
       final currencyJson = prefs.getString('currencyRates');
       if (currencyJson != null) {
@@ -3723,6 +3752,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       await prefs.setString('currencyLastUpdate', _currencyLastUpdate!.toIso8601String());
     }
     await prefs.setStringList('statsSummaryOrder', _statsSummaryOrder.map((e) => e.name).toList());
+    await prefs.setStringList('statsComputedOrder', _statsComputedOrder.map((e) => e.name).toList());
   }
 
   void _setDefaultMode(CalculatorMode mode) async {
@@ -6490,7 +6520,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final cvSpoken = snapshot.cv == null
         ? _s('nelze vypočítat', 'cannot calculate')
         : '${_formatSpokenNumber(snapshot.cv!)} ${_s('procent', 'percent')}';
-    final wmeanSpoken = snapshot.wmean == null
+     final wmeanSpoken = snapshot.wmean == null
         ? null
         : _formatSpokenNumber(snapshot.wmean!);
 
@@ -6506,33 +6536,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           )
         : '';
 
-    String computed = _s(
-      'Průměr: ${_formatSpokenNumber(snapshot.mean)}. '
-          'Součet: ${_formatSpokenNumber(snapshot.sum)}. '
-          'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. '
-          'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. '
-          'Medián: ${_formatSpokenNumber(snapshot.median)}. '
-          'Minimum: ${_formatSpokenNumber(snapshot.min)}. '
-          'Maximum: ${_formatSpokenNumber(snapshot.max)}. '
-          'Modus: $modeSpoken. '
-          'Variační koeficient: $cvSpoken.',
-      'Mean: ${_formatSpokenNumber(snapshot.mean)}. '
-          'Sum: ${_formatSpokenNumber(snapshot.sum)}. '
-          'Variance: ${_formatSpokenNumber(snapshot.variance)}. '
-          'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. '
-          'Median: ${_formatSpokenNumber(snapshot.median)}. '
-          'Minimum: ${_formatSpokenNumber(snapshot.min)}. '
-          'Maximum: ${_formatSpokenNumber(snapshot.max)}. '
-          'Mode: $modeSpoken. '
-          'Coefficient of variation: $cvSpoken.',
-    );
-    if (snapshot.wmean != null) {
-      final fieldNamesForWmean = _statsSets[_currentStatsSetIndex].fieldNames;
-      computed += _s(
-        ' Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}).',
-        ' Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}).',
-      );
+    // Computed – poskládáno dle _statsComputedOrder (synchronizováno s vizuálem)
+    final fieldNamesForWmean = _statsSets[_currentStatsSetIndex].fieldNames;
+    String computedFor(StatsComputedItem it) {
+      switch (it) {
+        case StatsComputedItem.mean:
+          return _s('Průměr: ${_formatSpokenNumber(snapshot.mean)}. ', 'Mean: ${_formatSpokenNumber(snapshot.mean)}. ');
+        case StatsComputedItem.sum:
+          return _s('Součet: ${_formatSpokenNumber(snapshot.sum)}. ', 'Sum: ${_formatSpokenNumber(snapshot.sum)}. ');
+        case StatsComputedItem.variance:
+          return _s('Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. ', 'Variance: ${_formatSpokenNumber(snapshot.variance)}. ');
+        case StatsComputedItem.sd:
+          return _s('Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. ', 'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. ');
+        case StatsComputedItem.median:
+          return _s('Medián: ${_formatSpokenNumber(snapshot.median)}. ', 'Median: ${_formatSpokenNumber(snapshot.median)}. ');
+        case StatsComputedItem.min:
+          return _s('Minimum: ${_formatSpokenNumber(snapshot.min)}. ', 'Minimum: ${_formatSpokenNumber(snapshot.min)}. ');
+        case StatsComputedItem.max:
+          return _s('Maximum: ${_formatSpokenNumber(snapshot.max)}. ', 'Maximum: ${_formatSpokenNumber(snapshot.max)}. ');
+        case StatsComputedItem.mode:
+          return _s('Modus: $modeSpoken. ', 'Mode: $modeSpoken. ');
+        case StatsComputedItem.cv:
+          return _s('Variační koeficient: $cvSpoken.', 'Coefficient of variation: $cvSpoken.');
+        case StatsComputedItem.wmean:
+          if (snapshot.wmean == null) return '';
+          return _s(
+            ' Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}).',
+            ' Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}).',
+          );
+      }
     }
+
+    final computedBuf = StringBuffer();
+    for (final it in _statsComputedOrder) {
+      computedBuf.write(computedFor(it));
+    }
+    final computed = computedBuf.toString().trim() + (computedBuf.isEmpty ? '' : '');
 
     return {
       StatsSummarySection.header: header,
@@ -6628,6 +6667,89 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     speak(_s('Pořadí obnoveno na výchozí', 'Order reset to default'));
   }
 
+  String _getStatsComputedItemLabel(StatsComputedItem it) {
+    switch (it) {
+      case StatsComputedItem.mean:
+        return _s('Průměr', 'Mean');
+      case StatsComputedItem.sum:
+        return _s('Součet', 'Sum');
+      case StatsComputedItem.variance:
+        return _s('Rozptyl', 'Variance');
+      case StatsComputedItem.sd:
+        return _s('Směrodatná odchylka', 'Standard deviation');
+      case StatsComputedItem.median:
+        return _s('Medián', 'Median');
+      case StatsComputedItem.min:
+        return _s('Minimum', 'Minimum');
+      case StatsComputedItem.max:
+        return _s('Maximum', 'Maximum');
+      case StatsComputedItem.mode:
+        return _s('Modus', 'Mode');
+      case StatsComputedItem.cv:
+        return _s('Variační koeficient', 'Coefficient of variation');
+      case StatsComputedItem.wmean:
+        return _s('Vážený průměr', 'Weighted mean');
+    }
+  }
+
+  String _getStatsComputedItemDescription(StatsComputedItem it) {
+    switch (it) {
+      case StatsComputedItem.mean:
+        return _s('Aritmetický průměr', 'Arithmetic mean');
+      case StatsComputedItem.sum:
+        return _s('Součet hodnot', 'Sum of values');
+      case StatsComputedItem.variance:
+        return _s('Rozptyl', 'Variance');
+      case StatsComputedItem.sd:
+        return _s('Směrodatná odchylka', 'Standard deviation');
+      case StatsComputedItem.median:
+        return _s('Prostřední hodnota', 'Middle value');
+      case StatsComputedItem.min:
+        return _s('Nejmenší hodnota', 'Smallest value');
+      case StatsComputedItem.max:
+        return _s('Největší hodnota', 'Largest value');
+      case StatsComputedItem.mode:
+        return _s('Nejčastější hodnota', 'Most frequent value');
+      case StatsComputedItem.cv:
+        return _s('Variační koeficient v procentech', 'CV in percent');
+      case StatsComputedItem.wmean:
+        return _s('Vážený průměr (2 pole)', 'Weighted mean (2 fields)');
+    }
+  }
+
+  void _moveStatsComputedItemByOffset(int index, int offset) {
+    final newIndex = index + offset;
+    if (newIndex < 0 || newIndex >= _statsComputedOrder.length) return;
+    setState(() {
+      final item = _statsComputedOrder.removeAt(index);
+      _statsComputedOrder.insert(newIndex, item);
+    });
+    _saveSettings();
+    final label = _getStatsComputedItemLabel(_statsComputedOrder[newIndex]);
+    final dir = offset < 0 ? _s('výše', 'up') : _s('níže', 'down');
+    speak(_s('$label přesunuto $dir', '$label moved $dir'));
+    _announce(_s('$label přesunuto $dir', '$label moved $dir'));
+  }
+
+  void _resetStatsComputedOrder() {
+    setState(() {
+      _statsComputedOrder = [
+        StatsComputedItem.mean,
+        StatsComputedItem.sum,
+        StatsComputedItem.variance,
+        StatsComputedItem.sd,
+        StatsComputedItem.median,
+        StatsComputedItem.min,
+        StatsComputedItem.max,
+        StatsComputedItem.mode,
+        StatsComputedItem.cv,
+        StatsComputedItem.wmean,
+      ];
+    });
+    _saveSettings();
+    speak(_s('Pořadí položek obnoveno na výchozí', 'Items order reset to default'));
+  }
+
   void _showStatisticsSummaryDialog() {
     _statsSummaryInitialized = false;
     final l10n = _l10n;
@@ -6695,22 +6817,37 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ? null
                 : _formatNumberSmart(snapshot.wmean!);
 
+            // Vizuál synchronizován s pořadím čtení (_statsComputedOrder), N zůstává fixně nahoře
+            MapEntry<String, String>? entryForItem(StatsComputedItem it) {
+              switch (it) {
+                case StatsComputedItem.mean:
+                  return MapEntry(l10n.statsMean, _formatNumberSmart(snapshot.mean));
+                case StatsComputedItem.sum:
+                  return MapEntry(l10n.statsSum, _formatNumberSmart(snapshot.sum));
+                case StatsComputedItem.variance:
+                  return MapEntry(l10n.statsVariance, _formatNumberSmart(snapshot.variance));
+                case StatsComputedItem.sd:
+                  return MapEntry(l10n.statsStdDev, _formatNumberSmart(snapshot.sd));
+                case StatsComputedItem.median:
+                  return MapEntry(l10n.statsMedian, _formatNumberSmart(snapshot.median));
+                case StatsComputedItem.min:
+                  return MapEntry(l10n.statsMin, _formatNumberSmart(snapshot.min));
+                case StatsComputedItem.max:
+                  return MapEntry(l10n.statsMax, _formatNumberSmart(snapshot.max));
+                case StatsComputedItem.mode:
+                  return MapEntry(l10n.statsMode, modeText);
+                case StatsComputedItem.cv:
+                  return MapEntry(l10n.statsCv, cvText);
+                case StatsComputedItem.wmean:
+                  if (snapshot.wmean == null) return null;
+                  return MapEntry(l10n.statsWeightedMean, wmeanText!);
+              }
+            }
+
             final statRows = <MapEntry<String, String>>[
               MapEntry(l10n.statsN, dataCount.toString()),
-              MapEntry(l10n.statsMin, _formatNumberSmart(snapshot.min)),
-              MapEntry(l10n.statsMax, _formatNumberSmart(snapshot.max)),
-              MapEntry(l10n.statsMean, _formatNumberSmart(snapshot.mean)),
-              if (snapshot.wmean != null)
-                MapEntry(l10n.statsWeightedMean, wmeanText!),
-              MapEntry(l10n.statsSum, _formatNumberSmart(snapshot.sum)),
-              MapEntry(
-                l10n.statsVariance,
-                _formatNumberSmart(snapshot.variance),
-              ),
-              MapEntry(l10n.statsStdDev, _formatNumberSmart(snapshot.sd)),
-              MapEntry(l10n.statsMedian, _formatNumberSmart(snapshot.median)),
-              MapEntry(l10n.statsMode, modeText),
-              MapEntry(l10n.statsCv, cvText),
+              for (final it in _statsComputedOrder)
+                if (entryForItem(it) != null) entryForItem(it)!,
             ];
 
             final spokenSummary = _getOrderedSpokenSummary(_selectedFieldIndex);
@@ -6742,6 +6879,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          Semantics(
+                            label: _s('Změnit pořadí čtení souhrnu', 'Change summary reading order'),
+                            button: true,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(dialogContext);
+                                  _showAccessibilityDialog();
+                                },
+                                icon: const Icon(Icons.reorder, size: 16),
+                                label: Text(_s('Pořadí čtení', 'Reading order')),
+                              ),
+                            ),
+                          ),
                           Semantics(
                             label: l10n.statsCurrentSetLabel(currentSetName),
                             child: ExcludeSemantics(
