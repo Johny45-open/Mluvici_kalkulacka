@@ -33,6 +33,8 @@ enum StatsSummarySection { header, dataValues, computed }
 
 enum StatsComputedItem { mean, sum, variance, sd, median, min, max, mode, cv, wmean }
 
+enum StatsOrderPreset { def, valuesFirst, statsFirst, headerLast, custom }
+
 class _ElectricianInputException implements Exception {
   final String message;
 

@@ -23,6 +23,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   final FlutterTts tts = FlutterTts();
   final FocusNode _mainFocusNode = FocusNode();
+  late final FocusNode _readingOrderFocusNode =
+      FocusNode(debugLabel: 'readingOrderButton');
 
   void _returnFocusToKeyboard() {
     Future.delayed(const Duration(milliseconds: 150), () {
@@ -1741,6 +1743,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _initTts();
     _initAppVersion();
     _dialogFontScaleNotifier.value = _dialogFontScale;
+    _readingOrderFocusNode.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _initAppVersion() async {
@@ -1855,6 +1860,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _devTapTimer?.cancel();
     _voiceCreationSession?.dispose();
     _mainFocusNode.dispose();
+    _readingOrderFocusNode.dispose();
     _scrollControllerH.dispose();
     _scrollControllerResultH.dispose();
     _scrollControllerV.dispose();
@@ -2015,8 +2021,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _initTts() async {
     try {
       await _loadSettings();
-      await _loadHistory();
-      await _loadStatsData();
       final locale = WidgetsBinding.instance.platformDispatcher.locale;
       final l10n = lookupAppLocalizations(locale);
       _lastTtsLocale = locale.languageCode == 'en' ? 'en-US' : 'cs-CZ';
@@ -2033,17 +2037,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (_currentMode == CalculatorMode.statistics) {
           welcome += _statsModeAnnouncement();
         }
-        // Windows TTS často ještě nemá po startu vytvořený native voice.
-        // Odložení za první vykreslení zároveň zabrání překrytí uvítání
-        // úvodními dialogy. Oznámení pošleme i do systémového odečítače.
+        // A) Okamžitý announce pro čtečku (NVDA/TalkBack) bez čekání na TTS voice,
+        // zkrácený 250ms delay pro vlastní TTS aby se nečekalo 600ms.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          Future.delayed(const Duration(milliseconds: 600), () {
+          if (!mounted) return;
+          if (_isScreenReaderActive) {
+            _announce(welcome);
+          }
+          Future.delayed(const Duration(milliseconds: 250), () {
             if (!mounted) return;
-            if (_isScreenReaderActive) _announce(welcome);
             speak(welcome);
           });
         });
       }
+      // Historii a statistiky načítat paralelně bez blokování uvítání
+      unawaited(_loadHistory());
+      unawaited(_loadStatsData());
       // Auto-aktualizace kurzů ČNB (silent, max 1× za 24h)
       try {
         final needsUpdate =
@@ -2058,7 +2067,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } catch (e) {
       debugPrint('TTS Error: $e');
     }
-    Future.delayed(const Duration(milliseconds: 1000), () async {
+    final initialDialogDelay = _sayWelcome
+        ? const Duration(milliseconds: 2200)
+        : const Duration(milliseconds: 1000);
+    Future.delayed(initialDialogDelay, () async {
       final prefs = await SharedPreferences.getInstance();
       if (!prefs.containsKey('accessibilityType')) {
         _showInitialAccessibilityDialog();
@@ -6864,15 +6876,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final item = _statsSummaryOrder.removeAt(oldIndex);
       int insertAt = newIndex;
       if (newIndex > oldIndex) insertAt = newIndex - 1;
-      // ReorderableListView newIndex is insertion index after removal, adjust
-      // For up/down buttons we call directly with target index
       _statsSummaryOrder.insert(insertAt, item);
     });
     _saveSettings();
-    final orderSpoken = _statsSummaryOrder
-        .map((e) => _getStatsSummarySectionLabel(e))
-        .join(', ');
-    speak(_s('Pořadí změněno: $orderSpoken', 'Order changed: $orderSpoken'));
+    final orderSpoken = _statsSummaryOrder.map((e) => _getStatsSummarySectionLabel(e)).join(', ');
+    final msg = _s('Pořadí změněno: $orderSpoken', 'Order changed: $orderSpoken');
+    speak(msg);
+    _announce(msg);
   }
 
   void _moveStatsSummarySectionByOffset(int index, int offset) {
@@ -6898,7 +6908,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ];
     });
     _saveSettings();
-    speak(_s('Pořadí obnoveno na výchozí', 'Order reset to default'));
+    final msg = _s('Pořadí obnoveno na výchozí', 'Order reset to default');
+    speak(msg);
+    _announce(msg);
   }
 
   String _getStatsComputedItemLabel(StatsComputedItem it) {
@@ -6981,400 +6993,127 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ];
     });
     _saveSettings();
-    speak(
-      _s('Pořadí položek obnoveno na výchozí', 'Items order reset to default'),
-    );
+    final msg = _s('Pořadí položek obnoveno na výchozí', 'Items order reset to default');
+    speak(msg);
+    _announce(msg);
+  }
+
+  String _presetLabel(StatsOrderPreset p) {
+    switch (p) {
+      case StatsOrderPreset.def:
+        return _s('Výchozí', 'Default');
+      case StatsOrderPreset.valuesFirst:
+        return _s('Hodnoty první', 'Values first');
+      case StatsOrderPreset.statsFirst:
+        return _s('Statistiky první', 'Stats first');
+      case StatsOrderPreset.headerLast:
+        return _s('Hlavička poslední', 'Header last');
+      case StatsOrderPreset.custom:
+        return _s('Vlastní', 'Custom');
+    }
+  }
+
+  bool _isPresetMatch(StatsOrderPreset p) {
+    switch (p) {
+      case StatsOrderPreset.def:
+        return _statsSummaryOrder.length == 3 &&
+            _statsSummaryOrder[0] == StatsSummarySection.header &&
+            _statsSummaryOrder[1] == StatsSummarySection.dataValues &&
+            _statsSummaryOrder[2] == StatsSummarySection.computed;
+      case StatsOrderPreset.valuesFirst:
+        return _statsSummaryOrder.length == 3 &&
+            _statsSummaryOrder[0] == StatsSummarySection.dataValues &&
+            _statsSummaryOrder[1] == StatsSummarySection.header &&
+            _statsSummaryOrder[2] == StatsSummarySection.computed;
+      case StatsOrderPreset.statsFirst:
+        return _statsSummaryOrder.length == 3 &&
+            _statsSummaryOrder[0] == StatsSummarySection.computed &&
+            _statsSummaryOrder[1] == StatsSummarySection.header &&
+            _statsSummaryOrder[2] == StatsSummarySection.dataValues;
+      case StatsOrderPreset.headerLast:
+        return _statsSummaryOrder.length == 3 &&
+            _statsSummaryOrder[0] == StatsSummarySection.dataValues &&
+            _statsSummaryOrder[1] == StatsSummarySection.computed &&
+            _statsSummaryOrder[2] == StatsSummarySection.header;
+      case StatsOrderPreset.custom:
+        return !_isPresetMatch(StatsOrderPreset.def) &&
+            !_isPresetMatch(StatsOrderPreset.valuesFirst) &&
+            !_isPresetMatch(StatsOrderPreset.statsFirst) &&
+            !_isPresetMatch(StatsOrderPreset.headerLast);
+    }
+  }
+
+  StatsOrderPreset get _currentPreset {
+    for (final p in [
+      StatsOrderPreset.def,
+      StatsOrderPreset.valuesFirst,
+      StatsOrderPreset.statsFirst,
+      StatsOrderPreset.headerLast,
+    ]) {
+      if (_isPresetMatch(p)) return p;
+    }
+    return StatsOrderPreset.custom;
+  }
+
+  void applyStatsOrderPreset(StatsOrderPreset p) {
+    if (p == StatsOrderPreset.custom) {
+      speak(_s('Vlastní pořadí - použijte šipky', 'Custom order - use arrows'));
+      _announce(_s('Vlastní pořadí aktivováno', 'Custom order activated'));
+      return;
+    }
+    setState(() {
+      switch (p) {
+        case StatsOrderPreset.def:
+          _statsSummaryOrder = [
+            StatsSummarySection.header,
+            StatsSummarySection.dataValues,
+            StatsSummarySection.computed,
+          ];
+          break;
+        case StatsOrderPreset.valuesFirst:
+          _statsSummaryOrder = [
+            StatsSummarySection.dataValues,
+            StatsSummarySection.header,
+            StatsSummarySection.computed,
+          ];
+          break;
+        case StatsOrderPreset.statsFirst:
+          _statsSummaryOrder = [
+            StatsSummarySection.computed,
+            StatsSummarySection.header,
+            StatsSummarySection.dataValues,
+          ];
+          break;
+        case StatsOrderPreset.headerLast:
+          _statsSummaryOrder = [
+            StatsSummarySection.dataValues,
+            StatsSummarySection.computed,
+            StatsSummarySection.header,
+          ];
+          break;
+        case StatsOrderPreset.custom:
+          break;
+      }
+    });
+    _saveSettings();
+    final name = _presetLabel(p);
+    speak(_s('Preset $name aktivován', 'Preset $name activated'));
+    _announce(_s('Preset $name aktivován', 'Preset $name activated'));
   }
 
   void _showStatisticsSummaryDialog() {
     _statsSummaryInitialized = false;
-    final l10n = _l10n;
-    final fieldNames = _statsSets.isNotEmpty
-        ? _statsSets[_currentStatsSetIndex].fieldNames
-        : <String>['Hodnota'];
-
+    if (_statsSets.isEmpty || _statsMemory.isEmpty) {
+      final msg = _statsEmptyMessage();
+      speak(msg);
+      _announce(msg);
+      _showAccessibleSnackBar(msg);
+      return;
+    }
     showAppDialog<void>(
       context: context,
-      routeSettings: RouteSettings(name: l10n.statsSummaryTitle),
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setSummaryState) {
-            final snapshot = _computeStatisticsSnapshot(_selectedFieldIndex);
-            if (snapshot == null) {
-              speak(_statsEmptyMessage());
-              if (mounted) {
-                _showAccessibleSnackBar(_statsEmptyMessage());
-              }
-              Navigator.pop(dialogContext);
-              return const SizedBox.shrink();
-            }
-            final currentSetName = _statsSets[_currentStatsSetIndex].name;
-            final selectedFieldName = fieldNames[_selectedFieldIndex];
-            final fieldUnit =
-                _statsSets.isNotEmpty &&
-                    _selectedFieldIndex <
-                        _statsSets[_currentStatsSetIndex].fieldUnits.length
-                ? _statsSets[_currentStatsSetIndex]
-                      .fieldUnits[_selectedFieldIndex]
-                : null;
-            final rawValues = _getFieldValues(_selectedFieldIndex);
-            final sortedValues = List<double>.from(rawValues)..sort();
-            final allValues = sortedValues
-                .map((v) {
-                  final numStr = _formatNumberSmart(v);
-                  final unitStr = fieldUnit != null
-                      ? ' ${_getUnitSpeech(fieldUnit, value: v)}'
-                      : '';
-                  return '$numStr$unitStr';
-                })
-                .join(_isEnglish() ? ', ' : '; ');
-            final allValuesSpoken = sortedValues
-                .map((v) {
-                  final numStr = _formatSpokenNumber(v);
-                  final unitStr = fieldUnit != null
-                      ? ' ${_getUnitSpeech(fieldUnit, value: v)}'
-                      : '';
-                  return '$numStr$unitStr';
-                })
-                .join(_isEnglish() ? ', ' : '; ');
-            final dataCount = rawValues.length;
-
-            final modeText = snapshot.modeExists
-                ? snapshot.modes.map((m) => _formatNumberSmart(m)).join('; ')
-                : l10n.statsModeNone;
-
-            final cvText = snapshot.cv == null
-                ? 'Err'
-                : '${_formatNumberSmart(snapshot.cv!)} %';
-
-            final wmeanText = snapshot.wmean == null
-                ? null
-                : _formatNumberSmart(snapshot.wmean!);
-
-            // Vizuál synchronizován s pořadím čtení (_statsComputedOrder), N zůstává fixně nahoře
-            MapEntry<String, String>? entryForItem(StatsComputedItem it) {
-              switch (it) {
-                case StatsComputedItem.mean:
-                  return MapEntry(
-                    l10n.statsMean,
-                    _formatNumberSmart(snapshot.mean),
-                  );
-                case StatsComputedItem.sum:
-                  return MapEntry(
-                    l10n.statsSum,
-                    _formatNumberSmart(snapshot.sum),
-                  );
-                case StatsComputedItem.variance:
-                  return MapEntry(
-                    l10n.statsVariance,
-                    _formatNumberSmart(snapshot.variance),
-                  );
-                case StatsComputedItem.sd:
-                  return MapEntry(
-                    l10n.statsStdDev,
-                    _formatNumberSmart(snapshot.sd),
-                  );
-                case StatsComputedItem.median:
-                  return MapEntry(
-                    l10n.statsMedian,
-                    _formatNumberSmart(snapshot.median),
-                  );
-                case StatsComputedItem.min:
-                  return MapEntry(
-                    l10n.statsMin,
-                    _formatNumberSmart(snapshot.min),
-                  );
-                case StatsComputedItem.max:
-                  return MapEntry(
-                    l10n.statsMax,
-                    _formatNumberSmart(snapshot.max),
-                  );
-                case StatsComputedItem.mode:
-                  return MapEntry(l10n.statsMode, modeText);
-                case StatsComputedItem.cv:
-                  return MapEntry(l10n.statsCv, cvText);
-                case StatsComputedItem.wmean:
-                  if (snapshot.wmean == null) return null;
-                  return MapEntry(l10n.statsWeightedMean, wmeanText!);
-              }
-            }
-
-            final statRows = <MapEntry<String, String>>[
-              MapEntry(l10n.statsN, dataCount.toString()),
-              for (final it in _statsComputedOrder)
-                if (entryForItem(it) != null) entryForItem(it)!,
-            ];
-
-            final spokenSummary = _getOrderedSpokenSummary(_selectedFieldIndex);
-
-            if (!_statsSummaryInitialized) {
-              _statsSummaryInitialized = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && !_isScreenReaderActive) {
-                  speak(
-                    _s(
-                      'Statistický souhrn otevřen. Jednotlivé statistiky můžete procházet klávesou Tab.',
-                      'Statistics summary opened. Use Tab to move through individual statistics.',
-                    ),
-                  );
-                }
-              });
-            }
-
-            return AlertDialog(
-              insetPadding: _dialogInsetPadding(),
-              semanticLabel: l10n.statsSummaryTitle,
-              title: Semantics(
-                header: true,
-                child: Text(l10n.statsSummaryTitle),
-              ),
-              content: Semantics(
-                container: true,
-                child: SizedBox(
-                  width: double.maxFinite,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.70,
-                    ),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Semantics(
-                            label: _s(
-                              'Změnit pořadí čtení souhrnu',
-                              'Change summary reading order',
-                            ),
-                            button: true,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(dialogContext);
-                                  _showStatsSummaryReadingOrderDialog();
-                                },
-                                icon: const Icon(Icons.reorder, size: 16),
-                                label: Text(
-                                  _s('Pořadí čtení', 'Reading order'),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Semantics(
-                            label: l10n.statsCurrentSetLabel(currentSetName),
-                            child: ExcludeSemantics(
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: Text(
-                                  l10n.statsCurrentSetLabel(currentSetName),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (fieldNames.length > 1) ...[
-                            const SizedBox(height: 4),
-                            InkWell(
-                              onTap: () {
-                                final nextIndex =
-                                    (_selectedFieldIndex + 1) %
-                                    fieldNames.length;
-                                final nextSummary = _getOrderedSpokenSummary(
-                                  nextIndex,
-                                );
-                                setState(() => _selectedFieldIndex = nextIndex);
-                                setSummaryState(() {});
-                                final msg =
-                                    _s(
-                                      'Vybráno pole ${fieldNames[nextIndex]}. ',
-                                      'Selected field ${fieldNames[nextIndex]}. ',
-                                    ) +
-                                    nextSummary;
-                                if (_isScreenReaderActive) {
-                                  _announce(msg, context);
-                                }
-                                speak(msg, force: true);
-                              },
-
-                              child: Semantics(
-                                liveRegion: true,
-                                label: _s(
-                                  'Pole: ${fieldNames[_selectedFieldIndex]}${fieldUnit != null ? ', ${_getUnitSpeech(fieldUnit)}' : ''}',
-                                  'Field: ${fieldNames[_selectedFieldIndex]}${fieldUnit != null ? ', ${_getUnitSpeech(fieldUnit)}' : ''}',
-                                ),
-                                excludeSemantics: true,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                    horizontal: 4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Text(_s('Pole: ', 'Field: ')),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        fieldNames[_selectedFieldIndex],
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      if (fieldUnit != null) ...[
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '(${_getUnitSpeech(fieldUnit)})',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                      const SizedBox(width: 4),
-                                      Icon(Icons.swap_horiz, size: 14),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                          CheckboxListTile(
-                            title: Text(
-                              _s(
-                                'Číst hodnoty v paměti',
-                                'Read values in memory',
-                              ),
-                            ),
-                            value: _readStatsMemoryValues,
-                            onChanged: (v) {
-                              setState(() {
-                                _readStatsMemoryValues = v ?? true;
-                                _saveSettings();
-                              });
-                              setSummaryState(() {});
-                              final statusMsg = _readStatsMemoryValues
-                                  ? _s(
-                                      'Čtení hodnot zapnuto',
-                                      'Reading values enabled',
-                                    )
-                                  : _s(
-                                      'Čtení hodnot vypnuto',
-                                      'Reading values disabled',
-                                    );
-                              // Po přepnutí přečíst stav + celý souhrn (v obou režimech)
-                              final ordered = _getOrderedSpokenSummary(
-                                _selectedFieldIndex,
-                              );
-                              final full = ordered.isNotEmpty
-                                  ? '$statusMsg. $ordered'
-                                  : statusMsg;
-                              if (_isScreenReaderActive) {
-                                _announce(full, context);
-                              }
-                              speak(full, force: true);
-                              _showAccessibleSnackBar(
-                                statusMsg,
-                                announceMessage: full,
-                                scaffoldContext: context,
-                              );
-                            },
-                          ),
-                          if (_readStatsMemoryValues) ...[
-                            const Divider(height: 8),
-                            Semantics(
-                              header: true,
-                              label: l10n.statsAllValuesSection,
-                              child: ExcludeSemantics(
-                                child: Text(
-                                  l10n.statsAllValuesSection,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Semantics(
-                              label: _s(
-                                'Všechny hodnoty pole $selectedFieldName: $allValuesSpoken',
-                                'All values of field $selectedFieldName: $allValuesSpoken',
-                              ),
-                              child: ExcludeSemantics(
-                                child: _PeriodicText(
-                                  allValues,
-                                  overlineThickness: _overlineThickness,
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 16),
-                          Semantics(
-                            header: true,
-                            label: l10n.statsComputedSection,
-                            child: ExcludeSemantics(
-                              child: Text(
-                                l10n.statsComputedSection,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ...statRows.asMap().entries.map((entry) {
-                            final row = entry.value;
-                            final spokenValue = _spokenForDisplay(row.value);
-                            return Semantics(
-                              container: true,
-                              label: '${row.key}: $spokenValue',
-                              child: ExcludeSemantics(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(flex: 3, child: Text(row.key)),
-                                      Expanded(
-                                        flex: 2,
-                                        child: _PeriodicText(
-                                          row.value,
-                                          textAlign: TextAlign.right,
-                                          overlineThickness:
-                                              _overlineThickness,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                    _showStatsSetsDialog();
-                  },
-                  child: Text(l10n.statsSetsManage),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: Text(l10n.close),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      routeSettings: RouteSettings(name: _l10n.statsSummaryTitle),
+      builder: (dialogContext) => _StatsSummaryDialog(parent: this),
     );
   }
 
@@ -10010,7 +9749,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   ),
                   onTap: () {
                     Navigator.pop(dialogContext);
-                    _showStatsSummaryReadingOrderDialog();
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      if (mounted) _showStatsSummaryReadingOrderDialog();
+                    });
                   },
                 ),
                 if (_devModeEnabled)

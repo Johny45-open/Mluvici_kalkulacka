@@ -28,6 +28,8 @@ part 'guided_set_creation.dart';
 part 'dev_mode.dart';
 part 'stats_storage.dart';
 part 'stats_sets_dialog.dart';
+part 'dialogs/stats_summary_dialog.dart';
+part 'dialogs/reading_order_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,10 +38,17 @@ void main() async {
 
 class _FocusRestoreObserver extends NavigatorObserver {
   final Map<Route<dynamic>, FocusNode?> _openers = {};
+  final Map<Route<dynamic>, Timer> _pendingRestores = {};
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
+    // Nový dialog byl otevřen – zruš pending restore předchozího pop,
+    // jinak by za ~150 ms vytrhl fokus novému dialogu (Windows Tab bug).
+    for (final t in _pendingRestores.values) {
+      t.cancel();
+    }
+    _pendingRestores.clear();
     _openers[route] = FocusManager.instance.primaryFocus;
   }
 
@@ -50,7 +59,8 @@ class _FocusRestoreObserver extends NavigatorObserver {
     if (opener == null) {
       return;
     }
-    Future.delayed(const Duration(milliseconds: 150), () {
+    final timer = Timer(const Duration(milliseconds: 150), () {
+      _pendingRestores.remove(route);
       try {
         if (opener.context != null) {
           opener.requestFocus();
@@ -59,12 +69,14 @@ class _FocusRestoreObserver extends NavigatorObserver {
         // Uzel byl zničen, necháme výchozí chování.
       }
     });
+    _pendingRestores[route] = timer;
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didRemove(route, previousRoute);
     _openers.remove(route);
+    _pendingRestores.remove(route)?.cancel();
   }
 }
 

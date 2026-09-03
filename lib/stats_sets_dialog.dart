@@ -13,8 +13,89 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
   String _sortBy = 'lastUsed';
   bool _showArchived = false;
   String? _selectedFolderId;
+  int _setsFocusIdx = 0;
+  String _typeAhead = '';
+  Timer? _typeAheadTimer;
 
   void _refresh() => setState(() {});
+
+  @override
+  void dispose() {
+    _typeAheadTimer?.cancel();
+    super.dispose();
+  }
+
+  KeyEventResult _handleSortArchiveKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    const order = ['lastUsed', 'name', 'count'];
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight || event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      final dir = event.logicalKey == LogicalKeyboardKey.arrowRight ? 1 : -1;
+      final idx = order.indexOf(_sortBy);
+      final next = order[(idx + dir + order.length) % order.length];
+      setState(() => _sortBy = next);
+      widget.parent._announce(widget.parent._s('Řazení ', 'Sorting '));
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.space || event.logicalKey == LogicalKeyboardKey.enter) {
+      setState(() => _showArchived = !_showArchived);
+      widget.parent._announce(_showArchived ? widget.parent._s('Archiv zapnut', 'Archive on') : widget.parent._s('Archiv vypnut', 'Archive off'));
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.home) { setState(() => _sortBy = order.first); return KeyEventResult.handled; }
+    if (event.logicalKey == LogicalKeyboardKey.end) { setState(() => _sortBy = order.last); return KeyEventResult.handled; }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handleFolderKey(FocusNode node, KeyEvent event, List<dynamic> folders) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final ids = <String?>[null, '__none', ...folders.map((f) => f.id as String?)];
+    final curIdx = ids.indexOf(_selectedFolderId);
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight || event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      final next = ids[(curIdx + 1) % ids.length];
+      setState(() => _selectedFolderId = next);
+      final label = next == null ? widget.parent._s('Vše', 'All') : next == '__none' ? widget.parent._s('Bez složky', 'No folder') : folders[ids.indexOf(next) - 2].name;
+      widget.parent._announce(label);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft || event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      final next = ids[(curIdx - 1 + ids.length) % ids.length];
+      setState(() => _selectedFolderId = next);
+      final label = next == null ? widget.parent._s('Vše', 'All') : next == '__none' ? widget.parent._s('Bez složky', 'No folder') : folders[ids.indexOf(next) - 2].name;
+      widget.parent._announce(label);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.home) { setState(() => _selectedFolderId = null); widget.parent._announce(widget.parent._s('Vše', 'All')); return KeyEventResult.handled; }
+    if (event.logicalKey == LogicalKeyboardKey.end) { setState(() => _selectedFolderId = ids.last); return KeyEventResult.handled; }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handleSetsKey(FocusNode node, KeyEvent event, List<StatisticsSet> filtered) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final len = filtered.length;
+    if (len == 0) return KeyEventResult.ignored;
+    final char = event.character;
+    if (char != null && char.length == 1 && RegExp(r'^[a-zA-Z0-9À-ɏ]$').hasMatch(char)) {
+      _typeAheadTimer?.cancel();
+      _typeAhead += char.toLowerCase();
+      _typeAheadTimer = Timer(const Duration(milliseconds: 800), () => _typeAhead = '');
+      final start = (_setsFocusIdx + 1) % len;
+      int found = -1;
+      for (int i = 0; i < len; i++) { final idx = (start + i) % len; if (filtered[idx].name.toLowerCase().startsWith(_typeAhead)) { found = idx; break; } }
+      if (found == -1) for (int i = 0; i < len; i++) if (filtered[i].name.toLowerCase().startsWith(_typeAhead)) { found = i; break; }
+      if (found != -1) { setState(() => _setsFocusIdx = found); widget.parent._announce('\, \ z '); return KeyEventResult.handled; }
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) { if (_setsFocusIdx < len - 1) { setState(() => _setsFocusIdx++); widget.parent._announce('\, \ z '); } return KeyEventResult.handled; }
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) { if (_setsFocusIdx > 0) { setState(() => _setsFocusIdx--); widget.parent._announce('\, \ z '); } return KeyEventResult.handled; }
+    if (event.logicalKey == LogicalKeyboardKey.home) { setState(() => _setsFocusIdx = 0); widget.parent._announce('\, 1 z '); return KeyEventResult.handled; }
+    if (event.logicalKey == LogicalKeyboardKey.end) { setState(() => _setsFocusIdx = len - 1); widget.parent._announce('\, \ z '); return KeyEventResult.handled; }
+    if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.space) {
+      final set = filtered[_setsFocusIdx]; final realIndex = widget.parent._statsSets.indexOf(set); final countForm = widget.parent._getStatsCountForm(set.records.length);
+      widget.parent.setState(() => widget.parent._currentStatsSetIndex = realIndex); widget.parent._saveStatsData();
+      final msg = widget.parent._l10n.statsSetSelectedAnnouncement(set.name, set.records.length, countForm); widget.parent.speak(msg, force: true); widget.parent._announce(msg); Navigator.pop(context); return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
 
   void _showCreateChoice() {
     final parent = widget.parent;
@@ -79,7 +160,9 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
       insetPadding: parent._dialogInsetPadding(),
       semanticLabel: l10n.statsSetsTitle,
       title: Semantics(header: true, child: Text(l10n.statsSetsTitle)),
-      content: SizedBox(
+      content: FocusTraversalGroup(
+        policy: ReadingOrderTraversalPolicy(),
+        child: SizedBox(
         width: double.maxFinite,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.72),
@@ -297,6 +380,7 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
             ],
           ),
         ),
+      ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.close)),
