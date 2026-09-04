@@ -1207,32 +1207,44 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                   onPressed: () async {
                     final code = await showDialog<String>(
                       context: context,
+                      useSafeArea: false,
                       builder: (dCtx) {
                         final ctrl = TextEditingController();
-                        return AlertDialog(
-                          title: Text(parent._l10n.currencyAddTitle),
-                          content: TextField(
-                            controller: ctrl,
-                            textCapitalization: TextCapitalization.characters,
-                            decoration: InputDecoration(
-                              labelText: parent._l10n.currencyCodeLabel,
-                              border: const OutlineInputBorder(),
-                            ),
-                            maxLength: 3,
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(dCtx),
-                              child: Text(parent._l10n.cancel),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.pop(
-                                dCtx,
-                                ctrl.text.trim().toUpperCase(),
+                        return Padding(
+                          padding: MediaQuery.of(dCtx).viewInsets,
+                          child: AlertDialog(
+                            insetPadding: parent._dialogInsetPadding(),
+                            title: Text(parent._l10n.currencyAddTitle),
+                            content: SingleChildScrollView(
+                              padding: EdgeInsets.only(
+                                bottom: MediaQuery.of(dCtx).viewInsets.bottom,
                               ),
-                              child: Text(parent._l10n.currencyAddButton),
+                              child: TextField(
+                                controller: ctrl,
+                                autofocus: true,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                decoration: InputDecoration(
+                                  labelText: parent._l10n.currencyCodeLabel,
+                                  border: const OutlineInputBorder(),
+                                ),
+                                maxLength: 3,
+                              ),
                             ),
-                          ],
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dCtx),
+                                child: Text(parent._l10n.cancel),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(
+                                  dCtx,
+                                  ctrl.text.trim().toUpperCase(),
+                                ),
+                                child: Text(parent._l10n.currencyAddButton),
+                              ),
+                            ],
+                          ),
                         );
                       },
                     );

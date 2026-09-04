@@ -3952,9 +3952,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       barrierDismissible: barrierDismissible,
       requestFocus: true,
+      useSafeArea: false,
       routeSettings: routeSettings,
-      builder: (dialogContext) =>
-          _wrapWithDialogFontScale(dialogContext, Builder(builder: builder)),
+      builder: (dialogContext) => Padding(
+        // Klíčový fix pro černou obrazovku: dialog zůstane nad klávesnicí,
+        // jinak adjustResize posune celý FlutterView mimo viewport
+        padding: MediaQuery.of(dialogContext).viewInsets,
+        child: _wrapWithDialogFontScale(dialogContext, Builder(builder: builder)),
+      ),
     );
   }
 
@@ -7141,12 +7146,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           insetPadding: _dialogInsetPadding(),
           semanticLabel: l10n.statsSetsRename,
           title: Text(l10n.statsSetsRename),
-          content: Semantics(
-            label: l10n.statsSetNameLabel,
-            child: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: InputDecoration(labelText: l10n.statsSetNameLabel),
+          content: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: Semantics(
+              label: l10n.statsSetNameLabel,
+              child: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(labelText: l10n.statsSetNameLabel),
+              ),
             ),
           ),
           actions: [
@@ -8329,11 +8339,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return AlertDialog(
           insetPadding: _dialogInsetPadding(),
           title: Text(_s('Přejmenovat složku', 'Rename folder')),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: _s('Název složky', 'Folder name'),
+          content: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: _s('Název složky', 'Folder name'),
+              ),
             ),
           ),
           actions: [
@@ -8721,7 +8736,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Widget _applyDialogSize(Widget child) {
-    final h = MediaQuery.of(context).size.height;
+    final mq = MediaQuery.of(context);
+    final bottomInset = mq.viewInsets.bottom;
+    // Dostupná výška po odečtu klávesnice - zabrání posunu dialogu nad horní hranu
+    final h = mq.size.height - bottomInset;
     switch (_dialogSize) {
       case DialogSize.compact:
         return SizedBox(
@@ -8745,13 +8763,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   EdgeInsets _dialogInsetPadding() {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    // Když je klávesnice otevřená, zmenšit vertikální padding aby dialog nepřetekl
+    final vertical = bottomInset > 0 ? 8.0 : 24.0;
     switch (_dialogSize) {
       case DialogSize.compact:
-        return const EdgeInsets.symmetric(horizontal: 40, vertical: 24);
+        return EdgeInsets.symmetric(horizontal: 40, vertical: vertical);
       case DialogSize.wide:
         return EdgeInsets.symmetric(
           horizontal: MediaQuery.of(context).size.width * 0.04,
-          vertical: 24,
+          vertical: vertical,
         );
       case DialogSize.fullscreen:
         return EdgeInsets.zero;

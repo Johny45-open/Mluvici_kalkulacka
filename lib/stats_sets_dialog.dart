@@ -165,15 +165,24 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
         child: SizedBox(
         width: double.maxFinite,
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.72),
+          constraints: BoxConstraints(
+            maxHeight: (MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).viewInsets.bottom) *
+                0.72,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Semantics(
                 label: parent._s('Hledat sadu podle názvu', 'Search set by name'),
-                child: TextField(
-                  decoration: InputDecoration(labelText: parent._s('Hledat', 'Search'), prefixIcon: const Icon(Icons.search)),
-                  onChanged: (v) => setState(() => _searchQuery = v),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 4 : 0,
+                  ),
+                  child: TextField(
+                    decoration: InputDecoration(labelText: parent._s('Hledat', 'Search'), prefixIcon: const Icon(Icons.search)),
+                    onChanged: (v) => setState(() => _searchQuery = v),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),

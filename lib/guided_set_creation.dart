@@ -422,7 +422,12 @@ extension on _CalculatorScreenState {
                 },
                 child: FocusTraversalGroup(
                   policy: ReadingOrderTraversalPolicy(),
-                  child: SingleChildScrollView(child: content),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom,
+                    ),
+                    child: content,
+                  ),
                 ),
               ),
               actions: [
