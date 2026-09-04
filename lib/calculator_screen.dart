@@ -9821,6 +9821,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       focusNode: _mainFocusNode,
       onKeyEvent: _handleKeyboardInput,
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: Text(l10n.appTitle),
           actions: [
@@ -9873,8 +9874,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ],
         ),
         body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
               // Výpočet dostupného prostoru
               final double totalHeight = constraints.maxHeight;
 
