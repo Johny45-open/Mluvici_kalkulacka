@@ -767,5 +767,14 @@
         "type": "String"
       }
     }
-  }
+  },
+  "autoReadStatsSummaryState": "Automaticky číst souhrn: {state}",
+  "@autoReadStatsSummaryState": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "autoReadStatsSummaryHint": "Když je zapnuto, po otevření STATS se rovnou přečte celý souhrn v nastaveném pořadí plus nápověda pro Tab"
 }

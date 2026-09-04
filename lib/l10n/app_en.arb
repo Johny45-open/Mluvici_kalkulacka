@@ -695,5 +695,14 @@
         "type": "String"
       }
     }
-  }
+  },
+  "autoReadStatsSummaryState": "Auto-read summary: {state}",
+  "@autoReadStatsSummaryState": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "autoReadStatsSummaryHint": "When on, opening STATS reads the full summary in the configured order plus the Tab hint"
 }

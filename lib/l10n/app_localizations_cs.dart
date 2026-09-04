@@ -1100,4 +1100,12 @@ class AppLocalizationsCs extends AppLocalizations {
   String announceExpressionState(String state) {
     return 'Oznamování příkladu: $state';
   }
+
+  @override
+  String autoReadStatsSummaryState(String state) {
+    return 'Automaticky číst souhrn: $state';
+  }
+
+  @override
+  String get autoReadStatsSummaryHint => 'Když je zapnuto, po otevření STATS se rovnou přečte celý souhrn v nastaveném pořadí plus nápověda pro Tab';
 }

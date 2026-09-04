@@ -2062,6 +2062,40 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
             ),
             const Divider(),
+            Semantics(
+              label: widget.parent._s(
+                'Přepnutí automatického čtení statistického souhrnu při otevření',
+                'Toggle auto-read of statistics summary on open',
+              ),
+              hint: widget.parent._s(
+                'Když je zapnuto, po otevření STATS se rovnou přečte celý souhrn v nastaveném pořadí plus nápověda pro Tab',
+                'When on, opening STATS reads the full summary in the configured order plus Tab hint',
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    widget.parent.setState(
+                      () => widget.parent._autoReadStatsSummary = !widget.parent._autoReadStatsSummary,
+                    );
+                    widget.parent._saveSettings();
+                  });
+                  final state = widget.parent._autoReadStatsSummary
+                      ? widget.parent._s('Zapnuto', 'On')
+                      : widget.parent._s('Vypnuto', 'Off');
+                  widget.parent.speak(
+                    widget.parent._l10n.autoReadStatsSummaryState(state),
+                  );
+                },
+                child: Text(
+                  widget.parent._l10n.autoReadStatsSummaryState(
+                    widget.parent._autoReadStatsSummary
+                        ? widget.parent._s('Zapnuto', 'On')
+                        : widget.parent._s('Vypnuto', 'Off'),
+                  ),
+                ),
+              ),
+            ),
+            const Divider(),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

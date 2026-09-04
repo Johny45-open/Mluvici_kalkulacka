@@ -1100,4 +1100,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String announceExpressionState(String state) {
     return 'Announce expression: $state';
   }
+
+  @override
+  String autoReadStatsSummaryState(String state) {
+    return 'Auto-read summary: $state';
+  }
+
+  @override
+  String get autoReadStatsSummaryHint => 'When on, opening STATS reads the full summary in the configured order plus the Tab hint';
 }

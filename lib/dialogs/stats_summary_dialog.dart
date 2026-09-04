@@ -100,20 +100,32 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
           _didAnnounce = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            if (p._isScreenReaderActive) {
-              // Pro čtečku oznámíme celý souhrn přes liveRegion
-              final announceText = p._s(
-                'Statistický souhrn otevřen. $spokenSummary',
-                'Statistics summary opened. $spokenSummary',
+            final tabHint = p._s(
+              ' Jednotlivé statistiky můžete procházet klávesou Tab.',
+              ' Use Tab to move through individual statistics.',
+            );
+            if (!p._autoReadStatsSummary) {
+              final short = p._s(
+                'Statistický souhrn otevřen. Jednotlivé statistiky můžete procházet klávesou Tab.',
+                'Statistics summary opened. Use Tab to move through individual statistics.',
               );
+              if (p._isScreenReaderActive) {
+                p._announce(short, dialogContext);
+              } else {
+                p.speak(short);
+              }
+              return;
+            }
+            // Obojí: celý souhrn v nastaveném pořadí + Tab hint, pro obě větve
+            final fullWithHint = spokenSummary.isNotEmpty ? '$spokenSummary$tabHint' : tabHint.trimLeft();
+            final announceText = p._s(
+              'Statistický souhrn otevřen. $fullWithHint',
+              'Statistics summary opened. $fullWithHint',
+            );
+            if (p._isScreenReaderActive) {
               p._announce(announceText, dialogContext);
             } else {
-              p.speak(
-                p._s(
-                  'Statistický souhrn otevřen. Jednotlivé statistiky můžete procházet klávesou Tab.',
-                  'Statistics summary opened. Use Tab to move through individual statistics.',
-                ),
-              );
+              p.speak(announceText, force: true);
             }
           });
         }
@@ -142,6 +154,29 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
               : p._s('Čtení hodnot vypnuto', 'Reading values disabled');
           final ordered = p._getOrderedSpokenSummary(p._selectedFieldIndex);
           final full = ordered.isNotEmpty ? '$statusMsg. $ordered' : statusMsg;
+          if (p._isScreenReaderActive) {
+            p._announce(full, dialogContext);
+          }
+          p.speak(full, force: true);
+          p._showAccessibleSnackBar(statusMsg, announceMessage: full, scaffoldContext: dialogContext);
+        }
+
+        void toggleAutoRead(bool? v) {
+          final newVal = v ?? true;
+          p.setState(() {
+            p._autoReadStatsSummary = newVal;
+            p._saveSettings();
+          });
+          setDialogState(() {});
+          final statusMsg = newVal
+              ? p._s('Automatické čtení souhrnu zapnuto', 'Auto-read summary enabled')
+              : p._s('Automatické čtení souhrnu vypnuto', 'Auto-read summary disabled');
+          final hint = newVal
+              ? p._s('Po otevření se rovnou přečte celý souhrn v nastaveném pořadí plus nápověda pro Tab.',
+                  'On open the full summary in the configured order plus Tab hint will be read.')
+              : p._s('Po otevření se řekne jen hlavička s nápovědou pro Tab.',
+                  'On open only the header with Tab hint will be announced.');
+          final full = '$statusMsg. $hint';
           if (p._isScreenReaderActive) {
             p._announce(full, dialogContext);
           }
@@ -265,6 +300,27 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                           ),
                           value: p._readStatsMemoryValues,
                           onChanged: toggleReadValues,
+                        ),
+                      ),
+                      Semantics(
+                        checked: p._autoReadStatsSummary,
+                        label: p._s('Automaticky číst souhrn při otevření', 'Auto-read summary on open'),
+                        hint: p._s(
+                          'Když je zapnuto, po otevření se rovnou přečte celý souhrn v nastaveném pořadí plus nápověda pro Tab',
+                          'When on, opening the dialog reads the full summary in the configured order plus Tab hint',
+                        ),
+                        child: CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(p._s('Automaticky číst souhrn při otevření', 'Auto-read summary on open')),
+                          subtitle: Text(
+                            p._s(
+                              'Vypnutím se řekne jen hlavička s nápovědou pro Tab',
+                              'When off only the header with Tab hint is announced',
+                            ),
+                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                          value: p._autoReadStatsSummary,
+                          onChanged: toggleAutoRead,
                         ),
                       ),
                       if (p._readStatsMemoryValues) ...[

@@ -2068,6 +2068,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Announce expression: {state}'**
   String announceExpressionState(String state);
+
+  /// No description provided for @autoReadStatsSummaryState.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-read summary: {state}'**
+  String autoReadStatsSummaryState(String state);
+
+  /// No description provided for @autoReadStatsSummaryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When on, opening STATS reads the full summary in the configured order plus the Tab hint'**
+  String get autoReadStatsSummaryHint;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
