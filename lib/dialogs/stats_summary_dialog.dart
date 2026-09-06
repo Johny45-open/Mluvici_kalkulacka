@@ -243,6 +243,7 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
 
         return AlertDialog(
           insetPadding: p._dialogInsetPadding(),
+          semanticLabel: l10n.statsSummaryTitle,
           title: Semantics(header: true, child: Text(l10n.statsSummaryTitle)),
           content: FocusTraversalGroup(
             policy: ReadingOrderTraversalPolicy(),

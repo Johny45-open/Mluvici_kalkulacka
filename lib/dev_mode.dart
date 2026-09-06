@@ -782,6 +782,7 @@ class _PrefsDumpDialogState extends State<_PrefsDumpDialog> {
 
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._s('Uložená data', 'Stored data'),
       title: Semantics(
         header: true,
         child: Row(

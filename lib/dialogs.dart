@@ -1214,7 +1214,11 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                         // TextField viditelný nad klávesnicí.
                         return AlertDialog(
                           insetPadding: parent._dialogInsetPadding(),
-                          title: Text(parent._l10n.currencyAddTitle),
+                          semanticLabel: parent._l10n.currencyAddTitle,
+                          title: Semantics(
+                            header: true,
+                            child: Text(parent._l10n.currencyAddTitle),
+                          ),
                           content: SingleChildScrollView(
                             padding: EdgeInsets.only(
                               bottom: MediaQuery.of(dCtx).viewInsets.bottom,

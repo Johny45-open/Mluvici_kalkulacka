@@ -4471,8 +4471,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         routeSettings: const RouteSettings(name: 'Vybrat TTS engine'),
         builder: (context) => AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: 'Vybrat TTS engine',
-          title: const Text('Vybrat TTS engine'),
+          semanticLabel: _s('Vybrat TTS engine', 'Select TTS engine'),
+          title: Semantics(
+            header: true,
+            child: Text(_s('Vybrat TTS engine', 'Select TTS engine')),
+          ),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
@@ -8429,7 +8432,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (ctx) {
         return AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          title: Text(_s('Přejmenovat složku', 'Rename folder')),
+          semanticLabel: _s('Přejmenovat složku', 'Rename folder'),
+          title: Semantics(
+            header: true,
+            child: Text(_s('Přejmenovat složku', 'Rename folder')),
+          ),
           content: SingleChildScrollView(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(ctx).viewInsets.bottom,
@@ -8527,8 +8534,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   context: ctx,
                                   builder: (c2) => StatefulBuilder(
                                     builder: (c2, s2) => AlertDialog(
-                                      title: Text(
-                                        _s('Barva a ikona', 'Color and icon'),
+                                      semanticLabel: _s('Barva a ikona', 'Color and icon'),
+                                      title: Semantics(
+                                        header: true,
+                                        child: Text(
+                                          _s('Barva a ikona', 'Color and icon'),
+                                        ),
                                       ),
                                       content: Column(
                                         mainAxisSize: MainAxisSize.min,
@@ -8592,8 +8603,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 showAppDialog<void>(
                                   context: ctx,
                                   builder: (c2) => AlertDialog(
-                                    title: Text(
-                                      _s('Smazat složku?', 'Delete folder?'),
+                                    semanticLabel: _s('Smazat složku?', 'Delete folder?'),
+                                    title: Semantics(
+                                      header: true,
+                                      child: Text(
+                                        _s('Smazat složku?', 'Delete folder?'),
+                                      ),
                                     ),
                                     content: Text(
                                       _s(
@@ -8711,7 +8726,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: _s('Smazat sadu?', 'Delete set?')),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        title: Text(_s('Smazat sadu?', 'Delete set?')),
+        semanticLabel: _s('Smazat sadu?', 'Delete set?'),
+        title: Semantics(
+          header: true,
+          child: Text(_s('Smazat sadu?', 'Delete set?')),
+        ),
         content: Text(
           _s(
             'Opravdu smazat sadu "$name"? Tato akce je nevratná.',
@@ -10302,6 +10321,7 @@ class _TutorialDialogState extends State<_TutorialDialog>
       policy: ReadingOrderTraversalPolicy(),
       child: AlertDialog(
         insetPadding: widget.parent._dialogInsetPadding(),
+        semanticLabel: widget.l10n.helpTitle,
         title: Semantics(header: true, child: Text(widget.l10n.helpTitle)),
         content: ConstrainedBox(
           constraints: BoxConstraints(
