@@ -1116,4 +1116,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statsNavigationHintHint => 'When on, opening the statistics summary also announces the Tab navigation hint';
+
+  @override
+  String get welcome => 'Welcome';
+
+  @override
+  String get accessibilityProfile => 'Accessibility mode';
+
+  @override
+  String get profileBlind => 'Blind';
+
+  @override
+  String get profileLowVision => 'Low vision';
+
+  @override
+  String get selectAccessibilityLevel => 'Select the desired accessibility level. You can change this at any time in the settings.';
+
+  @override
+  String profileSetAndSaved(String profile) {
+    return 'Accessibility mode $profile has been set and saved.';
+  }
+
+  @override
+  String profileChangedTo(String profile) {
+    return 'Accessibility mode has been changed to $profile and the settings have been saved.';
+  }
 }

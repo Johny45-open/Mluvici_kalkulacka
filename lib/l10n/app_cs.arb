@@ -785,5 +785,26 @@
       }
     }
   },
-  "statsNavigationHintHint": "Když je zapnuto, při otevření statistického souhrnu se ohlásí i nápověda pro pohyb klávesou Tab"
+  "statsNavigationHintHint": "Když je zapnuto, při otevření statistického souhrnu se ohlásí i nápověda pro pohyb klávesou Tab",
+  "welcome": "Vítejte",
+  "accessibilityProfile": "Režim přístupnosti",
+  "profileBlind": "Nevidomý",
+  "profileLowVision": "Slabozraký",
+  "selectAccessibilityLevel": "Vyberte požadovanou úroveň usnadnění. Toto nastavení můžete kdykoliv změnit v nastavení.",
+  "profileSetAndSaved": "Režim přístupnosti {profile} byl nastaven a uložen.",
+  "@profileSetAndSaved": {
+    "placeholders": {
+      "profile": {
+        "type": "String"
+      }
+    }
+  },
+  "profileChangedTo": "Režim přístupnosti byl změněn na {profile} a nastavení bylo uloženo.",
+  "@profileChangedTo": {
+    "placeholders": {
+      "profile": {
+        "type": "String"
+      }
+    }
+  }
 }

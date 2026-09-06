@@ -713,5 +713,26 @@
       }
     }
   },
-  "statsNavigationHintHint": "When on, opening the statistics summary also announces the Tab navigation hint"
+  "statsNavigationHintHint": "When on, opening the statistics summary also announces the Tab navigation hint",
+  "welcome": "Welcome",
+  "accessibilityProfile": "Accessibility mode",
+  "profileBlind": "Blind",
+  "profileLowVision": "Low vision",
+  "selectAccessibilityLevel": "Select the desired accessibility level. You can change this at any time in the settings.",
+  "profileSetAndSaved": "Accessibility mode {profile} has been set and saved.",
+  "@profileSetAndSaved": {
+    "placeholders": {
+      "profile": {
+        "type": "String"
+      }
+    }
+  },
+  "profileChangedTo": "Accessibility mode has been changed to {profile} and the settings have been saved.",
+  "@profileChangedTo": {
+    "placeholders": {
+      "profile": {
+        "type": "String"
+      }
+    }
+  }
 }

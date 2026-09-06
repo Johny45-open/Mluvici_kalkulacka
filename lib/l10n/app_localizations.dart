@@ -2092,6 +2092,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When on, opening the statistics summary also announces the Tab navigation hint'**
   String get statsNavigationHintHint;
+
+  /// No description provided for @welcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome'**
+  String get welcome;
+
+  /// No description provided for @accessibilityProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Accessibility mode'**
+  String get accessibilityProfile;
+
+  /// No description provided for @profileBlind.
+  ///
+  /// In en, this message translates to:
+  /// **'Blind'**
+  String get profileBlind;
+
+  /// No description provided for @profileLowVision.
+  ///
+  /// In en, this message translates to:
+  /// **'Low vision'**
+  String get profileLowVision;
+
+  /// No description provided for @selectAccessibilityLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the desired accessibility level. You can change this at any time in the settings.'**
+  String get selectAccessibilityLevel;
+
+  /// No description provided for @profileSetAndSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Accessibility mode {profile} has been set and saved.'**
+  String profileSetAndSaved(String profile);
+
+  /// No description provided for @profileChangedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Accessibility mode has been changed to {profile} and the settings have been saved.'**
+  String profileChangedTo(String profile);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

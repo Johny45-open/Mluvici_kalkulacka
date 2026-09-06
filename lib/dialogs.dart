@@ -1932,6 +1932,46 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  label: widget.parent._l10n.accessibilityProfile,
+                  child: ExcludeSemantics(
+                    child: Text(widget.parent._l10n.accessibilityProfile),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<AccessibilityType>(
+                  segments: [
+                    ButtonSegment(
+                      value: AccessibilityType.blind,
+                      label: Text(widget.parent._l10n.profileBlind),
+                      tooltip: widget.parent._l10n.profileBlind,
+                    ),
+                    ButtonSegment(
+                      value: AccessibilityType.visuallyImpaired,
+                      label: Text(widget.parent._l10n.profileLowVision),
+                      tooltip: widget.parent._l10n.profileLowVision,
+                    ),
+                  ],
+                  selected: {widget.parent._displayAccessibilityType},
+                  onSelectionChanged: (Set<AccessibilityType> selected) {
+                    final profile = selected.first;
+                    final name = widget.parent._accessibilityProfileName(
+                      profile,
+                    );
+                    setState(() {});
+                    widget.parent.applyAccessibilityProfile(
+                      profile,
+                      announcement: widget.parent._l10n.profileChangedTo(name),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const Divider(),
             Semantics(
               label: widget.parent._s(
                 'Přepnutí typu displeje',

@@ -1116,4 +1116,29 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get statsNavigationHintHint => 'Když je zapnuto, při otevření statistického souhrnu se ohlásí i nápověda pro pohyb klávesou Tab';
+
+  @override
+  String get welcome => 'Vítejte';
+
+  @override
+  String get accessibilityProfile => 'Režim přístupnosti';
+
+  @override
+  String get profileBlind => 'Nevidomý';
+
+  @override
+  String get profileLowVision => 'Slabozraký';
+
+  @override
+  String get selectAccessibilityLevel => 'Vyberte požadovanou úroveň usnadnění. Toto nastavení můžete kdykoliv změnit v nastavení.';
+
+  @override
+  String profileSetAndSaved(String profile) {
+    return 'Režim přístupnosti $profile byl nastaven a uložen.';
+  }
+
+  @override
+  String profileChangedTo(String profile) {
+    return 'Režim přístupnosti byl změněn na $profile a nastavení bylo uloženo.';
+  }
 }

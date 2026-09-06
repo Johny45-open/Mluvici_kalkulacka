@@ -3769,8 +3769,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _autoReadStatsSummary = prefs.getBool('autoReadStatsSummary') ?? true;
       _showStatsNavigationHint =
           prefs.getBool('showStatsNavigationHint') ?? true;
-      _accessibilityType =
-          AccessibilityType.values[prefs.getInt('accessibilityType') ?? 0];
+      _accessibilityType = () {
+        final stored = prefs.getInt('accessibilityType');
+        if (stored == null) return AccessibilityType.none;
+        final values = AccessibilityType.values;
+        final idx = stored.clamp(0, values.length - 1);
+        // Migrace historické volby STANDARDNÍ (none) na profil Slabozraký.
+        // Starší verze ukládala none=0 / blind=1; nový enum přidává
+        // visuallyImpaired=2. Existujícím uživatelům se nic nemazá ani
+        // nerestartuje – jen se none zobrazí/aplikuje jako Slabozraký.
+        if (idx == AccessibilityType.none.index) {
+          return AccessibilityType.visuallyImpaired;
+        }
+        return values[idx];
+      }();
       _speechRate = prefs.getDouble('speechRate') ?? 0.5;
       _speechVolume = prefs.getDouble('speechVolume') ?? 1.0;
       _ttsEngine = prefs.getString('ttsEngine');
@@ -3954,6 +3966,69 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'statsComputedOrder',
       _statsComputedOrder.map((e) => e.name).toList(),
     );
+  }
+
+  /// Lokalizovaný název profilu přístupnosti.
+  String _accessibilityProfileName(AccessibilityType profile) {
+    switch (profile) {
+      case AccessibilityType.blind:
+        return _l10n.profileBlind;
+      case AccessibilityType.visuallyImpaired:
+        return _l10n.profileLowVision;
+      case AccessibilityType.none:
+        return _l10n.profileLowVision;
+    }
+  }
+
+  /// Hodnota profilu pro zobrazení ve výběru (historické `none` = Slabozraký).
+  AccessibilityType get _displayAccessibilityType {
+    if (_accessibilityType == AccessibilityType.none) {
+      return AccessibilityType.visuallyImpaired;
+    }
+    return _accessibilityType;
+  }
+
+  /// Aplikuje trvalý profil přístupnosti: nastaví odpovídající existující
+  /// hodnoty, uloží je přes [_saveSettings] (případně motiv přes
+  /// `onThemeModeChanged`) a přístupně oznámí výsledek.
+  ///
+  /// Profil se aplikuje POUZE v okamžiku volby/změny – při běžném startu se
+  /// jen načtou uložené hodnoty v [_loadSettings], takže ruční úpravy
+  /// (např. velikosti písma) nikdy nepřepisuje.
+  Future<void> applyAccessibilityProfile(
+    AccessibilityType profile, {
+    String? announcement,
+  }) async {
+    setState(() {
+      _accessibilityType = profile;
+      if (profile == AccessibilityType.blind) {
+        ttsEnabled = true;
+        _announceExpression = true;
+        _autoReadStatsSummary = true;
+        _readStatsMemoryValues = true;
+        _screenReaderMode = ScreenReaderMode.auto;
+      } else if (profile == AccessibilityType.visuallyImpaired) {
+        ttsEnabled = true;
+        _fontSizeMultiplier = 1.4;
+        _dialogFontScale = 1.4;
+        _dotMatrixZoom = 1.5;
+        _resultZoom = 1.5;
+      } else {
+        ttsEnabled = true;
+      }
+    });
+    _dialogFontScaleNotifier.value = _dialogFontScale;
+    await tts.setSpeechRate(_speechRate);
+    await tts.setVolume(_speechVolume);
+    if (profile == AccessibilityType.visuallyImpaired) {
+      widget.onThemeModeChanged(ThemeMode.dark);
+    }
+    _saveSettings();
+    if (announcement != null && announcement.isNotEmpty && mounted) {
+      _showAccessibleSnackBar(announcement);
+      speak(announcement, force: true);
+    }
+    if (mounted) setState(() {});
   }
 
   void _setDefaultMode(CalculatorMode mode) async {
@@ -4163,36 +4238,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Vítejte'),
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _s('Vítejte', 'Welcome'),
-        title: Semantics(header: true, child: Text(_s('Vítejte', 'Welcome'))),
-        content: Text(
-          _s(
-            'Vyberte požadovanou úroveň usnadnění. Toto nastavení můžete kdykoliv změnit v nastavení.',
-            'Select the desired accessibility level. You can change this at any time in the settings.',
-          ),
-        ),
+        semanticLabel: _l10n.welcome,
+        title: Semantics(header: true, child: Text(_l10n.welcome)),
+        content: Text(_l10n.selectAccessibilityLevel),
         actions: [
-          TextButton(
-            onPressed: () {
-              setState(() => _accessibilityType = AccessibilityType.none);
-              _saveSettings();
-              Navigator.pop(context);
-            },
-            child: Text(_s('STANDARDNÍ', 'STANDARD')),
-          ),
           TextButton(
             autofocus: true,
             onPressed: () {
-              setState(() {
-                _accessibilityType = AccessibilityType.blind;
-                ttsEnabled = true;
-              });
-              _saveSettings();
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              applyAccessibilityProfile(
+                AccessibilityType.blind,
+                announcement: _l10n.profileSetAndSaved(_l10n.profileBlind),
+              );
             },
-            child: Text(_s('PRO NEVIDOMÉ', 'FOR THE BLIND')),
+            child: Text(_l10n.profileBlind.toUpperCase()),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              applyAccessibilityProfile(
+                AccessibilityType.visuallyImpaired,
+                announcement: _l10n.profileSetAndSaved(_l10n.profileLowVision),
+              );
+            },
+            child: Text(_l10n.profileLowVision.toUpperCase()),
           ),
         ],
       ),
@@ -8717,6 +8788,38 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @visibleForTesting
   void showRenameStatsSetDialogForTest(int index) {
     _showRenameStatsSetDialog(context, index, () {});
+  }
+
+  @visibleForTesting
+  void showAccessibilityDialogForTest() {
+    _showAccessibilityDialog();
+  }
+
+  @visibleForTesting
+  void showInitialAccessibilityDialogForTest() {
+    _showInitialAccessibilityDialog();
+  }
+
+  @visibleForTesting
+  AccessibilityType get displayAccessibilityTypeForTest =>
+      _displayAccessibilityType;
+
+  @visibleForTesting
+  double get keyboardFontScaleForTest => _keyboardFontScale;
+
+  @visibleForTesting
+  double get dialogFontScaleForTest => _dialogFontScale;
+
+  @visibleForTesting
+  double get dotMatrixZoomForTest => _dotMatrixZoom;
+
+  @visibleForTesting
+  double get resultZoomForTest => _resultZoom;
+
+  @visibleForTesting
+  void setKeyboardFontScaleForTest(double value) {
+    _keyboardFontScale = value;
+    _saveSettings();
   }
 
   void _showDeleteStatsSetConfirmation(
