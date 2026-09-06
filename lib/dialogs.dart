@@ -1937,38 +1937,42 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
-                  label: widget.parent._l10n.accessibilityProfile,
+                  label: widget.parent._l10n.accessibilityProfileSection,
                   child: ExcludeSemantics(
-                    child: Text(widget.parent._l10n.accessibilityProfile),
+                    child: Text(widget.parent._l10n.accessibilityProfileSection),
                   ),
                 ),
                 const SizedBox(height: 8),
-                SegmentedButton<AccessibilityType>(
-                  segments: [
-                    ButtonSegment(
-                      value: AccessibilityType.blind,
-                      label: Text(widget.parent._l10n.profileBlind),
-                      tooltip: widget.parent._l10n.profileBlind,
-                    ),
-                    ButtonSegment(
-                      value: AccessibilityType.visuallyImpaired,
-                      label: Text(widget.parent._l10n.profileLowVision),
-                      tooltip: widget.parent._l10n.profileLowVision,
-                    ),
-                  ],
-                  selected: {widget.parent._displayAccessibilityType},
-                  onSelectionChanged: (Set<AccessibilityType> selected) {
-                    final profile = selected.first;
-                    final name = widget.parent._accessibilityProfileName(
-                      profile,
-                    );
-                    setState(() {});
-                    widget.parent.applyAccessibilityProfile(
-                      profile,
-                      announcement: widget.parent._l10n.profileChangedTo(name),
-                    );
-                  },
+                Text(
+                  widget.parent._isProfileModified
+                      ? widget.parent._l10n.activeProfileModified(
+                          widget.parent._profiles.firstWhere((p) => p.id == widget.parent._activeProfileId, orElse: () => widget.parent._profiles.first).name
+                        )
+                      : widget.parent._l10n.activeProfile(
+                          widget.parent._profiles.firstWhere((p) => p.id == widget.parent._activeProfileId, orElse: () => widget.parent._profiles.first).name
+                        ),
                 ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                    children: widget.parent._profiles.map((profile) {
+                        return ElevatedButton(
+                          onPressed: () {
+                            widget.parent._showProfilePreviewDialog(profile);
+                          },
+                          child: Text(profile.name),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () {
+                        widget.parent._showSaveProfileDialog();
+                      },
+                      child: Text(widget.parent._l10n.saveSettingsToProfile),
+                    ),
+
               ],
             ),
             const Divider(),

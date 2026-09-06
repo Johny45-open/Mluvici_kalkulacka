@@ -21,6 +21,32 @@ class _TimeInputException implements Exception {
 
 enum AccessibilityType { none, blind, visuallyImpaired }
 
+class AccessibilityProfile {
+  final String id;
+  final String name;
+  final Map<String, dynamic> settings;
+
+  AccessibilityProfile({required this.id, required this.name, required this.settings});
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'settings': settings};
+
+  factory AccessibilityProfile.fromJson(Map<String, dynamic> json) {
+    return AccessibilityProfile(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      settings: Map<String, dynamic>.from(json['settings'] as Map),
+    );
+  }
+
+  AccessibilityProfile copyWith({String? name, Map<String, dynamic>? settings}) {
+    return AccessibilityProfile(
+      id: id,
+      name: name ?? this.name,
+      settings: settings ?? this.settings,
+    );
+  }
+}
+
 enum DisplayFormat { standard, fix, sci, eng }
 
 enum ElectricianCalculation { voltage, current, resistance }

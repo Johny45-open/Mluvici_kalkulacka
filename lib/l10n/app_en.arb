@@ -727,12 +727,41 @@
       }
     }
   },
-  "profileChangedTo": "Accessibility mode has been changed to {profile} and the settings have been saved.",
-  "@profileChangedTo": {
+  "profileStandard": "Standard",
+  "accessibilityProfileSection": "Accessibility profile",
+  "previewSettings": "Preview settings",
+  "saveSettingsToProfile": "Save current settings to profile",
+  "activeProfile": "Active profile: {name}",
+  "@activeProfile": {
     "placeholders": {
-      "profile": {
+      "name": {
         "type": "String"
       }
     }
-  }
+  },
+  "activeProfileModified": "Active profile: {name} – modified",
+  "@activeProfileModified": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "applyProfile": "Apply profile",
+  "settingName": "{name}: now {old}, new {new}",
+  "@settingName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "old": {
+        "type": "String"
+      },
+      "new": {
+        "type": "String"
+      }
+    }
+  },
+  "noChanges": "No settings to apply.",
+  "profileChangedTo": "Accessibility mode has been changed to {profile} and the settings have been saved."
 }

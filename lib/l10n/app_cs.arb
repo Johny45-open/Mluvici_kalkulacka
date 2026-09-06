@@ -799,6 +799,42 @@
       }
     }
   },
+  "profileStandard": "Standardní",
+  "accessibilityProfileSection": "Profil přístupnosti",
+  "previewSettings": "Náhled nastavení",
+  "saveSettingsToProfile": "Uložit aktuální nastavení do profilu",
+  "activeProfile": "Aktivní profil: {name}",
+  "@activeProfile": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activeProfileModified": "Aktivní profil: {name} – upraveno",
+  "@activeProfileModified": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "applyProfile": "Použít profil",
+  "settingName": "{name}: nyní {old}, nově {new}",
+  "@settingName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "old": {
+        "type": "String"
+      },
+      "new": {
+        "type": "String"
+      }
+    }
+  },
+  "noChanges": "Žádná nastavení k aplikování.",
   "profileChangedTo": "Režim přístupnosti byl změněn na {profile} a nastavení bylo uloženo.",
   "@profileChangedTo": {
     "placeholders": {
