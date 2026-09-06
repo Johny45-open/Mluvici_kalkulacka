@@ -2080,6 +2080,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When on, opening STATS reads the full summary in the configured order plus the Tab hint'**
   String get autoReadStatsSummaryHint;
+
+  /// No description provided for @statsNavigationHintState.
+  ///
+  /// In en, this message translates to:
+  /// **'Stats navigation hint: {state}'**
+  String statsNavigationHintState(String state);
+
+  /// No description provided for @statsNavigationHintHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When on, opening the statistics summary also announces the Tab navigation hint'**
+  String get statsNavigationHintHint;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

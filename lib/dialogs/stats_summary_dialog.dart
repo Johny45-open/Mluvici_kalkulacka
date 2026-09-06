@@ -132,15 +132,22 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
           _didAnnounce = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            final tabHint = p._s(
-              ' Jednotlivé statistiky můžete procházet klávesou Tab.',
-              ' Use Tab to move through individual statistics.',
-            );
+            final tabHint = p._showStatsNavigationHint
+                ? p._s(
+                    ' Jednotlivé statistiky můžete procházet klávesou Tab.',
+                    ' Use Tab to move through individual statistics.',
+                  )
+                : '';
             if (!p._autoReadStatsSummary) {
-              final short = p._s(
-                'Statistický souhrn otevřen. Jednotlivé statistiky můžete procházet klávesou Tab.',
-                'Statistics summary opened. Use Tab to move through individual statistics.',
-              );
+              final short = p._showStatsNavigationHint
+                  ? p._s(
+                      'Statistický souhrn otevřen. Jednotlivé statistiky můžete procházet klávesou Tab.',
+                      'Statistics summary opened. Use Tab to move through individual statistics.',
+                    )
+                  : p._s(
+                      'Statistický souhrn otevřen.',
+                      'Statistics summary opened.',
+                    );
               if (p._isScreenReaderActive) {
                 p._announce(short, dialogContext);
               } else {
@@ -148,14 +155,19 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
               }
               return;
             }
-            // Obojí: celý souhrn v nastaveném pořadí + Tab hint, pro obě větve
+            // Obojí: celý souhrn v nastaveném pořadí + Tab hint (jen když je nápověda zapnutá), pro obě větve
             final fullWithHint = spokenSummary.isNotEmpty
                 ? '$spokenSummary$tabHint'
                 : tabHint.trimLeft();
-            final announceText = p._s(
-              'Statistický souhrn otevřen. $fullWithHint',
-              'Statistics summary opened. $fullWithHint',
-            );
+            final announceText = fullWithHint.isNotEmpty
+                ? p._s(
+                    'Statistický souhrn otevřen. $fullWithHint',
+                    'Statistics summary opened. $fullWithHint',
+                  )
+                : p._s(
+                    'Statistický souhrn otevřen.',
+                    'Statistics summary opened.',
+                  );
             if (p._isScreenReaderActive) {
               p._announce(announceText, dialogContext);
             } else {
@@ -236,6 +248,28 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
           p.speak(full, force: true);
           p._showAccessibleSnackBar(
             statusMsg,
+            announceMessage: full,
+            scaffoldContext: dialogContext,
+          );
+        }
+
+        void toggleNavigationHint(bool? v) {
+          final newVal = v ?? true;
+          p.setState(() {
+            p._showStatsNavigationHint = newVal;
+            p._saveSettings();
+          });
+          setDialogState(() {});
+          final state = newVal
+              ? p._s('Zapnuto', 'On')
+              : p._s('Vypnuto', 'Off');
+          final full = p._l10n.statsNavigationHintState(state);
+          if (p._isScreenReaderActive) {
+            p._announce(full, dialogContext);
+          }
+          p.speak(full, force: true);
+          p._showAccessibleSnackBar(
+            full,
             announceMessage: full,
             scaffoldContext: dialogContext,
           );
@@ -426,6 +460,32 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                             ),
                             value: p._autoReadStatsSummary,
                             onChanged: toggleAutoRead,
+                          ),
+                        ),
+                        Semantics(
+                          checked: p._showStatsNavigationHint,
+                          label: p._s(
+                            'Nápověda pro pohyb ve statistickém souhrnu',
+                            'Stats navigation hint',
+                          ),
+                          hint: p._l10n.statsNavigationHintHint,
+                          child: CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              p._s(
+                                'Nápověda pro pohyb ve statistickém souhrnu',
+                                'Stats navigation hint',
+                              ),
+                            ),
+                            subtitle: Text(
+                              p._l10n.statsNavigationHintHint,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            value: p._showStatsNavigationHint,
+                            onChanged: toggleNavigationHint,
                           ),
                         ),
                         if (p._readStatsMemoryValues) ...[

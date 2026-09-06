@@ -1108,4 +1108,12 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get autoReadStatsSummaryHint => 'Když je zapnuto, po otevření STATS se rovnou přečte celý souhrn v nastaveném pořadí plus nápověda pro Tab';
+
+  @override
+  String statsNavigationHintState(String state) {
+    return 'Nápověda pro pohyb ve statistickém souhrnu: $state';
+  }
+
+  @override
+  String get statsNavigationHintHint => 'Když je zapnuto, při otevření statistického souhrnu se ohlásí i nápověda pro pohyb klávesou Tab';
 }

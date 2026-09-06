@@ -1108,4 +1108,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get autoReadStatsSummaryHint => 'When on, opening STATS reads the full summary in the configured order plus the Tab hint';
+
+  @override
+  String statsNavigationHintState(String state) {
+    return 'Stats navigation hint: $state';
+  }
+
+  @override
+  String get statsNavigationHintHint => 'When on, opening the statistics summary also announces the Tab navigation hint';
 }

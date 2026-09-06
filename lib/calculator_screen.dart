@@ -55,6 +55,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _announceExpression = false;
   bool _readStatsMemoryValues = true;
   bool _autoReadStatsSummary = true;
+  bool _showStatsNavigationHint = true;
   List<StatsSummarySection> _statsSummaryOrder = [
     StatsSummarySection.header,
     StatsSummarySection.dataValues,
@@ -3766,6 +3767,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _announceExpression = prefs.getBool('announceExpression') ?? false;
       _readStatsMemoryValues = prefs.getBool('readStatsMemoryValues') ?? true;
       _autoReadStatsSummary = prefs.getBool('autoReadStatsSummary') ?? true;
+      _showStatsNavigationHint =
+          prefs.getBool('showStatsNavigationHint') ?? true;
       _accessibilityType =
           AccessibilityType.values[prefs.getInt('accessibilityType') ?? 0];
       _speechRate = prefs.getDouble('speechRate') ?? 0.5;
@@ -3913,6 +3916,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setBool('announceExpression', _announceExpression);
     await prefs.setBool('readStatsMemoryValues', _readStatsMemoryValues);
     await prefs.setBool('autoReadStatsSummary', _autoReadStatsSummary);
+    await prefs.setBool('showStatsNavigationHint', _showStatsNavigationHint);
     await prefs.setInt('accessibilityType', _accessibilityType.index);
     await prefs.setDouble('speechRate', _speechRate);
     await prefs.setDouble('speechVolume', _speechVolume);

@@ -704,5 +704,14 @@
       }
     }
   },
-  "autoReadStatsSummaryHint": "When on, opening STATS reads the full summary in the configured order plus the Tab hint"
+  "autoReadStatsSummaryHint": "When on, opening STATS reads the full summary in the configured order plus the Tab hint",
+  "statsNavigationHintState": "Stats navigation hint: {state}",
+  "@statsNavigationHintState": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "statsNavigationHintHint": "When on, opening the statistics summary also announces the Tab navigation hint"
 }

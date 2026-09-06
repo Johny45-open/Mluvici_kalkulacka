@@ -2099,6 +2099,38 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
             ),
             const Divider(),
+            Semantics(
+              label: widget.parent._s(
+                'Přepnutí nápovědy pro pohyb ve statistickém souhrnu',
+                'Toggle stats summary navigation hint',
+              ),
+              hint: widget.parent._l10n.statsNavigationHintHint,
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    widget.parent.setState(
+                      () => widget.parent._showStatsNavigationHint =
+                          !widget.parent._showStatsNavigationHint,
+                    );
+                    widget.parent._saveSettings();
+                  });
+                  final state = widget.parent._showStatsNavigationHint
+                      ? widget.parent._s('Zapnuto', 'On')
+                      : widget.parent._s('Vypnuto', 'Off');
+                  widget.parent.speak(
+                    widget.parent._l10n.statsNavigationHintState(state),
+                  );
+                },
+                child: Text(
+                  widget.parent._l10n.statsNavigationHintState(
+                    widget.parent._showStatsNavigationHint
+                        ? widget.parent._s('Zapnuto', 'On')
+                        : widget.parent._s('Vypnuto', 'Off'),
+                  ),
+                ),
+              ),
+            ),
+            const Divider(),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
