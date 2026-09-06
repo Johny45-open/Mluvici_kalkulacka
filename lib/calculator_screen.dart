@@ -2167,26 +2167,46 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return _getModeSpeechNameForL10n(mode, _l10n);
   }
 
+  /// Sjednocená detekce aktivního screen readeru.
+  ///
+  /// Android -> nativní `isTalkBackEnabled` (AccessibilityManager).
+  /// Windows -> nativní `isScreenReaderEnabled` (SPI_GETSCREENREADER ||
+  ///   UiaClientsAreListening), generická pro NVDA / JAWS / Narrator.
+  /// Ostatní platformy nebo selhání nativu -> Flutter fallback
+  /// `accessibleNavigation` (pouze jako fallback, ne hlavní detekce).
+  Future<bool> _isScreenReaderEnabled() async {
+    if (Platform.isAndroid) {
+      try {
+        final result = await _accessibilityChannel.invokeMethod<bool>(
+          'isTalkBackEnabled',
+        );
+        if (result != null) return result;
+      } catch (_) {
+        // Propadne na fallback níže.
+      }
+    } else if (Platform.isWindows) {
+      try {
+        final result = await _accessibilityChannel.invokeMethod<bool>(
+          'isScreenReaderEnabled',
+        );
+        if (result != null) return result;
+      } catch (_) {
+        // Propadne na fallback níže.
+      }
+    }
+    return WidgetsBinding
+        .instance
+        .platformDispatcher
+        .accessibilityFeatures
+        .accessibleNavigation;
+  }
+
   Future<void> _refreshAccessibilityState() async {
-    try {
-      final result = await _accessibilityChannel.invokeMethod<bool>(
-        'isTalkBackEnabled',
-      );
-      if (result != null && mounted) {
-        setState(() {
-          _accessibleNavigation = result;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _accessibleNavigation = WidgetsBinding
-              .instance
-              .platformDispatcher
-              .accessibilityFeatures
-              .accessibleNavigation;
-        });
-      }
+    final enabled = await _isScreenReaderEnabled();
+    if (mounted) {
+      setState(() {
+        _accessibleNavigation = enabled;
+      });
     }
   }
 

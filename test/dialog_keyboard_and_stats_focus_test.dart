@@ -26,7 +26,15 @@ void main() {
 
     messenger.setMockMethodCallHandler(
       const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
-      (MethodCall call) async => false,
+      (MethodCall call) async {
+        // Android (isTalkBackEnabled) i Windows (isScreenReaderEnabled)
+        // bez čtečky -> false, aby se chovala jako předtím.
+        if (call.method == 'isTalkBackEnabled' ||
+            call.method == 'isScreenReaderEnabled') {
+          return false;
+        }
+        return false;
+      },
     );
 
     messenger.setMockMethodCallHandler(
