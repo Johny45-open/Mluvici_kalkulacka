@@ -23,8 +23,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   final FlutterTts tts = FlutterTts();
   final FocusNode _mainFocusNode = FocusNode();
-  late final FocusNode _readingOrderFocusNode =
-      FocusNode(debugLabel: 'readingOrderButton');
+  late final FocusNode _readingOrderFocusNode = FocusNode(
+    debugLabel: 'readingOrderButton',
+  );
 
   void _returnFocusToKeyboard() {
     Future.delayed(const Duration(milliseconds: 150), () {
@@ -2256,8 +2257,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   String _formatForSpeech(String text) {
     final l10n = _l10n;
-    String processed = _spokenForDisplay(text)
-        .replaceAll('\u03C0', l10n.piSpoken);
+    String processed = _spokenForDisplay(
+      text,
+    ).replaceAll('\u03C0', l10n.piSpoken);
     processed = processed.replaceAllMapped(
       RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"),
       (m) {
@@ -2476,8 +2478,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         );
       }
     } else if (_isRecallMode) {
-      String valStrVis = _formatNumberSmart(_memory[name]!)
-          .replaceAll('.', ',');
+      String valStrVis = _formatNumberSmart(
+        _memory[name]!,
+      ).replaceAll('.', ',');
       String valStrSpoken = _formatSpokenNumber(_memory[name]!);
       append(_formatNumber(_memory[name]!), silent: true);
       speak(_l10n.recalledFromVariable(name, valStrSpoken));
@@ -3933,8 +3936,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         final sysFactor = sys.scale(1.0);
         final combined = (sysFactor * scaleValue).clamp(0.5, 3.5);
         final scaled = MediaQuery(
-          data: MediaQuery.of(ctx)
-              .copyWith(textScaler: TextScaler.linear(combined)),
+          data: MediaQuery.of(
+            ctx,
+          ).copyWith(textScaler: TextScaler.linear(combined)),
           child: dialog,
         );
         if (_dialogSize == DialogSize.fullscreen) {
@@ -3955,14 +3959,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       barrierDismissible: barrierDismissible,
       requestFocus: true,
-      useSafeArea: false,
+      // useSafeArea ponecháno na defaultu (true): o odsazení od klávesnice
+      // se stará DialogRoute/AlertDialog. Vnější Padding(viewInsets) by inset
+      // aplikoval podruhé a vytlačil dialog mimo horní hranu obrazovky.
+      // Dialogy s TextField řeší klávesnici lokálně uvnitř contentu
+      // (SingleChildScrollView + bottom padding viewInsets.bottom).
       routeSettings: routeSettings,
-      builder: (dialogContext) => Padding(
-        // Klíčový fix pro černou obrazovku: dialog zůstane nad klávesnicí,
-        // jinak adjustResize posune celý FlutterView mimo viewport
-        padding: MediaQuery.of(dialogContext).viewInsets,
-        child: _wrapWithDialogFontScale(dialogContext, Builder(builder: builder)),
-      ),
+      builder: (dialogContext) =>
+          _wrapWithDialogFontScale(dialogContext, Builder(builder: builder)),
     );
   }
 
@@ -6887,8 +6891,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _statsSummaryOrder.insert(insertAt, item);
     });
     _saveSettings();
-    final orderSpoken = _statsSummaryOrder.map((e) => _getStatsSummarySectionLabel(e)).join(', ');
-    final msg = _s('Pořadí změněno: $orderSpoken', 'Order changed: $orderSpoken');
+    final orderSpoken = _statsSummaryOrder
+        .map((e) => _getStatsSummarySectionLabel(e))
+        .join(', ');
+    final msg = _s(
+      'Pořadí změněno: $orderSpoken',
+      'Order changed: $orderSpoken',
+    );
     speak(msg);
     _announce(msg);
   }
@@ -7001,7 +7010,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ];
     });
     _saveSettings();
-    final msg = _s('Pořadí položek obnoveno na výchozí', 'Items order reset to default');
+    final msg = _s(
+      'Pořadí položek obnoveno na výchozí',
+      'Items order reset to default',
+    );
     speak(msg);
     _announce(msg);
   }
@@ -8594,6 +8606,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _showEditStatsSetDialog(context, index, () {});
   }
 
+  @visibleForTesting
+  void addStatsSetForTest(StatisticsSet set) {
+    setState(() {
+      _statsSets.add(set);
+      _currentStatsSetIndex = _statsSets.length - 1;
+    });
+  }
+
+  @visibleForTesting
+  void showStatsSummaryDialogForTest() {
+    _showStatisticsSummaryDialog();
+  }
+
+  @visibleForTesting
+  void showRenameStatsSetDialogForTest(int index) {
+    _showRenameStatsSetDialog(context, index, () {});
+  }
+
   void _showDeleteStatsSetConfirmation(
     BuildContext context,
     int index,
@@ -9880,188 +9910,191 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-              // Výpočet dostupného prostoru
-              final double totalHeight = constraints.maxHeight;
+                // Výpočet dostupného prostoru
+                final double totalHeight = constraints.maxHeight;
 
-              // Rozdělení zbývajícího prostoru mezi displej a klávesnici
-              // Na malých displejích dáme klávesnici víc prostoru
-              final double displayFlex = (totalHeight < 600) ? 1.0 : 1.5;
-              final double keyboardFlex = 3.0;
-              final double s = _responsiveScale(context);
-              if (_alignInputLeft) _scheduleInputAutoscroll();
+                // Rozdělení zbývajícího prostoru mezi displej a klávesnici
+                // Na malých displejích dáme klávesnici víc prostoru
+                final double displayFlex = (totalHeight < 600) ? 1.0 : 1.5;
+                final double keyboardFlex = 3.0;
+                final double s = _responsiveScale(context);
+                if (_alignInputLeft) _scheduleInputAutoscroll();
 
-              return Column(
-                children: [
-                  // Displej
-                  Expanded(
-                    flex: (displayFlex * 100).toInt(),
-                    child: GestureDetector(
-                      onScaleUpdate: (ScaleUpdateDetails details) {
-                        if (details.scale != 1.0) {
+                return Column(
+                  children: [
+                    // Displej
+                    Expanded(
+                      flex: (displayFlex * 100).toInt(),
+                      child: GestureDetector(
+                        onScaleUpdate: (ScaleUpdateDetails details) {
+                          if (details.scale != 1.0) {
+                            setState(() {
+                              _dotMatrixZoom = (_dotMatrixZoom * details.scale)
+                                  .clamp(0.5, 5.0);
+                              _resultZoom = (_resultZoom * details.scale).clamp(
+                                0.5,
+                                5.0,
+                              );
+                            });
+                            _saveSettings();
+                          }
+                        },
+                        onDoubleTap: () {
                           setState(() {
-                            _dotMatrixZoom = (_dotMatrixZoom * details.scale)
-                                .clamp(0.5, 5.0);
-                            _resultZoom = (_resultZoom * details.scale).clamp(
-                              0.5,
-                              5.0,
-                            );
+                            _dotMatrixZoom = 1.0;
+                            _resultZoom = 1.0;
                           });
                           _saveSettings();
-                        }
-                      },
-                      onDoubleTap: () {
-                        setState(() {
-                          _dotMatrixZoom = 1.0;
-                          _resultZoom = 1.0;
-                        });
-                        _saveSettings();
-                      },
-                      onTap: () => _mainFocusNode.requestFocus(),
-                      child: Container(
-                        margin: EdgeInsets.all(8 * s),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8 * s,
-                          vertical: 8 * s,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF121212),
-                          border: Border.all(
-                            color: Colors.black,
-                            width: 3 * s.clamp(1.0, 1.3),
+                        },
+                        onTap: () => _mainFocusNode.requestFocus(),
+                        child: Container(
+                          margin: EdgeInsets.all(8 * s),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8 * s,
+                            vertical: 8 * s,
                           ),
-                        ),
-                        child: Semantics(
-                          liveRegion: true,
-                          label: l10n.displayLabel,
-                          hint: l10n.displayHint,
-                          value:
-                              '${display.isEmpty ? (_hasResult ? _spokenForDisplay(_lastResult) : l10n.displayEmpty) : _expressionToSpeech(display)}',
-                          onTap: () {
-                            _mainFocusNode.requestFocus();
-                            speak(
-                              display.isEmpty
-                                  ? (_hasResult
-                                        ? _spokenForDisplay(_lastResult)
-                                        : l10n.displayEmpty)
-                                  : _expressionToSpeech(display),
-                            );
-                          },
-                          // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
-                          // a vše se přečte z tohoto Semantics widgetu
-                          child: Column(
-                            children: [
-                              Align(
-                                alignment: Alignment.topLeft,
-                                child: Text(
-                                  _getModeName(_currentMode).toUpperCase(),
-                                  style: TextStyle(
-                                    color: Colors.redAccent,
-                                    fontSize: 12 * s,
-                                    fontWeight: FontWeight.bold,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF121212),
+                            border: Border.all(
+                              color: Colors.black,
+                              width: 3 * s.clamp(1.0, 1.3),
+                            ),
+                          ),
+                          child: Semantics(
+                            liveRegion: true,
+                            label: l10n.displayLabel,
+                            hint: l10n.displayHint,
+                            value:
+                                '${display.isEmpty ? (_hasResult ? _spokenForDisplay(_lastResult) : l10n.displayEmpty) : _expressionToSpeech(display)}',
+                            onTap: () {
+                              _mainFocusNode.requestFocus();
+                              speak(
+                                display.isEmpty
+                                    ? (_hasResult
+                                          ? _spokenForDisplay(_lastResult)
+                                          : l10n.displayEmpty)
+                                    : _expressionToSpeech(display),
+                              );
+                            },
+                            // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
+                            // a vše se přečte z tohoto Semantics widgetu
+                            child: Column(
+                              children: [
+                                Align(
+                                  alignment: Alignment.topLeft,
+                                  child: Text(
+                                    _getModeName(_currentMode).toUpperCase(),
+                                    style: TextStyle(
+                                      color: Colors.redAccent,
+                                      fontSize: 12 * s,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              SizedBox(height: 4 * s),
-                              Expanded(
-                                child: LayoutBuilder(
-                                  builder: (context, displayConstraints) {
-                                    // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
-                                    final dotLedSize = 3.0 * _dotMatrixZoom * s;
-                                    final dotSpacing = 0.8 * _dotMatrixZoom * s;
-                                    final dotH =
-                                        dotLedSize * 8 + dotSpacing * 7;
-                                    final segH = 16 * _resultZoom * s * 1.8;
-                                    final gapH = 12 * s;
-                                    final neededH = dotH + segH + gapH;
-                                    final availableH =
-                                        displayConstraints.maxHeight;
-                                    double fitScale = 1.0;
-                                    if (availableH > 0 &&
-                                        neededH > availableH) {
-                                      fitScale = (availableH / neededH).clamp(
-                                        0.35,
-                                        1.0,
+                                SizedBox(height: 4 * s),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, displayConstraints) {
+                                      // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
+                                      final dotLedSize =
+                                          3.0 * _dotMatrixZoom * s;
+                                      final dotSpacing =
+                                          0.8 * _dotMatrixZoom * s;
+                                      final dotH =
+                                          dotLedSize * 8 + dotSpacing * 7;
+                                      final segH = 16 * _resultZoom * s * 1.8;
+                                      final gapH = 12 * s;
+                                      final neededH = dotH + segH + gapH;
+                                      final availableH =
+                                          displayConstraints.maxHeight;
+                                      double fitScale = 1.0;
+                                      if (availableH > 0 &&
+                                          neededH > availableH) {
+                                        fitScale = (availableH / neededH).clamp(
+                                          0.35,
+                                          1.0,
+                                        );
+                                      }
+                                      final needsFallbackScroll =
+                                          fitScale <= 0.36;
+
+                                      Widget content = Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment: _alignInputLeft
+                                            ? CrossAxisAlignment.start
+                                            : CrossAxisAlignment.center,
+                                        children: [
+                                          Align(
+                                            alignment: _alignInputLeft
+                                                ? Alignment.centerLeft
+                                                : Alignment.center,
+                                            child: SingleChildScrollView(
+                                              controller: _scrollControllerH,
+                                              scrollDirection: Axis.horizontal,
+                                              child: _buildDotMatrixDisplay(
+                                                fitScale: fitScale,
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(height: 12 * s * fitScale),
+                                          Align(
+                                            alignment: Alignment.center,
+                                            child: SingleChildScrollView(
+                                              controller:
+                                                  _scrollControllerResultH,
+                                              scrollDirection: Axis.horizontal,
+                                              child: _buildMainResultDisplay(
+                                                fitScale: fitScale,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       );
-                                    }
-                                    final needsFallbackScroll =
-                                        fitScale <= 0.36;
 
-                                    Widget content = Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment: _alignInputLeft
-                                          ? CrossAxisAlignment.start
-                                          : CrossAxisAlignment.center,
-                                      children: [
-                                        Align(
-                                          alignment: _alignInputLeft
-                                              ? Alignment.centerLeft
-                                              : Alignment.center,
-                                          child: SingleChildScrollView(
-                                            controller: _scrollControllerH,
-                                            scrollDirection: Axis.horizontal,
-                                            child: _buildDotMatrixDisplay(
-                                              fitScale: fitScale,
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(height: 12 * s * fitScale),
-                                        Align(
-                                          alignment: Alignment.center,
-                                          child: SingleChildScrollView(
-                                            controller:
-                                                _scrollControllerResultH,
-                                            scrollDirection: Axis.horizontal,
-                                            child: _buildMainResultDisplay(
-                                              fitScale: fitScale,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-
-                                    if (needsFallbackScroll) {
-                                      // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
-                                      return Scrollbar(
-                                        controller: _scrollControllerV,
-                                        thumbVisibility: true,
-                                        child: SingleChildScrollView(
+                                      if (needsFallbackScroll) {
+                                        // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
+                                        return Scrollbar(
                                           controller: _scrollControllerV,
-                                          scrollDirection: Axis.vertical,
-                                          child: content,
-                                        ),
-                                      );
-                                    }
-                                    // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
-                                    return Center(child: content);
-                                  },
+                                          thumbVisibility: true,
+                                          child: SingleChildScrollView(
+                                            controller: _scrollControllerV,
+                                            scrollDirection: Axis.vertical,
+                                            child: content,
+                                          ),
+                                        );
+                                      }
+                                      // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
+                                      return Center(child: content);
+                                    },
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  // Přepínač režimů
-                  _buildModeSelector(),
-                  if (_currentMode == CalculatorMode.scientific) ...[
-                    _buildScientificPageToggle(),
-                    Semantics(
-                      liveRegion: true,
-                      label: _scientificPageAnnouncement ?? '',
-                      excludeSemantics: true,
-                      child: const SizedBox(width: 1, height: 1),
+                    // Přepínač režimů
+                    _buildModeSelector(),
+                    if (_currentMode == CalculatorMode.scientific) ...[
+                      _buildScientificPageToggle(),
+                      Semantics(
+                        liveRegion: true,
+                        label: _scientificPageAnnouncement ?? '',
+                        excludeSemantics: true,
+                        child: const SizedBox(width: 1, height: 1),
+                      ),
+                    ],
+                    // Klávesnice
+                    Expanded(
+                      flex: (keyboardFlex * 100).toInt(),
+                      child: _buildMainKeyboard(),
                     ),
                   ],
-                  // Klávesnice
-                  Expanded(
-                    flex: (keyboardFlex * 100).toInt(),
-                    child: _buildMainKeyboard(),
-                  ),
-                ],
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),

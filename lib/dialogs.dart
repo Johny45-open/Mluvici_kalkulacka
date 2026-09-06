@@ -1207,44 +1207,42 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                   onPressed: () async {
                     final code = await showDialog<String>(
                       context: context,
-                      useSafeArea: false,
                       builder: (dCtx) {
                         final ctrl = TextEditingController();
-                        return Padding(
-                          padding: MediaQuery.of(dCtx).viewInsets,
-                          child: AlertDialog(
-                            insetPadding: parent._dialogInsetPadding(),
-                            title: Text(parent._l10n.currencyAddTitle),
-                            content: SingleChildScrollView(
-                              padding: EdgeInsets.only(
-                                bottom: MediaQuery.of(dCtx).viewInsets.bottom,
-                              ),
-                              child: TextField(
-                                controller: ctrl,
-                                autofocus: true,
-                                textCapitalization:
-                                    TextCapitalization.characters,
-                                decoration: InputDecoration(
-                                  labelText: parent._l10n.currencyCodeLabel,
-                                  border: const OutlineInputBorder(),
-                                ),
-                                maxLength: 3,
-                              ),
+                        // Bez vnějšího Padding(viewInsets): odsazení řeší
+                        // DialogRoute. Vnitřní SingleChildScrollView drží
+                        // TextField viditelný nad klávesnicí.
+                        return AlertDialog(
+                          insetPadding: parent._dialogInsetPadding(),
+                          title: Text(parent._l10n.currencyAddTitle),
+                          content: SingleChildScrollView(
+                            padding: EdgeInsets.only(
+                              bottom: MediaQuery.of(dCtx).viewInsets.bottom,
                             ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(dCtx),
-                                child: Text(parent._l10n.cancel),
+                            child: TextField(
+                              controller: ctrl,
+                              autofocus: true,
+                              textCapitalization: TextCapitalization.characters,
+                              decoration: InputDecoration(
+                                labelText: parent._l10n.currencyCodeLabel,
+                                border: const OutlineInputBorder(),
                               ),
-                              FilledButton(
-                                onPressed: () => Navigator.pop(
-                                  dCtx,
-                                  ctrl.text.trim().toUpperCase(),
-                                ),
-                                child: Text(parent._l10n.currencyAddButton),
-                              ),
-                            ],
+                              maxLength: 3,
+                            ),
                           ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dCtx),
+                              child: Text(parent._l10n.cancel),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(
+                                dCtx,
+                                ctrl.text.trim().toUpperCase(),
+                              ),
+                              child: Text(parent._l10n.currencyAddButton),
+                            ),
+                          ],
                         );
                       },
                     );
@@ -1725,9 +1723,9 @@ class _NewsDialogState extends State<_NewsDialog> {
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .errorContainer,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.errorContainer,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Column(
@@ -1736,9 +1734,9 @@ class _NewsDialogState extends State<_NewsDialog> {
                                   Text(
                                     _error!,
                                     style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onErrorContainer,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onErrorContainer,
                                     ),
                                   ),
                                   if (_cachedTimestamp != null) ...[
@@ -1750,9 +1748,9 @@ class _NewsDialogState extends State<_NewsDialog> {
                                       ),
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onErrorContainer,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onErrorContainer,
                                       ),
                                     ),
                                   ],
@@ -2075,7 +2073,8 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 onPressed: () {
                   setState(() {
                     widget.parent.setState(
-                      () => widget.parent._autoReadStatsSummary = !widget.parent._autoReadStatsSummary,
+                      () => widget.parent._autoReadStatsSummary =
+                          !widget.parent._autoReadStatsSummary,
                     );
                     widget.parent._saveSettings();
                   });
