@@ -73,6 +73,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     StatsComputedItem.wmean,
   ];
   final bool _sayWelcome = true;
+  bool _welcomeAnnounced = false;
   AccessibilityType _accessibilityType = AccessibilityType.none;
   double _fontSizeMultiplier = 1.0;
   double get _keyboardFontScale => _fontSizeMultiplier;
@@ -2022,7 +2023,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _initTts() async {
     try {
+      // 1. Nejdřív nastavení (určí výchozí režim pro uvítání).
       await _loadSettings();
+      // 2. Data potřebná pro startupové oznámení – zejména statistické sady.
+      //    Musí být načtena PŘED sestavením uvítací zprávy, jinak by
+      //    _statsModeAnnouncement() vidělo prázdný seznam a sada/pole by
+      //    v uvítání chyběly. Historie pro uvítání potřeba není.
+      try {
+        await _loadStatsData();
+      } catch (e) {
+        debugPrint('Stats preload Error: $e');
+      }
+      unawaited(_loadHistory());
+      // 3. Inicializace TTS (engine, jazyk, hlas, rychlost, hlasitost).
       final locale = WidgetsBinding.instance.platformDispatcher.locale;
       final l10n = lookupAppLocalizations(locale);
       _lastTtsLocale = locale.languageCode == 'en' ? 'en-US' : 'cs-CZ';
@@ -2032,29 +2045,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       await tts.setSpeechRate(_speechRate);
       await tts.setVolume(_speechVolume);
       await tts.setQueueMode(0);
-      if (_sayWelcome) {
+      // 4. Aktuální stav screen readeru – await, aby volba
+      //    announce-vs-speak nevycházela ze zastaralé hodnoty.
+      //    (Samotná detekce v _isScreenReaderEnabled se nemění.)
+      try {
+        await _refreshAccessibilityState().timeout(
+          const Duration(seconds: 2),
+        );
+      } catch (_) {}
+      // 5. Až po všem výše – právě jednou – sestavit a oznámit uvítání.
+      if (_sayWelcome && !_welcomeAnnounced) {
         String welcome = l10n.welcomeMessage(
           _getModeSpeechNameForL10n(_currentMode, l10n),
         );
         if (_currentMode == CalculatorMode.statistics) {
+          // Stejná metoda jako při ručním přepnutí (_changeMode),
+          // aby startup a přepnutí hlásily konzistentní informace.
           welcome += _statsModeAnnouncement();
         }
-        // A) Okamžitý announce pro čtečku (NVDA/TalkBack) bez čekání na TTS voice,
-        // zkrácený 250ms delay pro vlastní TTS aby se nečekalo 600ms.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          if (_isScreenReaderActive) {
-            _announce(welcome);
-          }
-          Future.delayed(const Duration(milliseconds: 250), () {
-            if (!mounted) return;
-            speak(welcome);
-          });
-        });
+        _announceWelcomeOnce(welcome);
       }
-      // Historii a statistiky načítat paralelně bez blokování uvítání
-      unawaited(_loadHistory());
-      unawaited(_loadStatsData());
       // Auto-aktualizace kurzů ČNB (silent, max 1× za 24h)
       try {
         final needsUpdate =
@@ -2082,6 +2092,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           if (mounted) _showInitialModeDialog();
         });
       }
+    });
+  }
+
+  /// Startupové uvítání – doručí se právě jednou, až po prvním vykreslení.
+  ///
+  /// Při aktivní čtečce jde zpráva přes `SemanticsService.announce`
+  /// (vlastní TTS by `speak()` stejně potlačilo a vznikla by duplicita).
+  /// Bez čtečky jde přes vlastní TTS s krátkým warmup zpožděním –
+  /// zpoždění je zde pouze rytmus doručení, nikoli náhrada za pořadí
+  /// inicializace (to je zajištěno await sekvencí v [_initTts]).
+  void _announceWelcomeOnce(String welcome) {
+    if (_welcomeAnnounced || welcome.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _welcomeAnnounced) return;
+      if (_isScreenReaderActive) {
+        _announce(welcome);
+        _welcomeAnnounced = true;
+        return;
+      }
+      Future.delayed(const Duration(milliseconds: 350), () {
+        if (!mounted || _welcomeAnnounced) return;
+        speak(welcome);
+        _welcomeAnnounced = true;
+      });
     });
   }
 
@@ -4916,11 +4950,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textScale = MediaQuery.textScalerOf(context).textScaleFactor;
     final scale = _responsiveScale(context);
+    // Velikost písma řídí VÝHRADNĚ uživatelské _keyboardFontScale (70–250 %).
+    // Záměrně bez násobení systémovým textScalerem a bez _responsiveScale:
+    // systémový scaler by se jinak započítal dvakrát (jednou ručně, jednou
+    // automaticky ve widgetu Text) a responsive scale by na velkém displeji
+    // paradoxně zmenšoval písmo přes FittedBox(scaleDown).
+    // Geometrie tlačítka (margin/padding/min. dotyková velikost) dál škáluje
+    // s `scale`, takže tlačítka zůstanou dost velká pro dotyk.
+    final keyboardFontSize = (20.0 * _keyboardFontScale).clamp(14.0, 64.0);
 
     Widget buttonBody = Container(
       margin: EdgeInsets.all(3 * scale),
+      constraints: BoxConstraints(
+        minHeight: 48.0 * scale,
+        minWidth: 48.0 * scale,
+      ),
       decoration: BoxDecoration(
         color: color ?? (isDark ? Colors.grey[800] : Colors.grey[300]),
         borderRadius: BorderRadius.zero,
@@ -4928,20 +4973,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 6 * scale),
+      // FittedBox je zde pouze pojistka proti skutečnému přetečení
+      // (dlouhé popisky typu SETS, RAD→°). Při běžných hodnotách škály
+      // (krátké popisky 1, 2, +, C, DEL, =) se neuplatní a nastavená
+      // velikost písma je skutečně viditelná.
       child: FittedBox(
         fit: BoxFit.scaleDown,
+        alignment: Alignment.center,
         child: ExcludeSemantics(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: (20 * _keyboardFontScale * textScale * scale).clamp(
-                12.0,
-                42.0,
+          // Izolace od systémového škálování textu – jediným ovladačem
+          // velikosti je _keyboardFontScale (viz výše).
+          child: MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.noScaling),
+            child: Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              style: TextStyle(
+                fontSize: keyboardFontSize,
+                fontWeight: FontWeight.bold,
+                color: color != null
+                    ? Colors.white
+                    : (isDark ? Colors.white : Colors.black),
               ),
-              fontWeight: FontWeight.bold,
-              color: color != null
-                  ? Colors.white
-                  : (isDark ? Colors.white : Colors.black),
             ),
           ),
         ),
@@ -6112,7 +6168,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 2 * scale, vertical: 2 * scale),
       child: SizedBox(
-        height: 44 * scale,
+        height: 48 * scale,
         width: double.infinity,
         child: buildButton(
           label,
