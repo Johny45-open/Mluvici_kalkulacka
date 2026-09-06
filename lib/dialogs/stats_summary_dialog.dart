@@ -572,12 +572,14 @@ class _ComputedStatRowState extends State<_ComputedStatRow> {
       order: NumericFocusOrder(widget.index.toDouble()),
       child: Focus(
         focusNode: _node,
-        includeSemantics: true,
+        includeSemantics: false,
         onFocusChange: (focused) {
           if (mounted) setState(() => _hasFocus = focused);
         },
         child: Semantics(
           container: true,
+          focusable: true,
+          focused: _hasFocus,
           label: '${widget.name}: ${widget.spokenValue}',
           hint: widget.rowHint,
           child: Container(
