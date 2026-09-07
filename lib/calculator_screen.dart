@@ -9051,6 +9051,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   @visibleForTesting
+  void showStatsSetsDialogForTest() {
+    _showStatsSetsDialog();
+  }
+
+  @visibleForTesting
   void showAccessibilityDialogForTest() {
     _showAccessibilityDialog();
   }
