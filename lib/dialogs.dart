@@ -2664,24 +2664,19 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               children: [
                 Semantics(
                   header: true,
-                  label: widget.parent._s(
-                    'Tloušťka periodické čárky',
-                    'Repeating bar thickness',
-                  ),
+                  label: widget.parent._s('Periodická čára', 'Repeating bar'),
                   child: ExcludeSemantics(
                     child: Text(
-                      widget.parent._s(
-                        'Tloušťka periodické čárky',
-                        'Repeating bar thickness',
-                      ),
+                      widget.parent._s('Periodická čára', 'Repeating bar'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Semantics(
                   label: widget.parent._s(
-                    'Náhled periodické čárky s aktuální tloušťkou',
-                    'Preview of repeating bar with current thickness',
+                    'Náhled periodické čáry s aktuální výškou a tloušťkou',
+                    'Preview of repeating bar with current height and thickness',
                   ),
                   child: ExcludeSemantics(
                     child: Container(
@@ -2696,23 +2691,26 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       child: Column(
                         children: [
                           CustomDotMatrixDisplay(
-                            text: '0.3\u0305',
+                            text: '1.2345\u0305\u0305',
                             ledSize: 2.5,
                             ledSpacing: 0.6,
                             overlineThickness: widget.parent._overlineThickness,
+                            overlineHeight: widget.parent._overlineHeight,
                           ),
                           const SizedBox(height: 6),
                           CustomSegmentDisplay(
-                            value: '0.3\u0305',
+                            value: '1.2345\u0305\u0305',
                             size: 12,
-                            characterCount: 4,
+                            characterCount: 7,
                             isSixteenSegment: widget.parent._useSixteenSegment,
                             overlineThickness: widget.parent._overlineThickness,
+                            overlineHeight: widget.parent._overlineHeight,
                           ),
                           const SizedBox(height: 4),
                           _PeriodicText(
-                            '0,(3)',
+                            '1,23(45)',
                             overlineThickness: widget.parent._overlineThickness,
+                            overlineHeight: widget.parent._overlineHeight,
                             style: const TextStyle(
                               fontSize: 13,
                               color: Colors.redAccent,
@@ -2724,6 +2722,85 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                Semantics(
+                  header: true,
+                  label: widget.parent._s(
+                    'Výška periodické čáry',
+                    'Repeating bar height',
+                  ),
+                  child: ExcludeSemantics(
+                    child: Text(
+                      widget.parent._s(
+                        'Výška periodické čáry',
+                        'Repeating bar height',
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Snížit výšku periodické čáry',
+                          'Decrease repeating bar height',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustOverlineHeight(-0.1),
+                          child: ExcludeSemantics(child: const Text('-')),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Semantics(
+                        liveRegion: true,
+                        container: true,
+                        label: widget.parent._s(
+                          'Výška periodické čáry: ${(widget.parent._overlineHeight * 100).toInt()} %',
+                          'Repeating bar height: ${(widget.parent._overlineHeight * 100).toInt()} %',
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            '${(widget.parent._overlineHeight * 100).toInt()}%',
+                          ),
+                        ),
+                      ),
+                    ),
+                    MergeSemantics(
+                      child: Semantics(
+                        label: widget.parent._s(
+                          'Zvýšit výšku periodické čáry',
+                          'Increase repeating bar height',
+                        ),
+                        container: true,
+                        child: ElevatedButton(
+                          onPressed: () => _adjustOverlineHeight(0.1),
+                          child: ExcludeSemantics(child: const Text('+')),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Semantics(
+                  header: true,
+                  label: widget.parent._s(
+                    'Tloušťka periodické čárky',
+                    'Repeating bar thickness',
+                  ),
+                  child: ExcludeSemantics(
+                    child: Text(
+                      widget.parent._s(
+                        'Tloušťka periodické čárky',
+                        'Repeating bar thickness',
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -2770,6 +2847,23 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                Semantics(
+                  label: widget.parent._s(
+                    'Obnovit výchozí vzhled periodické čáry',
+                    'Reset repeating bar appearance to defaults',
+                  ),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.restart_alt),
+                    onPressed: _resetOverlineStyle,
+                    label: Text(
+                      widget.parent._s(
+                        'Obnovit výchozí vzhled periodické čáry',
+                        'Reset repeating bar appearance',
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -3358,6 +3452,38 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       widget.parent._s(
         'Velikost písma tlačítek ${(widget.parent._keyboardFontScale * 100).toInt()} procent',
         'Keyboard button font size ${(widget.parent._keyboardFontScale * 100).toInt()} percent',
+      ),
+    );
+  }
+
+  void _adjustOverlineHeight(double delta) {
+    setState(() {
+      widget.parent.setState(() {
+        widget.parent._overlineHeight = (widget.parent._overlineHeight + delta)
+            .clamp(0.5, 2.0);
+      });
+      widget.parent._saveSettings();
+    });
+    widget.parent.speak(
+      widget.parent._s(
+        'Výška periodické čáry ${(widget.parent._overlineHeight * 100).toInt()} procent',
+        'Repeating bar height ${(widget.parent._overlineHeight * 100).toInt()} percent',
+      ),
+    );
+  }
+
+  void _resetOverlineStyle() {
+    setState(() {
+      widget.parent.setState(() {
+        widget.parent._overlineHeight = 1.0;
+        widget.parent._overlineThickness = 1.0;
+      });
+      widget.parent._saveSettings();
+    });
+    widget.parent.speak(
+      widget.parent._s(
+        'Vzhled periodické čáry obnoven na výchozí hodnoty',
+        'Repeating bar appearance reset to defaults',
       ),
     );
   }

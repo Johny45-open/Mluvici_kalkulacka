@@ -511,6 +511,7 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                             child: _PeriodicText(
                               allValues,
                               overlineThickness: p._overlineThickness,
+                              overlineHeight: p._overlineHeight,
                             ),
                           ),
                         ],
@@ -548,6 +549,7 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                                   'Row ${entry.key + 1} of ${statRows.length}',
                                 ),
                                 overlineThickness: p._overlineThickness,
+                                overlineHeight: p._overlineHeight,
                               );
                             }).toList(),
                           ),
@@ -602,6 +604,7 @@ class _ComputedStatRow extends StatefulWidget {
   final int total;
   final String rowHint;
   final double overlineThickness;
+  final double overlineHeight;
 
   const _ComputedStatRow({
     required this.name,
@@ -611,6 +614,7 @@ class _ComputedStatRow extends StatefulWidget {
     required this.total,
     required this.rowHint,
     required this.overlineThickness,
+    required this.overlineHeight,
   });
 
   @override
@@ -670,6 +674,7 @@ class _ComputedStatRowState extends State<_ComputedStatRow> {
                       widget.value,
                       textAlign: TextAlign.right,
                       overlineThickness: widget.overlineThickness,
+                      overlineHeight: widget.overlineHeight,
                     ),
                   ),
                 ],

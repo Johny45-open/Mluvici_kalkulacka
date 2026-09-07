@@ -86,6 +86,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   double _dotMatrixZoom = 1.0;
   double _resultZoom = 1.0;
   double _overlineThickness = 1.0;
+  double _overlineHeight = 1.0;
   bool _alignInputLeft = true;
   double _dialogFontScale = 1.0;
   late final ValueNotifier<double> _dialogFontScaleNotifier =
@@ -2538,6 +2539,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           visualContent: _PeriodicText(
             _l10n.savedToVariable(name, valStrVis),
             overlineThickness: _overlineThickness,
+            overlineHeight: _overlineHeight,
           ),
         );
       }
@@ -2554,6 +2556,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           visualContent: _PeriodicText(
             _l10n.recalledFromVariable(name, valStrVis),
             overlineThickness: _overlineThickness,
+            overlineHeight: _overlineHeight,
           ),
         );
       }
@@ -3557,6 +3560,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       characterCount: 16,
       isSixteenSegment: _useSixteenSegment,
       overlineThickness: _overlineThickness,
+      overlineHeight: _overlineHeight,
     );
   }
 
@@ -3765,6 +3769,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         0.8,
         4.0,
       );
+      _overlineHeight = (prefs.getDouble('overlineHeight') ?? 1.0).clamp(
+        0.5,
+        2.0,
+      );
       _alignInputLeft = prefs.getBool('alignInputLeft') ?? true;
       _dialogFontScale = (prefs.getDouble('dialogFontScale') ?? 1.0).clamp(
         0.5,
@@ -3926,6 +3934,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setDouble('dotMatrixZoom', _dotMatrixZoom);
     await prefs.setDouble('resultZoom', _resultZoom);
     await prefs.setDouble('overlineThickness', _overlineThickness);
+    await prefs.setDouble('overlineHeight', _overlineHeight);
     await prefs.setBool('alignInputLeft', _alignInputLeft);
     await prefs.setDouble('dialogFontScale', _dialogFontScale);
     await prefs.setBool('ttsEnabled', ttsEnabled);
@@ -5241,6 +5250,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ledSize: 3.0 * _dotMatrixZoom * scale * fitScale,
       ledSpacing: 0.8 * _dotMatrixZoom * scale * fitScale,
       overlineThickness: _overlineThickness,
+      overlineHeight: _overlineHeight,
     );
   }
 
@@ -6971,6 +6981,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                                   ),
                                                   overlineThickness:
                                                       _overlineThickness,
+                                                  overlineHeight:
+                                                      _overlineHeight,
                                                 ),
                                               ),
                                             ),
@@ -9067,6 +9079,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   double get resultZoomForTest => _resultZoom;
 
   @visibleForTesting
+  double get overlineThicknessForTest => _overlineThickness;
+
+  @visibleForTesting
+  double get overlineHeightForTest => _overlineHeight;
+
+  @visibleForTesting
   List<AccessibilityProfile> get profilesForTest => _profiles;
 
   @visibleForTesting
@@ -9551,6 +9569,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               expression,
                               style: const TextStyle(fontSize: 14),
                               overlineThickness: _overlineThickness,
+                              overlineHeight: _overlineHeight,
                             ),
                             subtitle: result.isNotEmpty
                                 ? _PeriodicText(
@@ -9561,6 +9580,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                       color: Colors.blue,
                                     ),
                                     overlineThickness: _overlineThickness,
+                                    overlineHeight: _overlineHeight,
                                   )
                                 : null,
                             onTap: () => _insertFromHistory(
@@ -9859,6 +9879,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                         child: _PeriodicText(
                                           '$idx. $rowTextVis',
                                           overlineThickness: _overlineThickness,
+                                          overlineHeight: _overlineHeight,
                                         ),
                                       ),
                                     ),
@@ -10082,6 +10103,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                       child: _PeriodicText(
                                         '$idx. $rowTextVis',
                                         overlineThickness: _overlineThickness,
+                                        overlineHeight: _overlineHeight,
                                       ),
                                     ),
                                   ),
