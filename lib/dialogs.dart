@@ -1946,17 +1946,17 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 Text(
                   widget.parent._isProfileModified
                       ? widget.parent._l10n.activeProfileModified(
-                          widget.parent._profiles.firstWhere((p) => p.id == widget.parent._activeProfileId, orElse: () => widget.parent._profiles.first).name
+                          widget.parent._getActiveAccessibilityProfile().name,
                         )
                       : widget.parent._l10n.activeProfile(
-                          widget.parent._profiles.firstWhere((p) => p.id == widget.parent._activeProfileId, orElse: () => widget.parent._profiles.first).name
+                          widget.parent._getActiveAccessibilityProfile().name,
                         ),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                    children: widget.parent._profiles.map((profile) {
+                    children: widget.parent._effectiveProfiles.map((profile) {
                         return ElevatedButton(
                           onPressed: () {
                             widget.parent._showProfilePreviewDialog(profile);

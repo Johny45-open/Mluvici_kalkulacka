@@ -1138,7 +1138,40 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String profileChangedTo(String profile) {
+  String get profileStandard => 'Standard';
+
+  @override
+  String get accessibilityProfileSection => 'Accessibility profile';
+
+  @override
+  String get previewSettings => 'Preview settings';
+
+  @override
+  String get saveSettingsToProfile => 'Save current settings to profile';
+
+  @override
+  String activeProfile(String name) {
+    return 'Active profile: $name';
+  }
+
+  @override
+  String activeProfileModified(String name) {
+    return 'Active profile: $name – modified';
+  }
+
+  @override
+  String get applyProfile => 'Apply profile';
+
+  @override
+  String settingName(String name, String old, String newValue) {
+    return '$name: now $old, new $newValue';
+  }
+
+  @override
+  String get noChanges => 'No settings to apply.';
+
+  @override
+  String profileChangedTo(Object profile) {
     return 'Accessibility mode has been changed to $profile and the settings have been saved.';
   }
 }

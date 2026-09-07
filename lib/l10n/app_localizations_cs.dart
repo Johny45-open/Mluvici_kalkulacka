@@ -1138,7 +1138,40 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String profileChangedTo(String profile) {
+  String get profileStandard => 'Standardní';
+
+  @override
+  String get accessibilityProfileSection => 'Profil přístupnosti';
+
+  @override
+  String get previewSettings => 'Náhled nastavení';
+
+  @override
+  String get saveSettingsToProfile => 'Uložit aktuální nastavení do profilu';
+
+  @override
+  String activeProfile(String name) {
+    return 'Aktivní profil: $name';
+  }
+
+  @override
+  String activeProfileModified(String name) {
+    return 'Aktivní profil: $name – upraveno';
+  }
+
+  @override
+  String get applyProfile => 'Použít profil';
+
+  @override
+  String settingName(String name, String old, String newValue) {
+    return '$name: nyní $old, nově $newValue';
+  }
+
+  @override
+  String get noChanges => 'Žádná nastavení k aplikování.';
+
+  @override
+  String profileChangedTo(Object profile) {
     return 'Režim přístupnosti byl změněn na $profile a nastavení bylo uloženo.';
   }
 }

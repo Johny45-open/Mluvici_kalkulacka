@@ -162,14 +162,18 @@ void main() {
       await tester.pumpAndSettle();
       state.showAccessibilityDialogForTest();
       await tester.pumpAndSettle();
-      expect(find.text('Accessibility mode'), findsOneWidget);
+      expect(find.text('Accessibility profile'), findsOneWidget);
       await tester.tap(find.text('Low vision'));
+      await tester.pumpAndSettle();
+      // Náhled profilu -> potvrdit.
+      expect(find.text('Preview settings'), findsOneWidget);
+      await tester.tap(find.text('Confirm'));
       // NEPOUŽIJEME PUMPANDSETTLE IHNED, jinak SnackBar zmizí.
       await tester.pump(const Duration(milliseconds: 500));
 
       prefs = await SharedPreferences.getInstance();
       expect(prefs.getInt('accessibilityType'), 2);
-      expect(prefs.getDouble('keyboardFontScale'), 1.4);
+      expect(prefs.getDouble('keyboardFontScale'), 1.75);
       
       // Hledání v SnackBaru
       expect(
@@ -185,7 +189,7 @@ void main() {
       await tester.pumpAndSettle();
       prefs = await SharedPreferences.getInstance();
       expect(prefs.getInt('accessibilityType'), 2);
-      expect(prefs.getDouble('keyboardFontScale'), 1.4);
+      expect(prefs.getDouble('keyboardFontScale'), 1.75);
       state = tester.state(find.byType(CalculatorScreen)) as dynamic;
       expect(
         state.displayAccessibilityTypeForTest,
@@ -234,7 +238,7 @@ void main() {
       await tester.pumpAndSettle();
 
       state.applyAccessibilityProfile(
-        AccessibilityType.blind,
+        state.profilesForTest.firstWhere((p) => p.id == 'blind'),
         announcement: 'done-blind',
       );
       await tester.pumpAndSettle();
@@ -242,14 +246,14 @@ void main() {
       expect(state.dialogFontScaleForTest, 1.0);
 
       state.applyAccessibilityProfile(
-        AccessibilityType.visuallyImpaired,
+        state.profilesForTest.firstWhere((p) => p.id == 'lowvision'),
         announcement: 'done-lowvision',
       );
       await tester.pumpAndSettle();
-      expect(state.keyboardFontScaleForTest, 1.4);
-      expect(state.dialogFontScaleForTest, 1.4);
-      expect(state.dotMatrixZoomForTest, 1.5);
-      expect(state.resultZoomForTest, 1.5);
+      expect(state.keyboardFontScaleForTest, 1.75);
+      expect(state.dialogFontScaleForTest, 1.5);
+      expect(state.dotMatrixZoomForTest, 1.25);
+      expect(state.resultZoomForTest, 1.25);
 
       // Ruční změna po profilu má přednost – restart ji nepřepíše.
       state.setKeyboardFontScaleForTest(2.0);

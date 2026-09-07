@@ -820,7 +820,7 @@
     }
   },
   "applyProfile": "Použít profil",
-  "settingName": "{name}: nyní {old}, nově {new}",
+  "settingName": "{name}: nyní {old}, nově {newValue}",
   "@settingName": {
     "placeholders": {
       "name": {
@@ -829,7 +829,7 @@
       "old": {
         "type": "String"
       },
-      "new": {
+      "newValue": {
         "type": "String"
       }
     }
@@ -839,7 +839,7 @@
   "@profileChangedTo": {
     "placeholders": {
       "profile": {
-        "type": "String"
+        "type": "Object"
       }
     }
   }

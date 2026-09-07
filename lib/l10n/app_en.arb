@@ -748,7 +748,7 @@
     }
   },
   "applyProfile": "Apply profile",
-  "settingName": "{name}: now {old}, new {new}",
+  "settingName": "{name}: now {old}, new {newValue}",
   "@settingName": {
     "placeholders": {
       "name": {
@@ -757,11 +757,18 @@
       "old": {
         "type": "String"
       },
-      "new": {
+      "newValue": {
         "type": "String"
       }
     }
   },
   "noChanges": "No settings to apply.",
-  "profileChangedTo": "Accessibility mode has been changed to {profile} and the settings have been saved."
+  "profileChangedTo": "Accessibility mode has been changed to {profile} and the settings have been saved.",
+  "@profileChangedTo": {
+    "placeholders": {
+      "profile": {
+        "type": "Object"
+      }
+    }
+  }
 }

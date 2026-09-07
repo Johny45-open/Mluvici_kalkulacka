@@ -79,6 +79,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String _activeProfileId = 'standard';
   bool _isProfileModified = false;
   List<AccessibilityProfile> _profiles = [];
+  bool _profilesLoaded = false;
   double _fontSizeMultiplier = 1.0;
   double get _keyboardFontScale => _fontSizeMultiplier;
   set _keyboardFontScale(double v) => _fontSizeMultiplier = v;
@@ -2029,6 +2030,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     try {
       // 1. Nejdřív nastavení (určí výchozí režim pro uvítání).
       await _loadSettings();
+      try {
+        await _loadProfiles();
+      } catch (e) {
+        debugPrint('Profiles preload Error: $e');
+      }
       // 2. Data potřebná pro startupové oznámení – zejména statistické sady.
       //    Musí být načtena PŘED sestavením uvítací zprávy, jinak by
       //    _statsModeAnnouncement() vidělo prázdný seznam a sada/pole by
@@ -3969,60 +3975,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  Future<void> _saveProfiles() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'accessibility_profiles',
-      jsonEncode(_profiles.map((p) => p.toJson()).toList()),
-    );
-  }
-
-  Future<void> _loadProfiles() async {
-    final prefs = await SharedPreferences.getInstance();
-    final profilesJson = prefs.getString('accessibility_profiles');
-    if (profilesJson != null) {
-      final List<dynamic> list = jsonDecode(profilesJson);
-      _profiles = list.map((json) => AccessibilityProfile.fromJson(json)).toList();
-    } else {
-      _profiles = [
-        AccessibilityProfile(id: 'standard', name: _l10n.profileStandard, settings: {
-          'accessibilityType': AccessibilityType.none.index,
-          'screenReaderMode': ScreenReaderMode.auto.index,
-          'fontSizeMultiplier': 1.0,
-          'dialogFontScale': 1.0,
-          'resultZoom': 1.0,
-          'dotMatrixZoom': 1.0,
-          'useSixteenSegment': false,
-          'announceExpression': false,
-          'dialogSize': DialogSize.compact.index,
-        }),
-        AccessibilityProfile(id: 'blind', name: _l10n.profileBlind, settings: {
-          'accessibilityType': AccessibilityType.blind.index,
-          'screenReaderMode': ScreenReaderMode.auto.index,
-          'fontSizeMultiplier': 1.0,
-          'dialogFontScale': 1.0,
-          'resultZoom': 1.0,
-          'dotMatrixZoom': 1.0,
-          'useSixteenSegment': false,
-          'announceExpression': true,
-          'dialogSize': DialogSize.compact.index,
-        }),
-        AccessibilityProfile(id: 'lowvision', name: _l10n.profileLowVision, settings: {
-          'accessibilityType': AccessibilityType.visuallyImpaired.index,
-          'screenReaderMode': ScreenReaderMode.auto.index,
-          'fontSizeMultiplier': 1.75,
-          'dialogFontScale': 1.5,
-          'resultZoom': 1.25,
-          'dotMatrixZoom': 1.25,
-          'useSixteenSegment': true,
-          'announceExpression': false,
-          'dialogSize': DialogSize.wide.index,
-        }),
-      ];
-      _saveProfiles();
-    }
-  }
-
   Map<String, dynamic> _currentSettingsAsMap() {
     return {
       'accessibilityType': _accessibilityType.index,
@@ -4057,21 +4009,191 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  /// Hodnota profilu pro zobrazení ve výběru (historické `none` = Slabozraký).
-  AccessibilityType get _displayAccessibilityType {
-    if (_accessibilityType == AccessibilityType.none) {
-      return AccessibilityType.visuallyImpaired;
-    }
-    return _accessibilityType;
+  static Map<String, dynamic> _standardProfileSettings() {
+    return {
+      'accessibilityType': AccessibilityType.none.index,
+      'screenReaderMode': ScreenReaderMode.auto.index,
+      'fontSizeMultiplier': 1.0,
+      'dialogFontScale': 1.0,
+      'resultZoom': 1.0,
+      'dotMatrixZoom': 1.0,
+      'useSixteenSegment': false,
+      'announceExpression': false,
+      'readStatsMemoryValues': true,
+      'autoReadStatsSummary': true,
+      'dialogSize': DialogSize.compact.index,
+    };
   }
 
-  /// Aplikuje trvalý profil přístupnosti: nastaví odpovídající existující
-  /// hodnoty, uloží je přes [_saveSettings] (případně motiv přes
-  /// `onThemeModeChanged`) a přístupně oznámí výsledek.
-  ///
-  /// Profil se aplikuje POUZE v okamžiku volby/změny – při běžném startu se
-  /// jen načtou uložené hodnoty v [_loadSettings], takže ruční úpravy
-  /// (např. velikosti písma) nikdy nepřepisuje.
+  static Map<String, dynamic> _blindProfileSettings() {
+    return {
+      'accessibilityType': AccessibilityType.blind.index,
+      'screenReaderMode': ScreenReaderMode.auto.index,
+      'fontSizeMultiplier': 1.0,
+      'dialogFontScale': 1.0,
+      'resultZoom': 1.0,
+      'dotMatrixZoom': 1.0,
+      'useSixteenSegment': false,
+      'announceExpression': true,
+      'readStatsMemoryValues': true,
+      'autoReadStatsSummary': true,
+      'dialogSize': DialogSize.compact.index,
+    };
+  }
+
+  static Map<String, dynamic> _lowVisionProfileSettings() {
+    return {
+      'accessibilityType': AccessibilityType.visuallyImpaired.index,
+      'screenReaderMode': ScreenReaderMode.auto.index,
+      'fontSizeMultiplier': 1.75,
+      'dialogFontScale': 1.5,
+      'resultZoom': 1.25,
+      'dotMatrixZoom': 1.25,
+      'useSixteenSegment': true,
+      'announceExpression': false,
+      'readStatsMemoryValues': true,
+      'autoReadStatsSummary': true,
+      'dialogSize': DialogSize.wide.index,
+    };
+  }
+
+  /// Jediný zdroj výchozích profilů přístupnosti.
+  /// Vyžaduje dostupné `_l10n` (tj. kontext s lokalizací).
+  List<AccessibilityProfile> _defaultAccessibilityProfiles() {
+    return [
+      AccessibilityProfile(
+        id: 'standard',
+        name: _l10n.profileStandard,
+        settings: _standardProfileSettings(),
+      ),
+      AccessibilityProfile(
+        id: 'blind',
+        name: _l10n.profileBlind,
+        settings: _blindProfileSettings(),
+      ),
+      AccessibilityProfile(
+        id: 'lowvision',
+        name: _l10n.profileLowVision,
+        settings: _lowVisionProfileSettings(),
+      ),
+    ];
+  }
+
+  /// Syntetický nouzový profil pro situace, kdy ještě není dostupné ani
+  /// `_l10n` (např. úplně první build). Nikdy nevyhodí výjimku.
+  AccessibilityProfile _fallbackStandardProfile() {
+    String name;
+    try {
+      name = _l10n.profileStandard;
+    } catch (_) {
+      name = _isEnglish() ? 'Standard' : 'Standardní';
+    }
+    return AccessibilityProfile(
+      id: 'standard',
+      name: name,
+      settings: _standardProfileSettings(),
+    );
+  }
+
+  /// Bezpečný seznam profilů pro vykreslení dialogu.
+  /// Když `_profiles` ještě nejsou načtené nebo jsou prázdné,
+  /// vrátí výchozí profily — nikdy prázdný seznam.
+  List<AccessibilityProfile> get _effectiveProfiles {
+    if (_profiles.isNotEmpty) return _profiles;
+    try {
+      final defaults = _defaultAccessibilityProfiles();
+      if (defaults.isNotEmpty) return defaults;
+    } catch (_) {}
+    return [_fallbackStandardProfile()];
+  }
+
+  /// Bezpečné rozlišení aktivního profilu pro dialog Nastavení.
+  /// Nikdy nevyhodí (ani na prázdném `_profiles`).
+  AccessibilityProfile _getActiveAccessibilityProfile() {
+    for (final p in _profiles) {
+      if (p.id == _activeProfileId) return p;
+    }
+    if (_profiles.isNotEmpty) return _profiles.first;
+    try {
+      final defaults = _defaultAccessibilityProfiles();
+      for (final p in defaults) {
+        if (p.id == _activeProfileId) return p;
+      }
+      if (defaults.isNotEmpty) return defaults.first;
+    } catch (_) {}
+    return _fallbackStandardProfile();
+  }
+
+  /// Bezpečné rozlišení profilu podle id pro úvodní dialog.
+  /// Nikdy nevyhodí (ani na prázdném `_profiles`).
+  AccessibilityProfile _profileByIdOrDefault(String id) {
+    for (final p in _profiles) {
+      if (p.id == id) return p;
+    }
+    try {
+      final defaults = _defaultAccessibilityProfiles();
+      for (final p in defaults) {
+        if (p.id == id) return p;
+      }
+      if (defaults.isNotEmpty) return defaults.first;
+    } catch (_) {}
+    return _fallbackStandardProfile();
+  }
+
+  Future<void> _saveProfiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'accessibility_profiles',
+      jsonEncode(_profiles.map((p) => p.toJson()).toList()),
+    );
+  }
+
+  Future<void> _loadProfiles() async {
+    List<AccessibilityProfile>? loaded;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final profilesJson = prefs.getString('accessibility_profiles');
+      if (profilesJson != null) {
+        final decoded = jsonDecode(profilesJson);
+        if (decoded is List) {
+          final parsed = <AccessibilityProfile>[];
+          for (final item in decoded) {
+            try {
+              final map = item is Map<String, dynamic>
+                  ? item
+                  : item is Map
+                  ? Map<String, dynamic>.from(item)
+                  : null;
+              if (map == null) continue;
+              final profile = AccessibilityProfile.fromJson(map);
+              if (profile.id.isEmpty || profile.name.isEmpty) continue;
+              parsed.add(profile);
+            } catch (_) {
+              continue;
+            }
+          }
+          if (parsed.isNotEmpty) loaded = parsed;
+        }
+      }
+    } catch (_) {
+      loaded = null;
+    }
+    if (loaded != null && loaded.isNotEmpty) {
+      _profiles = loaded;
+    } else {
+      try {
+        _profiles = _defaultAccessibilityProfiles();
+      } catch (_) {
+        _profiles = [_fallbackStandardProfile()];
+      }
+      try {
+        await _saveProfiles();
+      } catch (_) {}
+    }
+    _profilesLoaded = true;
+    if (mounted) setState(() {});
+  }
+
   Future<void> applyAccessibilityProfile(
     AccessibilityProfile profile, {
     String? announcement,
@@ -4082,15 +4204,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final settings = profile.settings;
       _accessibilityType = AccessibilityType.values[settings['accessibilityType'] as int];
       _screenReaderMode = ScreenReaderMode.values[settings['screenReaderMode'] as int];
-      _fontSizeMultiplier = settings['fontSizeMultiplier'] as double;
-      _dialogFontScale = settings['dialogFontScale'] as double;
-      _resultZoom = settings['resultZoom'] as double;
-      _dotMatrixZoom = settings['dotMatrixZoom'] as double;
+      _fontSizeMultiplier = (settings['fontSizeMultiplier'] as num).toDouble();
+      _dialogFontScale = (settings['dialogFontScale'] as num).toDouble();
+      _resultZoom = (settings['resultZoom'] as num).toDouble();
+      _dotMatrixZoom = (settings['dotMatrixZoom'] as num).toDouble();
       _useSixteenSegment = settings['useSixteenSegment'] as bool;
       _announceExpression = settings['announceExpression'] as bool;
+      _readStatsMemoryValues = settings['readStatsMemoryValues'] as bool;
+      _autoReadStatsSummary = settings['autoReadStatsSummary'] as bool;
       _dialogSize = DialogSize.values[settings['dialogSize'] as int];
       
-      ttsEnabled = true; // Profilové nastavení
+      ttsEnabled = true;
     });
     _dialogFontScaleNotifier.value = _dialogFontScale;
     await tts.setSpeechRate(_speechRate);
@@ -4104,61 +4228,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       speak(announcement, force: true);
     }
     if (mounted) setState(() {});
-  }
-
-  Future<void> _saveProfiles() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'accessibility_profiles',
-      jsonEncode(_profiles.map((p) => p.toJson()).toList()),
-    );
-  }
-
-  Future<void> _loadProfiles() async {
-    final prefs = await SharedPreferences.getInstance();
-    final profilesJson = prefs.getString('accessibility_profiles');
-    if (profilesJson != null) {
-      final List<dynamic> list = jsonDecode(profilesJson);
-      _profiles = list.map((json) => AccessibilityProfile.fromJson(json)).toList();
-    } else {
-      // Default profiles
-      _profiles = [
-        AccessibilityProfile(id: 'standard', name: _l10n.profileStandard, settings: {
-          'accessibilityType': AccessibilityType.none.index,
-          'screenReaderMode': ScreenReaderMode.auto.index,
-          'fontSizeMultiplier': 1.0,
-          'dialogFontScale': 1.0,
-          'resultZoom': 1.0,
-          'dotMatrixZoom': 1.0,
-          'useSixteenSegment': false,
-          'announceExpression': false,
-          'dialogSize': DialogSize.compact.index,
-        }),
-        AccessibilityProfile(id: 'blind', name: _l10n.profileBlind, settings: {
-          'accessibilityType': AccessibilityType.blind.index,
-          'screenReaderMode': ScreenReaderMode.auto.index,
-          'fontSizeMultiplier': 1.0,
-          'dialogFontScale': 1.0,
-          'resultZoom': 1.0,
-          'dotMatrixZoom': 1.0,
-          'useSixteenSegment': false,
-          'announceExpression': true,
-          'dialogSize': DialogSize.compact.index,
-        }),
-        AccessibilityProfile(id: 'lowvision', name: _l10n.profileLowVision, settings: {
-          'accessibilityType': AccessibilityType.visuallyImpaired.index,
-          'screenReaderMode': ScreenReaderMode.auto.index,
-          'fontSizeMultiplier': 1.75,
-          'dialogFontScale': 1.5,
-          'resultZoom': 1.25,
-          'dotMatrixZoom': 1.25,
-          'useSixteenSegment': true,
-          'announceExpression': false,
-          'dialogSize': DialogSize.wide.index,
-        }),
-      ];
-      _saveProfiles();
-    }
   }
 
   void _showProfilePreviewDialog(AccessibilityProfile profile) {
@@ -4428,7 +4497,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             onPressed: () {
               Navigator.pop(dialogContext);
               applyAccessibilityProfile(
-                AccessibilityType.blind,
+                _profileByIdOrDefault('blind'),
                 announcement: _l10n.profileSetAndSaved(_l10n.profileBlind),
               );
             },
@@ -4438,7 +4507,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             onPressed: () {
               Navigator.pop(dialogContext);
               applyAccessibilityProfile(
-                AccessibilityType.visuallyImpaired,
+                _profileByIdOrDefault('lowvision'),
                 announcement: _l10n.profileSetAndSaved(_l10n.profileLowVision),
               );
             },
@@ -8981,7 +9050,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   AccessibilityType get displayAccessibilityTypeForTest =>
-      _displayAccessibilityType;
+      _accessibilityType == AccessibilityType.none
+          ? AccessibilityType.visuallyImpaired
+          : _accessibilityType;
 
   @visibleForTesting
   double get keyboardFontScaleForTest => _keyboardFontScale;
@@ -8994,6 +9065,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   double get resultZoomForTest => _resultZoom;
+
+  @visibleForTesting
+  List<AccessibilityProfile> get profilesForTest => _profiles;
+
+  @visibleForTesting
+  bool get profilesLoadedForTest => _profilesLoaded;
 
   @visibleForTesting
   void setKeyboardFontScaleForTest(double value) {

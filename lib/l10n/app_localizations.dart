@@ -2129,11 +2129,65 @@ abstract class AppLocalizations {
   /// **'Accessibility mode {profile} has been set and saved.'**
   String profileSetAndSaved(String profile);
 
+  /// No description provided for @profileStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get profileStandard;
+
+  /// No description provided for @accessibilityProfileSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Accessibility profile'**
+  String get accessibilityProfileSection;
+
+  /// No description provided for @previewSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview settings'**
+  String get previewSettings;
+
+  /// No description provided for @saveSettingsToProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Save current settings to profile'**
+  String get saveSettingsToProfile;
+
+  /// No description provided for @activeProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Active profile: {name}'**
+  String activeProfile(String name);
+
+  /// No description provided for @activeProfileModified.
+  ///
+  /// In en, this message translates to:
+  /// **'Active profile: {name} – modified'**
+  String activeProfileModified(String name);
+
+  /// No description provided for @applyProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply profile'**
+  String get applyProfile;
+
+  /// No description provided for @settingName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: now {old}, new {newValue}'**
+  String settingName(String name, String old, String newValue);
+
+  /// No description provided for @noChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'No settings to apply.'**
+  String get noChanges;
+
   /// No description provided for @profileChangedTo.
   ///
   /// In en, this message translates to:
   /// **'Accessibility mode has been changed to {profile} and the settings have been saved.'**
-  String profileChangedTo(String profile);
+  String profileChangedTo(Object profile);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
