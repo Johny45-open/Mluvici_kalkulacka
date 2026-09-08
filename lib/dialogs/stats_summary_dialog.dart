@@ -277,7 +277,6 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
 
         return AlertDialog(
           insetPadding: p._dialogInsetPadding(),
-          semanticLabel: l10n.statsSummaryTitle,
           title: Semantics(header: true, child: Text(l10n.statsSummaryTitle)),
           content: FocusTraversalGroup(
             policy: ReadingOrderTraversalPolicy(),
@@ -287,10 +286,7 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.of(dialogContext).size.height * 0.72,
                 ),
-                child: Semantics(
-                  container: true,
-                  explicitChildNodes: true,
-                  child: SingleChildScrollView(
+                child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -566,7 +562,6 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                       ],
                     ),
                   ),
-                ),
               ),
             ),
           ),

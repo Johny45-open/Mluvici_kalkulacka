@@ -3708,24 +3708,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _s('Nejpoužívanější režim', 'Most used mode'),
         title: Semantics(
           header: true,
           child: Text(_s('Nejpoužívanější režim', 'Most used mode')),
         ),
-        content: Focus(
-          autofocus: true,
-          child: Semantics(
-            label: _s(
-              'Nejvíce používáte režim $modeName. Chcete ho nastavit jako výchozí režim po spuštění?',
-              'You most often use the $modeName. Do you want to set it as the default mode on startup?',
-            ),
-            child: Text(
-              _s(
-                'Nejvíce používáte režim $modeName.\nChcete ho nastavit jako výchozí režim po spuštění?',
-                'You most often use the $modeName.\nDo you want to set it as the default mode on startup?',
-              ),
-            ),
+        content: Text(
+          _s(
+            'Nejvíce používáte režim $modeName.\nChcete ho nastavit jako výchozí režim po spuštění?',
+            'You most often use the $modeName.\nDo you want to set it as the default mode on startup?',
           ),
         ),
         actions: [
@@ -4497,12 +4487,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _l10n.welcome,
         title: Semantics(header: true, child: Text(_l10n.welcome)),
         content: Text(_l10n.selectAccessibilityLevel),
         actions: [
           TextButton(
-            autofocus: true,
             onPressed: () {
               Navigator.pop(dialogContext);
               applyAccessibilityProfile(
@@ -5245,10 +5233,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ? (_hasResult ? "" : "_")
         : "${display.substring(0, _cursorPosition)}_${display.substring(_cursorPosition)}";
     final scale = _responsiveScale(context);
+    // Vzdušnější rozestupy číslic: základní mezera 0.8 → 1.15 LED jednotky
+    // a navíc škálování se systémovým písmem, aby slabozrací uživatelé měli
+    // čitelnější rozestupy i bez ručního zoomu. Velikost samotných číslic
+    // (ledSize) se nemění – delší výrazy jen více využijí horizontální scroll,
+    // který už vstupní řádek má (_scrollControllerH + autoscroll ke kurzoru).
+    // Výška plátna roste s mezerou (plátno = ledSize*8 + ledSpacing*7),
+    // proto musí auto-fit výpočet níže používat stejné konstanty.
+    final inputSysFactor = MediaQuery.textScalerOf(
+      context,
+    ).scale(1.0).clamp(1.0, 1.5);
     return CustomDotMatrixDisplay(
       text: _toBarNotation(txt),
       ledSize: 3.0 * _dotMatrixZoom * scale * fitScale,
-      ledSpacing: 0.8 * _dotMatrixZoom * scale * fitScale,
+      ledSpacing:
+          1.15 * _dotMatrixZoom * scale * fitScale * inputSysFactor,
       overlineThickness: _overlineThickness,
       overlineHeight: _overlineHeight,
     );
@@ -5287,14 +5286,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final scale = _responsiveScale(context);
-    // Velikost písma řídí VÝHRADNĚ uživatelské _keyboardFontScale (70–250 %).
-    // Záměrně bez násobení systémovým textScalerem a bez _responsiveScale:
-    // systémový scaler by se jinak započítal dvakrát (jednou ručně, jednou
-    // automaticky ve widgetu Text) a responsive scale by na velkém displeji
-    // paradoxně zmenšoval písmo přes FittedBox(scaleDown).
+    // Velikost písma: uživatelské _keyboardFontScale (70–250 %) × systémový
+    // textScaler (omezený, aby nerozbil layout) × mírný large-boost z
+    // _responsiveScale, aby na velkém displeji nerostla jen geometrie tlačítek,
+    // ale i písmo. Systémový scaler se započítá právě jednou ručně –
+    // vnitřní Text je dál izolován přes TextScaler.noScaling (viz níže),
+    // takže nedochází k dvojímu započtení. FittedBox(scaleDown) je pouze
+    // pojistka proti přetečení dlouhých popisků (SETS, RAD→°).
     // Geometrie tlačítka (margin/padding/min. dotyková velikost) dál škáluje
     // s `scale`, takže tlačítka zůstanou dost velká pro dotyk.
-    final keyboardFontSize = (20.0 * _keyboardFontScale).clamp(14.0, 64.0);
+    final sysFactor = MediaQuery.textScalerOf(
+      context,
+    ).scale(1.0).clamp(1.0, 1.6);
+    final largeBoost = (1.0 + (scale - 1.0) * 0.5).clamp(1.0, 1.35);
+    final keyboardFontSize =
+        (20.0 * _keyboardFontScale * sysFactor * largeBoost).clamp(
+          14.0,
+          72.0,
+        );
 
     Widget buttonBody = Container(
       margin: EdgeInsets.all(3 * scale),
@@ -5317,8 +5326,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         fit: BoxFit.scaleDown,
         alignment: Alignment.center,
         child: ExcludeSemantics(
-          // Izolace od systémového škálování textu – jediným ovladačem
-          // velikosti je _keyboardFontScale (viz výše).
+          // Vizuální popisek je skrytý před odečítačem (ten čte vnější
+          // Semantics s descriptiveName). TextScaler.noScaling zde znamená,
+          // že systémové škálování se aplikuje právě jednou – ručně přes
+          // sysFactor ve výpočtu keyboardFontSize (viz výše).
           child: MediaQuery(
             data: MediaQuery.of(
               context,
@@ -6395,10 +6406,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
 
     // Varianta B: na malém displeji s velkým fontem přepnout na scrollovatelný Wrap (jako statistický režim v dialozích)
+    // Práh používá efektivní škálu písma (uživatel × systém × large-boost),
+    // aby se Wrap zapnul i při velkém systémovém písmu, ne jen při velkém _keyboardFontScale.
     final shortest = MediaQuery.of(context).size.shortestSide;
     final isSmall = shortest < 360;
+    final sysScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.6);
+    final boostScale = (1.0 + (_responsiveScale(context) - 1.0) * 0.5).clamp(
+      1.0,
+      1.35,
+    );
     final needScroll =
-        isSmall && _keyboardFontScale * _responsiveScale(context) > 1.6;
+        isSmall && _keyboardFontScale * sysScale * boostScale > 1.6;
 
     Widget buttonFor(String b) {
       Color? color;
@@ -8938,7 +8956,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 showAppDialog<void>(
                                   context: ctx,
                                   builder: (c2) => AlertDialog(
-                                    semanticLabel: _s('Smazat složku?', 'Delete folder?'),
                                     title: Semantics(
                                       header: true,
                                       child: Text(
@@ -9101,6 +9118,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _saveSettings();
   }
 
+  @visibleForTesting
+  void showDeleteStatsSetConfirmationForTest(int index) {
+    _showDeleteStatsSetConfirmation(context, index, () {});
+  }
+
+  @visibleForTesting
+  void showClearHistoryConfirmationForTest() {
+    _showClearHistoryConfirmation();
+  }
+
   void _showDeleteStatsSetConfirmation(
     BuildContext context,
     int index,
@@ -9112,7 +9139,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: _s('Smazat sadu?', 'Delete set?')),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _s('Smazat sadu?', 'Delete set?'),
         title: Semantics(
           header: true,
           child: Text(_s('Smazat sadu?', 'Delete set?')),
@@ -9628,19 +9654,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Potvrzení'),
       builder: (context) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _l10n.confirmationTitle,
         title: Semantics(header: true, child: Text(_l10n.confirmationTitle)),
-        content: Focus(
-          autofocus: true,
-          onFocusChange: (hasFocus) {
-            if (hasFocus) speak(question);
-          },
-          child: Semantics(
-            container: true,
-            label: _s('Otázka', 'Question'),
-            child: Text(question),
-          ),
-        ),
+        content: Text(question),
         actions: [
           TextButton(
             onPressed: () {
@@ -9697,19 +9712,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Potvrdit smazání paměti'),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _l10n.confirmationTitle,
         title: Semantics(header: true, child: Text(_l10n.confirmationTitle)),
-        content: Focus(
-          autofocus: true,
-          onFocusChange: (hasFocus) {
-            if (hasFocus) speak(question);
-          },
-          child: Semantics(
-            container: true,
-            label: _s('Otázka', 'Question'),
-            child: Text(question),
-          ),
-        ),
+        content: Text(question),
         actions: [
           TextButton(
             onPressed: () {
@@ -9824,11 +9828,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: l10n.statsReviewTitle,
           title: Semantics(header: true, child: Text(l10n.statsReviewTitle)),
           content: Semantics(
             container: true,
-            label: summary,
             liveRegion: true,
             child: FocusTraversalGroup(
               policy: ReadingOrderTraversalPolicy(),
@@ -10481,13 +10483,39 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   child: LayoutBuilder(
                                     builder: (context, displayConstraints) {
                                       // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
+                                      // Konstanty musí odpovídat _buildDotMatrixDisplay
+                                      // (rozestup 1.15 × systémový faktor) a rezervě
+                                      // pro periodickou čáru v CustomSegmentDisplay.
+                                      final fitSysFactor =
+                                          MediaQuery.textScalerOf(
+                                            context,
+                                          ).scale(1.0).clamp(1.0, 1.5);
                                       final dotLedSize =
                                           3.0 * _dotMatrixZoom * s;
                                       final dotSpacing =
-                                          0.8 * _dotMatrixZoom * s;
+                                          1.15 *
+                                          _dotMatrixZoom *
+                                          s *
+                                          fitSysFactor;
                                       final dotH =
                                           dotLedSize * 8 + dotSpacing * 7;
-                                      final segH = 16 * _resultZoom * s * 1.8;
+                                      final segSize = 16 * _resultZoom * s;
+                                      var segH = segSize * 1.8;
+                                      if (_toBarNotation(
+                                        _lastResult.isEmpty
+                                            ? '0.'
+                                            : _lastResult,
+                                      ).contains('\u0305')) {
+                                        final segThick = segSize * 0.15;
+                                        segH +=
+                                            segThick * 2.0 +
+                                            6.0 +
+                                            segThick *
+                                                0.75 *
+                                                _overlineThickness /
+                                                2 +
+                                            2.0;
+                                      }
                                       final gapH = 12 * s;
                                       final neededH = dotH + segH + gapH;
                                       final availableH =

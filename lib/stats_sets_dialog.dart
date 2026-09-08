@@ -102,7 +102,6 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
     parent.showAppDialog<void>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        semanticLabel: parent._s('Vytvořit sadu', 'Create set'),
         title: Semantics(header: true, child: Text(parent._s('Vytvořit sadu', 'Create set'))),
         children: [
           SimpleDialogOption(

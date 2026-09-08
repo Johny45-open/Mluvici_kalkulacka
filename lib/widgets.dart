@@ -12,29 +12,25 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
   bool _isExpanded = false;
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      label: widget.title,
-      child: Column(
-        children: [
-          Semantics(
-            button: true,
-            expanded: _isExpanded,
-            label: '${_isExpanded ? 'Sbalit' : 'Rozbalit'} ${widget.title}',
-            child: ListTile(
-              title: Text(
-                widget.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              trailing: Icon(
-                _isExpanded ? Icons.expand_less : Icons.expand_more,
-              ),
-              onTap: () => setState(() => _isExpanded = !_isExpanded),
+    return Column(
+      children: [
+        Semantics(
+          button: true,
+          expanded: _isExpanded,
+          label: '${_isExpanded ? 'Sbalit' : 'Rozbalit'} ${widget.title}',
+          child: ListTile(
+            title: Text(
+              widget.title,
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
+            trailing: Icon(
+              _isExpanded ? Icons.expand_less : Icons.expand_more,
+            ),
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
           ),
-          if (_isExpanded) ...widget.children,
-        ],
-      ),
+        ),
+        if (_isExpanded) ...widget.children,
+      ],
     );
   }
 }
@@ -121,17 +117,25 @@ class _OverlinePeriod extends StatelessWidget {
         Theme.of(context).colorScheme.onSurface;
     final barThickness = (fontSize * 0.075 * thicknessFactor).clamp(1.0, 8.0);
     final gap = (fontSize * 0.14 * heightFactor).clamp(1.0, fontSize * 0.6);
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Text(period, style: baseStyle),
-        Positioned(
-          top: -(gap + barThickness),
-          left: 0,
-          right: 0,
-          child: Container(height: barThickness, color: color),
-        ),
-      ],
+    // Rezerva nad textem uvnitř layoutu: čára byla vykreslena nad horní hranu
+    // widgetu (záporný offset ve Stacku) a předci s ořezem (scroll, řádky,
+    // ConstrainedBox) ji ořízli – proto nebyla vidět. Padding posune text níž
+    // a čára zůstane uvnitř vlastního boxu. Škáluje s písmem (gap/bar se
+    // odvozují od fontSize, tedy i od systémového textScaleru a zoomů).
+    return Padding(
+      padding: EdgeInsets.only(top: gap + barThickness),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Text(period, style: baseStyle),
+          Positioned(
+            top: -(gap + barThickness),
+            left: 0,
+            right: 0,
+            child: Container(height: barThickness, color: color),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -186,36 +190,52 @@ class CustomSegmentDisplay extends StatelessWidget {
       chars.add(_SegmentCharData(' ', false, false));
     }
 
+    // Rezerva nad periodickými číslicemi: paintery kreslí periodickou čáru
+    // nad horní hranu buňky (záporné y) a vykreslování mimo hranice
+    // CustomPaint je nespolehlivé (může se tiše oříznout) – proto čára
+    // nebyla na výsledkovém displeji vidět. Buňky s periodou dostanou horní
+    // padding, takže čára leží uvnitř vlastního boxu. Velikost samotných
+    // číslic se nemění, zarovnání drží spodní hrana (end).
+    final thicknessEst = size * 0.15;
+    final barStrokeEst = thicknessEst * 0.75 * overlineThickness;
+    final overlineReserve = thicknessEst * 2.0 + 6.0 + barStrokeEst / 2 + 2.0;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: List.generate(characterCount, (index) {
+        final hasOverline = chars[index].overline;
+        final topPad = hasOverline ? overlineReserve : 0.0;
         return Padding(
           padding: EdgeInsets.only(
             right: index == characterCount - 1 ? 0 : characterSpacing,
           ),
           child: SizedBox(
             width: size * 1.5,
-            height: size * 1.8,
-            child: CustomPaint(
-              painter: isSixteenSegment
-                  ? _CustomSixteenSegmentPainter(
-                      chars[index].char,
-                      chars[index].hasDot,
-                      chars[index].overline,
-                      enabledColor,
-                      disabledColor,
-                      overlineThickness,
-                      overlineHeight,
-                    )
-                  : _CustomSevenSegmentPainter(
-                      chars[index].char,
-                      chars[index].hasDot,
-                      chars[index].overline,
-                      enabledColor,
-                      disabledColor,
-                      overlineThickness,
-                      overlineHeight,
-                    ),
+            height: size * 1.8 + topPad,
+            child: Padding(
+              padding: EdgeInsets.only(top: topPad),
+              child: CustomPaint(
+                painter: isSixteenSegment
+                    ? _CustomSixteenSegmentPainter(
+                        chars[index].char,
+                        chars[index].hasDot,
+                        chars[index].overline,
+                        enabledColor,
+                        disabledColor,
+                        overlineThickness,
+                        overlineHeight,
+                      )
+                    : _CustomSevenSegmentPainter(
+                        chars[index].char,
+                        chars[index].hasDot,
+                        chars[index].overline,
+                        enabledColor,
+                        disabledColor,
+                        overlineThickness,
+                        overlineHeight,
+                      ),
+              ),
             ),
           ),
         );
