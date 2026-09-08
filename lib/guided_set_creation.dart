@@ -74,7 +74,13 @@ extension on _CalculatorScreenState {
         default:
           text = '';
       }
-      if (text.isNotEmpty) speak(text, force: true);
+      if (text.isNotEmpty) {
+        if (_isScreenReaderActive) {
+          _announce(text);
+        } else {
+          speak(text, force: true);
+        }
+      }
     }
 
     showAppDialog<void>(
@@ -408,26 +414,17 @@ extension on _CalculatorScreenState {
             final canNext = step != 2; // fields step has own next
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
-              semanticLabel: _s('Průvodce vytvořením sady', 'Set creation wizard'),
               title: Semantics(
                 header: true,
                 child: Text(_s('Průvodce vytvořením sady', 'Set creation wizard')),
               ),
-              content: Focus(
-                autofocus: true,
-                onFocusChange: (hasFocus) {
-                  if (hasFocus) {
-                    Future.delayed(const Duration(milliseconds: 400), () => speakStep(step));
-                  }
-                },
-                child: FocusTraversalGroup(
-                  policy: ReadingOrderTraversalPolicy(),
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
-                    ),
-                    child: content,
+              content: FocusTraversalGroup(
+                policy: ReadingOrderTraversalPolicy(),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
                   ),
+                  child: content,
                 ),
               ),
               actions: [
@@ -581,7 +578,11 @@ extension on _CalculatorScreenState {
         );
       },
     );
-    // Úvodní přečtení po otevření
-    Future.delayed(const Duration(milliseconds: 600), () => speakStep(0));
+    // Úvodní přečtení po otevření pouze pro TTS uživatele;
+    // při aktivní čtečce (NVDA/TalkBack) se dialog přečte přirozeně
+    // ze stromu přístupnosti (název → text → tlačítka).
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (!_isScreenReaderActive) speakStep(0);
+    });
   }
 }

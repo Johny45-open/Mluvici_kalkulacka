@@ -1950,7 +1950,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _l10n.updateAvailableTitle,
         title: Semantics(header: true, child: Text(_l10n.updateAvailableTitle)),
         content: Semantics(
           label: _l10n.newVersionSemantics(
@@ -2143,10 +2142,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _s(
-          'Jaký režim nejčastěji používáte?',
-          'Which mode do you use most often?',
-        ),
         title: Semantics(
           header: true,
           child: Text(
@@ -2741,7 +2736,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: _s('Upravit periodu', 'Edit period')),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _s('Upravit periodu', 'Edit period'),
         title: Semantics(
           header: true,
           child: Text(_s('Upravit periodu', 'Edit period')),
@@ -4234,7 +4228,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Náhled nastavení'),
       builder: (ctx) => AlertDialog(
-        title: Text(_l10n.previewSettings),
+        insetPadding: _dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(_l10n.previewSettings)),
         content: Text('Profil: ${profile.name}\n\n' + _s('Použít profil?', 'Apply profile?')),
         actions: [
           TextButton(
@@ -4258,7 +4253,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Uložit profil'),
       builder: (ctx) => AlertDialog(
-        title: Text(_l10n.saveSettingsToProfile),
+        insetPadding: _dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(_l10n.saveSettingsToProfile)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: _profiles.map((p) => ListTile(
@@ -4634,10 +4630,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Deaktivovat vývojářský režim'),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _s(
-          'Deaktivovat vývojářský režim',
-          'Deactivate developer mode',
-        ),
         title: Semantics(
           header: true,
           child: Text(
@@ -4753,21 +4745,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: _s('Chyba', 'Error'),
           title: Semantics(header: true, child: Text(_s('Chyba', 'Error'))),
-          content: Focus(
-            autofocus: true,
-            child: Semantics(
-              label: _s(
-                'Nelze otevřít systémové nastavení TTS.',
-                'Could not open system TTS settings.',
-              ),
-              child: Text(
-                _s(
-                  'Nelze otevřít systémové nastavení TTS.',
-                  'Could not open system TTS settings.',
-                ),
-              ),
+          content: Text(
+            _s(
+              'Nelze otevřít systémové nastavení TTS.',
+              'Could not open system TTS settings.',
             ),
           ),
           actions: [
@@ -4791,7 +4773,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         routeSettings: const RouteSettings(name: 'Vybrat TTS engine'),
         builder: (context) => AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: _s('Vybrat TTS engine', 'Select TTS engine'),
           title: Semantics(
             header: true,
             child: Text(_s('Vybrat TTS engine', 'Select TTS engine')),
@@ -4833,21 +4814,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: _s('Chyba', 'Error'),
           title: Semantics(header: true, child: Text(_s('Chyba', 'Error'))),
-          content: Focus(
-            autofocus: true,
-            child: Semantics(
-              label: _s(
-                'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
-                'TTS engine selection is not supported on this device or app version.',
-              ),
-              child: Text(
-                _s(
-                  'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
-                  'TTS engine selection is not supported on this device or app version.',
-                ),
-              ),
+          content: Text(
+            _s(
+              'Výběr TTS enginu není na tomto zařízení nebo verzi aplikace podporován.',
+              'TTS engine selection is not supported on this device or app version.',
             ),
           ),
           actions: [
@@ -4873,21 +4844,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
             insetPadding: _dialogInsetPadding(),
-            semanticLabel: _s('Info', 'Info'),
             title: Semantics(header: true, child: Text(_s('Info', 'Info'))),
-            content: Focus(
-              autofocus: true,
-              child: Semantics(
-                label: _s(
-                  'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
-                  'No voices are available for the current language.',
-                ),
-                child: Text(
-                  _s(
-                    'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
-                    'No voices are available for the current language.',
-                  ),
-                ),
+            content: Text(
+              _s(
+                'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                'No voices are available for the current language.',
               ),
             ),
             actions: [
@@ -4914,21 +4875,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           routeSettings: const RouteSettings(name: 'Info'),
           builder: (context) => AlertDialog(
             insetPadding: _dialogInsetPadding(),
-            semanticLabel: _s('Info', 'Info'),
             title: Semantics(header: true, child: Text(_s('Info', 'Info'))),
-            content: Focus(
-              autofocus: true,
-              child: Semantics(
-                label: _s(
-                  'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
-                  'No voices are available for the current language.',
-                ),
-                child: Text(
-                  _s(
-                    'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
-                    'No voices are available for the current language.',
-                  ),
-                ),
+            content: Text(
+              _s(
+                'Nejsou k dispozici žádné hlasy pro aktuální jazyk.',
+                'No voices are available for the current language.',
               ),
             ),
             actions: [
@@ -4947,8 +4898,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         routeSettings: const RouteSettings(name: 'Vybrat hlas'),
         builder: (context) => AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: _s('Vybrat hlas', 'Select voice'),
-          title: Text(_s('Vybrat hlas', 'Select voice')),
+          title: Semantics(header: true, child: Text(_s('Vybrat hlas', 'Select voice'))),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
@@ -5030,21 +4980,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         routeSettings: const RouteSettings(name: 'Chyba'),
         builder: (context) => AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: _s('Chyba', 'Error'),
           title: Semantics(header: true, child: Text(_s('Chyba', 'Error'))),
-          content: Focus(
-            autofocus: true,
-            child: Semantics(
-              label: _s(
-                'Výběr hlasu není na tomto zařízení nebo verzi aplikace podporován.',
-                'Voice selection is not supported on this device or app version.',
-              ),
-              child: Text(
-                _s(
-                  'Výběr hlasu není na tomto zařízení nebo verzi aplikace podporován.',
-                  'Voice selection is not supported on this device or app version.',
-                ),
-              ),
+          content: Text(
+            _s(
+              'Výběr hlasu není na tomto zařízení nebo verzi aplikace podporován.',
+              'Voice selection is not supported on this device or app version.',
             ),
           ),
           actions: [
@@ -5119,23 +5059,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: l10n.statsHelpTitle),
       builder: (context) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: l10n.statsHelpTitle,
         title: Semantics(header: true, child: Text(l10n.statsHelpTitle)),
-        content: Semantics(
-          container: true,
-          label: ttsText,
-          liveRegion: true,
-          child: Focus(
-            autofocus: true,
-            onFocusChange: (hasFocus) {
-              if (hasFocus && !_isScreenReaderActive) speak(ttsText);
-            },
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _section(l10n.statsHelpKeyboardSection, [
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _section(l10n.statsHelpKeyboardSection, [
                     l10n.statsHelpKeyboardSets,
                     l10n.statsHelpKeyboardMPlus,
                     l10n.statsHelpKeyboardMc,
@@ -5174,8 +5104,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ],
               ),
             ),
-          ),
-        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -5192,7 +5120,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Nastavení přesnosti'),
       builder: (context) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _l10n.precisionTitle,
         title: Semantics(header: true, child: Text(_l10n.precisionTitle)),
         content: Wrap(
           spacing: 8,
@@ -6677,16 +6604,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (ctx) {
         return AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: _s(
-            'Upravit záznam ${recordIndex + 1}',
-            'Edit record ${recordIndex + 1}',
-          ),
-          title: Text(
+          title: Semantics(header: true, child: Text(
             _s(
               'Upravit záznam ${recordIndex + 1}',
               'Edit record ${recordIndex + 1}',
             ),
-          ),
+          )),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -6862,7 +6785,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
-              semanticLabel: l10n.statsMemoryTitle,
               title: Semantics(
                 header: true,
                 child: Text(l10n.statsMemoryTitle),
@@ -7591,8 +7513,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (ctx) {
         return AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: l10n.statsSetsRename,
-          title: Text(l10n.statsSetsRename),
+          title: Semantics(header: true, child: Text(l10n.statsSetsRename)),
           content: SingleChildScrollView(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(ctx).viewInsets.bottom,
@@ -7779,10 +7700,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               },
               child: AlertDialog(
                 insetPadding: _dialogInsetPadding(),
-                semanticLabel: _s(
-                  'Upravit pole sady ${set.name}',
-                  'Edit fields of set ${set.name}',
-                ),
                 title: Semantics(
                   header: true,
                   child: Text(
@@ -7997,8 +7914,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (context, setDialogState) {
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
-              semanticLabel: l10n.statsSetsCreate,
-              title: Text(l10n.statsSetsCreate),
+              title: Semantics(header: true, child: Text(l10n.statsSetsCreate)),
               content: FocusTraversalGroup(
                 policy: ReadingOrderTraversalPolicy(),
                 child: SingleChildScrollView(
@@ -8315,10 +8231,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (ctx, setDlg) {
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
-              semanticLabel: _s(
-                'Přesunout sadu ${set.name}',
-                'Move set ${set.name}',
-              ),
               title: Semantics(
                 header: true,
                 child: Text(
@@ -8407,10 +8319,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (ctx, setDlg) {
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
-              semanticLabel: _s(
-                'Kopírovat sadu ${set.name}',
-                'Copy set ${set.name}',
-              ),
               title: Semantics(
                 header: true,
                 child: Text(
@@ -8522,7 +8430,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (ctx, setDlg) {
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
-              semanticLabel: _s('Barva a ikona sady', 'Set color and icon'),
               title: Semantics(
                 header: true,
                 child: Text(
@@ -8674,7 +8581,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (ctx, setDlg) {
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
-              semanticLabel: _s('Nová složka', 'New folder'),
               title: Semantics(
                 header: true,
                 child: Text(_s('Nová složka', 'New folder')),
@@ -8785,7 +8691,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (ctx) {
         return AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          semanticLabel: _s('Přejmenovat složku', 'Rename folder'),
           title: Semantics(
             header: true,
             child: Text(_s('Přejmenovat složku', 'Rename folder')),
@@ -8840,7 +8745,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           builder: (ctx, setDlg) {
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
-              semanticLabel: _s('Správa složek', 'Manage folders'),
               title: Semantics(
                 header: true,
                 child: Text(_s('Správa složek', 'Manage folders')),
@@ -8887,7 +8791,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   context: ctx,
                                   builder: (c2) => StatefulBuilder(
                                     builder: (c2, s2) => AlertDialog(
-                                      semanticLabel: _s('Barva a ikona', 'Color and icon'),
                                       title: Semantics(
                                         header: true,
                                         child: Text(
@@ -9398,7 +9301,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             bool isInfoFullscreen = currentSize == DialogSize.fullscreen;
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
-              semanticLabel: l10n.numberInfo,
               title: Semantics(
                 header: true,
                 child: Row(
@@ -9435,33 +9337,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   ],
                 ),
               ),
-              content: Focus(
-                autofocus: true,
-                onFocusChange: (hasFocus) {
-                  if (hasFocus && !_isScreenReaderActive) {
-                    speak(spokenText);
-                  }
-                },
-                child: _applyDialogSize(
-                  SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildInfoCard(
-                          label: l10n.infoValue,
-                          value: formattedValue,
-                          spoken: '${l10n.infoValue}: $spokenValue',
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInfoCard(
-                          label: l10n.infoFraction,
-                          value: fraction,
-                          spoken: '${l10n.infoFraction}: $fractionSpoken',
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInfoCard(
-                          label: l10n.infoDms,
+              content: _applyDialogSize(
+                SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildInfoCard(
+                        label: l10n.infoValue,
+                        value: formattedValue,
+                        spoken: '${l10n.infoValue}: $spokenValue',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoCard(
+                        label: l10n.infoFraction,
+                        value: fraction,
+                        spoken: '${l10n.infoFraction}: $fractionSpoken',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoCard(
+                        label: l10n.infoDms,
                           value: dmsStr,
                           spoken: '${l10n.infoDms}: $dmsSpoken',
                         ),
@@ -9491,7 +9386,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ),
                   ),
                 ),
-              ),
               actions: [
                 Semantics(
                   label: _s(
@@ -9560,7 +9454,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Historie výpočtů'),
       builder: (context) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _l10n.historyTitle,
         title: Semantics(header: true, child: Text(_l10n.historyTitle)),
         content: _applyDialogSize(
           historyEmpty
@@ -9971,13 +9864,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: _s(
-          'Upravit hodnotu ${index + 1}',
-          'Edit value ${index + 1}',
-        ),
-        title: Text(
+        title: Semantics(header: true, child: Text(
           _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
-        ),
+        )),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -10063,7 +9952,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         builder: (context, setStateDialog) {
           return AlertDialog(
             insetPadding: _dialogInsetPadding(),
-            semanticLabel: l10n.statsRepeatTitle,
             title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
             content: SizedBox(
               width: double.maxFinite,
@@ -10241,7 +10129,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: l10n.moreOptions),
       builder: (dialogContext) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        semanticLabel: l10n.moreOptions,
         title: Semantics(header: true, child: Text(l10n.moreOptions)),
         content: _applyDialogSize(
           SingleChildScrollView(
@@ -10739,7 +10626,6 @@ class _TutorialDialogState extends State<_TutorialDialog>
       policy: ReadingOrderTraversalPolicy(),
       child: AlertDialog(
         insetPadding: widget.parent._dialogInsetPadding(),
-        semanticLabel: widget.l10n.helpTitle,
         title: Semantics(header: true, child: Text(widget.l10n.helpTitle)),
         content: ConstrainedBox(
           constraints: BoxConstraints(

@@ -130,31 +130,15 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                       ),
                     )
                   else
-                    Focus(
-                      autofocus: true,
-                      onFocusChange: (hasFocus) {
-                        if (hasFocus) {
-                          parent.speak(
-                            parent._s(
-                              'Není vytvořena žádná sada. Vytvořte novou sadu tlačítkem SETS na hlavní klávesnici.',
-                              'No set created. Create a new set using the SETS button on the main keyboard.',
-                            ),
-                          );
-                        }
-                      },
-                      child: Semantics(
-                        container: true,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(
-                            parent._s(
-                              'Není vytvořena žádná sada. Vytvořte novou sadu tlačítkem SETS na hlavní klávesnici.',
-                              'No set created. Create a new set using the SETS button on the main keyboard.',
-                            ),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontStyle: FontStyle.italic),
-                          ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        parent._s(
+                          'Není vytvořena žádná sada. Vytvořte novou sadu tlačítkem SETS na hlavní klávesnici.',
+                          'No set created. Create a new set using the SETS button on the main keyboard.',
                         ),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontStyle: FontStyle.italic),
                       ),
                     ),
                   const SizedBox(height: 8),
@@ -939,19 +923,16 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Semantics(
-                  container: true,
-                  child: Text(
-                    parent._s(
-                      'Funguje pro číslo před kurzorem nebo poslední výsledek, vyžaduje desetinnou část. Dlouhý stisk … na hlavní klávesnici dělá totéž.',
-                      'Works for number before cursor or last result, requires decimal part. Long press … on main keyboard does the same.',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    textAlign: TextAlign.center,
+                Text(
+                  parent._s(
+                    'Funguje pro číslo před kurzorem nebo poslední výsledek, vyžaduje desetinnou část. Dlouhý stisk … na hlavní klávesnici dělá totéž.',
+                    'Works for number before cursor or last result, requires decimal part. Long press … on main keyboard does the same.',
                   ),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
@@ -1059,7 +1040,6 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
-      semanticLabel: parent._s('Pokročilé funkce', 'Advanced functions'),
       title: Semantics(
         header: true,
         child: Text(parent._s('Pokročilé funkce', 'Advanced functions')),
@@ -1102,7 +1082,6 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
     final sortedKeys = _rates.keys.toList()..sort();
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
-      semanticLabel: parent._l10n.currencyManageTitle,
       title: Semantics(
         header: true,
         child: Text(parent._l10n.currencyManageTitle),
@@ -1202,10 +1181,10 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
               }),
               const SizedBox(height: 12),
               Semantics(
-                label: parent._s('Přidat novou měnu', 'Add new currency'),
+                  label: parent._s('Přidat novou měnu', 'Add new currency'),
                 child: FilledButton.icon(
                   onPressed: () async {
-                    final code = await showDialog<String>(
+                    final code = await parent.showAppDialog<String>(
                       context: context,
                       builder: (dCtx) {
                         final ctrl = TextEditingController();
@@ -1214,7 +1193,6 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                         // TextField viditelný nad klávesnicí.
                         return AlertDialog(
                           insetPadding: parent._dialogInsetPadding(),
-                          semanticLabel: parent._l10n.currencyAddTitle,
                           title: Semantics(
                             header: true,
                             child: Text(parent._l10n.currencyAddTitle),
@@ -1669,7 +1647,6 @@ class _NewsDialogState extends State<_NewsDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: widget.parent._dialogInsetPadding(),
-      semanticLabel: widget.parent._s('Novinky', 'What is new'),
       title: Semantics(
         header: true,
         child: Text(widget.parent._s('Novinky', 'What is new')),
@@ -1923,7 +1900,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: widget.parent._dialogInsetPadding(),
-      semanticLabel: widget.parent._l10n.accessibilitySettings,
       title: Semantics(
         header: true,
         child: Text(widget.parent._l10n.accessibilitySettings),
@@ -3285,8 +3261,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                                 builder: (ctx) => AlertDialog(
                                   insetPadding: widget.parent
                                       ._dialogInsetPadding(),
-                                  semanticLabel:
-                                      widget.parent._l10n.confirmationTitle,
                                   title: Text(
                                     widget.parent._l10n.confirmationTitle,
                                   ),

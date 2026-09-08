@@ -454,9 +454,6 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
 
     return AlertDialog(
       insetPadding: _setsInsetPadding(context),
-      semanticLabel: l10n.statsSetsTitle,
-      titlePadding: titlePadding,
-      contentPadding: contentPadding,
       title: Semantics(header: true, child: Text(l10n.statsSetsTitle)),
       content: FocusTraversalGroup(
         policy: ReadingOrderTraversalPolicy(),
