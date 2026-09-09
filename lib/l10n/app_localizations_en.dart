@@ -1174,4 +1174,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String profileChangedTo(Object profile) {
     return 'Accessibility mode has been changed to $profile and the settings have been saved.';
   }
+
+  @override
+  String get thousandGroupGapSection => 'Digit grouping gap';
+
+  @override
+  String get thousandGapSmall => 'Small';
+
+  @override
+  String get thousandGapMedium => 'Medium';
+
+  @override
+  String get thousandGapLarge => 'Large';
+
+  @override
+  String get thousandGapSmallLabel => 'Small gap between digit groups';
+
+  @override
+  String get thousandGapMediumLabel => 'Medium gap between digit groups';
+
+  @override
+  String get thousandGapLargeLabel => 'Large gap between digit groups';
+
+  @override
+  String thousandGapSet(Object label) {
+    return 'Digit grouping gap: $label';
+  }
 }

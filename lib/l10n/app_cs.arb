@@ -842,5 +842,20 @@
         "type": "Object"
       }
     }
+  },
+  "thousandGroupGapSection": "Mezera mezi skupinami číslic",
+  "thousandGapSmall": "Malá",
+  "thousandGapMedium": "Střední",
+  "thousandGapLarge": "Velká",
+  "thousandGapSmallLabel": "Malá mezera mezi skupinami číslic",
+  "thousandGapMediumLabel": "Střední mezera mezi skupinami číslic",
+  "thousandGapLargeLabel": "Velká mezera mezi skupinami číslic",
+  "thousandGapSet": "Mezera mezi skupinami číslic: {label}",
+  "@thousandGapSet": {
+    "placeholders": {
+      "label": {
+        "type": "Object"
+      }
+    }
   }
 }

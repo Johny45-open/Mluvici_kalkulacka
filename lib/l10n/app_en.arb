@@ -770,5 +770,20 @@
         "type": "Object"
       }
     }
+  },
+  "thousandGroupGapSection": "Digit grouping gap",
+  "thousandGapSmall": "Small",
+  "thousandGapMedium": "Medium",
+  "thousandGapLarge": "Large",
+  "thousandGapSmallLabel": "Small gap between digit groups",
+  "thousandGapMediumLabel": "Medium gap between digit groups",
+  "thousandGapLargeLabel": "Large gap between digit groups",
+  "thousandGapSet": "Digit grouping gap: {label}",
+  "@thousandGapSet": {
+    "placeholders": {
+      "label": {
+        "type": "Object"
+      }
+    }
   }
 }

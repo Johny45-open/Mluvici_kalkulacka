@@ -2844,6 +2844,124 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ],
             ),
             const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  label: widget.parent._l10n.thousandGroupGapSection,
+                  child: ExcludeSemantics(
+                    child: Text(widget.parent._l10n.thousandGroupGapSection),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<ThousandGroupGap>(
+                  segments: [
+                    ButtonSegment(
+                      value: ThousandGroupGap.small,
+                      label: Semantics(
+                        label: widget.parent._l10n.thousandGapSmallLabel,
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._l10n.thousandGapSmall),
+                        ),
+                      ),
+                      tooltip: widget.parent._l10n.thousandGapSmallLabel,
+                    ),
+                    ButtonSegment(
+                      value: ThousandGroupGap.medium,
+                      label: Semantics(
+                        label: widget.parent._l10n.thousandGapMediumLabel,
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._l10n.thousandGapMedium),
+                        ),
+                      ),
+                      tooltip: widget.parent._l10n.thousandGapMediumLabel,
+                    ),
+                    ButtonSegment(
+                      value: ThousandGroupGap.large,
+                      label: Semantics(
+                        label: widget.parent._l10n.thousandGapLargeLabel,
+                        child: ExcludeSemantics(
+                          child: Text(widget.parent._l10n.thousandGapLarge),
+                        ),
+                      ),
+                      tooltip: widget.parent._l10n.thousandGapLargeLabel,
+                    ),
+                  ],
+                  selected: {widget.parent._thousandGroupGap},
+                  onSelectionChanged: (Set<ThousandGroupGap> selected) {
+                    final v = selected.first;
+                    setState(() {
+                      widget.parent.setState(() {
+                        widget.parent._thousandGroupGap = v;
+                      });
+                      widget.parent._saveSettings();
+                    });
+                    String label;
+                    switch (v) {
+                      case ThousandGroupGap.small:
+                        label = widget.parent._l10n.thousandGapSmall;
+                        break;
+                      case ThousandGroupGap.medium:
+                        label = widget.parent._l10n.thousandGapMedium;
+                        break;
+                      case ThousandGroupGap.large:
+                        label = widget.parent._l10n.thousandGapLarge;
+                        break;
+                    }
+                    widget.parent.speak(
+                      widget.parent._l10n.thousandGapSet(label),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                Semantics(
+                  label: widget.parent._s(
+                    'Náhled mezery mezi skupinami číslic',
+                    'Preview of grouping gap',
+                  ),
+                  child: ExcludeSemantics(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF121212),
+                        border: Border.all(color: Colors.black, width: 1),
+                      ),
+                      child: Builder(
+                        builder: (ctx) {
+                          double base;
+                          switch (widget.parent._thousandGroupGap) {
+                            case ThousandGroupGap.small:
+                              base = 1.5;
+                              break;
+                            case ThousandGroupGap.medium:
+                              base = 3.0;
+                              break;
+                            case ThousandGroupGap.large:
+                              base = 6.0;
+                              break;
+                          }
+                          return SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: CustomDotMatrixDisplay(
+                              text: '8888888',
+                              ledSize: 2.5,
+                              ledSpacing: 0.6,
+                              thousandGroupGap: base,
+                              enableThousandGrouping: true,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             Semantics(
               label: widget.parent._s(
                 'Přepnout zarovnání vstupního řádku vlevo',

@@ -2188,6 +2188,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Accessibility mode has been changed to {profile} and the settings have been saved.'**
   String profileChangedTo(Object profile);
+
+  /// No description provided for @thousandGroupGapSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Digit grouping gap'**
+  String get thousandGroupGapSection;
+
+  /// No description provided for @thousandGapSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get thousandGapSmall;
+
+  /// No description provided for @thousandGapMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get thousandGapMedium;
+
+  /// No description provided for @thousandGapLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get thousandGapLarge;
+
+  /// No description provided for @thousandGapSmallLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Small gap between digit groups'**
+  String get thousandGapSmallLabel;
+
+  /// No description provided for @thousandGapMediumLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium gap between digit groups'**
+  String get thousandGapMediumLabel;
+
+  /// No description provided for @thousandGapLargeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Large gap between digit groups'**
+  String get thousandGapLargeLabel;
+
+  /// No description provided for @thousandGapSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Digit grouping gap: {label}'**
+  String thousandGapSet(Object label);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

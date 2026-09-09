@@ -85,6 +85,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   set _keyboardFontScale(double v) => _fontSizeMultiplier = v;
   double _dotMatrixZoom = 1.0;
   double _resultZoom = 1.0;
+  ThousandGroupGap _thousandGroupGap = ThousandGroupGap.medium;
+
+  double _thousandGroupGapBase() {
+    switch (_thousandGroupGap) {
+      case ThousandGroupGap.small:
+        return 1.5;
+      case ThousandGroupGap.medium:
+        return 3.0;
+      case ThousandGroupGap.large:
+        return 6.0;
+    }
+  }
   double _overlineThickness = 1.0;
   double _overlineHeight = 1.0;
   bool _alignInputLeft = true;
@@ -141,10 +153,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         final gapsBeforeCursor = gaps.where((g) => g < _cursorPosition).length;
         final totalGaps = gaps.length;
         // Each gap adds extra visual width: approximate as 0.6 of a char
-        // width (actual ratio depends on ledSize/ledSpacing). Using a
-        // weight of 0.6 keeps progress close to uniform while correcting
-        // for grouping without requiring BuildContext here.
-        const gapWeight = 0.6;
+        // width for the default (medium) gap (calibrated for base 3.0);
+        // scale linearly with the selected group-gap base.
+        final gapWeight = 0.6 * _thousandGroupGapBase() / 3.0;
         final visualCursor = _cursorPosition + gapsBeforeCursor * gapWeight;
         final visualTotal = totalLen + totalGaps * gapWeight;
         progress = visualTotal == 0 ? 1.0 : visualCursor / visualTotal;
@@ -3767,6 +3778,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               .clamp(0.7, 2.5);
       _dotMatrixZoom = prefs.getDouble('dotMatrixZoom') ?? 1.0;
       _resultZoom = prefs.getDouble('resultZoom') ?? 1.0;
+      final storedGap = prefs.getInt('thousandGroupGap');
+      if (storedGap != null &&
+          storedGap >= 0 &&
+          storedGap < ThousandGroupGap.values.length) {
+        _thousandGroupGap = ThousandGroupGap.values[storedGap];
+      } else {
+        _thousandGroupGap = ThousandGroupGap.medium;
+      }
       _overlineThickness = (prefs.getDouble('overlineThickness') ?? 1.0).clamp(
         0.8,
         4.0,
@@ -3935,6 +3954,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setDouble('fontSizeMultiplier', _fontSizeMultiplier);
     await prefs.setDouble('dotMatrixZoom', _dotMatrixZoom);
     await prefs.setDouble('resultZoom', _resultZoom);
+    await prefs.setInt('thousandGroupGap', _thousandGroupGap.index);
     await prefs.setDouble('overlineThickness', _overlineThickness);
     await prefs.setDouble('overlineHeight', _overlineHeight);
     await prefs.setBool('alignInputLeft', _alignInputLeft);
@@ -3994,6 +4014,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'dialogFontScale': _dialogFontScale,
       'resultZoom': _resultZoom,
       'dotMatrixZoom': _dotMatrixZoom,
+      'thousandGroupGap': _thousandGroupGap.index,
       'useSixteenSegment': _useSixteenSegment,
       'announceExpression': _announceExpression,
       'dialogSize': _dialogSize.index,
@@ -4028,6 +4049,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'dialogFontScale': 1.0,
       'resultZoom': 1.0,
       'dotMatrixZoom': 1.0,
+      'thousandGroupGap': ThousandGroupGap.medium.index,
       'useSixteenSegment': false,
       'announceExpression': false,
       'readStatsMemoryValues': true,
@@ -4044,6 +4066,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'dialogFontScale': 1.0,
       'resultZoom': 1.0,
       'dotMatrixZoom': 1.0,
+      'thousandGroupGap': ThousandGroupGap.medium.index,
       'useSixteenSegment': false,
       'announceExpression': true,
       'readStatsMemoryValues': true,
@@ -4060,6 +4083,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'dialogFontScale': 1.5,
       'resultZoom': 1.25,
       'dotMatrixZoom': 1.25,
+      'thousandGroupGap': ThousandGroupGap.large.index,
       'useSixteenSegment': true,
       'announceExpression': false,
       'readStatsMemoryValues': true,
@@ -4219,6 +4243,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _dialogFontScale = (settings['dialogFontScale'] as num).toDouble();
       _resultZoom = (settings['resultZoom'] as num).toDouble();
       _dotMatrixZoom = (settings['dotMatrixZoom'] as num).toDouble();
+      final gapIdx = settings['thousandGroupGap'];
+      if (gapIdx is int &&
+          gapIdx >= 0 &&
+          gapIdx < ThousandGroupGap.values.length) {
+        _thousandGroupGap = ThousandGroupGap.values[gapIdx];
+      }
       _useSixteenSegment = settings['useSixteenSegment'] as bool;
       _announceExpression = settings['announceExpression'] as bool;
       _readStatsMemoryValues = settings['readStatsMemoryValues'] as bool;
@@ -5188,7 +5218,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final inputSysFactor = MediaQuery.textScalerOf(
       context,
     ).scale(1.0).clamp(1.0, 1.5);
-    final gap = 3.0 * _dotMatrixZoom * scale * fitScale;
+    final gap = _thousandGroupGapBase() * _dotMatrixZoom * scale * fitScale;
     return CustomDotMatrixDisplay(
       text: _toBarNotation(txt),
       ledSize: 3.0 * _dotMatrixZoom * scale * fitScale,

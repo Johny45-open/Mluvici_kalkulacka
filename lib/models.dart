@@ -61,6 +61,8 @@ enum StatsComputedItem { mean, sum, variance, sd, median, min, max, mode, cv, wm
 
 enum StatsOrderPreset { def, valuesFirst, statsFirst, headerLast, custom }
 
+enum ThousandGroupGap { small, medium, large }
+
 class _ElectricianInputException implements Exception {
   final String message;
 

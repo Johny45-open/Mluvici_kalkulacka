@@ -1174,4 +1174,30 @@ class AppLocalizationsCs extends AppLocalizations {
   String profileChangedTo(Object profile) {
     return 'Režim přístupnosti byl změněn na $profile a nastavení bylo uloženo.';
   }
+
+  @override
+  String get thousandGroupGapSection => 'Mezera mezi skupinami číslic';
+
+  @override
+  String get thousandGapSmall => 'Malá';
+
+  @override
+  String get thousandGapMedium => 'Střední';
+
+  @override
+  String get thousandGapLarge => 'Velká';
+
+  @override
+  String get thousandGapSmallLabel => 'Malá mezera mezi skupinami číslic';
+
+  @override
+  String get thousandGapMediumLabel => 'Střední mezera mezi skupinami číslic';
+
+  @override
+  String get thousandGapLargeLabel => 'Velká mezera mezi skupinami číslic';
+
+  @override
+  String thousandGapSet(Object label) {
+    return 'Mezera mezi skupinami číslic: $label';
+  }
 }
