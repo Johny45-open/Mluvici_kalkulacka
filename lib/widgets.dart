@@ -1375,6 +1375,8 @@ class CustomDotMatrixDisplay extends StatelessWidget {
   final Color disabledColor;
   final double overlineThickness;
   final double overlineHeight;
+  final double thousandGroupGap;
+  final bool enableThousandGrouping;
 
   const CustomDotMatrixDisplay({
     super.key,
@@ -1385,6 +1387,8 @@ class CustomDotMatrixDisplay extends StatelessWidget {
     this.disabledColor = const Color(0x30FF5252),
     this.overlineThickness = 1.0,
     this.overlineHeight = 1.0,
+    this.thousandGroupGap = 0,
+    this.enableThousandGrouping = true,
   });
 
   @override
@@ -1403,11 +1407,21 @@ class CustomDotMatrixDisplay extends StatelessWidget {
       }
     }
 
+    final Set<int> gapAfterIndices = (enableThousandGrouping &&
+            thousandGroupGap > 0)
+        ? _computeThousandGaps(items)
+        : const <int>{};
+
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: items.map((item) {
+      children: items.asMap().entries.map((entry) {
+        final idx = entry.key;
+        final item = entry.value;
+        final isLast = idx == items.length - 1;
+        final extra = gapAfterIndices.contains(idx) ? thousandGroupGap : 0.0;
+        final rightMargin = isLast ? 0.0 : ledSpacing * 2 + extra;
         return Container(
-          margin: EdgeInsets.only(right: ledSpacing * 2),
+          margin: EdgeInsets.only(right: rightMargin),
           child: CustomPaint(
             size: Size(
               ledSize * 5 + ledSpacing * 4,
@@ -1427,6 +1441,133 @@ class CustomDotMatrixDisplay extends StatelessWidget {
         );
       }).toList(),
     );
+  }
+
+  // Delegates to pure helper in thousand_grouping.dart to keep
+  // presentation logic testable. Keeping a local wrapper avoids
+  // importing that file as part of main.dart via `part` issues.
+  Set<int> _computeThousandGaps(
+    List<({String char, bool overline})> items,
+  ) {
+    // Inline copy of computeThousandGapIndicesForItems logic to avoid
+    // extra import cycle (widgets.dart is part of main.dart).
+    final gaps = <int>{};
+    final n = items.length;
+
+    bool isDigit(String c) {
+      if (c.length != 1) return false;
+      final code = c.codeUnitAt(0);
+      return code >= 0x30 && code <= 0x39;
+    }
+
+    bool isDec(String c) => c == '.' || c == ',';
+
+    int i = 0;
+    while (i < n) {
+      final ch = items[i].char;
+      if (ch == '_') {
+        i++;
+        continue;
+      }
+      bool isStart = isDigit(ch);
+      if (ch == '-') {
+        int k = i + 1;
+        while (k < n && items[k].char == '_') k++;
+        if (k < n && isDigit(items[k].char)) {
+          isStart = true;
+        } else {
+          isStart = false;
+        }
+      }
+      if (!isStart) {
+        i++;
+        continue;
+      }
+      final intDigitIndices = <int>[];
+      int j = i;
+      if (items[j].char == '-') {
+        j++;
+        while (j < n && items[j].char == '_') j++;
+      }
+      while (j < n) {
+        final cj = items[j].char;
+        if (cj == '_') {
+          j++;
+          continue;
+        }
+        if (isDigit(cj)) {
+          intDigitIndices.add(j);
+          j++;
+        } else if (isDec(cj)) {
+          break;
+        } else {
+          break;
+        }
+      }
+      final L = intDigitIndices.length;
+      if (L > 3) {
+        for (int p = 0; p < L - 1; p++) {
+          if ((L - p - 1) % 3 == 0) {
+            gaps.add(intDigitIndices[p]);
+          }
+        }
+      }
+      if (j < n && isDec(items[j].char)) {
+        j++;
+        while (j < n) {
+          final cj = items[j].char;
+          if (cj == '_') {
+            j++;
+            continue;
+          }
+          if (isDigit(cj)) {
+            j++;
+          } else {
+            break;
+          }
+        }
+      }
+      if (j < n && (items[j].char == 'E' || items[j].char == 'e')) {
+        int k = j + 1;
+        while (k < n && items[k].char == '_') k++;
+        if (k < n && (items[k].char == '+' || items[k].char == '-')) k++;
+        while (k < n) {
+          if (items[k].char == '_') {
+            k++;
+            continue;
+          }
+          if (isDigit(items[k].char)) {
+            k++;
+          } else {
+            break;
+          }
+        }
+        j = k;
+      }
+      if (j < n && items[j].char == '(') {
+        int k = j + 1;
+        while (k < n) {
+          final cj = items[k].char;
+          if (cj == '_') {
+            k++;
+            continue;
+          }
+          if (isDigit(cj)) {
+            k++;
+          } else {
+            break;
+          }
+        }
+        if (k < n && items[k].char == ')') k++;
+        j = k;
+      }
+      if (j <= i) {
+        i++;
+      } else {
+        i = j;
+      }
+    }
+    return gaps;
   }
 }
 

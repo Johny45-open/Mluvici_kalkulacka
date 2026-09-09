@@ -129,8 +129,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final pos = _scrollControllerH.position;
       if (pos.maxScrollExtent <= 0) return;
       // Scroll to cursor position proportionally; if cursor at end -> maxExtent
+      // For visual thousands grouping we use a gap-aware estimate so that
+      // extra spacing between digit groups shifts the target correctly.
       final totalLen = display.length + 1; // +1 for cursor marker
-      final progress = totalLen == 0 ? 1.0 : _cursorPosition / totalLen;
+      double progress;
+      if (_cursorPosition == display.length) {
+        progress = 1.0;
+      } else {
+        // Estimate visual width proportion accounting for thousand gaps.
+        final gaps = computeThousandGapIndicesForDisplay(display);
+        final gapsBeforeCursor = gaps.where((g) => g < _cursorPosition).length;
+        final totalGaps = gaps.length;
+        // Each gap adds extra visual width: approximate as 0.6 of a char
+        // width (actual ratio depends on ledSize/ledSpacing). Using a
+        // weight of 0.6 keeps progress close to uniform while correcting
+        // for grouping without requiring BuildContext here.
+        const gapWeight = 0.6;
+        final visualCursor = _cursorPosition + gapsBeforeCursor * gapWeight;
+        final visualTotal = totalLen + totalGaps * gapWeight;
+        progress = visualTotal == 0 ? 1.0 : visualCursor / visualTotal;
+      }
       final target = (pos.maxScrollExtent * progress).clamp(
         0.0,
         pos.maxScrollExtent,
@@ -5170,6 +5188,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final inputSysFactor = MediaQuery.textScalerOf(
       context,
     ).scale(1.0).clamp(1.0, 1.5);
+    final gap = 3.0 * _dotMatrixZoom * scale * fitScale;
     return CustomDotMatrixDisplay(
       text: _toBarNotation(txt),
       ledSize: 3.0 * _dotMatrixZoom * scale * fitScale,
@@ -5177,6 +5196,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           1.15 * _dotMatrixZoom * scale * fitScale * inputSysFactor,
       overlineThickness: _overlineThickness,
       overlineHeight: _overlineHeight,
+      thousandGroupGap: gap,
+      enableThousandGrouping: true,
     );
   }
 
@@ -9030,6 +9051,47 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void showClearHistoryConfirmationForTest() {
     _showClearHistoryConfirmation();
   }
+
+  @visibleForTesting
+  String get displayForTest => display;
+
+  @visibleForTesting
+  set displayForTest(String v) {
+    setState(() {
+      display = v;
+      _cursorPosition = v.length;
+    });
+  }
+
+  @visibleForTesting
+  void setDisplayForTest(String v, int cursorPos) {
+    setState(() {
+      display = v;
+      _cursorPosition = cursorPos.clamp(0, v.length);
+    });
+  }
+
+  @visibleForTesting
+  int get cursorForTest => _cursorPosition;
+
+  @visibleForTesting
+  void setCursorForTest(int pos) {
+    setState(() {
+      _cursorPosition = pos.clamp(0, display.length);
+    });
+  }
+
+  @visibleForTesting
+  void backspaceForTest() => backspace();
+
+  @visibleForTesting
+  void calculateForTest() => calculateResult();
+
+  @visibleForTesting
+  String get lastResultForTest => _lastResult;
+
+  @visibleForTesting
+  BuildContext get contextForTest => context;
 
   void _showDeleteStatsSetConfirmation(
     BuildContext context,
