@@ -9032,6 +9032,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   @visibleForTesting
+  void showTutorialDialogForTest() {
+    _showTutorialDialog();
+  }
+
+  @visibleForTesting
   void showInitialAccessibilityDialogForTest() {
     _showInitialAccessibilityDialog();
   }
@@ -10594,6 +10599,348 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 }
 
+enum _ManualBlockType { heading, paragraph, bullet }
+
+class _ManualBlock {
+  final _ManualBlockType type;
+  final String text;
+  const _ManualBlock(this.type, this.text);
+}
+
+List<_ManualBlock> _parseManualText(String raw) {
+  final blocks = <_ManualBlock>[];
+  String normalized = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n').trim();
+  if (normalized.isEmpty) return blocks;
+  final sections = normalized.split(RegExp(r'\n\s*\n'));
+  for (final section in sections) {
+    final sec = section.trim();
+    if (sec.isEmpty) continue;
+    final lines = sec.split('\n');
+    final hasBullet = lines.any(
+      (l) => l.trimLeft().startsWith('- ') || l.trimLeft().startsWith('• '),
+    );
+    if (hasBullet) {
+      final firstBulletIdx = lines.indexWhere(
+        (l) => l.trimLeft().startsWith('- ') || l.trimLeft().startsWith('• '),
+      );
+      final headingPart = lines.sublist(0, firstBulletIdx).join('\n').trim();
+      if (headingPart.isNotEmpty) {
+        if (headingPart.endsWith(':')) {
+          blocks.add(_ManualBlock(_ManualBlockType.heading, headingPart));
+        } else if (headingPart.length < 120 && headingPart.contains(':')) {
+          if (headingPart.trim().endsWith(':')) {
+            blocks.add(_ManualBlock(_ManualBlockType.heading, headingPart));
+          } else {
+            blocks.add(_ManualBlock(_ManualBlockType.paragraph, headingPart));
+          }
+        } else {
+          blocks.add(_ManualBlock(_ManualBlockType.paragraph, headingPart));
+        }
+      }
+      for (int i = firstBulletIdx; i < lines.length; i++) {
+        String line = lines[i].trim();
+        if (line.isEmpty) continue;
+        if (line.startsWith('- ')) {
+          line = line.substring(2).trimLeft();
+        } else if (line.startsWith('• ')) {
+          line = line.substring(2).trimLeft();
+        } else if (line.startsWith('-')) {
+          line = line.substring(1).trimLeft();
+        } else if (line.startsWith('•')) {
+          line = line.substring(1).trimLeft();
+        }
+        if (line.isEmpty) continue;
+        // lines that do not start with bullet but appear after bullets are continuation of previous bullet or separate paragraph
+        final isBulletLine = lines[i].trimLeft().startsWith('- ') ||
+            lines[i].trimLeft().startsWith('• ');
+        if (!isBulletLine) {
+          blocks.add(_ManualBlock(_ManualBlockType.paragraph, line));
+        } else {
+          blocks.add(_ManualBlock(_ManualBlockType.bullet, line));
+        }
+      }
+    } else {
+      // No bullets in this section
+      if (lines.length > 1 && lines.first.trim().endsWith(':')) {
+        final heading = lines.first.trim();
+        blocks.add(_ManualBlock(_ManualBlockType.heading, heading));
+        final rest = lines.sublist(1).join('\n').trim();
+        if (rest.isNotEmpty) {
+          // rest may contain multiple paragraphs separated by single \n, keep as one block
+          blocks.add(_ManualBlock(_ManualBlockType.paragraph, rest));
+        }
+      } else {
+        // Check if single short heading
+        if (sec.endsWith(':') && sec.length < 120 && !sec.contains('\n')) {
+          blocks.add(_ManualBlock(_ManualBlockType.heading, sec));
+        } else {
+          blocks.add(_ManualBlock(_ManualBlockType.paragraph, sec));
+        }
+      }
+    }
+  }
+  // Fallback: never return empty
+  if (blocks.isEmpty) {
+    blocks.add(_ManualBlock(_ManualBlockType.paragraph, normalized));
+  }
+  return blocks;
+}
+
+class _TutorialTabContent extends StatefulWidget {
+  final String text;
+  final bool isActive;
+  final ScrollController? scrollController;
+  const _TutorialTabContent({
+    required this.text,
+    required this.isActive,
+    this.scrollController,
+  });
+  @override
+  State<_TutorialTabContent> createState() => _TutorialTabContentState();
+}
+
+class _TutorialTabContentState extends State<_TutorialTabContent> {
+  late List<_ManualBlock> _blocks;
+  late List<FocusNode> _blockNodes;
+  late List<GlobalKey> _blockKeys;
+
+  @override
+  void initState() {
+    super.initState();
+    _blocks = _parseManualText(widget.text);
+    _blockNodes = List.generate(
+      _blocks.length,
+      (i) => FocusNode(debugLabel: 'tutorialBlock $i'),
+    );
+    _blockKeys = List.generate(_blocks.length, (_) => GlobalKey());
+  }
+
+  @override
+  void didUpdateWidget(covariant _TutorialTabContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      for (final n in _blockNodes) {
+        n.dispose();
+      }
+      _blocks = _parseManualText(widget.text);
+      _blockNodes = List.generate(
+        _blocks.length,
+        (i) => FocusNode(debugLabel: 'tutorialBlock $i'),
+      );
+      _blockKeys = List.generate(_blocks.length, (_) => GlobalKey());
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final n in _blockNodes) {
+      n.dispose();
+    }
+    super.dispose();
+  }
+
+  void _focusAndEnsure(int idx) {
+    if (idx < 0 || idx >= _blockNodes.length) return;
+    _blockNodes[idx].requestFocus();
+    final ctx = _blockKeys[idx].currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 150),
+        alignment: 0.15,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      );
+    }
+  }
+
+  KeyEventResult _handleBlockKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (!node.hasPrimaryFocus) return KeyEventResult.ignored;
+    final idx = _blockNodes.indexOf(node);
+    if (idx == -1) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      if (idx < _blockNodes.length - 1) {
+        _focusAndEnsure(idx + 1);
+      }
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      if (idx > 0) {
+        _focusAndEnsure(idx - 1);
+      }
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.home) {
+      _focusAndEnsure(0);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.end) {
+      _focusAndEnsure(_blockNodes.length - 1);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.pageDown) {
+      if (idx < _blockNodes.length - 1) {
+        _focusAndEnsure(idx + 1);
+      }
+      // also try to scroll a bit if still at last
+      if (widget.scrollController != null &&
+          widget.scrollController!.hasClients) {
+        final pos = widget.scrollController!.position;
+        final target = (pos.pixels + 200).clamp(
+          pos.minScrollExtent,
+          pos.maxScrollExtent,
+        );
+        widget.scrollController!.animateTo(
+          target,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+        );
+      }
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.pageUp) {
+      if (idx > 0) {
+        _focusAndEnsure(idx - 1);
+      }
+      if (widget.scrollController != null &&
+          widget.scrollController!.hasClients) {
+        final pos = widget.scrollController!.position;
+        final target = (pos.pixels - 200).clamp(
+          pos.minScrollExtent,
+          pos.maxScrollExtent,
+        );
+        widget.scrollController!.animateTo(
+          target,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+        );
+      }
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isActive) {
+      return const ExcludeFocus(
+        excluding: true,
+        child: ExcludeSemantics(child: SizedBox.shrink()),
+      );
+    }
+    if (_blocks.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: SingleChildScrollView(
+        controller: widget.scrollController,
+        padding: const EdgeInsets.only(top: 8),
+        child: SelectionArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < _blocks.length; i++)
+                FocusTraversalOrder(
+                  order: NumericFocusOrder(i.toDouble()),
+                  child: Focus(
+                    key: _blockKeys[i],
+                    focusNode: _blockNodes[i],
+                    canRequestFocus: true,
+                    skipTraversal: false,
+                    debugLabel: 'tutorialBlock $i',
+                    onKeyEvent: _handleBlockKey,
+                    onFocusChange: (hasFocus) {
+                      if (hasFocus) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          final ctx = _blockKeys[i].currentContext;
+                          if (mounted && ctx != null) {
+                            Scrollable.ensureVisible(
+                              ctx,
+                              duration: const Duration(milliseconds: 150),
+                              alignment: 0.15,
+                              alignmentPolicy:
+                                  ScrollPositionAlignmentPolicy.explicit,
+                            );
+                          }
+                        });
+                      }
+                    },
+                    child: Builder(
+                      builder: (context) {
+                        final hasFocus = _blockNodes[i].hasFocus;
+                        final block = _blocks[i];
+                        final isHeading =
+                            block.type == _ManualBlockType.heading;
+                        final isBullet =
+                            block.type == _ManualBlockType.bullet;
+                        Widget content;
+                        if (isBullet) {
+                          content = Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 8, top: 1),
+                                  child: ExcludeSemantics(
+                                    child: Text('•'),
+                                  ),
+                                ),
+                                Expanded(child: Text(block.text)),
+                              ],
+                            ),
+                          );
+                        } else if (isHeading) {
+                          content = Padding(
+                            padding: const EdgeInsets.only(top: 8, bottom: 4),
+                            child: Text(
+                              block.text,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          );
+                        } else {
+                          content = Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(block.text),
+                          );
+                        }
+                        Widget wrapped = content;
+                        if (isHeading) {
+                          wrapped = Semantics(header: true, child: content);
+                        }
+                        // Visual focus indicator without adding extra semantics
+                        return Container(
+                          decoration: hasFocus
+                              ? BoxDecoration(
+                                  border: Border.all(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    width: 1.2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                )
+                              : null,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                          ),
+                          child: wrapped,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TutorialDialog extends StatefulWidget {
   final List<({String label, String text})> tabs;
   final _CalculatorScreenState parent;
@@ -10612,7 +10959,6 @@ class _TutorialDialogState extends State<_TutorialDialog>
   late final TabController _tabController;
   late final List<FocusNode> _tabFocusNodes;
   final ScrollController _scrollController = ScrollController();
-  final FocusNode _contentFocusNode = FocusNode(debugLabel: 'tutorialContent');
 
   @override
   void initState() {
@@ -10659,7 +11005,6 @@ class _TutorialDialogState extends State<_TutorialDialog>
       n.dispose();
     }
     _scrollController.dispose();
-    _contentFocusNode.dispose();
     super.dispose();
   }
 
@@ -10712,6 +11057,20 @@ class _TutorialDialogState extends State<_TutorialDialog>
     return KeyEventResult.ignored;
   }
 
+  KeyEventResult _handleGlobalKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final isCtrl = HardwareKeyboard.instance.isControlPressed;
+    if (isCtrl && event.logicalKey == LogicalKeyboardKey.tab) {
+      final isShift = HardwareKeyboard.instance.isShiftPressed;
+      final delta = isShift ? -1 : 1;
+      final next = (_tabController.index + delta) % widget.tabs.length;
+      final normalized = next < 0 ? widget.tabs.length - 1 : next;
+      _tabController.animateTo(normalized);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
     return FocusTraversalGroup(
@@ -10727,11 +11086,13 @@ class _TutorialDialogState extends State<_TutorialDialog>
           child: SizedBox(
             width: double.maxFinite,
             height: 460,
-            child: Column(
-              children: [
-                Semantics(
-                  container: true,
-                  label: widget.parent._s('Záložky návodu', 'Tutorial tabs'),
+            child: Focus(
+              onKeyEvent: _handleGlobalKey,
+              child: Column(
+                children: [
+                  Semantics(
+                    container: true,
+                    label: widget.parent._s('Záložky návodu', 'Tutorial tabs'),
                   child: TabBar(
                     controller: _tabController,
                     isScrollable: true,
@@ -10768,6 +11129,7 @@ class _TutorialDialogState extends State<_TutorialDialog>
                 Expanded(
                   child: Semantics(
                     container: true,
+                    explicitChildNodes: true,
                     label: widget.parent._s(
                       'Obsah karty ${widget.tabs[_tabController.index].label}',
                       'Content of ${widget.tabs[_tabController.index].label} tab',
@@ -10776,23 +11138,12 @@ class _TutorialDialogState extends State<_TutorialDialog>
                       controller: _tabController,
                       children: [
                         for (int idx = 0; idx < widget.tabs.length; idx++)
-                          Focus(
-                            focusNode: idx == _tabController.index
-                                ? _contentFocusNode
+                          _TutorialTabContent(
+                            text: widget.tabs[idx].text,
+                            isActive: idx == _tabController.index,
+                            scrollController: idx == _tabController.index
+                                ? _scrollController
                                 : null,
-                            canRequestFocus: idx == _tabController.index,
-                            skipTraversal: false,
-                            descendantsAreFocusable: true,
-                            descendantsAreTraversable: true,
-                            child: SingleChildScrollView(
-                              controller: idx == _tabController.index
-                                  ? _scrollController
-                                  : null,
-                              padding: const EdgeInsets.only(top: 8),
-                              child: SelectionArea(
-                                child: Text(widget.tabs[idx].text),
-                              ),
-                            ),
                           ),
                       ],
                     ),
@@ -10848,6 +11199,7 @@ class _TutorialDialogState extends State<_TutorialDialog>
                 ),
               ],
             ),
+          ),
           ),
         ),
         actions: [
