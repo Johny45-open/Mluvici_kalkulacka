@@ -10957,18 +10957,38 @@ class _TutorialDialog extends StatefulWidget {
 class _TutorialDialogState extends State<_TutorialDialog>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  late final List<FocusNode> _tabFocusNodes;
   final ScrollController _scrollController = ScrollController();
+  int? _focusedTabIndex;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: widget.tabs.length, vsync: this);
-    _tabFocusNodes = List.generate(
-      widget.tabs.length,
-      (_) => FocusNode(debugLabel: 'tutorialTab'),
-    );
     _tabController.addListener(_onTabChanged);
+    // Po otevření dialogu zajisti, že fokus bude na první záložce (jediný Tab stop na záložku → InkWell).
+    // Bez vlastních FocusNode s autofocus TabBar nezíská fokus automaticky.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final primary = FocusManager.instance.primaryFocus;
+      final insideDialog = primary != null &&
+          primary.context != null &&
+          primary.context!.findAncestorWidgetOfExactType<AlertDialog>() != null;
+      if (!insideDialog) {
+        // nextFocus přejde na první traversovatelný prvek v ReadingOrder – první záložka.
+        FocusScope.of(context).nextFocus();
+        // Fallback: pokud stále není uvnitř, zkus fokusovat TabBar přímo přes FocusScope
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (!mounted) return;
+          final p2 = FocusManager.instance.primaryFocus;
+          final inside2 = p2 != null &&
+              p2.context != null &&
+              p2.context!.findAncestorWidgetOfExactType<AlertDialog>() != null;
+          if (!inside2) {
+            FocusScope.of(context).nextFocus();
+          }
+        });
+      }
+    });
   }
 
   void _onTabChanged() {
@@ -10988,12 +11008,6 @@ class _TutorialDialogState extends State<_TutorialDialog>
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(0);
       }
-      final idx = _tabController.index;
-      if (idx >= 0 && idx < _tabFocusNodes.length) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _tabFocusNodes[idx].requestFocus();
-        });
-      }
     }
   }
 
@@ -11001,14 +11015,24 @@ class _TutorialDialogState extends State<_TutorialDialog>
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
-    for (final n in _tabFocusNodes) {
-      n.dispose();
-    }
     _scrollController.dispose();
     super.dispose();
   }
 
-  KeyEventResult _handleTabKey(FocusNode node, KeyEvent event) {
+  bool _isTabBarFocused() {
+    if (_focusedTabIndex != null) return true;
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary == null || primary.context == null) return false;
+    try {
+      return primary.context!
+              .findAncestorWidgetOfExactType<TabBar>() !=
+          null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final isCtrl = HardwareKeyboard.instance.isControlPressed;
     if (isCtrl && event.logicalKey == LogicalKeyboardKey.tab) {
@@ -11019,10 +11043,12 @@ class _TutorialDialogState extends State<_TutorialDialog>
       _tabController.animateTo(normalized);
       return KeyEventResult.handled;
     }
+    final isTabFocused = _isTabBarFocused();
     if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
         event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      if (!node.hasPrimaryFocus) return KeyEventResult.ignored;
-      final delta = event.logicalKey == LogicalKeyboardKey.arrowRight ? 1 : -1;
+      if (!isTabFocused) return KeyEventResult.ignored;
+      final delta =
+          event.logicalKey == LogicalKeyboardKey.arrowRight ? 1 : -1;
       final next = _tabController.index + delta;
       if (next < 0 || next >= widget.tabs.length) {
         return KeyEventResult.ignored;
@@ -11031,16 +11057,17 @@ class _TutorialDialogState extends State<_TutorialDialog>
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.home) {
-      if (!node.hasPrimaryFocus) return KeyEventResult.ignored;
+      if (!isTabFocused) return KeyEventResult.ignored;
       _tabController.animateTo(0);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.end) {
-      if (!node.hasPrimaryFocus) return KeyEventResult.ignored;
+      if (!isTabFocused) return KeyEventResult.ignored;
       _tabController.animateTo(widget.tabs.length - 1);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.pageDown) {
+      if (!isTabFocused) return KeyEventResult.ignored;
       if (_tabController.index < widget.tabs.length - 1) {
         _tabController.animateTo(_tabController.index + 1);
         return KeyEventResult.handled;
@@ -11048,24 +11075,11 @@ class _TutorialDialogState extends State<_TutorialDialog>
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.pageUp) {
+      if (!isTabFocused) return KeyEventResult.ignored;
       if (_tabController.index > 0) {
         _tabController.animateTo(_tabController.index - 1);
         return KeyEventResult.handled;
       }
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
-  }
-
-  KeyEventResult _handleGlobalKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final isCtrl = HardwareKeyboard.instance.isControlPressed;
-    if (isCtrl && event.logicalKey == LogicalKeyboardKey.tab) {
-      final isShift = HardwareKeyboard.instance.isShiftPressed;
-      final delta = isShift ? -1 : 1;
-      final next = (_tabController.index + delta) % widget.tabs.length;
-      final normalized = next < 0 ? widget.tabs.length - 1 : next;
-      _tabController.animateTo(normalized);
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -11087,44 +11101,43 @@ class _TutorialDialogState extends State<_TutorialDialog>
             width: double.maxFinite,
             height: 460,
             child: Focus(
-              onKeyEvent: _handleGlobalKey,
+              canRequestFocus: false,
+              skipTraversal: true,
+              includeSemantics: false,
+              onKeyEvent: _handleKey,
               child: Column(
                 children: [
                   Semantics(
                     container: true,
                     label: widget.parent._s('Záložky návodu', 'Tutorial tabs'),
-                  child: TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    tabs: [
-                      for (int i = 0; i < widget.tabs.length; i++)
-                        Builder(
-                          builder: (context) {
-                            final isSelected = _tabController.index == i;
-                            final labelCs =
-                                '${widget.tabs[i].label}, karta ${i + 1} z ${widget.tabs.length}${isSelected ? ', vybráno' : ''}';
-                            final labelEn =
-                                '${widget.tabs[i].label}, tab ${i + 1} of ${widget.tabs.length}${isSelected ? ', selected' : ''}';
-                            return Semantics(
-                              selected: isSelected,
-                              inMutuallyExclusiveGroup: true,
-                              label: widget.parent._s(labelCs, labelEn),
-                              excludeSemantics: true,
-                              child: Focus(
-                                focusNode: _tabFocusNodes[i],
-                                autofocus: isSelected,
-                                canRequestFocus: true,
-                                skipTraversal: false,
-                                onKeyEvent: _handleTabKey,
+                    child: TabBar(
+                      controller: _tabController,
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      onFocusChange: (focused, index) {
+                        if (focused) {
+                          _focusedTabIndex = index;
+                        } else if (_focusedTabIndex == index) {
+                          _focusedTabIndex = null;
+                        }
+                      },
+                      tabs: [
+                        for (int i = 0; i < widget.tabs.length; i++)
+                          Builder(
+                            builder: (context) {
+                              final isSelected = _tabController.index == i;
+                              return Semantics(
+                                selected: isSelected,
+                                inMutuallyExclusiveGroup: true,
+                                label: widget.tabs[i].label,
+                                excludeSemantics: true,
                                 child: Tab(text: widget.tabs[i].label),
-                              ),
-                            );
-                          },
-                        ),
-                    ],
+                              );
+                            },
+                          ),
+                      ],
+                    ),
                   ),
-                ),
                 const SizedBox(height: 8),
                 Expanded(
                   child: Semantics(
