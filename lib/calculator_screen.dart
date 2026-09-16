@@ -10701,123 +10701,19 @@ class _TutorialTabContent extends StatefulWidget {
 
 class _TutorialTabContentState extends State<_TutorialTabContent> {
   late List<_ManualBlock> _blocks;
-  late List<FocusNode> _blockNodes;
-  late List<GlobalKey> _blockKeys;
 
   @override
   void initState() {
     super.initState();
     _blocks = _parseManualText(widget.text);
-    _blockNodes = List.generate(
-      _blocks.length,
-      (i) => FocusNode(debugLabel: 'tutorialBlock $i'),
-    );
-    _blockKeys = List.generate(_blocks.length, (_) => GlobalKey());
   }
 
   @override
   void didUpdateWidget(covariant _TutorialTabContent oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text) {
-      for (final n in _blockNodes) {
-        n.dispose();
-      }
       _blocks = _parseManualText(widget.text);
-      _blockNodes = List.generate(
-        _blocks.length,
-        (i) => FocusNode(debugLabel: 'tutorialBlock $i'),
-      );
-      _blockKeys = List.generate(_blocks.length, (_) => GlobalKey());
     }
-  }
-
-  @override
-  void dispose() {
-    for (final n in _blockNodes) {
-      n.dispose();
-    }
-    super.dispose();
-  }
-
-  void _focusAndEnsure(int idx) {
-    if (idx < 0 || idx >= _blockNodes.length) return;
-    _blockNodes[idx].requestFocus();
-    final ctx = _blockKeys[idx].currentContext;
-    if (ctx != null) {
-      Scrollable.ensureVisible(
-        ctx,
-        duration: const Duration(milliseconds: 150),
-        alignment: 0.15,
-        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-      );
-    }
-  }
-
-  KeyEventResult _handleBlockKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    if (!node.hasPrimaryFocus) return KeyEventResult.ignored;
-    final idx = _blockNodes.indexOf(node);
-    if (idx == -1) return KeyEventResult.ignored;
-    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      if (idx < _blockNodes.length - 1) {
-        _focusAndEnsure(idx + 1);
-      }
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      if (idx > 0) {
-        _focusAndEnsure(idx - 1);
-      }
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.home) {
-      _focusAndEnsure(0);
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.end) {
-      _focusAndEnsure(_blockNodes.length - 1);
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.pageDown) {
-      if (idx < _blockNodes.length - 1) {
-        _focusAndEnsure(idx + 1);
-      }
-      // also try to scroll a bit if still at last
-      if (widget.scrollController != null &&
-          widget.scrollController!.hasClients) {
-        final pos = widget.scrollController!.position;
-        final target = (pos.pixels + 200).clamp(
-          pos.minScrollExtent,
-          pos.maxScrollExtent,
-        );
-        widget.scrollController!.animateTo(
-          target,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-        );
-      }
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.pageUp) {
-      if (idx > 0) {
-        _focusAndEnsure(idx - 1);
-      }
-      if (widget.scrollController != null &&
-          widget.scrollController!.hasClients) {
-        final pos = widget.scrollController!.position;
-        final target = (pos.pixels - 200).clamp(
-          pos.minScrollExtent,
-          pos.maxScrollExtent,
-        );
-        widget.scrollController!.animateTo(
-          target,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-        );
-      }
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
   }
 
   @override
@@ -10831,107 +10727,58 @@ class _TutorialTabContentState extends State<_TutorialTabContent> {
     if (_blocks.isEmpty) {
       return const SizedBox.shrink();
     }
-    return FocusTraversalGroup(
-      policy: OrderedTraversalPolicy(),
-      child: SingleChildScrollView(
-        controller: widget.scrollController,
-        padding: const EdgeInsets.only(top: 8),
+    return SingleChildScrollView(
+      controller: widget.scrollController,
+      padding: const EdgeInsets.only(top: 8),
+      child: ExcludeFocus(
         child: SelectionArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (int i = 0; i < _blocks.length; i++)
-                FocusTraversalOrder(
-                  order: NumericFocusOrder(i.toDouble()),
-                  child: Focus(
-                    key: _blockKeys[i],
-                    focusNode: _blockNodes[i],
-                    canRequestFocus: true,
-                    skipTraversal: false,
-                    debugLabel: 'tutorialBlock $i',
-                    onKeyEvent: _handleBlockKey,
-                    onFocusChange: (hasFocus) {
-                      if (hasFocus) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          final ctx = _blockKeys[i].currentContext;
-                          if (mounted && ctx != null) {
-                            Scrollable.ensureVisible(
-                              ctx,
-                              duration: const Duration(milliseconds: 150),
-                              alignment: 0.15,
-                              alignmentPolicy:
-                                  ScrollPositionAlignmentPolicy.explicit,
-                            );
-                          }
-                        });
-                      }
-                    },
-                    child: Builder(
-                      builder: (context) {
-                        final hasFocus = _blockNodes[i].hasFocus;
-                        final block = _blocks[i];
-                        final isHeading =
-                            block.type == _ManualBlockType.heading;
-                        final isBullet =
-                            block.type == _ManualBlockType.bullet;
-                        Widget content;
-                        if (isBullet) {
-                          content = Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 3),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(right: 8, top: 1),
-                                  child: ExcludeSemantics(
-                                    child: Text('•'),
-                                  ),
-                                ),
-                                Expanded(child: Text(block.text)),
-                              ],
-                            ),
-                          );
-                        } else if (isHeading) {
-                          content = Padding(
-                            padding: const EdgeInsets.only(top: 8, bottom: 4),
-                            child: Text(
-                              block.text,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
+              for (final block in _blocks)
+                Builder(
+                  builder: (context) {
+                    final isHeading = block.type == _ManualBlockType.heading;
+                    final isBullet = block.type == _ManualBlockType.bullet;
+                    Widget content;
+                    if (isBullet) {
+                      content = Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(right: 8, top: 1),
+                              child: ExcludeSemantics(
+                                child: Text('•'),
                               ),
                             ),
-                          );
-                        } else {
-                          content = Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Text(block.text),
-                          );
-                        }
-                        Widget wrapped = content;
-                        if (isHeading) {
-                          wrapped = Semantics(header: true, child: content);
-                        }
-                        // Visual focus indicator without adding extra semantics
-                        return Container(
-                          decoration: hasFocus
-                              ? BoxDecoration(
-                                  border: Border.all(
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                    width: 1.2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(4),
-                                )
-                              : null,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
+                            Expanded(child: Text(block.text)),
+                          ],
+                        ),
+                      );
+                    } else if (isHeading) {
+                      content = Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 4),
+                        child: Text(
+                          block.text,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
                           ),
-                          child: wrapped,
-                        );
-                      },
-                    ),
-                  ),
+                        ),
+                      );
+                    } else {
+                      content = Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(block.text),
+                      );
+                    }
+                    if (isHeading) {
+                      return Semantics(header: true, child: content);
+                    }
+                    return content;
+                  },
                 ),
             ],
           ),

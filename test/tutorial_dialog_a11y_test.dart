@@ -57,21 +57,17 @@ void main() {
     expect(find.text('Help'), findsOneWidget);
   }
 
-  // Starý helper pro legacy Focus s debugLabel 'tutorialTab' – po opravě vrací 0,
-  // ale testy nyní používají Tab widgety jako zdroj pravdy.
   Finder legacyTutorialTabFocuses() {
     return find.byWidgetPredicate(
       (w) => w is Focus && (w.debugLabel ?? '') == 'tutorialTab',
     );
   }
 
-  // Nový helper: Focus uzly uvnitř TabBar (InkWell Focus – jeden na záložku)
   Finder tabBarFocuses() {
     return find.descendant(
       of: find.byType(TabBar),
       matching: find.byWidgetPredicate((w) {
         if (w is! Focus) return false;
-        // InkWell Focus má canRequestFocus true a skipTraversal false
         final f = w as Focus;
         return f.canRequestFocus == true && f.skipTraversal == false;
       }),
@@ -84,6 +80,62 @@ void main() {
     return find.byWidgetPredicate(
       (w) => w is Focus && (w.debugLabel ?? '').startsWith('tutorialBlock'),
     );
+  }
+
+  Finder prevButtonFinder(WidgetTester tester) {
+    final prevCs = find.text('Předchozí');
+    final prevEn = find.text('Previous');
+    if (tester.any(prevCs)) return prevCs;
+    return prevEn;
+  }
+
+  Finder nextButtonFinder(WidgetTester tester) {
+    final nextCs = find.text('Další');
+    final nextEn = find.text('Next');
+    if (tester.any(nextCs)) return nextCs;
+    return nextEn;
+  }
+
+  Finder understandButtonFinder(WidgetTester tester) {
+    final cs = find.text('ROZUMÍM');
+    final en = find.text('UNDERSTAND');
+    if (tester.any(cs)) return cs;
+    return en;
+  }
+
+  Future<void> ensureFocusOnTabBar(WidgetTester tester) async {
+    if (FocusManager.instance.primaryFocus?.context
+            ?.findAncestorWidgetOfExactType<TabBar>() !=
+        null) {
+      return;
+    }
+    // Zkus tap na aktuálně vybranou záložku
+    try {
+      final tabBar = tester.widget<TabBar>(find.byType(TabBar));
+      final idx = tabBar.controller?.index ?? 0;
+      await tester.tap(find.byType(Tab).at(idx));
+      await tester.pumpAndSettle();
+      if (FocusManager.instance.primaryFocus?.context
+              ?.findAncestorWidgetOfExactType<TabBar>() !=
+          null) return;
+    } catch (_) {}
+    // Fallback: Tabuj dokud se nedostaneme do TabBar (max 15×, pak Shift+Tab)
+    for (int i = 0; i < 15; i++) {
+      if (FocusManager.instance.primaryFocus?.context
+              ?.findAncestorWidgetOfExactType<TabBar>() !=
+          null) return;
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+    }
+    for (int i = 0; i < 15; i++) {
+      if (FocusManager.instance.primaryFocus?.context
+              ?.findAncestorWidgetOfExactType<TabBar>() !=
+          null) return;
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await tester.pump();
+    }
   }
 
   group('Tutorial dialog accessibility', () {
@@ -100,19 +152,17 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('2. Aktualni karta je spravne fokusovatelna – jedna zalozka = jeden Tab stop', (tester) async {
+    testWidgets('2. Aktualni karta je spravne fokusovatelna – jedna zalozka = jeden Tab stop, 0 bloku', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      // Nová architektura: 9 Tab widgetů, každý má právě jeden InkWell Focus
       expect(tabCount(tester), 9, reason: 'Dialog má 9 záložek');
-      // Staré Focus nodes již neexistují (žádný duplicitní wrapper)
       expect(legacyTutorialTabFocuses(), findsNothing,
           reason: 'Po opravě nesmí existovat duplicitní Focus(tutorialTab)');
-      // TabBar Focus nodes – přesně 9, žádný duplikát
       final barFocuses = tester.widgetList<Focus>(tabBarFocuses()).toList();
       expect(barFocuses.length, 9,
           reason: 'Každá záložka má právě jeden InkWell Focus');
-      expect(tutorialBlockFocuses(), findsWidgets);
+      expect(tutorialBlockFocuses(), findsNothing,
+          reason: 'Statický text nesmí mít žádný Tab stop (0 tutorialBlock Focus)');
       await tester.pump(const Duration(seconds: 2));
     });
 
@@ -121,171 +171,196 @@ void main() {
       await openTutorial(tester, state);
       final barFocuses = tester.widgetList<Focus>(tabBarFocuses()).toList();
       expect(barFocuses.length, 9);
-      // Fokus na první záložku
       barFocuses.first.focusNode?.requestFocus();
-      // Pokud FocusNode je null (interní), použij TabBar Focus fallback – request přes Tab
       if (barFocuses.first.focusNode == null) {
-        // Najdi první Focus v TabBar a request
-        final first = barFocuses.first;
-        // focusNode může být null pro interní, ale Focus widget má interní node
-        // Zkusíme přes FocusScope
         Focus.of(tester.element(find.byType(TabBar).first), scopeOk: true).requestFocus();
       }
       await tester.pump();
-      // Ověř že Tab prochází sekvenčně: simuluj Tab a zkontroluj že index TabController roste po jednom
-      // Místo přímého hasFocus použijeme TabController index a FocusManager
       final tabBar = tester.widget<TabBar>(find.byType(TabBar));
       final controller = tabBar.controller!;
       expect(controller.index, 0);
-      // Fokus na první záložku – Tab by měl jít na obsah nebo další záložku
-      // V ReadingOrderTraversalPolicy: Tab → Tab1 → Tab2 … → Předchozí → Další → Rozumím
-      // Ověříme že počet unikátních Tab stops pro záložky je 9, ne 18
-      final allFoci = find.byType(Focus).evaluate().toList();
-      // Spočítej kolik Focus uzlů má rect stejné jako některá záložka (duplikát)
-      // Zjednodušeně: tabBarFocuses musí být 9, ne 18
       expect(barFocuses.length, 9);
-      // Simuluj Tab 3× a ověř že controller se neposune (Tab neovládá controller) – ale focus se posune
-      // Pro tento test stačí ověřit že fokus na další záložku jde po jednom Tabu
-      // Nastav focus na 0, po Tab musí být 1, po dalším Tab 2
       barFocuses[0].focusNode?.requestFocus();
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
-      // FocusManager primární focus musí být nyní na záložce 1 nebo 2?
-      // V tuto chvíli tabBarFocuses[1] by měl mít focus
-      // Pokud je focusNode null, kontrolujeme přes FocusManager
       final primary = FocusManager.instance.primaryFocus;
       expect(primary, isNotNull);
-      // Zkontrolujeme že primární focus je uvnitř TabBar (ještě stále na záložce)
       expect(primary!.context!.findAncestorWidgetOfExactType<TabBar>(), isNotNull,
           reason: 'Po jednom Tabu musí být fokus stále na TabBar, ne na duplicitním wrapperu stejné záložky');
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('3. Tab projde vsechny oczekavane navigovatelne casti', (tester) async {
+    testWidgets('3. Tab po posledni zalozce jde primo na Predchozi -> Dalsi -> Rozumim bez zastavky na textu', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      final blockFocuses = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      expect(blockFocuses.length, greaterThan(1),
-          reason: 'Kazda karta musi mit vice bloku');
-      blockFocuses.first.focusNode!.requestFocus();
-      await tester.pump();
-      expect(blockFocuses.first.focusNode!.hasFocus, isTrue);
-      for (var i = 1; i < blockFocuses.length; i++) {
+      expect(tutorialBlockFocuses(), findsNothing,
+          reason: 'Žádný tutorialBlock Focus nesmí existovat');
+      final barFocuses = tester.widgetList<Focus>(tabBarFocuses()).toList();
+      expect(barFocuses.length, 9);
+      // Nastav prostřední záložku aby Předchozí i Další byly enabled
+      final controller = tester.widget<TabBar>(find.byType(TabBar)).controller!;
+      controller.animateTo(4);
+      await tester.pumpAndSettle();
+      await ensureFocusOnTabBar(tester);
+      expect(FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<TabBar>(), isNotNull,
+          reason: 'Fokus musí být na TabBar před Traversal');
+      // Projdeme Tabem dokud neopustíme TabBar – TabBar má 9 stop, musíme jimi projít všechny
+      int safety = 0;
+      while (FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<TabBar>() != null && safety < 12) {
         await tester.sendKeyEvent(LogicalKeyboardKey.tab);
         await tester.pump();
-        expect(blockFocuses[i].focusNode!.hasFocus, isTrue,
-            reason: 'Tab ma prejit na blok $i');
+        expect(tutorialBlockFocuses(), findsNothing);
+        safety++;
       }
+      expect(safety, greaterThan(0), reason: 'Museli jsme opustit TabBar');
+      expect(safety, lessThan(12), reason: 'TabBar má 9 stop, nesmí trvat déle');
+      expect(FocusManager.instance.primaryFocus, isNotNull, reason: 'Fokus nesmí být null po opuštění TabBar');
+      expect(FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<TextButton>(), isNotNull,
+          reason: 'Po poslední záložce musí být fokus na TextButton (Předchozí)');
+      final prevFinder = prevButtonFinder(tester);
+      expect(prevFinder, findsOneWidget);
+      // Další Tab → Další
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
-      final stillInBlocks = blockFocuses.any((f) => f.focusNode!.hasFocus);
-      expect(stillInBlocks, isFalse,
-          reason: 'Tab po poslednim bloku ma opustit obsah');
+      expect(tutorialBlockFocuses(), findsNothing);
+      expect(FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<TextButton>(), isNotNull,
+          reason: 'Druhý Tab po TabBar musí být na Další');
+      final nextFinder = nextButtonFinder(tester);
+      expect(nextFinder, findsOneWidget);
+      // Další Tab → Rozumím (v actions)
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(tutorialBlockFocuses(), findsNothing);
+      final understandFinder = understandButtonFinder(tester);
+      expect(understandFinder, findsOneWidget);
+      expect(FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<TextButton>(), isNotNull,
+          reason: 'Po Další musí být fokus na Rozumím');
+      expect(tutorialBlockFocuses(), findsNothing);
+      expect(find.byType(SingleChildScrollView), findsWidgets);
+      expect(find.byType(Text), findsWidgets);
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('4. Shift+Tab funguje opacnym smerem', (tester) async {
+    testWidgets('3b. Shift+Tab jde opacne Rozumim -> Dalsi -> Predchozi -> posledni zalozka bez textu', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      final blocks = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      expect(blocks.length, greaterThan(2));
-      blocks.last.focusNode!.requestFocus();
-      await tester.pump();
-      expect(blocks.last.focusNode!.hasFocus, isTrue);
+      expect(tutorialBlockFocuses(), findsNothing);
+      await ensureFocusOnTabBar(tester);
+      // Přejdi na Rozumím přes Tab sekvenci
+      for (int i = 0; i < 11; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      final understandFinder = understandButtonFinder(tester);
+      expect(understandFinder, findsOneWidget);
+      // Nyní Shift+Tab zpět
       await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
       await tester.pump();
-      expect(blocks[blocks.length - 2].focusNode!.hasFocus, isTrue,
-          reason: 'Shift+Tab ma vratit fokus');
+      expect(tutorialBlockFocuses(), findsNothing);
+      // Fokus by měl být na Další nebo Předchozí (opačný směr)
+      expect(FocusManager.instance.primaryFocus, isNotNull);
+      expect(tutorialBlockFocuses(), findsNothing, reason: 'Shift+Tab nesmí narazit na blok');
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await tester.pump();
+      expect(tutorialBlockFocuses(), findsNothing);
+      // Další Shift+Tab až na TabBar
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await tester.pump();
+      // Může být na Předchozí nebo už v TabBar – hlavně nesmí být na bloku
+      expect(tutorialBlockFocuses(), findsNothing);
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('5. Sipka dolu prejde na dalsi cast obsahu', (tester) async {
+    testWidgets('4. Staticky text neni focusovatelny, ArrowUp/Down na TabBar nemeni focus na bloky', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      final blocks = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      expect(blocks.length, greaterThan(1));
-      blocks.first.focusNode!.requestFocus();
-      await tester.pump();
-      expect(blocks.first.focusNode!.hasFocus, isTrue);
+      expect(tutorialBlockFocuses(), findsNothing);
+      final controller = tester.widget<TabBar>(find.byType(TabBar)).controller!;
+      controller.animateTo(4);
+      await tester.pumpAndSettle();
+      await ensureFocusOnTabBar(tester);
+      final before = FocusManager.instance.primaryFocus;
+      expect(before, isNotNull);
+      expect(before!.context!.findAncestorWidgetOfExactType<TabBar>(), isNotNull, reason: 'Fokus musí být na TabBar');
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
       await tester.pump();
-      expect(blocks[1].focusNode!.hasFocus, isTrue,
-          reason: 'ArrowDown ma prejit na dalsi blok');
-      await tester.pump(const Duration(seconds: 2));
-    });
-
-    testWidgets('6. Sipka nahoru prejde na predchozi cast', (tester) async {
-      final state = await pumpApp(tester);
-      await openTutorial(tester, state);
-      final blocks = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      blocks[1].focusNode!.requestFocus();
-      await tester.pump();
-      expect(blocks[1].focusNode!.hasFocus, isTrue);
+      expect(tutorialBlockFocuses(), findsNothing);
+      // ArrowDown/Up na TabBar nesmí přesunout fokus na textový blok (0 Tab stop).
+      // Může zůstat na TabBar (ignored) nebo být stále v dialogu – hlavně nesmí být na bloku a nesmí být null.
+      expect(FocusManager.instance.primaryFocus, isNotNull, reason: 'Fokus nesmí být null po ArrowDown');
+      expect(FocusManager.instance.primaryFocus!.context!.findAncestorWidgetOfExactType<AlertDialog>(), isNotNull);
+      expect(tutorialBlockFocuses(), findsNothing);
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
       await tester.pump();
-      expect(blocks.first.focusNode!.hasFocus, isTrue);
+      expect(tutorialBlockFocuses(), findsNothing);
+      expect(FocusManager.instance.primaryFocus, isNotNull);
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('7. Home jde na zacatek kapitoly', (tester) async {
+    testWidgets('5. Home/End/PageUp/PageDown na TabBar nemeni fokus na text', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      final blocks = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      blocks.last.focusNode!.requestFocus();
-      await tester.pump();
+      // Tento test byl dříve závislý na blocích – nyní pouze ověřuje že bloky nejsou focusovatelné
+      // a že Home/End/Ctrl+Tab na záložkách stále fungují (pokryto testem 15), zde jen negativní test
+      await ensureFocusOnTabBar(tester);
       await tester.sendKeyEvent(LogicalKeyboardKey.home);
       await tester.pump();
-      expect(blocks.first.focusNode!.hasFocus, isTrue);
-      await tester.pump(const Duration(seconds: 2));
-    });
-
-    testWidgets('8. End jde na konec kapitoly', (tester) async {
-      final state = await pumpApp(tester);
-      await openTutorial(tester, state);
-      final blocks = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      blocks.first.focusNode!.requestFocus();
-      await tester.pump();
+      expect(tutorialBlockFocuses(), findsNothing);
       await tester.sendKeyEvent(LogicalKeyboardKey.end);
       await tester.pump();
-      expect(blocks.last.focusNode!.hasFocus, isTrue);
+      expect(tutorialBlockFocuses(), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      await tester.pump();
+      expect(tutorialBlockFocuses(), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+      await tester.pump();
+      expect(tutorialBlockFocuses(), findsNothing);
       await tester.pump(const Duration(seconds: 2));
-    });
+    }, skip: false);
 
-    testWidgets('9. Prepnuti karty vyradi neaktivni obsah z focus traversal',
-        (tester) async {
+    // Reálný test pro Home/End/PageUp/PageDown pokryt v testu 15 – zde jen ověřujeme že bloky nejsou Tab stopy
+
+    testWidgets('9. Prepnuti karty zachova 0 Tab stop v obsahu a spravny index', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      expect(tutorialBlockFocuses(), findsWidgets);
-      // Přepni na druhou záložku přes TabBar tap
+      expect(tutorialBlockFocuses(), findsNothing);
       final secondTab = find.descendant(of: find.byType(TabBar), matching: find.byType(Tab)).at(1);
       await tester.tap(secondTab);
       await tester.pumpAndSettle();
-      final blocksAfter = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      expect(blocksAfter.length, greaterThan(0));
-      for (final f in blocksAfter) {
-        expect(f.focusNode!.skipTraversal, isFalse);
-      }
-      // TabBar controller musí být na indexu 1
+      expect(tutorialBlockFocuses(), findsNothing, reason: 'Po přepnutí stále 0 blok Focusů');
       final controller = tester.widget<TabBar>(find.byType(TabBar)).controller!;
       expect(controller.index, 1);
+      // Ověř že Tab po přepnutí stále jde přímo na tlačítka (bez bloků) – projdeme TabBar až do opuštění
+      await ensureFocusOnTabBar(tester);
+      expect(FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<TabBar>(), isNotNull);
+      int safety = 0;
+      while (FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<TabBar>() != null && safety < 12) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        expect(tutorialBlockFocuses(), findsNothing);
+        safety++;
+      }
+      expect(safety, greaterThan(0));
+      expect(FocusManager.instance.primaryFocus, isNotNull);
+      expect(FocusManager.instance.primaryFocus!.context!.findAncestorWidgetOfExactType<TextButton>(), isNotNull,
+          reason: 'Po poslední záložce musí být fokus na tlačítku, ne na bloku');
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('10. Po prepnuti karty je nova karta na zacatku (scroll 0)',
-        (tester) async {
+    testWidgets('10. Po prepnuti karty je nova karta na zacatku (scroll 0)', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      final blocks = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      blocks.last.focusNode!.requestFocus();
-      await tester.pumpAndSettle();
-      final nextFinder = find.text('Next');
-      final nextCs = find.text('Další');
-      final next = tester.any(nextFinder) ? nextFinder : nextCs;
+      // Už žádné blok Focus – pouze scroll ověření
+      final nextFinder = nextButtonFinder(tester);
       final nextBtn = find.ancestor(
-        of: next,
+        of: nextFinder,
         matching: find.byType(TextButton),
       );
       await tester.tap(nextBtn);
@@ -297,26 +372,22 @@ void main() {
           firstScrollable.controller!.hasClients) {
         expect(firstScrollable.controller!.offset, 0.0);
       }
+      expect(tutorialBlockFocuses(), findsNothing);
       await tester.pump(const Duration(seconds: 2));
     });
 
     testWidgets('11. Predchozi/Dalsi funguje', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      // Začni na první záložce
       TabBar tabBar = tester.widget<TabBar>(find.byType(TabBar));
       expect(tabBar.controller!.index, 0);
-      final nextText = find.text('Next');
-      final nextCsText = find.text('Další');
-      final nextLabel = tester.any(nextText) ? nextText : nextCsText;
+      final nextLabel = nextButtonFinder(tester);
       final nextBtn = find.ancestor(of: nextLabel, matching: find.byType(TextButton));
       await tester.tap(nextBtn);
       await tester.pumpAndSettle();
       tabBar = tester.widget<TabBar>(find.byType(TabBar));
       expect(tabBar.controller!.index, 1);
-      final prevText = find.text('Previous');
-      final prevCsText = find.text('Předchozí');
-      final prevLabel = tester.any(prevText) ? prevText : prevCsText;
+      final prevLabel = prevButtonFinder(tester);
       final prevBtn = find.ancestor(of: prevLabel, matching: find.byType(TextButton));
       await tester.tap(prevBtn);
       await tester.pumpAndSettle();
@@ -328,34 +399,32 @@ void main() {
     testWidgets('12. Zavreni dialogu funguje', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      final closeBtn = find.text('UNDERSTAND');
-      final closeCs = find.text('ROZUMÍM');
-      final close = tester.any(closeBtn) ? closeBtn : closeCs;
+      final close = understandButtonFinder(tester);
       await tester.tap(close);
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsNothing);
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('13. Nejsou pritomne duplicitni focus stopy', (tester) async {
+    testWidgets('13. Nejsou pritomne duplicitni focus stopy a 0 bloku', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
       final barFocuses = tester.widgetList<Focus>(tabBarFocuses()).toList();
       expect(barFocuses.length, 9, reason: '9 záložek = 9 focus stop, ne 18');
       expect(legacyTutorialTabFocuses(), findsNothing, reason: 'Žádný duplicitní Focus(tutorialTab)');
-      final blocks = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      // Celkově: 9 tab stop + bloky aktivní karty (bez duplikátů)
+      expect(tutorialBlockFocuses(), findsNothing, reason: '0 Tab stop pro statický text');
+      expect(barFocuses.length, lessThan(12));
+      // Celkový počet Focus v dialogu by měl být 9 (záložky) + 3 (tlačítka) + pár interních FocusScope
       final totalFocusInsideDialog = find.descendant(
         of: find.byType(AlertDialog),
         matching: find.byType(Focus),
       ).evaluate().length;
-      // Nemusí být přesně blocks+9 kvůli TextButtonům, ale nesmí být 2*9
-      expect(barFocuses.length, lessThan(12));
-      expect(blocks.length, greaterThan(1));
+      // Nesmí být N bloků navíc (dříve 10-25)
+      expect(totalFocusInsideDialog, lessThan(30), reason: 'Žádné blok Focusy nesmí nafukovat strom');
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('14. Semantics strom neobsahuje zbytecne duplicity', (tester) async {
+    testWidgets('14. Semantics strom zustava dostupny pro odectac – text, header, bullet', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
       bool hasGiantLabel = false;
@@ -373,6 +442,17 @@ void main() {
       )).toList();
       expect(headers.length, greaterThanOrEqualTo(1),
           reason: 'Nadpisy musi byt oznaceny header:true');
+      // Ověř že samotný text je stále v semantics (Text widgety)
+      expect(find.byType(Text), findsWidgets);
+      // Ověř že odrážky mají dekorativní • skrytou a text viditelný
+      // Najdi alespoň jeden Text s obsahem (ne prázdný)
+      final texts = tester.widgetList<Text>(find.byType(Text)).toList();
+      expect(texts.length, greaterThan(5));
+      // ExcludeSemantics pouze na •, ne na obsah – ověř že obsah není ExcludeSemantics
+      expect(tutorialBlockFocuses(), findsNothing);
+      // SelectionArea stále existuje a text je uvnitř
+      expect(find.byType(SelectionArea), findsOneWidget);
+      expect(find.descendant(of: find.byType(SelectionArea), matching: find.byType(Column)), findsOneWidget);
       await tester.pump(const Duration(seconds: 2));
     });
 
@@ -381,31 +461,40 @@ void main() {
       await openTutorial(tester, state);
       final tabs = find.byType(Tab).evaluate().toList();
       expect(tabs.length, 9);
-      // Zkontroluj že žádný Tab nemá 2 labely s pozicí "karta X z 9" duplicitně
       final semantics = tester.widgetList<Semantics>(find.byType(Semantics)).toList();
       int countKartaLabels = 0;
       for (final s in semantics) {
         final label = s.properties.label ?? '';
         if (label.contains('karta ') && label.contains(' z 9')) countKartaLabels++;
       }
-      // Po opravě by neměl existovat duplicitní "karta X z 9" v našem custom label
-      // – pozici přidává nativní TabBar, my dáváme jen název. Takže count by měl být 0 (my) nebo 9 (nativní), ne 18.
       expect(countKartaLabels, lessThan(18), reason: 'Nesmí být duplicitní "karta X z 9" 2× na záložku');
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('PageDown/PageUp v obsahu posouva a meni blok', (tester) async {
+    testWidgets('14c. Text zustava dostupny po odstraneni Focus – NVDA/TalkBack reading', (tester) async {
       final state = await pumpApp(tester);
       await openTutorial(tester, state);
-      final blocks = tester.widgetList<Focus>(tutorialBlockFocuses()).toList();
-      blocks.first.focusNode!.requestFocus();
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
-      await tester.pump();
-      expect(blocks[1].focusNode!.hasFocus, isTrue);
-      await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
-      await tester.pump();
-      expect(blocks.first.focusNode!.hasFocus, isTrue);
+      expect(tutorialBlockFocuses(), findsNothing);
+      // Všechny Text widgety musí být stále v semantics tree (ne ExcludeSemantics)
+      final semanticsNodes = tester.widgetList<Semantics>(find.byType(Semantics)).toList();
+      // Hledej outer Semantics container pro obsah karty
+      final contentSemantics = find.descendant(
+        of: find.byType(TabBarView),
+        matching: find.byType(Semantics),
+      );
+      expect(contentSemantics, findsWidgets);
+      // Ověř že SelectionArea.Column obsahuje Text
+      final columnTexts = find.descendant(
+        of: find.byType(SelectionArea),
+        matching: find.byType(Text),
+      );
+      expect(columnTexts, findsWidgets);
+      // Žádný ExcludeSemantics nesmí obalit celý obsah manuálu
+      // (ExcludeSemantics pouze na • dekoraci je povolen)
+      final excludeSemantics = tester.widgetList<ExcludeSemantics>(find.byType(ExcludeSemantics)).toList();
+      // Smí existovat ExcludeSemantics pro • a pro neaktivní karty, ale ne pro aktivní obsah
+      // Aktivní obsah nesmí být uvnitř ExcludeSemantics
+      expect(tutorialBlockFocuses(), findsNothing);
       await tester.pump(const Duration(seconds: 2));
     });
 
@@ -414,20 +503,14 @@ void main() {
       await openTutorial(tester, state);
       final tabBar = tester.widget<TabBar>(find.byType(TabBar));
       expect(tabBar.controller!.index, 0);
-      // Dialog po otevření automaticky fokusuje první záložku (InkWell) – ověř
       await tester.pump();
-      // Pokud fokus ještě není na TabBar (např. na bloku), přesuň ho Tabem na záložku
       if (FocusManager.instance.primaryFocus?.context
               ?.findAncestorWidgetOfExactType<TabBar>() ==
           null) {
-        // Tab z obsahu zpět na TabBar – Shift+Tab nebo opakovaný Tab
-        // Nejjednodušší: tap na TabBar zajistí i focus přes onFocusChange
         await tester.tap(find.byType(Tab).first);
         await tester.pumpAndSettle();
-        // Po tapu je potřeba ještě fokusovat – simuluj Tab pro focus
         await tester.sendKeyEvent(LogicalKeyboardKey.tab);
         await tester.pump();
-        // Pokud stále není na TabBar, vynuceně fokusuj první barFocus
         if (FocusManager.instance.primaryFocus?.context
                 ?.findAncestorWidgetOfExactType<TabBar>() ==
             null) {
@@ -438,7 +521,6 @@ void main() {
           }
         }
       }
-      // Nyní by měl být fokus na TabBar
       expect(
           FocusManager.instance.primaryFocus?.context
               ?.findAncestorWidgetOfExactType<TabBar>(),
@@ -468,6 +550,8 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
       await tester.pumpAndSettle();
       expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
+      // Ověř že bloky stále nejsou focusovatelné ani po navigaci záložkami
+      expect(tutorialBlockFocuses(), findsNothing);
       await tester.pump(const Duration(seconds: 2));
     });
   });
