@@ -75,6 +75,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ];
   final bool _sayWelcome = true;
   bool _welcomeAnnounced = false;
+  final Completer<bool> _ttsReady = Completer<bool>();
+  Future<void> get _waitForTtsReady async {
+    if (_ttsReady.isCompleted) return;
+    try {
+      await _ttsReady.future.timeout(const Duration(seconds: 5));
+    } catch (_) {}
+  }
+
   AccessibilityType _accessibilityType = AccessibilityType.none;
   String _activeProfileId = 'standard';
   bool _isProfileModified = false;
@@ -2055,7 +2063,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  void _initTts() async {
+  Future<void> _initTts() async {
+    bool ttsReadySuccess = false;
     try {
       // 1. Nejdřív nastavení (určí výchozí režim pro uvítání).
       await _loadSettings();
@@ -2078,12 +2087,103 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final locale = WidgetsBinding.instance.platformDispatcher.locale;
       final l10n = lookupAppLocalizations(locale);
       _lastTtsLocale = locale.languageCode == 'en' ? 'en-US' : 'cs-CZ';
-      if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
-      await tts.setLanguage(_lastTtsLocale!);
-      if (_ttsVoice != null) await tts.setVoice(_ttsVoice!);
-      await tts.setSpeechRate(_speechRate);
-      await tts.setVolume(_speechVolume);
-      await tts.setQueueMode(0);
+      // Windows backend nepodporuje setEngine – vynechat.
+      if (!Platform.isWindows && _ttsEngine != null) {
+        try {
+          await tts.setEngine(_ttsEngine!);
+        } catch (e) {
+          debugPrint('TTS setEngine Error: $e');
+        }
+      }
+      // Nastavení jazyka s kontrolou dostupnosti hlasů na Windows.
+      bool languageSetOk = true;
+      try {
+        await tts.setLanguage(_lastTtsLocale!);
+      } catch (e) {
+        languageSetOk = false;
+        debugPrint('TTS setLanguage Error for $_lastTtsLocale: $e');
+        if (Platform.isWindows && _lastTtsLocale == 'cs-CZ') {
+          debugPrint('TTS: český hlas cs-CZ není ve Windows dostupný.');
+        }
+      }
+      // Windows readiness kontrola – ověřit dostupné hlasy před prvním speak.
+      if (Platform.isWindows) {
+        try {
+          final voices = await tts.getVoices;
+          if (voices != null && voices is List && voices.isNotEmpty) {
+            final voiceList = voices.cast<Map<dynamic, dynamic>>();
+            final hasDesiredLocale = voiceList.any(
+              (v) => (v['locale']?.toString().toLowerCase() ==
+                      _lastTtsLocale!.toLowerCase()) ||
+                  (v['name']?.toString().toLowerCase().contains('cs-cz') ??
+                      false) ||
+                  (v['name']?.toString().toLowerCase().contains('czech') ??
+                      false),
+            );
+            if (!hasDesiredLocale) {
+              debugPrint('TTS: český hlas cs-CZ není ve Windows dostupný.');
+              // Technický fallback pouze pro diagnostiku – ne automatický přepis
+              // českého textu na angličtinu jako běžné chování.
+              // Zkusit najít jakýkoli hlas s locale obsahujícím 'cs', jinak první dostupný.
+              Map<dynamic, dynamic>? fallback;
+              try {
+                fallback = voiceList.firstWhere(
+                  (v) => v['locale']?.toString().toLowerCase().contains('cs') ?? false,
+                );
+              } catch (_) {
+                fallback = null;
+              }
+              fallback ??= voiceList.first;
+              final fbLocale = fallback['locale']?.toString() ?? 'unknown';
+              final fbName = fallback['name']?.toString() ?? 'unknown';
+              debugPrint(
+                'TTS: cs-CZ není dostupné, použit fallback $fbName ($fbLocale).',
+              );
+              // Fallback setLanguage pouze pokud původní selhalo a fallback je jiný.
+              if (!languageSetOk && fbLocale.toLowerCase() != _lastTtsLocale!.toLowerCase()) {
+                try {
+                  await tts.setLanguage(fbLocale);
+                } catch (e) {
+                  debugPrint('TTS fallback setLanguage Error: $e');
+                }
+              }
+            }
+          } else {
+            debugPrint('TTS: getVoices vrátil prázdný seznam na Windows.');
+            if (_lastTtsLocale == 'cs-CZ') {
+              debugPrint('TTS: český hlas cs-CZ není ve Windows dostupný.');
+            }
+          }
+        } catch (e) {
+          debugPrint('TTS Windows voice check Error: $e');
+          if (_lastTtsLocale == 'cs-CZ') {
+            debugPrint('TTS: český hlas cs-CZ není ve Windows dostupný.');
+          }
+        }
+      }
+      if (_ttsVoice != null) {
+        try {
+          await tts.setVoice(_ttsVoice!);
+        } catch (e) {
+          debugPrint('TTS setVoice Error: $e');
+        }
+      }
+      try {
+        await tts.setSpeechRate(_speechRate);
+      } catch (e) {
+        debugPrint('TTS setSpeechRate Error: $e');
+      }
+      try {
+        await tts.setVolume(_speechVolume);
+      } catch (e) {
+        debugPrint('TTS setVolume Error: $e');
+      }
+      try {
+        await tts.setQueueMode(0);
+      } catch (e) {
+        debugPrint('TTS setQueueMode Error: $e');
+      }
+      ttsReadySuccess = true;
       // 4. Aktuální stav screen readeru – await, aby volba
       //    announce-vs-speak nevycházela ze zastaralé hodnoty.
       //    (Samotná detekce v _isScreenReaderEnabled se nemění.)
@@ -2102,7 +2202,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           // aby startup a přepnutí hlásily konzistentní informace.
           welcome += _statsModeAnnouncement();
         }
-        _announceWelcomeOnce(welcome);
+        unawaited(_announceWelcomeOnce(welcome));
       }
       // Auto-aktualizace kurzů ČNB (silent, max 1× za 24h)
       try {
@@ -2117,6 +2217,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } catch (_) {}
     } catch (e) {
       debugPrint('TTS Error: $e');
+    } finally {
+      if (!_ttsReady.isCompleted) {
+        _ttsReady.complete(ttsReadySuccess);
+      }
     }
     final initialDialogDelay = _sayWelcome
         ? const Duration(milliseconds: 2200)
@@ -2138,24 +2242,55 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ///
   /// Při aktivní čtečce jde zpráva přes `SemanticsService.announce`
   /// (vlastní TTS by `speak()` stejně potlačilo a vznikla by duplicita).
-  /// Bez čtečky jde přes vlastní TTS s krátkým warmup zpožděním –
-  /// zpoždění je zde pouze rytmus doručení, nikoli náhrada za pořadí
-  /// inicializace (to je zajištěno await sekvencí v [_initTts]).
-  void _announceWelcomeOnce(String welcome) {
+  /// Bez čtečky jde přes vlastní TTS až po skutečném dokončení
+  /// inicializace (Completer + postFrame), 350ms delay již není
+  /// mechanismus připravenosti.
+  Future<void> _announceWelcomeOnce(String welcome) async {
     if (_welcomeAnnounced || welcome.isEmpty) return;
+    // 1. Počkat na připravenost TTS (Completer z _initTts, max 5s, neblokuje UI).
+    await _waitForTtsReady;
+    if (!mounted || _welcomeAnnounced || welcome.isEmpty) return;
+    // 2. Počkat na vhodný okamžik po vykreslení UI.
+    final completer = Completer<void>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _welcomeAnnounced) return;
-      if (_isScreenReaderActive) {
-        _announce(welcome);
-        _welcomeAnnounced = true;
-        return;
-      }
-      Future.delayed(const Duration(milliseconds: 350), () {
-        if (!mounted || _welcomeAnnounced) return;
-        speak(welcome);
-        _welcomeAnnounced = true;
-      });
+      if (!completer.isCompleted) completer.complete();
     });
+    // Pokud již proběhl frame, addPostFrameCallback se zavolá v příštím frame.
+    // Pojistit timeoutem aby neuvízl navždy.
+    try {
+      await completer.future.timeout(const Duration(seconds: 2));
+    } catch (_) {}
+    if (!mounted || _welcomeAnnounced) return;
+    // 3. Zjistit stav screen readeru.
+    // _refreshAccessibilityState již proběhl v _initTts, ale pro jistotu
+    // re-check pokud ještě není rozhodnuto (neblokuje dlouho).
+    // 4. Pokud je aktivní screen reader → SemanticsService.announce
+    if (_isScreenReaderActive) {
+      _announce(welcome);
+      _welcomeAnnounced = true;
+      return;
+    }
+    // 5. Bez screen readeru → vlastní TTS s lokálním awaitSpeakCompletion.
+    // Pouze pro welcome dočasně zapnout čekání na dokončení, ne globálně.
+    try {
+      try {
+        await tts.awaitSpeakCompletion(true);
+      } catch (_) {}
+      final result = await speak(welcome);
+      // 6. Zkontrolovat výsledek tts.speak()
+      if (result == 1) {
+        _welcomeAnnounced = true;
+      } else {
+        debugPrint('TTS welcome speak failed, result=$result');
+        // Neoznačovat jako přehrané – umožní případný retry (např. po změně hlasu),
+        // ale chránit proti duplicitě v rámci tohoto startu.
+        // Pokud speak selhal kvůli chybějícímu českému hlasu, log již proběhl v _initTts.
+      }
+    } finally {
+      try {
+        await tts.awaitSpeakCompletion(false);
+      } catch (_) {}
+    }
   }
 
   void _showInitialModeDialog() {
@@ -2290,21 +2425,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  void speak(String text, {bool force = false}) async {
+  Future<int?> speak(String text, {bool force = false}) async {
     // Pokud je aktivní čtečka, vypneme vlastní TTS kalkulačky,
     // pokud není vynuceno (např. systémové hlášení výsledku).
     if (text.isEmpty ||
         !ttsEnabled ||
         !mounted ||
         (_isScreenReaderActive && !force)) {
-      return;
+      return null;
     }
     // QUEUE_FLUSH zajistí, že nová mluva okamžitě přeruší tu aktuální.
     try {
       if (force) await tts.stop();
-      await tts.speak(_formatForSpeech(text));
+      final result = await tts.speak(_formatForSpeech(text));
+      return result;
     } catch (e) {
       debugPrint('TTS Error: $e');
+      return 0;
     }
   }
 
@@ -3939,11 +4076,35 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _currencyLastUpdate = DateTime.tryParse(currencyDateStr);
     });
     _dialogFontScaleNotifier.value = _dialogFontScale;
-    await tts.setSpeechRate(_speechRate);
-    await tts.setVolume(_speechVolume);
-    if (_ttsEngine != null) await tts.setEngine(_ttsEngine!);
-    if (_ttsVoice != null) await tts.setVoice(_ttsVoice!);
-    await tts.setQueueMode(0);
+    try {
+      await tts.setSpeechRate(_speechRate);
+    } catch (e) {
+      debugPrint('TTS setSpeechRate Error: $e');
+    }
+    try {
+      await tts.setVolume(_speechVolume);
+    } catch (e) {
+      debugPrint('TTS setVolume Error: $e');
+    }
+    if (!Platform.isWindows && _ttsEngine != null) {
+      try {
+        await tts.setEngine(_ttsEngine!);
+      } catch (e) {
+        debugPrint('TTS setEngine Error: $e');
+      }
+    }
+    if (_ttsVoice != null) {
+      try {
+        await tts.setVoice(_ttsVoice!);
+      } catch (e) {
+        debugPrint('TTS setVoice Error: $e');
+      }
+    }
+    try {
+      await tts.setQueueMode(0);
+    } catch (e) {
+      debugPrint('TTS setQueueMode Error: $e');
+    }
     if (mounted) _maybeRunDevAutodiagnostics();
   }
 
@@ -4258,8 +4419,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ttsEnabled = true;
     });
     _dialogFontScaleNotifier.value = _dialogFontScale;
-    await tts.setSpeechRate(_speechRate);
-    await tts.setVolume(_speechVolume);
+    try {
+      await tts.setSpeechRate(_speechRate);
+    } catch (e) {
+      debugPrint('TTS setSpeechRate Error: $e');
+    }
+    try {
+      await tts.setVolume(_speechVolume);
+    } catch (e) {
+      debugPrint('TTS setVolume Error: $e');
+    }
     if (_accessibilityType == AccessibilityType.visuallyImpaired) {
       widget.onThemeModeChanged(ThemeMode.dark);
     }
@@ -4812,6 +4981,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showTtsEngineDialog() async {
+    if (Platform.isWindows) {
+      if (!mounted) return;
+      showAppDialog(
+        context: context,
+        routeSettings: const RouteSettings(name: 'Info'),
+        builder: (context) => AlertDialog(
+          insetPadding: _dialogInsetPadding(),
+          title: Semantics(header: true, child: Text(_s('Info', 'Info'))),
+          content: Text(
+            _s(
+              'Výběr TTS enginu není na Windows podporován.',
+              'TTS engine selection is not supported on Windows.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(_s('Zavřít', 'Close')),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     try {
       final engines = await tts.getEngines;
       if (!mounted) return;
@@ -4844,7 +5037,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     onTap: () {
                       setState(() => _ttsEngine = engine);
                       _saveSettings();
-                      tts.setEngine(engine);
+                      if (!Platform.isWindows) {
+                        tts.setEngine(engine);
+                      }
                       Navigator.pop(context);
                     },
                   ),
