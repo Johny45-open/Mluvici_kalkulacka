@@ -195,10 +195,9 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
 
         void toggleReadValues(bool? v) {
           final newVal = v ?? true;
-          p.setState(() {
-            p._readStatsMemoryValues = newVal;
-            p._saveSettings();
-          });
+          p.updateActiveAccessibilitySettings(
+            (s) => s.copyWith(readStatsMemoryValues: newVal),
+          );
           setDialogState(() {});
           final statusMsg = newVal
               ? p._s('Čtení hodnot zapnuto', 'Reading values enabled')
@@ -218,10 +217,9 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
 
         void toggleAutoRead(bool? v) {
           final newVal = v ?? true;
-          p.setState(() {
-            p._autoReadStatsSummary = newVal;
-            p._saveSettings();
-          });
+          p.updateActiveAccessibilitySettings(
+            (s) => s.copyWith(autoReadStatsSummary: newVal),
+          );
           setDialogState(() {});
           final statusMsg = newVal
               ? p._s(
@@ -255,10 +253,9 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
 
         void toggleNavigationHint(bool? v) {
           final newVal = v ?? true;
-          p.setState(() {
-            p._showStatsNavigationHint = newVal;
-            p._saveSettings();
-          });
+          p.updateActiveAccessibilitySettings(
+            (s) => s.copyWith(showStatsNavigationHint: newVal),
+          );
           setDialogState(() {});
           final state = newVal
               ? p._s('Zapnuto', 'On')

@@ -1919,36 +1919,125 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  widget.parent._isProfileModified
-                      ? widget.parent._l10n.activeProfileModified(
-                          widget.parent._getActiveAccessibilityProfile().name,
-                        )
-                      : widget.parent._l10n.activeProfile(
-                          widget.parent._getActiveAccessibilityProfile().name,
+                Semantics(
+                  liveRegion: true,
+                  header: true,
+                  label: widget.parent._l10n.activeProfile(
+                    widget.parent._displayProfileName(
+                      widget.parent._getActiveAccessibilityProfile(),
+                    ),
+                  ),
+                  child: ExcludeSemantics(
+                    child: Text(
+                      widget.parent._l10n.activeProfile(
+                        widget.parent._displayProfileName(
+                          widget.parent._getActiveAccessibilityProfile(),
                         ),
+                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                    children: widget.parent._effectiveProfiles.map((profile) {
-                        return ElevatedButton(
+                  children: widget.parent._effectiveProfiles.map((profile) {
+                    final isActive =
+                        profile.id == widget.parent._getActiveAccessibilityProfile().id;
+                    final displayName = widget.parent._displayProfileName(profile);
+                    return Semantics(
+                      button: true,
+                      selected: isActive,
+                      label: isActive
+                          ? displayName + ', aktivní'
+                          : displayName,
+                      child: ElevatedButton(
+                        style: isActive
+                            ? ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primary,
+                                foregroundColor:
+                                    Theme.of(context).colorScheme.onPrimary,
+                              )
+                            : null,
+                        onPressed: () {
+                          widget.parent.applyAccessibilityProfile(
+                              profile,
+                              announcement: widget.parent._l10n
+                                  .profileChangedTo(displayName));
+                          setState(() {});
+                        },
+                        child: Text(displayName),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    Semantics(
+                      button: true,
+                      label: widget.parent._s(
+                          'Vytvořit nový profil', 'Create new profile'),
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(widget.parent._s(
+                            'Nový profil', 'New profile')),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.parent._showCreateProfileDialog();
+                        },
+                      ),
+                    ),
+                    Semantics(
+                      button: true,
+                      label: widget.parent._s('Obnovit výchozí nastavení profilu',
+                          'Reset profile to defaults'),
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.restart_alt, size: 18),
+                        label: Text(widget.parent._s(
+                            'Obnovit výchozí', 'Reset')),
+                        onPressed: () {
+                          widget.parent._confirmResetActiveProfile(context);
+                        },
+                      ),
+                    ),
+                    if (!widget.parent._getActiveAccessibilityProfile().isBuiltIn)
+                      Semantics(
+                        button: true,
+                        label: widget.parent._s(
+                            'Přejmenovat profil', 'Rename profile'),
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.edit, size: 18),
+                          label: Text(widget.parent._s(
+                              'Přejmenovat', 'Rename')),
                           onPressed: () {
-                            widget.parent._showProfilePreviewDialog(profile);
+                            Navigator.pop(context);
+                            widget.parent._showRenameProfileDialog();
                           },
-                          child: Text(profile.name),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        widget.parent._showSaveProfileDialog();
-                      },
-                      child: Text(widget.parent._l10n.saveSettingsToProfile),
-                    ),
-
+                        ),
+                      ),
+                    if (!widget.parent._getActiveAccessibilityProfile().isBuiltIn)
+                      Semantics(
+                        button: true,
+                        label:
+                            widget.parent._s('Smazat profil', 'Delete profile'),
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.delete, size: 18),
+                          label: Text(
+                              widget.parent._s('Smazat', 'Delete')),
+                          style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red),
+                          onPressed: () {
+                            widget.parent._confirmDeleteActiveProfile(context);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
             const Divider(),
@@ -1960,13 +2049,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               child: ElevatedButton(
                 autofocus: true,
                 onPressed: () {
-                  setState(() {
-                    widget.parent.setState(
-                      () => widget.parent._useSixteenSegment =
-                          !widget.parent._useSixteenSegment,
-                    );
-                    widget.parent._saveSettings();
-                  });
+                  final newVal = !widget.parent.activeAccessibilitySettings.useSixteenSegment;
+                  widget.parent.updateActiveAccessibilitySettings(
+                    (s) => s.copyWith(useSixteenSegment: newVal),
+                  );
+                  setState(() {});
                   widget.parent.speak(
                     widget.parent._useSixteenSegment
                         ? widget.parent._l10n.segment16On
@@ -1990,13 +2077,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    widget.parent.setState(
-                      () => widget.parent._usePeriodicNotation =
-                          !widget.parent._usePeriodicNotation,
-                    );
-                  });
-                  widget.parent._saveSettings();
+                  final newVal = !widget.parent.activeAccessibilitySettings.usePeriodicNotation;
+                  widget.parent.updateActiveAccessibilitySettings(
+                    (s) => s.copyWith(usePeriodicNotation: newVal),
+                  );
+                  setState(() {});
                   widget.parent.speak(
                     widget.parent._usePeriodicNotation
                         ? widget.parent._s(
@@ -2029,13 +2114,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    widget.parent.setState(
-                      () =>
-                          widget.parent.ttsEnabled = !widget.parent.ttsEnabled,
-                    );
-                    widget.parent._saveSettings();
-                  });
+                  final newVal = !widget.parent.activeAccessibilitySettings.ttsEnabled;
+                  widget.parent.updateActiveAccessibilitySettings(
+                    (s) => s.copyWith(ttsEnabled: newVal),
+                  );
+                  setState(() {});
                   widget.parent.speak(
                     widget.parent.ttsEnabled
                         ? widget.parent._l10n.voiceOn
@@ -2059,13 +2142,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    widget.parent.setState(
-                      () => widget.parent._announceExpression =
-                          !widget.parent._announceExpression,
-                    );
-                    widget.parent._saveSettings();
-                  });
+                  final newVal = !widget.parent.activeAccessibilitySettings.announceExpression;
+                  widget.parent.updateActiveAccessibilitySettings(
+                    (s) => s.copyWith(announceExpression: newVal),
+                  );
+                  setState(() {});
                   widget.parent.speak(
                     widget.parent._l10n.announceExpressionState(
                       widget.parent._announceExpression
@@ -2095,13 +2176,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    widget.parent.setState(
-                      () => widget.parent._autoReadStatsSummary =
-                          !widget.parent._autoReadStatsSummary,
-                    );
-                    widget.parent._saveSettings();
-                  });
+                  final newVal = !widget.parent.activeAccessibilitySettings.autoReadStatsSummary;
+                  widget.parent.updateActiveAccessibilitySettings(
+                    (s) => s.copyWith(autoReadStatsSummary: newVal),
+                  );
+                  setState(() {});
                   final state = widget.parent._autoReadStatsSummary
                       ? widget.parent._s('Zapnuto', 'On')
                       : widget.parent._s('Vypnuto', 'Off');
@@ -2127,13 +2206,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               hint: widget.parent._l10n.statsNavigationHintHint,
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    widget.parent.setState(
-                      () => widget.parent._showStatsNavigationHint =
-                          !widget.parent._showStatsNavigationHint,
-                    );
-                    widget.parent._saveSettings();
-                  });
+                  final newVal = !widget.parent.activeAccessibilitySettings.showStatsNavigationHint;
+                  widget.parent.updateActiveAccessibilitySettings(
+                    (s) => s.copyWith(showStatsNavigationHint: newVal),
+                  );
+                  setState(() {});
                   final state = widget.parent._showStatsNavigationHint
                       ? widget.parent._s('Zapnuto', 'On')
                       : widget.parent._s('Vypnuto', 'Off');
@@ -2224,12 +2301,10 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   selected: {widget.parent._screenReaderMode},
                   onSelectionChanged: (Set<ScreenReaderMode> selected) {
                     final mode = selected.first;
-                    setState(() {
-                      widget.parent.setState(() {
-                        widget.parent._screenReaderMode = mode;
-                      });
-                      widget.parent._saveSettings();
-                    });
+                    widget.parent.updateActiveAccessibilitySettings(
+                      (s) => s.copyWith(screenReaderMode: mode),
+                    );
+                    setState(() {});
                     widget.parent.speak(
                       mode == ScreenReaderMode.auto
                           ? widget.parent._s(
@@ -2298,11 +2373,12 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  // Pokud je null nebo 1, nastavíme na 0 (DMS). Pokud je 0, nastavíme na 1 (Desetinné).
-                  final current = widget.parent._inverseFormatPreference ?? 1;
+                  final current = widget.parent.activeAccessibilitySettings.inverseFormatPreference ?? 1;
                   final newFormat = (current == 0) ? 1 : 0;
 
-                  widget.parent._saveInversePreference(newFormat);
+                  widget.parent.updateActiveAccessibilitySettings(
+                    (s) => s.copyWith(inverseFormatPreference: newFormat),
+                  );
 
                   widget.parent.speak(
                     newFormat == 0
@@ -2497,12 +2573,10 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   selected: {widget.parent._dialogSize},
                   onSelectionChanged: (Set<DialogSize> selected) {
                     final size = selected.first;
-                    setState(() {
-                      widget.parent.setState(() {
-                        widget.parent._dialogSize = size;
-                      });
-                      widget.parent._saveSettings();
-                    });
+                    widget.parent.updateActiveAccessibilitySettings(
+                      (s) => s.copyWith(dialogSize: size),
+                    );
+                    setState(() {});
                     String sizeName = widget.parent._l10n.dialogSizeCompact;
                     if (size == DialogSize.wide) {
                       sizeName = widget.parent._l10n.dialogSizeWide;
@@ -2891,12 +2965,10 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   selected: {widget.parent._thousandGroupGap},
                   onSelectionChanged: (Set<ThousandGroupGap> selected) {
                     final v = selected.first;
-                    setState(() {
-                      widget.parent.setState(() {
-                        widget.parent._thousandGroupGap = v;
-                      });
-                      widget.parent._saveSettings();
-                    });
+                    widget.parent.updateActiveAccessibilitySettings(
+                      (s) => s.copyWith(thousandGroupGap: v),
+                    );
+                    setState(() {});
                     String label;
                     switch (v) {
                       case ThousandGroupGap.small:
@@ -2974,13 +3046,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       : Icons.format_align_center,
                 ),
                 onPressed: () {
-                  setState(() {
-                    widget.parent.setState(
-                      () => widget.parent._alignInputLeft =
-                          !widget.parent._alignInputLeft,
-                    );
-                    widget.parent._saveSettings();
-                  });
+                  final newVal = !widget.parent.activeAccessibilitySettings.alignInputLeft;
+                  widget.parent.updateActiveAccessibilitySettings(
+                    (s) => s.copyWith(alignInputLeft: newVal),
+                  );
+                  setState(() {});
                   widget.parent.speak(
                     widget.parent._s(
                       widget.parent._alignInputLeft
@@ -3350,8 +3420,10 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 16,
+                  runSpacing: 8,
                   children: [
                     Semantics(
                       label: widget.parent._l10n.backupData,
@@ -3364,7 +3436,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                         label: Text(widget.parent._l10n.backupData),
                       ),
                     ),
-                    const SizedBox(width: 16),
                     Semantics(
                       label: widget.parent._l10n.restoreData,
                       child: ElevatedButton.icon(
@@ -3449,13 +3520,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   }
 
   void _adjustDotMatrixZoom(double delta) {
-    setState(() {
-      widget.parent.setState(() {
-        widget.parent._dotMatrixZoom = (widget.parent._dotMatrixZoom + delta)
-            .clamp(0.5, 5.0);
-      });
-      widget.parent._saveSettings();
-    });
+    final newVal = (widget.parent.activeAccessibilitySettings.dotMatrixZoom + delta).clamp(0.5, 5.0);
+    widget.parent.updateActiveAccessibilitySettings(
+      (s) => s.copyWith(dotMatrixZoom: newVal),
+    );
+    setState(() {});
     widget.parent.speak(
       widget.parent._l10n.zoomUpperPct(
         (widget.parent._dotMatrixZoom * 100).toInt(),
@@ -3464,15 +3533,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   }
 
   void _adjustResultZoom(double delta) {
-    setState(() {
-      widget.parent.setState(() {
-        widget.parent._resultZoom = (widget.parent._resultZoom + delta).clamp(
-          0.5,
-          5.0,
-        );
-      });
-      widget.parent._saveSettings();
-    });
+    final newVal = (widget.parent.activeAccessibilitySettings.resultZoom + delta).clamp(0.5, 5.0);
+    widget.parent.updateActiveAccessibilitySettings(
+      (s) => s.copyWith(resultZoom: newVal),
+    );
+    setState(() {});
     widget.parent.speak(
       widget.parent._l10n.zoomLowerPct(
         (widget.parent._resultZoom * 100).toInt(),
@@ -3481,16 +3546,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   }
 
   void _adjustSpeechRate(double delta) {
-    setState(() {
-      widget.parent.setState(() {
-        widget.parent._speechRate = (widget.parent._speechRate + delta).clamp(
-          0.1,
-          1.0,
-        );
-        widget.parent.tts.setSpeechRate(widget.parent._speechRate);
-      });
-      widget.parent._saveSettings();
-    });
+    final newVal = (widget.parent.activeAccessibilitySettings.speechRate + delta).clamp(0.1, 1.0);
+    widget.parent.updateActiveAccessibilitySettings(
+      (s) => s.copyWith(speechRate: newVal),
+    );
+    setState(() {});
     widget.parent.speak(
       widget.parent._l10n.speechRatePct(
         (widget.parent._speechRate * 100).toInt(),
@@ -3499,14 +3559,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   }
 
   void _adjustSpeechVolume(double delta) {
-    setState(() {
-      widget.parent.setState(() {
-        widget.parent._speechVolume = (widget.parent._speechVolume + delta)
-            .clamp(0.0, 1.0);
-        widget.parent.tts.setVolume(widget.parent._speechVolume);
-      });
-      widget.parent._saveSettings();
-    });
+    final newVal = (widget.parent.activeAccessibilitySettings.speechVolume + delta).clamp(0.0, 1.0);
+    widget.parent.updateActiveAccessibilitySettings(
+      (s) => s.copyWith(speechVolume: newVal),
+    );
+    setState(() {});
     widget.parent.speak(
       widget.parent._l10n.volumePct(
         (widget.parent._speechVolume * 100).toInt(),
@@ -3515,15 +3572,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   }
 
   void _adjustDialogFontScale(double delta) {
-    setState(() {
-      widget.parent.setState(() {
-        widget.parent._dialogFontScale =
-            (widget.parent._dialogFontScale + delta).clamp(0.5, 5.0);
-        widget.parent._dialogFontScaleNotifier.value =
-            widget.parent._dialogFontScale;
-      });
-      widget.parent._saveSettings();
-    });
+    final newVal = (widget.parent.activeAccessibilitySettings.dialogFontScale + delta).clamp(0.5, 5.0);
+    widget.parent.updateActiveAccessibilitySettings(
+      (s) => s.copyWith(dialogFontScale: newVal),
+    );
+    setState(() {});
     widget.parent.speak(
       widget.parent._s(
         'Velikost písma dialogů ${(widget.parent._dialogFontScale * 100).toInt()} procent',
@@ -3533,13 +3586,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   }
 
   void _adjustKeyboardFontScale(double delta) {
-    setState(() {
-      widget.parent.setState(() {
-        widget.parent._keyboardFontScale =
-            (widget.parent._keyboardFontScale + delta).clamp(0.7, 2.5);
-      });
-      widget.parent._saveSettings();
-    });
+    final newVal = (widget.parent.activeAccessibilitySettings.fontSizeMultiplier + delta).clamp(0.7, 2.5);
+    widget.parent.updateActiveAccessibilitySettings(
+      (s) => s.copyWith(fontSizeMultiplier: newVal),
+    );
+    setState(() {});
     widget.parent.speak(
       widget.parent._s(
         'Velikost písma tlačítek ${(widget.parent._keyboardFontScale * 100).toInt()} procent',
@@ -3549,13 +3600,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   }
 
   void _adjustOverlineHeight(double delta) {
-    setState(() {
-      widget.parent.setState(() {
-        widget.parent._overlineHeight = (widget.parent._overlineHeight + delta)
-            .clamp(0.5, 2.0);
-      });
-      widget.parent._saveSettings();
-    });
+    final newVal = (widget.parent.activeAccessibilitySettings.overlineHeight + delta).clamp(0.5, 2.0);
+    widget.parent.updateActiveAccessibilitySettings(
+      (s) => s.copyWith(overlineHeight: newVal),
+    );
+    setState(() {});
     widget.parent.speak(
       widget.parent._s(
         'Výška periodické čáry ${(widget.parent._overlineHeight * 100).toInt()} procent',
@@ -3565,13 +3614,10 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   }
 
   void _resetOverlineStyle() {
-    setState(() {
-      widget.parent.setState(() {
-        widget.parent._overlineHeight = 1.0;
-        widget.parent._overlineThickness = 1.0;
-      });
-      widget.parent._saveSettings();
-    });
+    widget.parent.updateActiveAccessibilitySettings(
+      (s) => s.copyWith(overlineHeight: 1.0, overlineThickness: 1.0),
+    );
+    setState(() {});
     widget.parent.speak(
       widget.parent._s(
         'Vzhled periodické čáry obnoven na výchozí hodnoty',
@@ -3581,13 +3627,11 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   }
 
   void _adjustOverlineThickness(double delta) {
-    setState(() {
-      widget.parent.setState(() {
-        widget.parent._overlineThickness =
-            (widget.parent._overlineThickness + delta).clamp(0.8, 4.0);
-      });
-      widget.parent._saveSettings();
-    });
+    final newVal = (widget.parent.activeAccessibilitySettings.overlineThickness + delta).clamp(0.8, 4.0);
+    widget.parent.updateActiveAccessibilitySettings(
+      (s) => s.copyWith(overlineThickness: newVal),
+    );
+    setState(() {});
     widget.parent.speak(
       widget.parent._s(
         'Tloušťka periodické čárky ${(widget.parent._overlineThickness * 100).toInt()} procent',

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -157,19 +159,24 @@ void main() {
           closeTo(state.overlineThicknessForTest as double, 1e-9),
         );
 
-        // 4) trvalé uložení
+        // 4) trvalé uložení per-profile v2
         final prefs = await SharedPreferences.getInstance();
-        expect(prefs.getDouble('overlineHeight'), closeTo(1.1, 1e-9));
-        expect(prefs.getDouble('overlineThickness'), closeTo(1.2, 1e-9));
+        final v2 = jsonDecode(prefs.getString('accessibility_profiles_v2')!);
+        final activeId = prefs.getString('activeProfileId')!;
+        final activeJson = (v2 as List).firstWhere((e) => e['id'] == activeId);
+        expect((activeJson['settings']['overlineHeight'] as num).toDouble(), closeTo(1.1, 1e-9));
+        expect((activeJson['settings']['overlineThickness'] as num).toDouble(), closeTo(1.2, 1e-9));
         expect(tester.takeException(), isNull);
       },
     );
 
     testWidgets('5) hodnoty se po restartu načtou', (tester) async {
+      final settings = AccessibilitySettings.defaultsStandard().copyWith(overlineHeight: 1.7, overlineThickness: 2.4);
+      final profile = AccessibilityProfile(id: 'standard', name: 'Standard', isBuiltIn: true, settings: settings);
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
-        'overlineHeight': 1.7,
-        'overlineThickness': 2.4,
+        'accessibility_profiles_v2': jsonEncode([profile.toJson()]),
+        'activeProfileId': 'standard',
       });
       mockChannels();
       final state = await pumpApp(tester);
@@ -185,10 +192,12 @@ void main() {
     });
 
     testWidgets('6) reset vrátí výchozí hodnoty', (tester) async {
+      final settings = AccessibilitySettings.defaultsStandard().copyWith(overlineHeight: 1.7, overlineThickness: 2.4);
+      final profile = AccessibilityProfile(id: 'standard', name: 'Standard', isBuiltIn: true, settings: settings);
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
-        'overlineHeight': 1.7,
-        'overlineThickness': 2.4,
+        'accessibility_profiles_v2': jsonEncode([profile.toJson()]),
+        'activeProfileId': 'standard',
       });
       mockChannels();
       final state = await pumpApp(tester);
@@ -209,8 +218,11 @@ void main() {
       expect(previewSegment(tester).overlineThickness, 1.0);
 
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getDouble('overlineHeight'), 1.0);
-      expect(prefs.getDouble('overlineThickness'), 1.0);
+      final v2c = jsonDecode(prefs.getString('accessibility_profiles_v2')!);
+      final activeIdC = prefs.getString('activeProfileId')!;
+      final activeJsonC = (v2c as List).firstWhere((e) => e['id'] == activeIdC);
+      expect((activeJsonC['settings']['overlineHeight'] as num).toDouble(), 1.0);
+      expect((activeJsonC['settings']['overlineThickness'] as num).toDouble(), 1.0);
       expect(tester.takeException(), isNull);
     });
 

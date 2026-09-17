@@ -48,14 +48,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? _lastSeenNewsVersion;
   int? _lastSuggestedMode;
 
-  bool ttsEnabled = true;
   bool _updateDialogShown = false;
   bool _isDegreeMode = true;
-  bool _useSixteenSegment = false;
-  bool _announceExpression = false;
-  bool _readStatsMemoryValues = true;
-  bool _autoReadStatsSummary = true;
-  bool _showStatsNavigationHint = true;
   List<StatsSummarySection> _statsSummaryOrder = [
     StatsSummarySection.header,
     StatsSummarySection.dataValues,
@@ -83,18 +77,100 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } catch (_) {}
   }
 
-  AccessibilityType _accessibilityType = AccessibilityType.none;
+  // --- Per-profile accessibility (nový model) ---
   String _activeProfileId = 'standard';
-  bool _isProfileModified = false;
   List<AccessibilityProfile> _profiles = [];
   bool _profilesLoaded = false;
-  double _fontSizeMultiplier = 1.0;
-  double get _keyboardFontScale => _fontSizeMultiplier;
-  set _keyboardFontScale(double v) => _fontSizeMultiplier = v;
-  double _dotMatrixZoom = 1.0;
-  double _resultZoom = 1.0;
-  ThousandGroupGap _thousandGroupGap = ThousandGroupGap.medium;
 
+  // Aktivní nastavení – jediný zdroj pravdy
+  AccessibilitySettings get activeAccessibilitySettings {
+    final p = _getActiveAccessibilityProfile();
+    return p.settings;
+  }
+
+  // Bezpečné rozlišení aktivního profilu (s fallbackem)
+  AccessibilityProfile _getActiveAccessibilityProfile() {
+    for (final p in _profiles) {
+      if (p.id == _activeProfileId) return p;
+    }
+    if (_profiles.isNotEmpty) return _profiles.first;
+    try {
+      final defaults = _defaultAccessibilityProfiles();
+      for (final p in defaults) {
+        if (p.id == _activeProfileId) return p;
+      }
+      if (defaults.isNotEmpty) return defaults.first;
+    } catch (_) {}
+    return _fallbackStandardProfile();
+  }
+
+  // Aktualizace nastavení aktivního profilu – jediný zápisový bod
+  void updateActiveAccessibilitySettings(
+    AccessibilitySettings Function(AccessibilitySettings current) update,
+  ) {
+    final idx = _profiles.indexWhere((p) => p.id == _activeProfileId);
+    if (idx == -1) return;
+    final current = _profiles[idx].settings;
+    final updated = update(current);
+    // deep copy ochrana je v copyWith
+    setState(() {
+      _profiles[idx] =
+          _profiles[idx].copyWith(settings: updated);
+    });
+    _dialogFontScaleNotifier.value = updated.dialogFontScale;
+    // Aplikovat TTS okamžitě
+    if (updated.speechRate != current.speechRate) {
+      tts.setSpeechRate(updated.speechRate).catchError((e) {
+        debugPrint('TTS setSpeechRate Error: $e');
+      });
+    }
+    if (updated.speechVolume != current.speechVolume) {
+      tts.setVolume(updated.speechVolume).catchError((e) {
+        debugPrint('TTS setVolume Error: $e');
+      });
+    }
+    if (updated.ttsEngine != current.ttsEngine) {
+      if (!Platform.isWindows && updated.ttsEngine != null) {
+        tts.setEngine(updated.ttsEngine!).catchError((e) {
+          debugPrint('TTS setEngine Error: $e');
+        });
+      } else if (!Platform.isWindows && updated.ttsEngine == null && current.ttsEngine != null) {
+        // reset na výchozí engine není podporován, ponechat
+      }
+    }
+    if (updated.ttsVoice != current.ttsVoice) {
+      if (updated.ttsVoice != null) {
+        tts.setVoice(updated.ttsVoice!).catchError((e) {
+          debugPrint('TTS setVoice Error: $e');
+        });
+      } else {
+        tts.clearVoice();
+      }
+    }
+    _saveProfilesV2();
+    // theme pro slabozraký
+    if (updated.accessibilityType == AccessibilityType.visuallyImpaired) {
+      widget.onThemeModeChanged(ThemeMode.dark);
+    }
+  }
+
+  void _applyActiveProfileToState() {
+    final s = activeAccessibilitySettings;
+    _dialogFontScaleNotifier.value = s.dialogFontScale;
+  }
+
+  // Read-only aliasy pro minimalizaci diffu (všechna čtení zůstanou funkční)
+  AccessibilityType get _accessibilityType =>
+      activeAccessibilitySettings.accessibilityType;
+  ScreenReaderMode get _screenReaderMode =>
+      activeAccessibilitySettings.screenReaderMode;
+  double get _fontSizeMultiplier =>
+      activeAccessibilitySettings.fontSizeMultiplier;
+  double get _keyboardFontScale => _fontSizeMultiplier;
+  double get _dotMatrixZoom => activeAccessibilitySettings.dotMatrixZoom;
+  double get _resultZoom => activeAccessibilitySettings.resultZoom;
+  ThousandGroupGap get _thousandGroupGap =>
+      activeAccessibilitySettings.thousandGroupGap;
   double _thousandGroupGapBase() {
     switch (_thousandGroupGap) {
       case ThousandGroupGap.small:
@@ -105,24 +181,40 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return 6.0;
     }
   }
-  double _overlineThickness = 1.0;
-  double _overlineHeight = 1.0;
-  bool _alignInputLeft = true;
-  double _dialogFontScale = 1.0;
+  double get _overlineThickness =>
+      activeAccessibilitySettings.overlineThickness;
+  double get _overlineHeight => activeAccessibilitySettings.overlineHeight;
+  bool get _alignInputLeft => activeAccessibilitySettings.alignInputLeft;
+  double get _dialogFontScale => activeAccessibilitySettings.dialogFontScale;
   late final ValueNotifier<double> _dialogFontScaleNotifier =
-      ValueNotifier<double>(_dialogFontScale);
-  double _speechRate = 0.5;
-  double _speechVolume = 1.0;
-  ScreenReaderMode _screenReaderMode = ScreenReaderMode.auto;
+      ValueNotifier<double>(1.0);
+  double get _speechRate => activeAccessibilitySettings.speechRate;
+  double get _speechVolume => activeAccessibilitySettings.speechVolume;
+  String? get _ttsEngine => activeAccessibilitySettings.ttsEngine;
+  Map<String, String>? get _ttsVoice => activeAccessibilitySettings.ttsVoice;
+  String? get _ttsVoiceName => activeAccessibilitySettings.ttsVoiceName;
+  int? get _inverseFormatPreference =>
+      activeAccessibilitySettings.inverseFormatPreference;
+  bool get _useSixteenSegment =>
+      activeAccessibilitySettings.useSixteenSegment;
+  bool get _announceExpression =>
+      activeAccessibilitySettings.announceExpression;
+  bool get _readStatsMemoryValues =>
+      activeAccessibilitySettings.readStatsMemoryValues;
+  bool get _autoReadStatsSummary =>
+      activeAccessibilitySettings.autoReadStatsSummary;
+  bool get _showStatsNavigationHint =>
+      activeAccessibilitySettings.showStatsNavigationHint;
+  DialogSize get _dialogSize => activeAccessibilitySettings.dialogSize;
+  bool get ttsEnabled => activeAccessibilitySettings.ttsEnabled;
+  // pro zpětnou kompatibilitu s testy / starým voláním setteru
+  set _keyboardFontScale(double v) =>
+      updateActiveAccessibilitySettings((s) => s.copyWith(fontSizeMultiplier: v));
+
   bool _accessibleNavigation = false;
-  String? _ttsEngine;
-  Map<String, String>? _ttsVoice;
-  String? _ttsVoiceName;
-  int? _inverseFormatPreference; // 0: DMS, 1: Desetinné
   bool _scientificFunctionsPage = false;
   String? _scientificPageAnnouncement;
 
-  DialogSize _dialogSize = DialogSize.compact;
   DisplayFormat _displayFormat = DisplayFormat.standard;
 
   // Vývojářský režim (skrytý)
@@ -1007,10 +1099,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _lastTtsLocale = lang;
     tts.setLanguage(lang);
     if (_ttsVoice != null) {
-      _ttsVoice = null;
-      _ttsVoiceName = null;
+      updateActiveAccessibilitySettings(
+        (s) => s.copyWith(clearTtsVoice: true, clearTtsVoiceName: true),
+      );
       tts.clearVoice();
-      _saveSettings();
     }
   }
 
@@ -2066,10 +2158,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Future<void> _initTts() async {
     bool ttsReadySuccess = false;
     try {
-      // 1. Nejdřív nastavení (určí výchozí režim pro uvítání).
-      await _loadSettings();
+      // 1. Deterministické načtení: globál → profily v2 → active apply → TTS
+      await _loadGlobalSettings();
       try {
-        await _loadProfiles();
+        await _loadProfilesV2();
       } catch (e) {
         debugPrint('Profiles preload Error: $e');
       }
@@ -2227,7 +2319,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         : const Duration(milliseconds: 1000);
     Future.delayed(initialDialogDelay, () async {
       final prefs = await SharedPreferences.getInstance();
-      if (!prefs.containsKey('accessibilityType')) {
+      if (!prefs.containsKey('accessibility_profiles_v2') &&
+          !prefs.containsKey('activeProfileId')) {
         _showInitialAccessibilityDialog();
       }
       if (!prefs.containsKey('modeQuestionAsked')) {
@@ -3904,93 +3997,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  Future<void> _loadSettings() async {
+  Future<void> _loadGlobalSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _isDegreeMode = prefs.getBool('isDegreeMode') ?? true;
-      _fontSizeMultiplier =
-          (prefs.getDouble('keyboardFontScale') ??
-                  prefs.getDouble('fontSizeMultiplier') ??
-                  1.0)
-              .clamp(0.7, 2.5);
-      _dotMatrixZoom = prefs.getDouble('dotMatrixZoom') ?? 1.0;
-      _resultZoom = prefs.getDouble('resultZoom') ?? 1.0;
-      final storedGap = prefs.getInt('thousandGroupGap');
-      if (storedGap != null &&
-          storedGap >= 0 &&
-          storedGap < ThousandGroupGap.values.length) {
-        _thousandGroupGap = ThousandGroupGap.values[storedGap];
-      } else {
-        _thousandGroupGap = ThousandGroupGap.medium;
-      }
-      _overlineThickness = (prefs.getDouble('overlineThickness') ?? 1.0).clamp(
-        0.8,
-        4.0,
-      );
-      _overlineHeight = (prefs.getDouble('overlineHeight') ?? 1.0).clamp(
-        0.5,
-        2.0,
-      );
-      _alignInputLeft = prefs.getBool('alignInputLeft') ?? true;
-      _dialogFontScale = (prefs.getDouble('dialogFontScale') ?? 1.0).clamp(
-        0.5,
-        5.0,
-      );
-      ttsEnabled = prefs.getBool('ttsEnabled') ?? true;
-      _usePeriodicNotation = prefs.getBool('usePeriodicNotation') ?? true;
-      _useSixteenSegment = prefs.getBool('useSixteenSegment') ?? false;
-      _announceExpression = prefs.getBool('announceExpression') ?? false;
-      _readStatsMemoryValues = prefs.getBool('readStatsMemoryValues') ?? true;
-      _autoReadStatsSummary = prefs.getBool('autoReadStatsSummary') ?? true;
-      _showStatsNavigationHint =
-          prefs.getBool('showStatsNavigationHint') ?? true;
-      _accessibilityType = () {
-        final stored = prefs.getInt('accessibilityType');
-        if (stored == null) return AccessibilityType.none;
-        final values = AccessibilityType.values;
-        final idx = stored.clamp(0, values.length - 1);
-        if (idx == AccessibilityType.none.index) {
-          return AccessibilityType.visuallyImpaired;
-        }
-        return values[idx];
-      }();
-      _activeProfileId = prefs.getString('activeProfileId') ?? 'standard';
-      _speechRate = prefs.getDouble('speechRate') ?? 0.5;
-      _speechVolume = prefs.getDouble('speechVolume') ?? 1.0;
-      _ttsEngine = prefs.getString('ttsEngine');
-      final ttsVoiceJson = prefs.getString('ttsVoice');
-      if (ttsVoiceJson != null) {
-        try {
-          final voiceMap = Map<String, dynamic>.from(jsonDecode(ttsVoiceJson));
-          _ttsVoice = voiceMap.cast<String, String>();
-          _ttsVoiceName = voiceMap['name'] as String?;
-        } catch (e) {
-          _ttsVoice = null;
-          _ttsVoiceName = null;
-        }
-      } else {
-        _ttsVoice = null;
-        _ttsVoiceName = null;
-      }
-      _inverseFormatPreference = prefs.getInt('inverseFormatPreference');
       final savedDefaultMode = prefs.getInt('defaultMode');
       if (savedDefaultMode != null &&
           savedDefaultMode >= 0 &&
           savedDefaultMode < CalculatorMode.values.length) {
         _defaultMode = CalculatorMode.values[savedDefaultMode];
         _currentMode = _defaultMode;
-      }
-      final savedMode = prefs.getInt('screenReaderModeState');
-      if (savedMode != null) {
-        _screenReaderMode = ScreenReaderMode.values[savedMode];
-      } else {
-        _screenReaderMode = prefs.getBool('screenReaderMode') == true
-            ? ScreenReaderMode.on
-            : ScreenReaderMode.auto;
-      }
-      final savedDialogSize = prefs.getInt('dialogSize');
-      if (savedDialogSize != null) {
-        _dialogSize = DialogSize.values[savedDialogSize];
       }
       final savedUsageJson = prefs.getString('modeUsageCounts');
       if (savedUsageJson != null) {
@@ -4108,37 +4124,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (mounted) _maybeRunDevAutodiagnostics();
   }
 
-  void _saveSettings() async {
+  void _saveGlobalSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDegreeMode', _isDegreeMode);
-    await prefs.setDouble('keyboardFontScale', _fontSizeMultiplier);
-    await prefs.setDouble('fontSizeMultiplier', _fontSizeMultiplier);
-    await prefs.setDouble('dotMatrixZoom', _dotMatrixZoom);
-    await prefs.setDouble('resultZoom', _resultZoom);
-    await prefs.setInt('thousandGroupGap', _thousandGroupGap.index);
-    await prefs.setDouble('overlineThickness', _overlineThickness);
-    await prefs.setDouble('overlineHeight', _overlineHeight);
-    await prefs.setBool('alignInputLeft', _alignInputLeft);
-    await prefs.setDouble('dialogFontScale', _dialogFontScale);
-    await prefs.setBool('ttsEnabled', ttsEnabled);
-    await prefs.setBool('usePeriodicNotation', _usePeriodicNotation);
-    await prefs.setBool('useSixteenSegment', _useSixteenSegment);
-    await prefs.setBool('announceExpression', _announceExpression);
-    await prefs.setBool('readStatsMemoryValues', _readStatsMemoryValues);
-    await prefs.setBool('autoReadStatsSummary', _autoReadStatsSummary);
-    await prefs.setBool('showStatsNavigationHint', _showStatsNavigationHint);
-    await prefs.setInt('accessibilityType', _accessibilityType.index);
-    await prefs.setString('activeProfileId', _activeProfileId);
-    await prefs.setDouble('speechRate', _speechRate);
-    await prefs.setDouble('speechVolume', _speechVolume);
-    if (_ttsEngine != null) await prefs.setString('ttsEngine', _ttsEngine!);
-    if (_ttsVoice != null) {
-      await prefs.setString('ttsVoice', jsonEncode(_ttsVoice));
-    } else {
-      await prefs.remove('ttsVoice');
-    }
-    await prefs.setInt('screenReaderModeState', _screenReaderMode.index);
-    await prefs.setInt('dialogSize', _dialogSize.index);
     await prefs.setInt('defaultMode', _defaultMode.index);
     await prefs.setBool('devModeEnabled', _devModeEnabled);
     await prefs.setBool('devAutoDiagnosticEnabled', _devAutoDiagnosticEnabled);
@@ -4167,30 +4155,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  Map<String, dynamic> _currentSettingsAsMap() {
-    return {
-      'accessibilityType': _accessibilityType.index,
-      'screenReaderMode': _screenReaderMode.index,
-      'fontSizeMultiplier': _fontSizeMultiplier,
-      'dialogFontScale': _dialogFontScale,
-      'resultZoom': _resultZoom,
-      'dotMatrixZoom': _dotMatrixZoom,
-      'thousandGroupGap': _thousandGroupGap.index,
-      'useSixteenSegment': _useSixteenSegment,
-      'announceExpression': _announceExpression,
-      'dialogSize': _dialogSize.index,
-    };
-  }
+  // Drží alias pro staré volání – nyní ukládá jen globál (per-profile už řeší _saveProfilesV2)
+  void _saveSettings() => _saveGlobalSettings();
 
-  bool _isSettingsModified(Map<String, dynamic> profileSettings) {
-    final current = _currentSettingsAsMap();
-    for (final key in profileSettings.keys) {
-      if (current[key] != profileSettings[key]) return true;
+  /// Lokalizovaný zobrazovaný název profilu (built-in via l10n, custom via name)
+  String _displayProfileName(AccessibilityProfile p) {
+    if (p.isBuiltIn) {
+      switch (p.id) {
+        case 'standard':
+          return _l10n.profileStandard;
+        case 'blind':
+          return _l10n.profileBlind;
+        case 'lowvision':
+          return _l10n.profileLowVision;
+      }
     }
-    return false;
+    return p.name;
   }
 
-  /// Lokalizovaný název profilu přístupnosti.
+  /// Lokalizovaný název profilu přístupnosti (legacy).
   String _accessibilityProfileName(AccessibilityType profile) {
     switch (profile) {
       case AccessibilityType.blind:
@@ -4202,57 +4185,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  static Map<String, dynamic> _standardProfileSettings() {
-    return {
-      'accessibilityType': AccessibilityType.none.index,
-      'screenReaderMode': ScreenReaderMode.auto.index,
-      'fontSizeMultiplier': 1.0,
-      'dialogFontScale': 1.0,
-      'resultZoom': 1.0,
-      'dotMatrixZoom': 1.0,
-      'thousandGroupGap': ThousandGroupGap.medium.index,
-      'useSixteenSegment': false,
-      'announceExpression': false,
-      'readStatsMemoryValues': true,
-      'autoReadStatsSummary': true,
-      'dialogSize': DialogSize.compact.index,
-    };
-  }
-
-  static Map<String, dynamic> _blindProfileSettings() {
-    return {
-      'accessibilityType': AccessibilityType.blind.index,
-      'screenReaderMode': ScreenReaderMode.auto.index,
-      'fontSizeMultiplier': 1.0,
-      'dialogFontScale': 1.0,
-      'resultZoom': 1.0,
-      'dotMatrixZoom': 1.0,
-      'thousandGroupGap': ThousandGroupGap.medium.index,
-      'useSixteenSegment': false,
-      'announceExpression': true,
-      'readStatsMemoryValues': true,
-      'autoReadStatsSummary': true,
-      'dialogSize': DialogSize.compact.index,
-    };
-  }
-
-  static Map<String, dynamic> _lowVisionProfileSettings() {
-    return {
-      'accessibilityType': AccessibilityType.visuallyImpaired.index,
-      'screenReaderMode': ScreenReaderMode.auto.index,
-      'fontSizeMultiplier': 1.75,
-      'dialogFontScale': 1.5,
-      'resultZoom': 1.25,
-      'dotMatrixZoom': 1.25,
-      'thousandGroupGap': ThousandGroupGap.large.index,
-      'useSixteenSegment': true,
-      'announceExpression': false,
-      'readStatsMemoryValues': true,
-      'autoReadStatsSummary': true,
-      'dialogSize': DialogSize.wide.index,
-    };
-  }
-
   /// Jediný zdroj výchozích profilů přístupnosti.
   /// Vyžaduje dostupné `_l10n` (tj. kontext s lokalizací).
   List<AccessibilityProfile> _defaultAccessibilityProfiles() {
@@ -4260,17 +4192,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       AccessibilityProfile(
         id: 'standard',
         name: _l10n.profileStandard,
-        settings: _standardProfileSettings(),
+        isBuiltIn: true,
+        settings: AccessibilitySettings.defaultsStandard(),
       ),
       AccessibilityProfile(
         id: 'blind',
         name: _l10n.profileBlind,
-        settings: _blindProfileSettings(),
+        isBuiltIn: true,
+        settings: AccessibilitySettings.defaultsBlind(),
       ),
       AccessibilityProfile(
         id: 'lowvision',
         name: _l10n.profileLowVision,
-        settings: _lowVisionProfileSettings(),
+        isBuiltIn: true,
+        settings: AccessibilitySettings.defaultsLowVision(),
       ),
     ];
   }
@@ -4287,7 +4222,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return AccessibilityProfile(
       id: 'standard',
       name: name,
-      settings: _standardProfileSettings(),
+      isBuiltIn: true,
+      settings: AccessibilitySettings.defaultsStandard(),
     );
   }
 
@@ -4301,23 +4237,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (defaults.isNotEmpty) return defaults;
     } catch (_) {}
     return [_fallbackStandardProfile()];
-  }
-
-  /// Bezpečné rozlišení aktivního profilu pro dialog Nastavení.
-  /// Nikdy nevyhodí (ani na prázdném `_profiles`).
-  AccessibilityProfile _getActiveAccessibilityProfile() {
-    for (final p in _profiles) {
-      if (p.id == _activeProfileId) return p;
-    }
-    if (_profiles.isNotEmpty) return _profiles.first;
-    try {
-      final defaults = _defaultAccessibilityProfiles();
-      for (final p in defaults) {
-        if (p.id == _activeProfileId) return p;
-      }
-      if (defaults.isNotEmpty) return defaults.first;
-    } catch (_) {}
-    return _fallbackStandardProfile();
   }
 
   /// Bezpečné rozlišení profilu podle id pro úvodní dialog.
@@ -4336,21 +4255,29 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return _fallbackStandardProfile();
   }
 
-  Future<void> _saveProfiles() async {
+  Future<void> _saveProfilesV2() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      'accessibility_profiles',
+      'accessibility_profiles_v2',
       jsonEncode(_profiles.map((p) => p.toJson()).toList()),
     );
+    await prefs.setString('activeProfileId', _activeProfileId);
   }
 
-  Future<void> _loadProfiles() async {
+  Future<void> _saveActiveProfileId() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('activeProfileId', _activeProfileId);
+  }
+
+  Future<void> _loadProfilesV2() async {
     List<AccessibilityProfile>? loaded;
+    String? loadedActiveId;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final profilesJson = prefs.getString('accessibility_profiles');
-      if (profilesJson != null) {
-        final decoded = jsonDecode(profilesJson);
+      final jsonStr = prefs.getString('accessibility_profiles_v2');
+      loadedActiveId = prefs.getString('activeProfileId');
+      if (jsonStr != null) {
+        final decoded = jsonDecode(jsonStr);
         if (decoded is List) {
           final parsed = <AccessibilityProfile>[];
           for (final item in decoded) {
@@ -4358,12 +4285,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               final map = item is Map<String, dynamic>
                   ? item
                   : item is Map
-                  ? Map<String, dynamic>.from(item)
-                  : null;
+                      ? Map<String, dynamic>.from(item)
+                      : null;
               if (map == null) continue;
               final profile = AccessibilityProfile.fromJson(map);
-              if (profile.id.isEmpty || profile.name.isEmpty) continue;
-              parsed.add(profile);
+              if (profile.id.isEmpty) continue;
+              // ensure built-in flag for known ids
+              final isBuiltIn = profile.id == 'standard' ||
+                  profile.id == 'blind' ||
+                  profile.id == 'lowvision';
+              parsed.add(AccessibilityProfile(
+                id: profile.id,
+                name: profile.name,
+                isBuiltIn: isBuiltIn ? true : profile.isBuiltIn,
+                settings: profile.settings,
+              ));
             } catch (_) {
               continue;
             }
@@ -4376,63 +4312,128 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     if (loaded != null && loaded.isNotEmpty) {
       _profiles = loaded;
+      if (loadedActiveId != null && loaded.any((p) => p.id == loadedActiveId)) {
+        _activeProfileId = loadedActiveId;
+      } else if (!_profiles.any((p) => p.id == _activeProfileId)) {
+        _activeProfileId = _profiles.first.id;
+      }
     } else {
       try {
         _profiles = _defaultAccessibilityProfiles();
       } catch (_) {
         _profiles = [_fallbackStandardProfile()];
       }
+      _activeProfileId = _profiles.first.id;
       try {
-        await _saveProfiles();
+        await _saveProfilesV2();
       } catch (_) {}
     }
+    // cleanup starých klíčů (neglobálních)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const oldKeys = [
+        'accessibilityType',
+        'keyboardFontScale',
+        'fontSizeMultiplier',
+        'dotMatrixZoom',
+        'resultZoom',
+        'thousandGroupGap',
+        'overlineThickness',
+        'overlineHeight',
+        'alignInputLeft',
+        'dialogFontScale',
+        'ttsEnabled',
+        'usePeriodicNotation',
+        'useSixteenSegment',
+        'announceExpression',
+        'readStatsMemoryValues',
+        'autoReadStatsSummary',
+        'showStatsNavigationHint',
+        'screenReaderModeState',
+        'screenReaderMode',
+        'dialogSize',
+        'speechRate',
+        'speechVolume',
+        'ttsEngine',
+        'ttsVoice',
+        'inverseFormatPreference',
+        'accessibility_profiles',
+      ];
+      for (final k in oldKeys) {
+        if (prefs.containsKey(k) && k != 'activeProfileId') {
+          // activeProfileId zůstává jako nová perzistence, ostatní mažeme jen pokud je v2 již uložen
+        }
+      }
+      // Po úspěšném vytvoření v2 smaž staré a11y per-profile klíče (ponech activeProfileId)
+      if (loaded == null) {
+        for (final k in oldKeys) {
+          if (k == 'activeProfileId') continue;
+          await prefs.remove(k);
+        }
+      }
+    } catch (_) {}
     _profilesLoaded = true;
+    _applyActiveProfileToState();
     if (mounted) setState(() {});
+    // aplikovat TTS
+    try {
+      final s = activeAccessibilitySettings;
+      await tts.setSpeechRate(s.speechRate);
+      await tts.setVolume(s.speechVolume);
+      if (!Platform.isWindows && s.ttsEngine != null) {
+        await tts.setEngine(s.ttsEngine!);
+      }
+      if (s.ttsVoice != null) {
+        await tts.setVoice(s.ttsVoice!);
+      } else {
+        tts.clearVoice();
+      }
+      await tts.setQueueMode(0);
+    } catch (e) {
+      debugPrint('TTS apply after load Error: $e');
+    }
   }
 
   Future<void> applyAccessibilityProfile(
     AccessibilityProfile profile, {
     String? announcement,
   }) async {
+    if (!_profiles.any((p) => p.id == profile.id)) return;
     setState(() {
       _activeProfileId = profile.id;
-      _isProfileModified = false;
-      final settings = profile.settings;
-      _accessibilityType = AccessibilityType.values[settings['accessibilityType'] as int];
-      _screenReaderMode = ScreenReaderMode.values[settings['screenReaderMode'] as int];
-      _fontSizeMultiplier = (settings['fontSizeMultiplier'] as num).toDouble();
-      _dialogFontScale = (settings['dialogFontScale'] as num).toDouble();
-      _resultZoom = (settings['resultZoom'] as num).toDouble();
-      _dotMatrixZoom = (settings['dotMatrixZoom'] as num).toDouble();
-      final gapIdx = settings['thousandGroupGap'];
-      if (gapIdx is int &&
-          gapIdx >= 0 &&
-          gapIdx < ThousandGroupGap.values.length) {
-        _thousandGroupGap = ThousandGroupGap.values[gapIdx];
-      }
-      _useSixteenSegment = settings['useSixteenSegment'] as bool;
-      _announceExpression = settings['announceExpression'] as bool;
-      _readStatsMemoryValues = settings['readStatsMemoryValues'] as bool;
-      _autoReadStatsSummary = settings['autoReadStatsSummary'] as bool;
-      _dialogSize = DialogSize.values[settings['dialogSize'] as int];
-      
-      ttsEnabled = true;
     });
-    _dialogFontScaleNotifier.value = _dialogFontScale;
+    _applyActiveProfileToState();
+    final s = activeAccessibilitySettings;
     try {
-      await tts.setSpeechRate(_speechRate);
+      await tts.setSpeechRate(s.speechRate);
     } catch (e) {
       debugPrint('TTS setSpeechRate Error: $e');
     }
     try {
-      await tts.setVolume(_speechVolume);
+      await tts.setVolume(s.speechVolume);
     } catch (e) {
       debugPrint('TTS setVolume Error: $e');
     }
-    if (_accessibilityType == AccessibilityType.visuallyImpaired) {
+    if (!Platform.isWindows && s.ttsEngine != null) {
+      try {
+        await tts.setEngine(s.ttsEngine!);
+      } catch (e) {
+        debugPrint('TTS setEngine Error: $e');
+      }
+    }
+    if (s.ttsVoice != null) {
+      try {
+        await tts.setVoice(s.ttsVoice!);
+      } catch (e) {
+        debugPrint('TTS setVoice Error: $e');
+      }
+    } else {
+      tts.clearVoice();
+    }
+    if (s.accessibilityType == AccessibilityType.visuallyImpaired) {
       widget.onThemeModeChanged(ThemeMode.dark);
     }
-    _saveSettings();
+    await _saveActiveProfileId();
     if (announcement != null && announcement.isNotEmpty && mounted) {
       _showAccessibleSnackBar(announcement);
       speak(announcement, force: true);
@@ -4466,29 +4467,242 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showSaveProfileDialog() {
+    // legacy – drženo pro zpětnou kompatibilitu, nyní se ukládá automaticky per-profile
     showAppDialog<void>(
       context: context,
       routeSettings: const RouteSettings(name: 'Uložit profil'),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
         title: Semantics(header: true, child: Text(_l10n.saveSettingsToProfile)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: _profiles.map((p) => ListTile(
-            title: Text(p.name),
-            onTap: () {
-              Navigator.pop(ctx);
-              final updatedProfile = p.copyWith(settings: _currentSettingsAsMap());
-              setState(() {
-                _profiles[_profiles.indexOf(p)] = updatedProfile;
-              });
-              _saveProfiles();
-              speak(_s('Uloženo do ${p.name}', 'Saved to ${p.name}'));
-            },
-          )).toList(),
-        ),
+        content: Text(_s('Nastavení se nyní ukládá automaticky pro každý profil zvlášť.',
+            'Settings are now saved automatically per profile.')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.close)),
+        ],
       ),
     );
+  }
+
+  void _showCreateProfileDialog() {
+    final nameCtrl = TextEditingController();
+    String baseId = _activeProfileId;
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Vytvořit profil'),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (sCtx, setLocal) {
+          return AlertDialog(
+            insetPadding: _dialogInsetPadding(),
+            title: Semantics(header: true, child: Text(_s('Nový profil', 'New profile'))),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Semantics(
+                    label: _s('Název nového profilu', 'New profile name'),
+                    child: TextField(
+                      controller: nameCtrl,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: _s('Název', 'Name'),
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Semantics(
+                    label: _s('Základní profil pro kopii', 'Base profile'),
+                    child: DropdownButtonFormField<String>(
+                      value: baseId,
+                      decoration: InputDecoration(labelText: _s('Vycházet z', 'Base on')),
+                      items: _effectiveProfiles
+                          .map((p) => DropdownMenuItem(
+                                value: p.id,
+                                child: Text(_displayProfileName(p)),
+                              ))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setLocal(() => baseId = v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+              FilledButton(
+                onPressed: () {
+                  final name = nameCtrl.text.trim();
+                  if (name.isEmpty) {
+                    speak(_s('Zadejte název profilu', 'Enter profile name'));
+                    return;
+                  }
+                  if (_profiles.any((p) => p.name.toLowerCase() == name.toLowerCase())) {
+                    speak(_s('Profil s tímto názvem již existuje', 'Profile with this name already exists'));
+                    return;
+                  }
+                  final base = _profiles.firstWhere((p) => p.id == baseId,
+                      orElse: () => _getActiveAccessibilityProfile());
+                  final newProfile = AccessibilityProfile(
+                    id: 'custom_${DateTime.now().microsecondsSinceEpoch}_${name.hashCode.abs()}',
+                    name: name,
+                    isBuiltIn: false,
+                    settings: base.settings.copyWith(),
+                  );
+                  setState(() {
+                    _profiles.add(newProfile);
+                    _activeProfileId = newProfile.id;
+                  });
+                  _applyActiveProfileToState();
+                  _saveProfilesV2();
+                  Navigator.pop(ctx);
+                  speak(_s('Profil $name vytvořen', 'Profile $name created'));
+                  _showAccessibleSnackBar(_s('Profil $name vytvořen', 'Profile $name created'));
+                },
+                child: Text(_s('Vytvořit', 'Create')),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  void _showRenameProfileDialog() {
+    final active = _getActiveAccessibilityProfile();
+    if (active.isBuiltIn) return;
+    final ctrl = TextEditingController(text: active.name);
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Přejmenovat profil'),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(_s('Přejmenovat profil', 'Rename profile'))),
+        content: Semantics(
+          label: _s('Nový název profilu', 'New profile name'),
+          child: TextField(
+            controller: ctrl,
+            autofocus: true,
+            decoration: InputDecoration(labelText: _s('Název', 'Name'), border: const OutlineInputBorder()),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+          FilledButton(
+            onPressed: () {
+              final newName = ctrl.text.trim();
+              if (newName.isEmpty) return;
+              final idx = _profiles.indexWhere((p) => p.id == active.id);
+              if (idx == -1) return;
+              setState(() => _profiles[idx] = _profiles[idx].copyWith(name: newName));
+              _saveProfilesV2();
+              Navigator.pop(ctx);
+              speak(_s('Profil přejmenován na $newName', 'Profile renamed to $newName'));
+            },
+            child: Text(_l10n.confirmAction),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmResetActiveProfile(BuildContext dialogContext) {
+    final active = _getActiveAccessibilityProfile();
+    final displayName = _displayProfileName(active);
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Reset profilu'),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(_s('Obnovit výchozí', 'Reset'))),
+        content: Text(_s('Opravdu obnovit profil $displayName na výchozí hodnoty?',
+            'Reset profile $displayName to defaults?')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _resetActiveProfile();
+            },
+            child: Text(_s('Obnovit', 'Reset')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _resetActiveProfile() {
+    final active = _getActiveAccessibilityProfile();
+    AccessibilitySettings defaults;
+    if (active.id == 'blind') {
+      defaults = AccessibilitySettings.defaultsBlind();
+    } else if (active.id == 'lowvision') {
+      defaults = AccessibilitySettings.defaultsLowVision();
+    } else if (active.id == 'standard') {
+      defaults = AccessibilitySettings.defaultsStandard();
+    } else {
+      // custom -> reset na standard
+      defaults = AccessibilitySettings.defaultsStandard();
+    }
+    updateActiveAccessibilitySettings((_) => defaults.copyWith());
+    final name = _displayProfileName(active);
+    speak(_s('Profil $name obnoven', 'Profile $name reset'));
+    _showAccessibleSnackBar(_s('Profil $name obnoven', 'Profile $name reset'));
+  }
+
+  void _confirmDeleteActiveProfile(BuildContext dialogContext) {
+    final active = _getActiveAccessibilityProfile();
+    if (active.isBuiltIn) return;
+    final name = active.name;
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Smazat profil'),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(_s('Smazat profil', 'Delete profile'))),
+        content: Text(_s('Opravdu smazat profil $name?', 'Really delete profile $name?')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              // zavřít původní accessibility dialog aby se překreslil
+              Navigator.pop(dialogContext);
+              _deleteProfile(active.id);
+            },
+            child: Text(_s('Smazat', 'Delete')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteProfile(String id) {
+    final idx = _profiles.indexWhere((p) => p.id == id);
+    if (idx == -1) return;
+    if (_profiles[idx].isBuiltIn) return;
+    final wasActive = _activeProfileId == id;
+    setState(() {
+      _profiles.removeAt(idx);
+      if (wasActive) {
+        _activeProfileId = 'standard';
+        _applyActiveProfileToState();
+      }
+    });
+    _saveProfilesV2();
+    // aplikovat TTS pro nový aktivní
+    final s = activeAccessibilitySettings;
+    tts.setSpeechRate(s.speechRate);
+    tts.setVolume(s.speechVolume);
+    if (s.ttsVoice != null) {
+      tts.setVoice(s.ttsVoice!);
+    } else {
+      tts.clearVoice();
+    }
+    speak(_s('Profil smazán', 'Profile deleted'));
   }
 
   void _setDefaultMode(CalculatorMode mode) async {
@@ -4515,9 +4729,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _saveInversePreference(int val) async {
-    setState(() => _inverseFormatPreference = val);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('inverseFormatPreference', val);
+    updateActiveAccessibilitySettings(
+      (s) => s.copyWith(inverseFormatPreference: val),
+    );
   }
 
   Widget _wrapWithDialogFontScale(BuildContext ctx, Widget dialog) {
@@ -4564,11 +4778,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _toggleTts() {
-    setState(() {
-      ttsEnabled = !ttsEnabled;
-    });
-    _saveSettings();
-    speak(ttsEnabled ? _l10n.voiceOn : _l10n.voiceOff);
+    final newVal = !ttsEnabled;
+    updateActiveAccessibilitySettings((s) => s.copyWith(ttsEnabled: newVal));
+    speak(newVal ? _l10n.voiceOn : _l10n.voiceOff);
   }
 
   Future<void> _loadHistory() async {
@@ -4682,7 +4894,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
       }
 
-      _loadSettings();
+      _loadGlobalSettings();
+      _loadProfilesV2();
       _loadHistory();
       _loadStatsData();
       setState(() {});
@@ -5035,8 +5248,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     title: Text(engine),
                     selected: isSelected,
                     onTap: () {
-                      setState(() => _ttsEngine = engine);
-                      _saveSettings();
+                      updateActiveAccessibilitySettings(
+                        (s) => s.copyWith(ttsEngine: engine),
+                      );
                       if (!Platform.isWindows) {
                         tts.setEngine(engine);
                       }
@@ -5159,11 +5373,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       title: Text(_s('Výchozí', 'Default')),
                       selected: isSelected,
                       onTap: () {
-                        setState(() {
-                          _ttsVoice = null;
-                          _ttsVoiceName = null;
-                        });
-                        _saveSettings();
+                        updateActiveAccessibilitySettings(
+                          (s) => s.copyWith(
+                              clearTtsVoice: true, clearTtsVoiceName: true),
+                        );
                         tts.clearVoice();
                         Navigator.pop(context);
                       },
@@ -5200,11 +5413,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         'name': name,
                         'locale': voice['locale']?.toString() ?? '',
                       };
-                      setState(() {
-                        _ttsVoice = voiceMap;
-                        _ttsVoiceName = name;
-                      });
-                      _saveSettings();
+                      updateActiveAccessibilitySettings(
+                        (s) => s.copyWith(
+                            ttsVoice: voiceMap, ttsVoiceName: name),
+                      );
                       tts.setVoice(voiceMap);
                       Navigator.pop(context);
                     },
@@ -9268,9 +9480,58 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   void setKeyboardFontScaleForTest(double value) {
-    _keyboardFontScale = value;
-    _saveSettings();
+    updateActiveAccessibilitySettings((s) => s.copyWith(fontSizeMultiplier: value));
   }
+
+  @visibleForTesting
+  void switchProfileForTest(String id) {
+    final p = _profiles.firstWhere((e) => e.id == id, orElse: () => _getActiveAccessibilityProfile());
+    applyAccessibilityProfile(p);
+  }
+
+  @visibleForTesting
+  void updateActiveSettingsForTest(dynamic Function(dynamic) upd) {
+    updateActiveAccessibilitySettings((s) => upd(s) as AccessibilitySettings);
+  }
+
+  @visibleForTesting
+  void createProfileForTest(String name, String baseId) {
+    final base = _profiles.firstWhere((p) => p.id == baseId,
+        orElse: () => _getActiveAccessibilityProfile());
+    final newProfile = AccessibilityProfile(
+      id: 'custom_${DateTime.now().microsecondsSinceEpoch}_${name.hashCode.abs()}',
+      name: name,
+      isBuiltIn: false,
+      settings: base.settings.copyWith(),
+    );
+    setState(() {
+      _profiles.add(newProfile);
+      _activeProfileId = newProfile.id;
+    });
+    _applyActiveProfileToState();
+    _saveProfilesV2();
+  }
+
+  @visibleForTesting
+  void resetActiveProfileForTest() => _resetActiveProfile();
+
+  @visibleForTesting
+  void deleteProfileForTest(String id) => _deleteProfile(id);
+
+  @visibleForTesting
+  String get activeProfileIdForTest => _activeProfileId;
+
+  @visibleForTesting
+  AccessibilitySettings get activeSettingsForTest => activeAccessibilitySettings;
+
+  @visibleForTesting
+  ThousandGroupGap get thousandGroupGapForTest => _thousandGroupGap;
+
+  @visibleForTesting
+  bool get announceExpressionForTest => _announceExpression;
+
+  @visibleForTesting
+  double get speechRateForTest => _speechRate;
 
   @visibleForTesting
   void showDeleteStatsSetConfirmationForTest(int index) {
@@ -10594,23 +10855,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       child: GestureDetector(
                         onScaleUpdate: (ScaleUpdateDetails details) {
                           if (details.scale != 1.0) {
-                            setState(() {
-                              _dotMatrixZoom = (_dotMatrixZoom * details.scale)
-                                  .clamp(0.5, 5.0);
-                              _resultZoom = (_resultZoom * details.scale).clamp(
-                                0.5,
-                                5.0,
-                              );
-                            });
-                            _saveSettings();
+                            final newDot = (_dotMatrixZoom * details.scale)
+                                .clamp(0.5, 5.0);
+                            final newRes = (_resultZoom * details.scale).clamp(
+                              0.5,
+                              5.0,
+                            );
+                            updateActiveAccessibilitySettings((s) => s.copyWith(
+                                  dotMatrixZoom: newDot,
+                                  resultZoom: newRes,
+                                ));
                           }
                         },
                         onDoubleTap: () {
-                          setState(() {
-                            _dotMatrixZoom = 1.0;
-                            _resultZoom = 1.0;
-                          });
-                          _saveSettings();
+                          updateActiveAccessibilitySettings((s) => s.copyWith(
+                                dotMatrixZoom: 1.0,
+                                resultZoom: 1.0,
+                              ));
                         },
                         onTap: () => _mainFocusNode.requestFocus(),
                         child: Container(

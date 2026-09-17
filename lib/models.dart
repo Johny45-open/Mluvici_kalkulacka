@@ -21,28 +21,366 @@ class _TimeInputException implements Exception {
 
 enum AccessibilityType { none, blind, visuallyImpaired }
 
-class AccessibilityProfile {
-  final String id;
-  final String name;
-  final Map<String, dynamic> settings;
+class AccessibilitySettings {
+  final AccessibilityType accessibilityType;
+  final ScreenReaderMode screenReaderMode;
+  final double fontSizeMultiplier;
+  final double dialogFontScale;
+  final double dotMatrixZoom;
+  final double resultZoom;
+  final ThousandGroupGap thousandGroupGap;
+  final DialogSize dialogSize;
+  final bool useSixteenSegment;
+  final bool usePeriodicNotation;
+  final bool announceExpression;
+  final bool readStatsMemoryValues;
+  final bool autoReadStatsSummary;
+  final bool showStatsNavigationHint;
+  final bool alignInputLeft;
+  final double overlineThickness;
+  final double overlineHeight;
+  final double speechRate;
+  final double speechVolume;
+  final bool ttsEnabled;
+  final String? ttsEngine;
+  final Map<String, String>? ttsVoice;
+  final String? ttsVoiceName;
+  final int? inverseFormatPreference;
 
-  AccessibilityProfile({required this.id, required this.name, required this.settings});
+  const AccessibilitySettings({
+    required this.accessibilityType,
+    required this.screenReaderMode,
+    required this.fontSizeMultiplier,
+    required this.dialogFontScale,
+    required this.dotMatrixZoom,
+    required this.resultZoom,
+    required this.thousandGroupGap,
+    required this.dialogSize,
+    required this.useSixteenSegment,
+    required this.usePeriodicNotation,
+    required this.announceExpression,
+    required this.readStatsMemoryValues,
+    required this.autoReadStatsSummary,
+    required this.showStatsNavigationHint,
+    required this.alignInputLeft,
+    required this.overlineThickness,
+    required this.overlineHeight,
+    required this.speechRate,
+    required this.speechVolume,
+    required this.ttsEnabled,
+    this.ttsEngine,
+    this.ttsVoice,
+    this.ttsVoiceName,
+    this.inverseFormatPreference,
+  });
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'settings': settings};
-
-  factory AccessibilityProfile.fromJson(Map<String, dynamic> json) {
-    return AccessibilityProfile(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      settings: Map<String, dynamic>.from(json['settings'] as Map),
+  factory AccessibilitySettings.defaultsStandard() {
+    return AccessibilitySettings(
+      accessibilityType: AccessibilityType.none,
+      screenReaderMode: ScreenReaderMode.auto,
+      fontSizeMultiplier: 1.0,
+      dialogFontScale: 1.0,
+      dotMatrixZoom: 1.0,
+      resultZoom: 1.0,
+      thousandGroupGap: ThousandGroupGap.medium,
+      dialogSize: DialogSize.compact,
+      useSixteenSegment: false,
+      usePeriodicNotation: true,
+      announceExpression: false,
+      readStatsMemoryValues: true,
+      autoReadStatsSummary: true,
+      showStatsNavigationHint: true,
+      alignInputLeft: true,
+      overlineThickness: 1.0,
+      overlineHeight: 1.0,
+      speechRate: 0.5,
+      speechVolume: 1.0,
+      ttsEnabled: true,
+      ttsEngine: null,
+      ttsVoice: null,
+      ttsVoiceName: null,
+      inverseFormatPreference: null,
     );
   }
 
-  AccessibilityProfile copyWith({String? name, Map<String, dynamic>? settings}) {
+  factory AccessibilitySettings.defaultsBlind() {
+    return AccessibilitySettings(
+      accessibilityType: AccessibilityType.blind,
+      screenReaderMode: ScreenReaderMode.auto,
+      fontSizeMultiplier: 1.0,
+      dialogFontScale: 1.0,
+      dotMatrixZoom: 1.0,
+      resultZoom: 1.0,
+      thousandGroupGap: ThousandGroupGap.medium,
+      dialogSize: DialogSize.compact,
+      useSixteenSegment: false,
+      usePeriodicNotation: true,
+      announceExpression: true,
+      readStatsMemoryValues: true,
+      autoReadStatsSummary: true,
+      showStatsNavigationHint: true,
+      alignInputLeft: true,
+      overlineThickness: 1.0,
+      overlineHeight: 1.0,
+      speechRate: 0.5,
+      speechVolume: 1.0,
+      ttsEnabled: true,
+      ttsEngine: null,
+      ttsVoice: null,
+      ttsVoiceName: null,
+      inverseFormatPreference: null,
+    );
+  }
+
+  factory AccessibilitySettings.defaultsLowVision() {
+    return AccessibilitySettings(
+      accessibilityType: AccessibilityType.visuallyImpaired,
+      screenReaderMode: ScreenReaderMode.auto,
+      fontSizeMultiplier: 1.75,
+      dialogFontScale: 1.5,
+      dotMatrixZoom: 1.25,
+      resultZoom: 1.25,
+      thousandGroupGap: ThousandGroupGap.large,
+      dialogSize: DialogSize.wide,
+      useSixteenSegment: true,
+      usePeriodicNotation: true,
+      announceExpression: false,
+      readStatsMemoryValues: true,
+      autoReadStatsSummary: true,
+      showStatsNavigationHint: true,
+      alignInputLeft: true,
+      overlineThickness: 1.0,
+      overlineHeight: 1.0,
+      speechRate: 0.5,
+      speechVolume: 1.0,
+      ttsEnabled: true,
+      ttsEngine: null,
+      ttsVoice: null,
+      ttsVoiceName: null,
+      inverseFormatPreference: null,
+    );
+  }
+
+  AccessibilitySettings copyWith({
+    AccessibilityType? accessibilityType,
+    ScreenReaderMode? screenReaderMode,
+    double? fontSizeMultiplier,
+    double? dialogFontScale,
+    double? dotMatrixZoom,
+    double? resultZoom,
+    ThousandGroupGap? thousandGroupGap,
+    DialogSize? dialogSize,
+    bool? useSixteenSegment,
+    bool? usePeriodicNotation,
+    bool? announceExpression,
+    bool? readStatsMemoryValues,
+    bool? autoReadStatsSummary,
+    bool? showStatsNavigationHint,
+    bool? alignInputLeft,
+    double? overlineThickness,
+    double? overlineHeight,
+    double? speechRate,
+    double? speechVolume,
+    bool? ttsEnabled,
+    String? ttsEngine,
+    bool clearTtsEngine = false,
+    Map<String, String>? ttsVoice,
+    bool clearTtsVoice = false,
+    String? ttsVoiceName,
+    bool clearTtsVoiceName = false,
+    int? inverseFormatPreference,
+    bool clearInverseFormatPreference = false,
+  }) {
+    return AccessibilitySettings(
+      accessibilityType: accessibilityType ?? this.accessibilityType,
+      screenReaderMode: screenReaderMode ?? this.screenReaderMode,
+      fontSizeMultiplier: fontSizeMultiplier ?? this.fontSizeMultiplier,
+      dialogFontScale: dialogFontScale ?? this.dialogFontScale,
+      dotMatrixZoom: dotMatrixZoom ?? this.dotMatrixZoom,
+      resultZoom: resultZoom ?? this.resultZoom,
+      thousandGroupGap: thousandGroupGap ?? this.thousandGroupGap,
+      dialogSize: dialogSize ?? this.dialogSize,
+      useSixteenSegment: useSixteenSegment ?? this.useSixteenSegment,
+      usePeriodicNotation: usePeriodicNotation ?? this.usePeriodicNotation,
+      announceExpression: announceExpression ?? this.announceExpression,
+      readStatsMemoryValues: readStatsMemoryValues ?? this.readStatsMemoryValues,
+      autoReadStatsSummary: autoReadStatsSummary ?? this.autoReadStatsSummary,
+      showStatsNavigationHint:
+          showStatsNavigationHint ?? this.showStatsNavigationHint,
+      alignInputLeft: alignInputLeft ?? this.alignInputLeft,
+      overlineThickness: overlineThickness ?? this.overlineThickness,
+      overlineHeight: overlineHeight ?? this.overlineHeight,
+      speechRate: speechRate ?? this.speechRate,
+      speechVolume: speechVolume ?? this.speechVolume,
+      ttsEnabled: ttsEnabled ?? this.ttsEnabled,
+      ttsEngine: clearTtsEngine ? null : (ttsEngine ?? this.ttsEngine),
+      ttsVoice: clearTtsVoice
+          ? null
+          : (ttsVoice != null
+              ? Map<String, String>.from(ttsVoice)
+              : (this.ttsVoice != null
+                  ? Map<String, String>.from(this.ttsVoice!)
+                  : null)),
+      ttsVoiceName: clearTtsVoiceName
+          ? null
+          : (ttsVoiceName ?? this.ttsVoiceName),
+      inverseFormatPreference: clearInverseFormatPreference
+          ? null
+          : (inverseFormatPreference ?? this.inverseFormatPreference),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'accessibilityType': accessibilityType.index,
+        'screenReaderMode': screenReaderMode.index,
+        'fontSizeMultiplier': fontSizeMultiplier,
+        'dialogFontScale': dialogFontScale,
+        'dotMatrixZoom': dotMatrixZoom,
+        'resultZoom': resultZoom,
+        'thousandGroupGap': thousandGroupGap.index,
+        'dialogSize': dialogSize.index,
+        'useSixteenSegment': useSixteenSegment,
+        'usePeriodicNotation': usePeriodicNotation,
+        'announceExpression': announceExpression,
+        'readStatsMemoryValues': readStatsMemoryValues,
+        'autoReadStatsSummary': autoReadStatsSummary,
+        'showStatsNavigationHint': showStatsNavigationHint,
+        'alignInputLeft': alignInputLeft,
+        'overlineThickness': overlineThickness,
+        'overlineHeight': overlineHeight,
+        'speechRate': speechRate,
+        'speechVolume': speechVolume,
+        'ttsEnabled': ttsEnabled,
+        'ttsEngine': ttsEngine,
+        'ttsVoice': ttsVoice,
+        'ttsVoiceName': ttsVoiceName,
+        'inverseFormatPreference': inverseFormatPreference,
+      };
+
+  factory AccessibilitySettings.fromJson(Map<String, dynamic> json) {
+    AccessibilityType parseType(dynamic v) {
+      if (v is int && v >= 0 && v < AccessibilityType.values.length) {
+        return AccessibilityType.values[v];
+      }
+      return AccessibilityType.none;
+    }
+
+    ScreenReaderMode parseMode(dynamic v) {
+      if (v is int && v >= 0 && v < ScreenReaderMode.values.length) {
+        return ScreenReaderMode.values[v];
+      }
+      return ScreenReaderMode.auto;
+    }
+
+    ThousandGroupGap parseGap(dynamic v) {
+      if (v is int && v >= 0 && v < ThousandGroupGap.values.length) {
+        return ThousandGroupGap.values[v];
+      }
+      return ThousandGroupGap.medium;
+    }
+
+    DialogSize parseSize(dynamic v) {
+      if (v is int && v >= 0 && v < DialogSize.values.length) {
+        return DialogSize.values[v];
+      }
+      return DialogSize.compact;
+    }
+
+    Map<String, String>? parseVoice(dynamic v) {
+      if (v == null) return null;
+      if (v is Map) {
+        try {
+          return Map<String, String>.from(
+              v.map((k, val) => MapEntry(k.toString(), val.toString())));
+        } catch (_) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    return AccessibilitySettings(
+      accessibilityType: parseType(json['accessibilityType']),
+      screenReaderMode: parseMode(json['screenReaderMode']),
+      fontSizeMultiplier:
+          (json['fontSizeMultiplier'] as num?)?.toDouble() ?? 1.0,
+      dialogFontScale: (json['dialogFontScale'] as num?)?.toDouble() ?? 1.0,
+      dotMatrixZoom: (json['dotMatrixZoom'] as num?)?.toDouble() ?? 1.0,
+      resultZoom: (json['resultZoom'] as num?)?.toDouble() ?? 1.0,
+      thousandGroupGap: parseGap(json['thousandGroupGap']),
+      dialogSize: parseSize(json['dialogSize']),
+      useSixteenSegment: json['useSixteenSegment'] as bool? ?? false,
+      usePeriodicNotation: json['usePeriodicNotation'] as bool? ?? true,
+      announceExpression: json['announceExpression'] as bool? ?? false,
+      readStatsMemoryValues: json['readStatsMemoryValues'] as bool? ?? true,
+      autoReadStatsSummary: json['autoReadStatsSummary'] as bool? ?? true,
+      showStatsNavigationHint:
+          json['showStatsNavigationHint'] as bool? ?? true,
+      alignInputLeft: json['alignInputLeft'] as bool? ?? true,
+      overlineThickness: (json['overlineThickness'] as num?)?.toDouble() ?? 1.0,
+      overlineHeight: (json['overlineHeight'] as num?)?.toDouble() ?? 1.0,
+      speechRate: (json['speechRate'] as num?)?.toDouble() ?? 0.5,
+      speechVolume: (json['speechVolume'] as num?)?.toDouble() ?? 1.0,
+      ttsEnabled: json['ttsEnabled'] as bool? ?? true,
+      ttsEngine: json['ttsEngine'] as String?,
+      ttsVoice: parseVoice(json['ttsVoice']),
+      ttsVoiceName: json['ttsVoiceName'] as String?,
+      inverseFormatPreference: (json['inverseFormatPreference'] as num?)?.toInt(),
+    );
+  }
+}
+
+class AccessibilityProfile {
+  final String id;
+  final String name;
+  final AccessibilitySettings settings;
+  final bool isBuiltIn;
+
+  AccessibilityProfile({
+    required this.id,
+    required this.name,
+    required this.settings,
+    this.isBuiltIn = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'isBuiltIn': isBuiltIn,
+        'settings': settings.toJson(),
+      };
+
+  factory AccessibilityProfile.fromJson(Map<String, dynamic> json) {
+    final rawSettings = json['settings'];
+    AccessibilitySettings parsedSettings;
+    if (rawSettings is Map<String, dynamic>) {
+      parsedSettings = AccessibilitySettings.fromJson(rawSettings);
+    } else if (rawSettings is Map) {
+      parsedSettings =
+          AccessibilitySettings.fromJson(Map<String, dynamic>.from(rawSettings));
+    } else {
+      parsedSettings = AccessibilitySettings.defaultsStandard();
+    }
+    return AccessibilityProfile(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      isBuiltIn: json['isBuiltIn'] as bool? ?? false,
+      settings: parsedSettings,
+    );
+  }
+
+  AccessibilityProfile copyWith({
+    String? name,
+    AccessibilitySettings? settings,
+    bool? isBuiltIn,
+  }) {
     return AccessibilityProfile(
       id: id,
       name: name ?? this.name,
-      settings: settings ?? this.settings,
+      settings: settings != null
+          ? settings.copyWith()
+          : this.settings.copyWith(),
+      isBuiltIn: isBuiltIn ?? this.isBuiltIn,
     );
   }
 }
