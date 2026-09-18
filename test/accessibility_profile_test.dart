@@ -117,7 +117,9 @@ void main() {
       expect(find.text('Accessibility profile'), findsOneWidget);
       // Najdi tlačítko Low vision uvnitř dialogu (English)
       await tester.tap(find.text('Low vision'));
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Activate'));
+      await tester.pumpAndSettle();
       // Nyní již bez Preview – rovnou se aplikuje
       prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('activeProfileId'), 'lowvision');

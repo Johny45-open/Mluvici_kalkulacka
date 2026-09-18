@@ -1896,6 +1896,41 @@ class _AccessibilityDialog extends StatefulWidget {
 }
 
 class _AccessibilityDialogState extends State<_AccessibilityDialog> {
+  String? _selectedProfileId;
+  final Map<String, FocusNode> _profileFocusNodes = {};
+  @override
+  void initState() {
+    super.initState();
+    _selectedProfileId = widget.parent._activeProfileId;
+    for (final p in widget.parent._effectiveProfiles) {
+      _profileFocusNodes[p.id] = FocusNode(debugLabel: 'profile_' + p.id);
+    }
+  }
+  @override
+  void dispose() {
+    for (final n in _profileFocusNodes.values) n.dispose();
+    super.dispose();
+  }
+  void _openEditor() {
+    if (_selectedProfileId == null) {
+      widget.parent.speak(widget.parent._s('Nejprve vyberte profil','Select a profile first'));
+      return;
+    }
+    widget.parent.startEditingProfile(_selectedProfileId!);
+    final editingId = _selectedProfileId!;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => _AccessibilityProfileEditorDialog(parent: widget.parent),
+    ).then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final node = _profileFocusNodes[editingId];
+        if (node != null && mounted) {
+          try { node.requestFocus(); } catch(_){}
+        }
+        setState((){});
+      });
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -1939,53 +1974,86 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Wrap(
+                // Profily – výběr k editaci (nikoli aktivace)
+                Semantics(
+                  label: widget.parent._s('Seznam profilů, vyberte profil k úpravě','Profile list, select profile to edit'),
+                  child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: widget.parent._effectiveProfiles.map((profile) {
-                    final isActive =
-                        profile.id == widget.parent._getActiveAccessibilityProfile().id;
+                    final isActive = profile.id == widget.parent._getActiveAccessibilityProfile().id;
+                    final isSelected = profile.id == _selectedProfileId;
                     final displayName = widget.parent._displayProfileName(profile);
+                    final focusNode = _profileFocusNodes[profile.id];
+                    final label = displayName + (isActive ? ', aktivní' : '') + (isSelected ? ', vybrán k úpravě' : '') + (profile.isBuiltIn ? ', vestavěný' : '');
                     return Semantics(
                       button: true,
                       selected: isActive,
-                      label: isActive
-                          ? displayName + ', aktivní'
-                          : displayName,
+                      label: label,
                       child: ElevatedButton(
-                        style: isActive
+                        focusNode: focusNode,
+                        style: isSelected
                             ? ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.primary,
-                                foregroundColor:
-                                    Theme.of(context).colorScheme.onPrimary,
+                                backgroundColor: Theme.of(context).colorScheme.secondary,
+                                foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                                side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                               )
-                            : null,
+                            : isActive
+                                ? ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                  )
+                                : null,
                         onPressed: () {
-                          widget.parent.applyAccessibilityProfile(
-                              profile,
-                              announcement: widget.parent._l10n
-                                  .profileChangedTo(displayName));
-                          setState(() {});
+                          setState(() => _selectedProfileId = profile.id);
+                          widget.parent.speak(label);
                         },
                         child: Text(displayName),
                       ),
                     );
                   }).toList(),
-                ),
+                )),
                 const SizedBox(height: 8),
-                Wrap(
+                // Management – operace nad vybraným profilem (výběr ≠ aktivace)
+                Builder(builder: (ctx) {
+                  final selId = _selectedProfileId;
+                  final selProfile = selId == null ? null : widget.parent._effectiveProfiles.firstWhere((p)=>p.id==selId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
+                  final selIsBuiltIn = selProfile?.isBuiltIn ?? true;
+                  final selName = selProfile == null ? '' : widget.parent._displayProfileName(selProfile);
+                  return Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
                     Semantics(
                       button: true,
-                      label: widget.parent._s(
-                          'Vytvořit nový profil', 'Create new profile'),
+                      enabled: selId != null,
+                      label: selId == null ? widget.parent._s('Upravit profil – nejprve vyberte profil','Edit profile – select a profile first') : widget.parent._s('Upravit profil $selName','Edit profile $selName'),
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: Text(widget.parent._s('Upravit','Edit')),
+                        onPressed: selId == null ? null : _openEditor,
+                      ),
+                    ),
+                    Semantics(
+                      button: true,
+                      enabled: selId != null,
+                      label: selId == null ? widget.parent._s('Aktivovat profil – nejprve vyberte profil','Activate profile – select a profile first') : widget.parent._s('Aktivovat profil $selName','Activate profile $selName'),
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.check_circle, size: 18),
+                        label: Text(widget.parent._s('Aktivovat','Activate')),
+                        onPressed: selId == null ? null : () {
+                          final p = widget.parent._effectiveProfiles.firstWhere((e)=>e.id==selId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
+                          widget.parent.applyAccessibilityProfile(p, announcement: widget.parent._l10n.profileChangedTo(selName));
+                          setState((){});
+                        },
+                      ),
+                    ),
+                    Semantics(
+                      button: true,
+                      label: widget.parent._s('Vytvořit nový profil', 'Create new profile'),
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.add, size: 18),
-                        label: Text(widget.parent._s(
-                            'Nový profil', 'New profile')),
+                        label: Text(widget.parent._s('Nový profil', 'New profile')),
                         onPressed: () {
                           Navigator.pop(context);
                           widget.parent._showCreateProfileDialog();
@@ -1994,1514 +2062,55 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     ),
                     Semantics(
                       button: true,
-                      label: widget.parent._s('Obnovit výchozí nastavení profilu',
-                          'Reset profile to defaults'),
+                      enabled: selId != null,
+                      label: selId == null ? widget.parent._s('Obnovit výchozí nastavení profilu','Reset profile to defaults') : widget.parent._s('Obnovit profil $selName','Reset profile $selName'),
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.restart_alt, size: 18),
-                        label: Text(widget.parent._s(
-                            'Obnovit výchozí', 'Reset')),
-                        onPressed: () {
-                          widget.parent._confirmResetActiveProfile(context);
+                        label: Text(widget.parent._s('Obnovit výchozí', 'Reset')),
+                        onPressed: selId == null ? null : () {
+                          widget.parent._confirmResetProfileForId(context, selId);
                         },
                       ),
                     ),
-                    if (!widget.parent._getActiveAccessibilityProfile().isBuiltIn)
-                      Semantics(
-                        button: true,
-                        label: widget.parent._s(
-                            'Přejmenovat profil', 'Rename profile'),
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.edit, size: 18),
-                          label: Text(widget.parent._s(
-                              'Přejmenovat', 'Rename')),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            widget.parent._showRenameProfileDialog();
-                          },
-                        ),
-                      ),
-                    if (!widget.parent._getActiveAccessibilityProfile().isBuiltIn)
-                      Semantics(
-                        button: true,
-                        label:
-                            widget.parent._s('Smazat profil', 'Delete profile'),
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.delete, size: 18),
-                          label: Text(
-                              widget.parent._s('Smazat', 'Delete')),
-                          style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red),
-                          onPressed: () {
-                            widget.parent._confirmDeleteActiveProfile(context);
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s(
-                'Přepnutí typu displeje',
-                'Switch display type',
-              ),
-              child: ElevatedButton(
-                autofocus: true,
-                onPressed: () {
-                  final newVal = !widget.parent.activeAccessibilitySettings.useSixteenSegment;
-                  widget.parent.updateActiveAccessibilitySettings(
-                    (s) => s.copyWith(useSixteenSegment: newVal),
-                  );
-                  setState(() {});
-                  widget.parent.speak(
-                    widget.parent._useSixteenSegment
-                        ? widget.parent._l10n.segment16On
-                        : widget.parent._l10n.segment7On,
-                  );
-                },
-                child: Text(
-                  widget.parent._l10n.displayType(
-                    widget.parent._useSixteenSegment
-                        ? widget.parent._s('16-segmentový', '16-segment')
-                        : widget.parent._s('7-segmentový', '7-segment'),
-                  ),
-                ),
-              ),
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s(
-                'Přepnutí periodického zápisu výsledků',
-                'Switch repeating decimal notation for results',
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  final newVal = !widget.parent.activeAccessibilitySettings.usePeriodicNotation;
-                  widget.parent.updateActiveAccessibilitySettings(
-                    (s) => s.copyWith(usePeriodicNotation: newVal),
-                  );
-                  setState(() {});
-                  widget.parent.speak(
-                    widget.parent._usePeriodicNotation
-                        ? widget.parent._s(
-                            'Periodický zápis výsledků zapnut',
-                            'Repeating decimal notation for results on',
-                          )
-                        : widget.parent._s(
-                            'Periodický zápis výsledků vypnut',
-                            'Repeating decimal notation for results off',
-                          ),
-                  );
-                },
-                child: Text(
-                  widget.parent._s(
-                        'Periodický zápis výsledků',
-                        'Repeating decimal notation for results',
-                      ) +
-                      ': ' +
-                      (widget.parent._usePeriodicNotation
-                          ? widget.parent._s('Zapnuto', 'On')
-                          : widget.parent._s('Vypnuto', 'Off')),
-                ),
-              ),
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s(
-                'Přepnutí hlasového výstupu',
-                'Switch voice output',
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  final newVal = !widget.parent.activeAccessibilitySettings.ttsEnabled;
-                  widget.parent.updateActiveAccessibilitySettings(
-                    (s) => s.copyWith(ttsEnabled: newVal),
-                  );
-                  setState(() {});
-                  widget.parent.speak(
-                    widget.parent.ttsEnabled
-                        ? widget.parent._l10n.voiceOn
-                        : widget.parent._l10n.voiceOff,
-                  );
-                },
-                child: Text(
-                  widget.parent._l10n.voiceOutput(
-                    widget.parent.ttsEnabled
-                        ? widget.parent._s('Zapnuto', 'On')
-                        : widget.parent._s('Vypnuto', 'Off'),
-                  ),
-                ),
-              ),
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s(
-                'Přepnutí oznamování příkladu před výpočtem',
-                'Switch announcing expression before calculation',
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  final newVal = !widget.parent.activeAccessibilitySettings.announceExpression;
-                  widget.parent.updateActiveAccessibilitySettings(
-                    (s) => s.copyWith(announceExpression: newVal),
-                  );
-                  setState(() {});
-                  widget.parent.speak(
-                    widget.parent._l10n.announceExpressionState(
-                      widget.parent._announceExpression
-                          ? widget.parent._s('Zapnuto', 'On')
-                          : widget.parent._s('Vypnuto', 'Off'),
-                    ),
-                  );
-                },
-                child: Text(
-                  widget.parent._l10n.announceExpressionState(
-                    widget.parent._announceExpression
-                        ? widget.parent._s('Zapnuto', 'On')
-                        : widget.parent._s('Vypnuto', 'Off'),
-                  ),
-                ),
-              ),
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s(
-                'Přepnutí automatického čtení statistického souhrnu při otevření',
-                'Toggle auto-read of statistics summary on open',
-              ),
-              hint: widget.parent._s(
-                'Když je zapnuto, po otevření STATS se rovnou přečte celý souhrn v nastaveném pořadí plus nápověda pro Tab',
-                'When on, opening STATS reads the full summary in the configured order plus Tab hint',
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  final newVal = !widget.parent.activeAccessibilitySettings.autoReadStatsSummary;
-                  widget.parent.updateActiveAccessibilitySettings(
-                    (s) => s.copyWith(autoReadStatsSummary: newVal),
-                  );
-                  setState(() {});
-                  final state = widget.parent._autoReadStatsSummary
-                      ? widget.parent._s('Zapnuto', 'On')
-                      : widget.parent._s('Vypnuto', 'Off');
-                  widget.parent.speak(
-                    widget.parent._l10n.autoReadStatsSummaryState(state),
-                  );
-                },
-                child: Text(
-                  widget.parent._l10n.autoReadStatsSummaryState(
-                    widget.parent._autoReadStatsSummary
-                        ? widget.parent._s('Zapnuto', 'On')
-                        : widget.parent._s('Vypnuto', 'Off'),
-                  ),
-                ),
-              ),
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s(
-                'Přepnutí nápovědy pro pohyb ve statistickém souhrnu',
-                'Toggle stats summary navigation hint',
-              ),
-              hint: widget.parent._l10n.statsNavigationHintHint,
-              child: ElevatedButton(
-                onPressed: () {
-                  final newVal = !widget.parent.activeAccessibilitySettings.showStatsNavigationHint;
-                  widget.parent.updateActiveAccessibilitySettings(
-                    (s) => s.copyWith(showStatsNavigationHint: newVal),
-                  );
-                  setState(() {});
-                  final state = widget.parent._showStatsNavigationHint
-                      ? widget.parent._s('Zapnuto', 'On')
-                      : widget.parent._s('Vypnuto', 'Off');
-                  widget.parent.speak(
-                    widget.parent._l10n.statsNavigationHintState(state),
-                  );
-                },
-                child: Text(
-                  widget.parent._l10n.statsNavigationHintState(
-                    widget.parent._showStatsNavigationHint
-                        ? widget.parent._s('Zapnuto', 'On')
-                        : widget.parent._s('Vypnuto', 'Off'),
-                  ),
-                ),
-              ),
-            ),
-            const Divider(),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._s(
-                    'Režim čtečky obrazovky',
-                    'Screen reader mode',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Text(
-                      widget.parent._s(
-                        'Režim čtečky obrazovky',
-                        'Screen reader mode',
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SegmentedButton<ScreenReaderMode>(
-                  segments: [
-                    ButtonSegment(
-                      value: ScreenReaderMode.auto,
-                      label: Semantics(
-                        label: widget.parent._s(
-                          'Automaticky podle čtečky',
-                          'Automatic according to screen reader',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._s('Auto', 'Auto')),
-                        ),
-                      ),
-                      tooltip: widget.parent._s(
-                        'Automaticky podle čtečky',
-                        'Automatic according to screen reader',
-                      ),
-                    ),
-                    ButtonSegment(
-                      value: ScreenReaderMode.on,
-                      label: Semantics(
-                        label: widget.parent._s(
-                          'Režim čtečky obrazovky zapnut',
-                          'Screen reader mode on',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._s('Zapnuto', 'On')),
-                        ),
-                      ),
-                      tooltip: widget.parent._s(
-                        'Režim čtečky obrazovky zapnut',
-                        'Screen reader mode on',
-                      ),
-                    ),
-                    ButtonSegment(
-                      value: ScreenReaderMode.off,
-                      label: Semantics(
-                        label: widget.parent._s(
-                          'Režim čtečky obrazovky vypnut',
-                          'Screen reader mode off',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._s('Vypnuto', 'Off')),
-                        ),
-                      ),
-                      tooltip: widget.parent._s(
-                        'Režim čtečky obrazovky vypnut',
-                        'Screen reader mode off',
-                      ),
-                    ),
-                  ],
-                  selected: {widget.parent._screenReaderMode},
-                  onSelectionChanged: (Set<ScreenReaderMode> selected) {
-                    final mode = selected.first;
-                    widget.parent.updateActiveAccessibilitySettings(
-                      (s) => s.copyWith(screenReaderMode: mode),
-                    );
-                    setState(() {});
-                    widget.parent.speak(
-                      mode == ScreenReaderMode.auto
-                          ? widget.parent._s(
-                              'Režim čtečky: automaticky',
-                              'Screen reader mode: automatic',
-                            )
-                          : mode == ScreenReaderMode.on
-                          ? widget.parent._s(
-                              'Režim čtečky obrazovky zapnut',
-                              'Screen reader mode on',
-                            )
-                          : widget.parent._s(
-                              'Režim čtečky obrazovky vypnut',
-                              'Screen reader mode off',
-                            ),
-                    );
-                  },
-                ),
-              ],
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s(
-                'Nastavení hlasového engine',
-                'Voice engine settings',
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  widget.parent._showTtsEngineDialog();
-                },
-                child: Text(
-                  '${widget.parent._s('Engine', 'Engine')}: ${widget.parent._ttsEngine ?? widget.parent._s('Výchozí', 'Default')}',
-                ),
-              ),
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s(
-                'Otevřít systémové nastavení TTS',
-                'Open system TTS settings',
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  widget.parent._openTtsSystemSettings();
-                },
-                child: Text(widget.parent._s('Nastavení TTS', 'TTS settings')),
-              ),
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s('Nastavení hlasu', 'Voice settings'),
-              child: ElevatedButton(
-                onPressed: () {
-                  widget.parent._showTtsVoiceDialog();
-                },
-                child: Text(
-                  '${widget.parent._s('Hlas', 'Voice')}: ${widget.parent._ttsVoiceName ?? widget.parent._s('Výchozí', 'Default')}',
-                ),
-              ),
-            ),
-            const Divider(),
-            Semantics(
-              label: widget.parent._s(
-                'Přepnutí formátu úhlů',
-                'Switch angle format',
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  final current = widget.parent.activeAccessibilitySettings.inverseFormatPreference ?? 1;
-                  final newFormat = (current == 0) ? 1 : 0;
-
-                  widget.parent.updateActiveAccessibilitySettings(
-                    (s) => s.copyWith(inverseFormatPreference: newFormat),
-                  );
-
-                  widget.parent.speak(
-                    newFormat == 0
-                        ? widget.parent._l10n.formatDms
-                        : widget.parent._l10n.formatDecimalDegrees,
-                  );
-                  // Vynucené překreslení dialogu
-                  setState(() {});
-                },
-                child: Text(
-                  widget.parent._s(
-                    'Úhly: ${(widget.parent._inverseFormatPreference == 0) ? 'DMS' : 'Desetinné'}',
-                    'Angles: ${(widget.parent._inverseFormatPreference == 0) ? 'DMS' : 'Decimal'}',
-                  ),
-                ),
-              ),
-            ),
-            const Divider(),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._s(
-                    'Výběr motivu aplikace',
-                    'App theme selection',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Text(
-                      widget.parent._s('Motiv aplikace', 'App theme'),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SegmentedButton<ThemeMode>(
-                  segments: [
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      label: Semantics(
-                        label: widget.parent._l10n.themeSystemLabel,
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._s('Systém', 'System')),
-                        ),
-                      ),
-                      icon: Icon(Icons.brightness_auto),
-                      tooltip: widget.parent._l10n.themeSystemLabel,
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      label: Semantics(
-                        label: widget.parent._l10n.themeLightLabel,
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._s('Světlý', 'Light')),
-                        ),
-                      ),
-                      icon: Icon(Icons.light_mode),
-                      tooltip: widget.parent._l10n.themeLightLabel,
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      label: Semantics(
-                        label: widget.parent._l10n.themeDarkLabel,
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._s('Tmavý', 'Dark')),
-                        ),
-                      ),
-                      icon: Icon(Icons.dark_mode),
-                      tooltip: widget.parent._l10n.themeDarkLabel,
-                    ),
-                  ],
-                  selected: {widget.parent.widget.themeMode},
-                  onSelectionChanged: (Set<ThemeMode> selection) {
-                    ThemeMode mode = selection.first;
-                    widget.parent.widget.onThemeModeChanged(mode);
-                    String modeName;
-                    if (mode == ThemeMode.light) {
-                      modeName = widget.parent._l10n.themeLight;
-                    } else if (mode == ThemeMode.dark) {
-                      modeName = widget.parent._l10n.themeDark;
-                    } else {
-                      modeName = widget.parent._l10n.themeSystem;
-                    }
-                    widget.parent.speak(widget.parent._l10n.themeSet(modeName));
-                    setState(() {});
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Výchozí režim po spuštění
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._s(
-                    'Výchozí režim po spuštění',
-                    'Default mode on startup',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Text(
-                      widget.parent._s(
-                        'Výchozí režim po spuštění',
-                        'Default mode on startup',
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SegmentedButton<CalculatorMode>(
-                    showSelectedIcon: false,
-                    segments: CalculatorMode.values.map((mode) {
-                      final modeName = widget.parent._getModeName(mode);
-                      return ButtonSegment(
-                        value: mode,
-                        label: Semantics(
-                          label: modeName,
-                          child: ExcludeSemantics(child: Text(modeName)),
-                        ),
-                        tooltip: modeName,
-                      );
-                    }).toList(),
-                    selected: {widget.parent._defaultMode},
-                    onSelectionChanged: (Set<CalculatorMode> selected) {
-                      final mode = selected.first;
-                      widget.parent._setDefaultMode(mode);
-                      widget.parent.speak(
-                        widget.parent._s(
-                          'Výchozí režim nastaven na ${widget.parent._getModeSpeechName(mode)}',
-                          'Default mode set to ${widget.parent._getModeSpeechName(mode)}',
-                        ),
-                      );
-                      setState(() {});
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Velikost dialogů
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._l10n.dialogSizeSetting,
-                  child: ExcludeSemantics(
-                    child: Text(widget.parent._l10n.dialogSizeSetting),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SegmentedButton<DialogSize>(
-                  segments: [
-                    ButtonSegment(
-                      value: DialogSize.compact,
-                      label: Semantics(
-                        label: widget.parent._l10n.dialogSizeCompact,
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._l10n.dialogSizeCompact),
-                        ),
-                      ),
-                      icon: const Icon(Icons.phone_android),
-                      tooltip: widget.parent._l10n.dialogSizeCompact,
-                    ),
-                    ButtonSegment(
-                      value: DialogSize.wide,
-                      label: Semantics(
-                        label: widget.parent._l10n.dialogSizeWide,
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._l10n.dialogSizeWide),
-                        ),
-                      ),
-                      icon: const Icon(Icons.phone_iphone),
-                      tooltip: widget.parent._l10n.dialogSizeWide,
-                    ),
-                    ButtonSegment(
-                      value: DialogSize.fullscreen,
-                      label: Semantics(
-                        label: widget.parent._l10n.dialogSizeFullscreen,
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._l10n.dialogSizeFullscreen),
-                        ),
-                      ),
-                      icon: const Icon(Icons.fullscreen),
-                      tooltip: widget.parent._l10n.dialogSizeFullscreen,
-                    ),
-                  ],
-                  selected: {widget.parent._dialogSize},
-                  onSelectionChanged: (Set<DialogSize> selected) {
-                    final size = selected.first;
-                    widget.parent.updateActiveAccessibilitySettings(
-                      (s) => s.copyWith(dialogSize: size),
-                    );
-                    setState(() {});
-                    String sizeName = widget.parent._l10n.dialogSizeCompact;
-                    if (size == DialogSize.wide) {
-                      sizeName = widget.parent._l10n.dialogSizeWide;
-                    } else if (size == DialogSize.fullscreen) {
-                      sizeName = widget.parent._l10n.dialogSizeFullscreen;
-                    }
-                    widget.parent.speak(
-                      '${widget.parent._l10n.dialogSizeSetting}: $sizeName',
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            Column(
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._l10n.zoomUpperControls,
-                  child: ExcludeSemantics(
-                    child: Text(widget.parent._l10n.zoomUpper),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zmenšit zoom horního řádku',
-                          'Decrease upper line zoom',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDotMatrixZoom(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: widget.parent._s(
-                          'Hodnota zoomu: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
-                          'Zoom value: ${(widget.parent._dotMatrixZoom * 100).toInt()} %',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${(widget.parent._dotMatrixZoom * 100).toInt()}%',
-                          ),
-                        ),
-                      ),
-                    ),
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zvětšit zoom horního řádku',
-                          'Increase upper line zoom',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDotMatrixZoom(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Column(
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._l10n.zoomLowerControls,
-                  child: ExcludeSemantics(
-                    child: Text(widget.parent._l10n.zoomLower),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zmenšit zoom dolního řádku',
-                          'Decrease lower line zoom',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustResultZoom(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: widget.parent._s(
-                          'Hodnota zoomu: ${(widget.parent._resultZoom * 100).toInt()} %',
-                          'Zoom value: ${(widget.parent._resultZoom * 100).toInt()} %',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${(widget.parent._resultZoom * 100).toInt()}%',
-                          ),
-                        ),
-                      ),
-                    ),
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zvětšit zoom dolního řádku',
-                          'Increase lower line zoom',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustResultZoom(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Column(
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._s('Periodická čára', 'Repeating bar'),
-                  child: ExcludeSemantics(
-                    child: Text(
-                      widget.parent._s('Periodická čára', 'Repeating bar'),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Semantics(
-                  label: widget.parent._s(
-                    'Náhled periodické čáry s aktuální výškou a tloušťkou',
-                    'Preview of repeating bar with current height and thickness',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF121212),
-                        border: Border.all(color: Colors.black, width: 1),
-                      ),
-                      child: Column(
-                        children: [
-                          CustomDotMatrixDisplay(
-                            text: '1.2345\u0305\u0305',
-                            ledSize: 2.5,
-                            ledSpacing: 0.6,
-                            overlineThickness: widget.parent._overlineThickness,
-                            overlineHeight: widget.parent._overlineHeight,
-                          ),
-                          const SizedBox(height: 6),
-                          CustomSegmentDisplay(
-                            value: '1.2345\u0305\u0305',
-                            size: 12,
-                            characterCount: 7,
-                            isSixteenSegment: widget.parent._useSixteenSegment,
-                            overlineThickness: widget.parent._overlineThickness,
-                            overlineHeight: widget.parent._overlineHeight,
-                          ),
-                          const SizedBox(height: 4),
-                          _PeriodicText(
-                            '1,23(45)',
-                            overlineThickness: widget.parent._overlineThickness,
-                            overlineHeight: widget.parent._overlineHeight,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.redAccent,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Semantics(
-                  header: true,
-                  label: widget.parent._s(
-                    'Výška periodické čáry',
-                    'Repeating bar height',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Text(
-                      widget.parent._s(
-                        'Výška periodické čáry',
-                        'Repeating bar height',
-                      ),
-                    ),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Snížit výšku periodické čáry',
-                          'Decrease repeating bar height',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustOverlineHeight(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: widget.parent._s(
-                          'Výška periodické čáry: ${(widget.parent._overlineHeight * 100).toInt()} %',
-                          'Repeating bar height: ${(widget.parent._overlineHeight * 100).toInt()} %',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${(widget.parent._overlineHeight * 100).toInt()}%',
-                          ),
-                        ),
-                      ),
-                    ),
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zvýšit výšku periodické čáry',
-                          'Increase repeating bar height',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustOverlineHeight(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Semantics(
-                  header: true,
-                  label: widget.parent._s(
-                    'Tloušťka periodické čárky',
-                    'Repeating bar thickness',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Text(
-                      widget.parent._s(
-                        'Tloušťka periodické čárky',
-                        'Repeating bar thickness',
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zmenšit tloušťku periodické čárky',
-                          'Decrease repeating bar thickness',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustOverlineThickness(-0.2),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: widget.parent._s(
-                          'Tloušťka periodické čárky: ${(widget.parent._overlineThickness * 100).toInt()} %',
-                          'Repeating bar thickness: ${(widget.parent._overlineThickness * 100).toInt()} %',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${(widget.parent._overlineThickness * 100).toInt()}%',
-                          ),
-                        ),
-                      ),
-                    ),
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zvětšit tloušťku periodické čárky',
-                          'Increase repeating bar thickness',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustOverlineThickness(0.2),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Semantics(
-                  label: widget.parent._s(
-                    'Obnovit výchozí vzhled periodické čáry',
-                    'Reset repeating bar appearance to defaults',
-                  ),
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.restart_alt),
-                    onPressed: _resetOverlineStyle,
-                    label: Text(
-                      widget.parent._s(
-                        'Obnovit výchozí vzhled periodické čáry',
-                        'Reset repeating bar appearance',
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._l10n.thousandGroupGapSection,
-                  child: ExcludeSemantics(
-                    child: Text(widget.parent._l10n.thousandGroupGapSection),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SegmentedButton<ThousandGroupGap>(
-                  segments: [
-                    ButtonSegment(
-                      value: ThousandGroupGap.small,
-                      label: Semantics(
-                        label: widget.parent._l10n.thousandGapSmallLabel,
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._l10n.thousandGapSmall),
-                        ),
-                      ),
-                      tooltip: widget.parent._l10n.thousandGapSmallLabel,
-                    ),
-                    ButtonSegment(
-                      value: ThousandGroupGap.medium,
-                      label: Semantics(
-                        label: widget.parent._l10n.thousandGapMediumLabel,
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._l10n.thousandGapMedium),
-                        ),
-                      ),
-                      tooltip: widget.parent._l10n.thousandGapMediumLabel,
-                    ),
-                    ButtonSegment(
-                      value: ThousandGroupGap.large,
-                      label: Semantics(
-                        label: widget.parent._l10n.thousandGapLargeLabel,
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._l10n.thousandGapLarge),
-                        ),
-                      ),
-                      tooltip: widget.parent._l10n.thousandGapLargeLabel,
-                    ),
-                  ],
-                  selected: {widget.parent._thousandGroupGap},
-                  onSelectionChanged: (Set<ThousandGroupGap> selected) {
-                    final v = selected.first;
-                    widget.parent.updateActiveAccessibilitySettings(
-                      (s) => s.copyWith(thousandGroupGap: v),
-                    );
-                    setState(() {});
-                    String label;
-                    switch (v) {
-                      case ThousandGroupGap.small:
-                        label = widget.parent._l10n.thousandGapSmall;
-                        break;
-                      case ThousandGroupGap.medium:
-                        label = widget.parent._l10n.thousandGapMedium;
-                        break;
-                      case ThousandGroupGap.large:
-                        label = widget.parent._l10n.thousandGapLarge;
-                        break;
-                    }
-                    widget.parent.speak(
-                      widget.parent._l10n.thousandGapSet(label),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                Semantics(
-                  label: widget.parent._s(
-                    'Náhled mezery mezi skupinami číslic',
-                    'Preview of grouping gap',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF121212),
-                        border: Border.all(color: Colors.black, width: 1),
-                      ),
-                      child: Builder(
-                        builder: (ctx) {
-                          double base;
-                          switch (widget.parent._thousandGroupGap) {
-                            case ThousandGroupGap.small:
-                              base = 1.5;
-                              break;
-                            case ThousandGroupGap.medium:
-                              base = 3.0;
-                              break;
-                            case ThousandGroupGap.large:
-                              base = 6.0;
-                              break;
-                          }
-                          return SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: CustomDotMatrixDisplay(
-                              text: '8888888',
-                              ledSize: 2.5,
-                              ledSpacing: 0.6,
-                              thousandGroupGap: base,
-                              enableThousandGrouping: true,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Semantics(
-              label: widget.parent._s(
-                'Přepnout zarovnání vstupního řádku vlevo',
-                'Toggle left alignment of input line',
-              ),
-              child: ElevatedButton.icon(
-                icon: Icon(
-                  widget.parent._alignInputLeft
-                      ? Icons.format_align_left
-                      : Icons.format_align_center,
-                ),
-                onPressed: () {
-                  final newVal = !widget.parent.activeAccessibilitySettings.alignInputLeft;
-                  widget.parent.updateActiveAccessibilitySettings(
-                    (s) => s.copyWith(alignInputLeft: newVal),
-                  );
-                  setState(() {});
-                  widget.parent.speak(
-                    widget.parent._s(
-                      widget.parent._alignInputLeft
-                          ? 'Vstupní řádek zarovnán vlevo'
-                          : 'Vstupní řádek zarovnán na střed',
-                      widget.parent._alignInputLeft
-                          ? 'Input line aligned left'
-                          : 'Input line centered',
-                    ),
-                  );
-                },
-                label: Text(
-                  widget.parent._s(
-                    widget.parent._alignInputLeft
-                        ? 'Vstupní řádek: vlevo'
-                        : 'Vstupní řádek: na střed',
-                    widget.parent._alignInputLeft
-                        ? 'Input line: left'
-                        : 'Input line: centered',
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Column(
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._s(
-                    'Ovládání velikosti písma dialogů',
-                    'Dialog font size controls',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Text(
-                      widget.parent._s(
-                        'Velikost písma dialogů',
-                        'Dialog font size',
-                      ),
-                    ),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zmenšit písmo dialogů',
-                          'Decrease dialog font size',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDialogFontScale(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: widget.parent._s(
-                          'Hodnota velikosti písma dialogů: ${(widget.parent._dialogFontScale * 100).toInt()} %',
-                          'Dialog font size value: ${(widget.parent._dialogFontScale * 100).toInt()} %',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${(widget.parent._dialogFontScale * 100).toInt()}%',
-                          ),
-                        ),
-                      ),
-                    ),
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zvětšit písmo dialogů',
-                          'Increase dialog font size',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDialogFontScale(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Column(
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._s(
-                    'Ovládání velikosti písma tlačítek',
-                    'Keyboard button font size controls',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Text(
-                      widget.parent._s(
-                        'Velikost písma tlačítek',
-                        'Keyboard button font size',
-                      ),
-                    ),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zmenšit písmo tlačítek',
-                          'Decrease keyboard button font size',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustKeyboardFontScale(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: widget.parent._s(
-                          'Hodnota velikosti písma tlačítek: ${(widget.parent._keyboardFontScale * 100).toInt()} %',
-                          'Keyboard button font size value: ${(widget.parent._keyboardFontScale * 100).toInt()} %',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${(widget.parent._keyboardFontScale * 100).toInt()}%',
-                          ),
-                        ),
-                      ),
-                    ),
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._s(
-                          'Zvětšit písmo tlačítek',
-                          'Increase keyboard button font size',
-                        ),
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustKeyboardFontScale(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Semantics(
-                  container: true,
-                  child: Text(
-                    widget.parent._s(
-                      'Na malém displeji se při velkém písmu klávesnice posouvá.',
-                      'On a small display the keyboard scrolls with large font.',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Náhled velikosti tlačítek – stejná velikost jako ve Statistickém režimu
-                Semantics(
-                  label: widget.parent._s(
-                    'Náhled tlačítek s aktuální velikostí písma',
-                    'Preview of buttons with current font size',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 60,
-                            height:
-                                44 * widget.parent._responsiveScale(context),
-                            child: widget.parent.buildButton(
-                              '7',
-                              expanded: false,
-                              onPressed: () {},
-                            ),
-                          ),
-                          SizedBox(
-                            width: 60,
-                            height:
-                                44 * widget.parent._responsiveScale(context),
-                            child: widget.parent.buildButton(
-                              '8',
-                              expanded: false,
-                              onPressed: () {},
-                            ),
-                          ),
-                          SizedBox(
-                            width: 60,
-                            height:
-                                44 * widget.parent._responsiveScale(context),
-                            child: widget.parent.buildButton(
-                              '9',
-                              expanded: false,
-                              onPressed: () {},
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Column(
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._l10n.speechRateControls,
-                  child: ExcludeSemantics(
-                    child: Text(widget.parent._l10n.speechRate),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._l10n.decreaseSpeechRate,
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechRate(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: widget.parent._l10n.speechRateValue(
-                          (widget.parent._speechRate * 100).toInt(),
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${(widget.parent._speechRate * 100).toInt()}%',
-                          ),
-                        ),
-                      ),
-                    ),
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._l10n.increaseSpeechRate,
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechRate(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            Column(
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._s(
-                    'Ovládání hlasitosti',
-                    'Volume controls',
-                  ),
-                  child: ExcludeSemantics(
-                    child: Text(widget.parent._l10n.volume),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._l10n.decreaseVolume,
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechVolume(-0.1),
-                          child: ExcludeSemantics(child: const Text('-')),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Semantics(
-                        liveRegion: true,
-                        container: true,
-                        label: widget.parent._s(
-                          'Aktuální hlasitost: ${(widget.parent._speechVolume * 100).toInt()} %',
-                          'Current volume: ${(widget.parent._speechVolume * 100).toInt()} %',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${(widget.parent._speechVolume * 100).toInt()}%',
-                          ),
-                        ),
-                      ),
-                    ),
-                    MergeSemantics(
-                      child: Semantics(
-                        label: widget.parent._l10n.increaseVolume,
-                        container: true,
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechVolume(0.1),
-                          child: ExcludeSemantics(child: const Text('+')),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Semantics(
-              label: widget.parent._s(
-                'Spravovat pořadí čtení statistického souhrnu',
-                'Manage statistics summary reading order',
-              ),
-              button: true,
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.reorder),
-                  label: Text(
-                    widget.parent._s(
-                      'Pořadí čtení statistického souhrnu',
-                      'Statistics summary reading order',
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    widget.parent._showStatsSummaryReadingOrderDialog();
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            Column(
-              children: [
-                Semantics(
-                  header: true,
-                  label: widget.parent._l10n.dataManagementSection,
-                  child: ExcludeSemantics(
-                    child: Text(widget.parent._l10n.dataManagementTitle),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 16,
-                  runSpacing: 8,
-                  children: [
                     Semantics(
-                      label: widget.parent._l10n.backupData,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.backup),
-                        onPressed: () {
-                          widget.parent._exportBackup();
+                      button: true,
+                      enabled: selId != null && !selIsBuiltIn,
+                      label: selIsBuiltIn ? widget.parent._s('Přejmenovat profil $selName – nelze, vestavěný profil','Rename profile $selName – cannot, built-in profile') : widget.parent._s('Přejmenovat profil $selName','Rename profile $selName'),
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: Text(widget.parent._s('Přejmenovat', 'Rename')),
+                        onPressed: (selId == null || selIsBuiltIn) ? null : () {
                           Navigator.pop(context);
+                          widget.parent._showRenameProfileDialogForId(selId);
                         },
-                        label: Text(widget.parent._l10n.backupData),
                       ),
                     ),
                     Semantics(
-                      label: widget.parent._l10n.restoreData,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.restore),
-                        onPressed: () async {
-                          final confirmed = await widget.parent
-                              .showAppDialog<bool>(
-                                context: context,
-                                routeSettings: const RouteSettings(
-                                  name: 'Potvrzení',
-                                ),
-                                builder: (ctx) => AlertDialog(
-                                  insetPadding: widget.parent
-                                      ._dialogInsetPadding(),
-                                  title: Text(
-                                    widget.parent._l10n.confirmationTitle,
-                                  ),
-                                  content: Text(
-                                    widget.parent._l10n.restoreConfirm,
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(ctx, false),
-                                      child: Text(widget.parent._l10n.noShort),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: Text(widget.parent._l10n.yesShort),
-                                    ),
-                                  ],
-                                ),
-                              );
-                          if (confirmed == true) {
-                            widget.parent._importBackup();
-                            if (context.mounted) Navigator.pop(context);
-                          }
+                      button: true,
+                      enabled: selId != null && !selIsBuiltIn,
+                      label: selIsBuiltIn ? widget.parent._s('Smazat profil $selName – nelze, vestavěný profil','Delete profile $selName – cannot, built-in profile') : widget.parent._s('Smazat profil $selName','Delete profile $selName'),
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete, size: 18),
+                        label: Text(widget.parent._s('Smazat', 'Delete')),
+                        style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                        onPressed: (selId == null || selIsBuiltIn) ? null : () {
+                          widget.parent._confirmDeleteProfileForId(context, selId, parentDialogContext: context);
                         },
-                        label: Text(widget.parent._l10n.restoreData),
                       ),
                     ),
                   ],
-                ),
+                );}),
               ],
             ),
-            const Divider(),
+                        const Divider(),
             Semantics(
-              label: widget.parent._s(
-                'Verze aplikace, 7× klepněte pro vývojářský režim',
-                'App version, tap 7 times for developer mode',
-              ),
-              button: true,
-              child: InkWell(
-                onTap: () => widget.parent._handleDevTap(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Center(
-                    child: Text(
-                      'v${widget.parent._currentAppVersion}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                  ),
+              label: widget.parent._s('Nastavení profilu upravíte stiskem Upravit u vybraného profilu','Edit profile settings via Edit button for selected profile'),
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical:8),
+                child: Text(
+                  widget.parent._s('Nastavení profilu upravíte stiskem Upravit u vybraného profilu.','Edit profile settings via Edit button for selected profile.'),
+                  style: TextStyle(fontStyle: FontStyle.italic),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),

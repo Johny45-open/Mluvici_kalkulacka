@@ -31,6 +31,8 @@ part 'stats_storage.dart';
 part 'stats_sets_dialog.dart';
 part 'dialogs/stats_summary_dialog.dart';
 part 'dialogs/reading_order_dialog.dart';
+part 'dialogs/accessibility_controls.dart';
+part 'dialogs/accessibility_editor_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

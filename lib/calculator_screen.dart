@@ -82,8 +82,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   List<AccessibilityProfile> _profiles = [];
   bool _profilesLoaded = false;
 
-  // Aktivní nastavení – jediný zdroj pravdy
+  // --- Editing draft (oddělení aktivace × editace) ---
+  String? _editingProfileId;
+  AccessibilityProfile? _editingDraft;
+  AccessibilitySettings? _editingPreviewSnapshot;
+  ThemeMode? _editingPreviewThemeSnapshot;
+
+  // Editing getters (pro UI / testy)
+  AccessibilityProfile? get editingProfile => _editingDraft;
+  String? get editingProfileId => _editingProfileId;
+
+  // Aktivní nastavení – jediný zdroj pravdy (s preview když se edituje aktivní)
   AccessibilitySettings get activeAccessibilitySettings {
+    if (_editingDraft != null && _editingProfileId == _activeProfileId) {
+      return _editingDraft!.settings;
+    }
     final p = _getActiveAccessibilityProfile();
     return p.settings;
   }
@@ -104,7 +117,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return _fallbackStandardProfile();
   }
 
-  // Aktualizace nastavení aktivního profilu – jediný zápisový bod
+  // Aktualizace nastavení aktivního profilu – jediný zápisový bod (zachován pro rychlé toggly mimo editor)
   void updateActiveAccessibilitySettings(
     AccessibilitySettings Function(AccessibilitySettings current) update,
   ) {
@@ -117,40 +130,166 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _profiles[idx] =
           _profiles[idx].copyWith(settings: updated);
     });
+    _applySettingsToRuntime(updated, previous: current);
+    _saveProfilesV2();
+  }
+
+  // Sjednocená aplikace runtime efektů (TTS, notifier, theme) – bez perzistence
+  void _applySettingsToRuntime(AccessibilitySettings updated, {AccessibilitySettings? previous}) {
+    final prev = previous;
     _dialogFontScaleNotifier.value = updated.dialogFontScale;
-    // Aplikovat TTS okamžitě
-    if (updated.speechRate != current.speechRate) {
+    if (prev == null || updated.speechRate != prev.speechRate) {
       tts.setSpeechRate(updated.speechRate).catchError((e) {
         debugPrint('TTS setSpeechRate Error: $e');
       });
     }
-    if (updated.speechVolume != current.speechVolume) {
+    if (prev == null || updated.speechVolume != prev.speechVolume) {
       tts.setVolume(updated.speechVolume).catchError((e) {
         debugPrint('TTS setVolume Error: $e');
       });
     }
-    if (updated.ttsEngine != current.ttsEngine) {
+    if (prev == null || updated.ttsEngine != prev.ttsEngine) {
       if (!Platform.isWindows && updated.ttsEngine != null) {
         tts.setEngine(updated.ttsEngine!).catchError((e) {
           debugPrint('TTS setEngine Error: $e');
         });
-      } else if (!Platform.isWindows && updated.ttsEngine == null && current.ttsEngine != null) {
+      } else if (!Platform.isWindows && updated.ttsEngine == null && prev != null && prev.ttsEngine != null) {
         // reset na výchozí engine není podporován, ponechat
       }
     }
-    if (updated.ttsVoice != current.ttsVoice) {
+    if (prev == null || updated.ttsVoice != prev.ttsVoice) {
       if (updated.ttsVoice != null) {
         tts.setVoice(updated.ttsVoice!).catchError((e) {
           debugPrint('TTS setVoice Error: $e');
         });
       } else {
-        tts.clearVoice();
+        if (prev == null || prev.ttsVoice != null) {
+          tts.clearVoice();
+        }
       }
     }
-    _saveProfilesV2();
-    // theme pro slabozraký
     if (updated.accessibilityType == AccessibilityType.visuallyImpaired) {
-      widget.onThemeModeChanged(ThemeMode.dark);
+      if (prev == null || prev.accessibilityType != AccessibilityType.visuallyImpaired) {
+        widget.onThemeModeChanged(ThemeMode.dark);
+      }
+    }
+  }
+
+  // === Editing draft API – 8 operací ===
+
+  void startEditingProfile(String id) {
+    final src = _profiles.firstWhere((p) => p.id == id, orElse: () => _getActiveAccessibilityProfile());
+    _editingProfileId = src.id;
+    _editingDraft = src.copyWith();
+    if (src.id == _activeProfileId) {
+      _editingPreviewSnapshot = src.settings.copyWith();
+      _editingPreviewThemeSnapshot = widget.themeMode;
+    } else {
+      _editingPreviewSnapshot = null;
+      _editingPreviewThemeSnapshot = null;
+    }
+    if (mounted) setState(() {});
+  }
+
+  void updateEditingSettings(
+    AccessibilitySettings Function(AccessibilitySettings current) update,
+  ) {
+    if (_editingDraft == null || _editingProfileId == null) return;
+    final prevDraftSettings = _editingDraft!.settings;
+    final updated = update(prevDraftSettings);
+    _editingDraft = _editingDraft!.copyWith(settings: updated);
+    if (_editingProfileId == _activeProfileId) {
+      _applySettingsToRuntime(updated, previous: prevDraftSettings);
+      if (mounted) setState(() {});
+    } else {
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> saveEditingProfile() async {
+    if (_editingDraft == null || _editingProfileId == null) return;
+    final idx = _profiles.indexWhere((p) => p.id == _editingProfileId);
+    if (idx == -1) return;
+    final savedId = _editingProfileId!;
+    final wasActive = savedId == _activeProfileId;
+    setState(() {
+      _profiles[idx] = _editingDraft!;
+    });
+    await _saveProfilesV2();
+    if (wasActive) {
+      _applySettingsToRuntime(_editingDraft!.settings);
+      _applyActiveProfileToState();
+    }
+    _editingDraft = null;
+    _editingProfileId = null;
+    _editingPreviewSnapshot = null;
+    _editingPreviewThemeSnapshot = null;
+    if (mounted) setState(() {});
+  }
+
+  void discardEditingProfile() {
+    if (_editingProfileId == _activeProfileId && _editingPreviewSnapshot != null) {
+      _applySettingsToRuntime(_editingPreviewSnapshot!, previous: _editingDraft?.settings);
+      if (_editingPreviewThemeSnapshot != null && _editingPreviewThemeSnapshot != widget.themeMode) {
+        widget.onThemeModeChanged(_editingPreviewThemeSnapshot!);
+      }
+      _dialogFontScaleNotifier.value = _editingPreviewSnapshot!.dialogFontScale;
+      if (mounted) setState(() {});
+    }
+    _editingDraft = null;
+    _editingProfileId = null;
+    _editingPreviewSnapshot = null;
+    _editingPreviewThemeSnapshot = null;
+    if (mounted) setState(() {});
+  }
+
+  Future<void> renameProfile(String id, String newName) async {
+    final idx = _profiles.indexWhere((p) => p.id == id);
+    if (idx == -1) return;
+    if (_profiles[idx].isBuiltIn) return;
+    if (newName.trim().isEmpty) return;
+    setState(() => _profiles[idx] = _profiles[idx].copyWith(name: newName.trim()));
+    await _saveProfilesV2();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> resetProfile(String id) async {
+    final idx = _profiles.indexWhere((p) => p.id == id);
+    if (idx == -1) return;
+    if (_editingProfileId == id && _editingDraft != null) {
+      AccessibilitySettings defaults;
+      if (id == 'blind') {
+        defaults = AccessibilitySettings.defaultsBlind();
+      } else if (id == 'lowvision') {
+        defaults = AccessibilitySettings.defaultsLowVision();
+      } else if (id == 'standard') {
+        defaults = AccessibilitySettings.defaultsStandard();
+      } else {
+        defaults = AccessibilitySettings.defaultsStandard();
+      }
+      _editingDraft = _editingDraft!.copyWith(settings: defaults.copyWith());
+      if (id == _activeProfileId) {
+        _applySettingsToRuntime(defaults, previous: _editingDraft?.settings);
+      }
+      if (mounted) setState(() {});
+      return;
+    }
+    AccessibilitySettings defaults;
+    if (id == 'blind') {
+      defaults = AccessibilitySettings.defaultsBlind();
+    } else if (id == 'lowvision') {
+      defaults = AccessibilitySettings.defaultsLowVision();
+    } else if (id == 'standard') {
+      defaults = AccessibilitySettings.defaultsStandard();
+    } else {
+      defaults = AccessibilitySettings.defaultsStandard();
+    }
+    if (id == _activeProfileId) {
+      updateActiveAccessibilitySettings((_) => defaults.copyWith());
+    } else {
+      setState(() => _profiles[idx] = _profiles[idx].copyWith(settings: defaults.copyWith()));
+      await _saveProfilesV2();
+      if (mounted) setState(() {});
     }
   }
 
@@ -4680,6 +4819,63 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  // Nové: operace nad libovolným id (výběr ≠ aktivace)
+  void _confirmResetProfileForId(BuildContext dialogContext, String id) {
+    final profile = _profiles.firstWhere((p)=> p.id==id, orElse: ()=> _getActiveAccessibilityProfile());
+    final displayName = _displayProfileName(profile);
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Reset profilu'),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(_s('Obnovit výchozí', 'Reset'))),
+        content: Text(_s('Opravdu obnovit profil $displayName na výchozí hodnoty?', 'Reset profile $displayName to defaults?')),
+        actions: [
+          TextButton(onPressed: ()=> Navigator.pop(ctx), child: Text(_l10n.cancel)),
+          FilledButton(onPressed: (){ Navigator.pop(ctx); resetProfile(id); if(mounted) setState((){}); }, child: Text(_s('Obnovit','Reset'))),
+        ],
+      ),
+    );
+  }
+
+  void _showRenameProfileDialogForId(String id) {
+    final profile = _profiles.firstWhere((p)=> p.id==id, orElse: ()=> _getActiveAccessibilityProfile());
+    if (profile.isBuiltIn) return;
+    final ctrl = TextEditingController(text: profile.name);
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Přejmenovat profil'),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(_s('Přejmenovat profil', 'Rename profile'))),
+        content: Semantics(label: _s('Nový název profilu','New profile name'), child: TextField(controller: ctrl, autofocus: true, decoration: InputDecoration(labelText: _s('Název','Name'), border: const OutlineInputBorder()))),
+        actions: [
+          TextButton(onPressed: ()=> Navigator.pop(ctx), child: Text(_l10n.cancel)),
+          FilledButton(onPressed: (){ final newName = ctrl.text.trim(); if(newName.isEmpty) return; renameProfile(id, newName); Navigator.pop(ctx); speak(_s('Profil přejmenován na $newName','Profile renamed to $newName')); }, child: Text(_l10n.confirmAction)),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteProfileForId(BuildContext dialogContext, String id, {required BuildContext parentDialogContext}) {
+    final profile = _profiles.firstWhere((p)=> p.id==id, orElse: ()=> _getActiveAccessibilityProfile());
+    if (profile.isBuiltIn) return;
+    final name = _displayProfileName(profile);
+    showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Smazat profil'),
+      builder: (ctx) => AlertDialog(
+        insetPadding: _dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(_s('Smazat profil', 'Delete profile'))),
+        content: Text(_s('Opravdu smazat profil $name?', 'Really delete profile $name?')),
+        actions: [
+          TextButton(onPressed: ()=> Navigator.pop(ctx), child: Text(_l10n.cancel)),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: (){ Navigator.pop(ctx); Navigator.pop(parentDialogContext); _deleteProfile(id); }, child: Text(_s('Smazat','Delete'))),
+        ],
+      ),
+    );
+  }
+
   void _deleteProfile(String id) {
     final idx = _profiles.indexWhere((p) => p.id == id);
     if (idx == -1) return;
@@ -5248,11 +5444,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     title: Text(engine),
                     selected: isSelected,
                     onTap: () {
-                      updateActiveAccessibilitySettings(
-                        (s) => s.copyWith(ttsEngine: engine),
-                      );
-                      if (!Platform.isWindows) {
-                        tts.setEngine(engine);
+                      if (_editingDraft != null && _editingProfileId != null) {
+                        final prev = _editingDraft!.settings;
+                        updateEditingSettings((s) => s.copyWith(ttsEngine: engine));
+                        if (_editingProfileId == _activeProfileId && !Platform.isWindows) {
+                          tts.setEngine(engine).catchError((e){ debugPrint('TTS setEngine Error: $e'); });
+                        }
+                      } else {
+                        updateActiveAccessibilitySettings(
+                          (s) => s.copyWith(ttsEngine: engine),
+                        );
+                        if (!Platform.isWindows) {
+                          tts.setEngine(engine);
+                        }
                       }
                       Navigator.pop(context);
                     },
@@ -5373,11 +5577,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       title: Text(_s('Výchozí', 'Default')),
                       selected: isSelected,
                       onTap: () {
-                        updateActiveAccessibilitySettings(
-                          (s) => s.copyWith(
-                              clearTtsVoice: true, clearTtsVoiceName: true),
-                        );
-                        tts.clearVoice();
+                        if (_editingDraft != null && _editingProfileId != null) {
+                          updateEditingSettings((s) => s.copyWith(clearTtsVoice: true, clearTtsVoiceName: true));
+                          if (_editingProfileId == _activeProfileId) {
+                            tts.clearVoice();
+                          }
+                        } else {
+                          updateActiveAccessibilitySettings(
+                            (s) => s.copyWith(
+                                clearTtsVoice: true, clearTtsVoiceName: true),
+                          );
+                          tts.clearVoice();
+                        }
                         Navigator.pop(context);
                       },
                     ),
@@ -5413,11 +5624,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         'name': name,
                         'locale': voice['locale']?.toString() ?? '',
                       };
-                      updateActiveAccessibilitySettings(
-                        (s) => s.copyWith(
-                            ttsVoice: voiceMap, ttsVoiceName: name),
-                      );
-                      tts.setVoice(voiceMap);
+                      if (_editingDraft != null && _editingProfileId != null) {
+                        updateEditingSettings((s) => s.copyWith(ttsVoice: voiceMap, ttsVoiceName: name));
+                        if (_editingProfileId == _activeProfileId) {
+                          tts.setVoice(voiceMap).catchError((e){ debugPrint('TTS setVoice Error: $e'); });
+                        }
+                      } else {
+                        updateActiveAccessibilitySettings(
+                          (s) => s.copyWith(
+                              ttsVoice: voiceMap, ttsVoiceName: name),
+                        );
+                        tts.setVoice(voiceMap);
+                      }
                       Navigator.pop(context);
                     },
                   ),
@@ -9523,6 +9741,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   AccessibilitySettings get activeSettingsForTest => activeAccessibilitySettings;
+
+  @visibleForTesting
+  AccessibilityProfile? get editingDraftForTest => _editingDraft;
+
+  @visibleForTesting
+  String? get editingProfileIdForTest => _editingProfileId;
+
+  @visibleForTesting
+  ValueNotifier<double> get dialogFontScaleNotifierForTest => _dialogFontScaleNotifier;
+
+  @visibleForTesting
+  ThemeMode get themeModeForTest => widget.themeMode;
+
+  @visibleForTesting
+  void startEditingForTest(String id) => startEditingProfile(id);
+
+  @visibleForTesting
+  void updateEditingForTest(AccessibilitySettings Function(AccessibilitySettings) upd) => updateEditingSettings(upd);
+
+  @visibleForTesting
+  Future<void> saveEditingForTest() => saveEditingProfile();
+
+  @visibleForTesting
+  void discardEditingForTest() => discardEditingProfile();
 
   @visibleForTesting
   ThousandGroupGap get thousandGroupGapForTest => _thousandGroupGap;
