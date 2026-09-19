@@ -1391,6 +1391,89 @@ class CustomDotMatrixDisplay extends StatelessWidget {
     this.enableThousandGrouping = true,
   });
 
+  // Exponent parsing helpers
+  bool _isDigitExp(String c) => c.length == 1 && c.codeUnitAt(0) >= 0x30 && c.codeUnitAt(0) <= 0x39;
+
+  int? _findExponentEnd(List<({String char, bool overline})> items, int start) {
+    final n = items.length;
+    if (start >= n) return null;
+    // Skip leading '_' for check but return inclusive range that includes them
+    int s = start;
+    while (s < n && items[s].char == '_') s++;
+    if (s >= n) return null;
+    final c = items[s].char;
+    if (c == '(') {
+      // Najdi odpovídající ')', jednoduché bez vnoření (exponent typicky "(-2)" nebo "(1+2)")
+      int depth = 0;
+      for (int k = s; k < n; k++) {
+        if (items[k].char == '_') continue;
+        if (items[k].char == '(') depth++;
+        if (items[k].char == ')') {
+          depth--;
+          if (depth == 0) return k;
+        }
+      }
+      return null;
+    } else if (c == '-') {
+      int k = s + 1;
+      while (k < n && items[k].char == '_') k++;
+      if (k >= n) return null;
+      if (items[k].char == '(') {
+        int depth = 0;
+        for (int t = k; t < n; t++) {
+          if (items[t].char == '_') continue;
+          if (items[t].char == '(') depth++;
+          if (items[t].char == ')') {
+            depth--;
+            if (depth == 0) return t;
+          }
+        }
+        return null;
+      } else if (_isDigitExp(items[k].char)) {
+        int end = k;
+        int j = k + 1;
+        while (j < n) {
+          final cj = items[j].char;
+          if (cj == '_') { j++; continue; }
+          if (_isDigitExp(cj) || cj == '.' || cj == ',') { end = j; j++; } else break;
+        }
+        // zahrnout případnou periodu "(digits)" za číslem např. "3.(3)" v exponentu – vzácné, ale povolíme
+        if (j < n && items[j].char == '(') {
+          int p = j + 1;
+          while (p < n && items[p].char == '_') p++;
+          int digitsStart = p;
+          while (p < n && _isDigitExp(items[p].char)) p++;
+          while (p < n && items[p].char == '_') p++;
+          if (p < n && items[p].char == ')' && p > digitsStart) {
+            end = p;
+          }
+        }
+        return end;
+      }
+      return null;
+    } else if (_isDigitExp(c)) {
+      int end = s;
+      int j = s + 1;
+      while (j < n) {
+        final cj = items[j].char;
+        if (cj == '_') { j++; continue; }
+        if (_isDigitExp(cj) || cj == '.' || cj == ',') { end = j; j++; } else break;
+      }
+      if (j < n && items[j].char == '(') {
+        int p = j + 1;
+        while (p < n && items[p].char == '_') p++;
+        int digitsStart = p;
+        while (p < n && _isDigitExp(items[p].char)) p++;
+        while (p < n && items[p].char == '_') p++;
+        if (p < n && items[p].char == ')' && p > digitsStart) {
+          end = p;
+        }
+      }
+      return end;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = <({String char, bool overline})>[];
@@ -1412,26 +1495,70 @@ class CustomDotMatrixDisplay extends StatelessWidget {
         ? _computeThousandGaps(items)
         : const <int>{};
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: items.asMap().entries.map((entry) {
-        final idx = entry.key;
-        final item = entry.value;
-        final isLast = idx == items.length - 1;
-        final extra = gapAfterIndices.contains(idx) ? thousandGroupGap : 0.0;
-        final rightMargin = isLast ? 0.0 : ledSpacing * 2 + extra;
-        return Container(
-          margin: EdgeInsets.only(right: rightMargin),
+    // Detekce exponentů: najdi '^' a k nim platný exponent rozsah
+    final Set<int> exponentIndices = {};
+    final Set<int> caretSkip = {}; // indexy '^' které se nevykreslí (nahrazeny superscriptem)
+    final n = items.length;
+    for (int i = 0; i < n; i++) {
+      if (items[i].char != '^') continue;
+      // Najdi start za '^' přes '_' 
+      int start = i + 1;
+      while (start < n && items[start].char == '_') start++;
+      if (start >= n) continue;
+      final end = _findExponentEnd(items, start);
+      if (end != null) {
+        // Limit délky exponentu (6 znaků bez '_' ) – jinak fallback lineární
+        int digitCount = 0;
+        for (int k = start; k <= end; k++) {
+          if (items[k].char != '_' ) digitCount++;
+        }
+        if (digitCount > 8) continue;
+        // Označ exponent a caret
+        caretSkip.add(i);
+        for (int k = start; k <= end; k++) {
+          exponentIndices.add(k);
+        }
+        // Pokračuj za koncem – nehledat překrývající exponenty uvnitř
+        i = end;
+      }
+    }
+
+    // Sestav children s ohledem na exponent styling
+    final double expLedSize = ledSize * 0.58;
+    final double expLedSpacing = ledSpacing * 0.6;
+    // Odsazení exponentu nad baseline: cca 30% výšky buňky
+    final double expOffsetY = -(ledSize * 8 + ledSpacing * 7) * 0.32;
+
+    // Najdi poslední vykreslený index (ne skip)
+    int lastVisible = -1;
+    for (int i = n - 1; i >= 0; i--) {
+      if (!caretSkip.contains(i)) { lastVisible = i; break; }
+    }
+
+    final children = <Widget>[];
+    for (int idx = 0; idx < n; idx++) {
+      if (caretSkip.contains(idx)) continue; // '^' nahrazen
+      final item = items[idx];
+      final isExp = exponentIndices.contains(idx);
+      final isLast = idx == lastVisible;
+      final extra = (!isExp && gapAfterIndices.contains(idx)) ? thousandGroupGap : 0.0;
+      final rightMargin = isLast ? 0.0 : (isExp ? expLedSpacing * 2 : ledSpacing * 2) + extra;
+
+      Widget cell;
+      if (isExp) {
+        // Zmenšená buňka posunutá vzhůru
+        cell = Transform.translate(
+          offset: Offset(0, expOffsetY),
           child: CustomPaint(
             size: Size(
-              ledSize * 5 + ledSpacing * 4,
-              ledSize * 8 + ledSpacing * 7,
+              expLedSize * 5 + expLedSpacing * 4,
+              expLedSize * 8 + expLedSpacing * 7,
             ),
             painter: _CustomDotMatrixPainter(
               item.char,
               item.overline,
-              ledSize,
-              ledSpacing,
+              expLedSize,
+              expLedSpacing,
               enabledColor,
               disabledColor,
               overlineThickness,
@@ -1439,7 +1566,35 @@ class CustomDotMatrixDisplay extends StatelessWidget {
             ),
           ),
         );
-      }).toList(),
+      } else {
+        cell = CustomPaint(
+          size: Size(
+            ledSize * 5 + ledSpacing * 4,
+            ledSize * 8 + ledSpacing * 7,
+          ),
+          painter: _CustomDotMatrixPainter(
+            item.char,
+            item.overline,
+            ledSize,
+            ledSpacing,
+            enabledColor,
+            disabledColor,
+            overlineThickness,
+            overlineHeight,
+          ),
+        );
+      }
+
+      children.add(Container(
+        margin: EdgeInsets.only(right: rightMargin),
+        child: cell,
+      ));
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: children,
     );
   }
 

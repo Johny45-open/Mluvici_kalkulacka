@@ -38,6 +38,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String display = '';
   int _cursorPosition = 0;
   String _lastResult = '0.';
+  // Stack pozic '(' vložených tlačítkem NEG (±) – pro auto-uzavření
+  final List<int> _pendingNegOpens = [];
   CalculatorMode _currentMode = CalculatorMode.scientific;
   CalculatorMode _defaultMode = CalculatorMode.scientific;
   List<int> _modeUsageCounts = List<int>.filled(
@@ -1098,6 +1100,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     ';': ['Oddělovač dat', 'Data separator'],
     '!': ['Faktoriál', 'Factorial'],
     '(-)': ['Záporné číslo se závorkou', 'Negative in parentheses'],
+    '±': ['Záporné číslo', 'Negative number'],
     'EXP': ['krát deset na', 'times ten to'],
     'OHM_V': ['Napětí', 'Voltage'],
     'OHM_I': ['Proud', 'Current'],
@@ -2753,6 +2756,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // jednoznakové klávesy (S, C, T, A, P, atd.) se předávají čtečce.
       // Zpracovávají se pouze Ctrl+ kombinace, čísla, operátory a navigační klávesy.
       if (_isScreenReaderActive && char != null && !isControl) {
+        if (char == '±') {
+          _handleNegativeButton();
+          return;
+        }
         final String singleChar = char.toUpperCase();
         // Povolit číslice, desetinnou tečku a operátory + - * / ^ %
         if (RegExp(r'^[0-9.+\-*/^%]$').hasMatch(singleChar)) {
@@ -2846,6 +2853,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (_currentMode == CalculatorMode.scientific) {
           _toggleScientificFunctionsPage();
         }
+      } else if (char == '±') {
+        _handleNegativeButton();
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
         if (RegExp(r'''[0-9.+\-*/^%()eE°'":;a-zA-Z]''').hasMatch(toAppend)) {
@@ -2885,6 +2894,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _isStoreMode = false;
       _isRecallMode = false;
       _hasResult = false;
+      _pendingNegOpens.clear();
     });
     speak(_l10n.cleared);
   }
@@ -2961,6 +2971,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _insertAtCursor(String text, {int cursorOffset = 0}) {
+    final insertLen = text.length;
+    final oldPos = _cursorPosition;
     setState(() {
       display =
           display.substring(0, _cursorPosition) +
@@ -2970,19 +2982,165 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         0,
         display.length,
       );
+      // Posuň pending pozice za místem vložení
+      for (int i = 0; i < _pendingNegOpens.length; i++) {
+        if (_pendingNegOpens[i] >= oldPos) {
+          _pendingNegOpens[i] += insertLen;
+        }
+      }
     });
   }
 
   void _deleteAtCursor() {
     if (_cursorPosition > 0) {
+      final delPos = _cursorPosition - 1;
       setState(() {
         display =
             display.substring(0, _cursorPosition - 1) +
             display.substring(_cursorPosition);
         _cursorPosition--;
+        _syncPendingNegOnDelete(delPos);
       });
       speak(_l10n.deleted);
     }
+  }
+
+  // === NEG (±) helpers ===
+  bool _isDigitChar(String c) =>
+      c.length == 1 && c.codeUnitAt(0) >= 0x30 && c.codeUnitAt(0) <= 0x39;
+
+  bool _canAutoClosePendingNeg(int openPos) {
+    if (openPos < 0 || openPos >= display.length) return false;
+    if (display[openPos] != '(') return false;
+    // Ověř, že '(' patří k NEG: musí být "(-" (tj. následující znak '-')
+    if (openPos + 1 >= display.length || display[openPos + 1] != '-') {
+      return false;
+    }
+    final inner = display.substring(openPos + 2, _cursorPosition);
+    if (inner.isEmpty) return false;
+    // Musí obsahovat alespoň jednu číslici, nesmí končit '.' nebo '-' nebo '('
+    if (!RegExp(r'\d').hasMatch(inner)) return false;
+    final last = inner[inner.length - 1];
+    if (last == '.' || last == '-' || last == '(' || last == 'E' || last == 'e') {
+      return false;
+    }
+    // Pokud je těsně před kurzorem již ')', neuzavírat duplicitně
+    if (_cursorPosition < display.length && display[_cursorPosition] == ')') {
+      return false;
+    }
+    // Pokud poslední otevřená NEG již má uzavření těsně před kurzorem, ne
+    return true;
+  }
+
+  void _autoClosePendingNegIfNeeded({bool force = false}) {
+    if (_pendingNegOpens.isEmpty) return;
+    final pos = _pendingNegOpens.last;
+    // Pokud kurzor není za otevřením, neuzavírat
+    if (_cursorPosition <= pos + 2) return;
+    if (force || _canAutoClosePendingNeg(pos)) {
+      // Zkontroluj, zda již není uzavřeno ručně – spočti závorky mezi pos a cursor
+      int openCnt = 0;
+      for (int i = pos; i < _cursorPosition; i++) {
+        if (display[i] == '(') openCnt++;
+        if (display[i] == ')') openCnt--;
+      }
+      if (openCnt <= 0) {
+        // Již vyvážené – jen vyprázdni stack
+        _pendingNegOpens.removeLast();
+        return;
+      }
+      setState(() {
+        display =
+            display.substring(0, _cursorPosition) +
+            ')' +
+            display.substring(_cursorPosition);
+        _cursorPosition++;
+        _pendingNegOpens.removeLast();
+        // Posuň pozice zbývajících pending, které jsou za kurzorem
+        for (int i = 0; i < _pendingNegOpens.length; i++) {
+          if (_pendingNegOpens[i] >= _cursorPosition) {
+            _pendingNegOpens[i]++;
+          }
+        }
+      });
+    }
+  }
+
+  void _closeAllPendingNegBeforeEval() {
+    // Uzavři všechny NEG které lze bezpečně uzavřít (obsahují číslo)
+    while (_pendingNegOpens.isNotEmpty) {
+      final pos = _pendingNegOpens.last;
+      if (_cursorPosition <= pos + 2) break;
+      if (_canAutoClosePendingNeg(pos)) {
+        _autoClosePendingNegIfNeeded(force: true);
+      } else {
+        break;
+      }
+    }
+    // Vyčisti neplatné (prázdné) pending
+    _pendingNegOpens.removeWhere((p) => p < 0 || p >= display.length || display[p] != '(');
+  }
+
+  void _handleNegativeButton() {
+    // Guard: zabránit duplicitě uvnitř stejné NEG závorky
+    if (_pendingNegOpens.isNotEmpty) {
+      final last = _pendingNegOpens.last;
+      if (_cursorPosition > last && _cursorPosition <= last + 2) {
+        speak(_s('Záporné číslo již otevřeno', 'Negative number already open'));
+        return;
+      }
+      // Pokud je kurzor uvnitř pending a před kurzorem je již "(-", neotevírat znovu
+      if (_cursorPosition > last + 1) {
+        final inner = display.substring(last + 2, _cursorPosition);
+        if (inner.isEmpty) {
+          speak(_s('Dokončete zadávání záporného čísla', 'Finish entering negative number'));
+          return;
+        }
+      }
+    }
+    // Guard: prázdné "(-)" – nedovolit další NEG pokud těsně před kurzorem je "(-"
+    if (_cursorPosition >= 2 &&
+        display.substring(_cursorPosition - 2, _cursorPosition) == '(-') {
+      speak(_s('Dokončete zadávání záporného čísla', 'Finish entering negative number'));
+      return;
+    }
+    // Guard: za číslicí / ')' bez operátoru nevkládat "(-" (vyžaduje operátor)
+    // – povolíme pouze pokud před kurzorem není číslice/')' nebo je operátor
+    // Pro jednoduchost povolíme vždy, ale pokud je předchozí char digit/')', vložíme implicitní '*'?
+    // Spec chce bezpečné – povolíme jen na začátku, po operátoru nebo '('
+    if (_cursorPosition > 0) {
+      final prev = display[_cursorPosition - 1];
+      if (_isDigitChar(prev) || prev == ')' || prev == '.' ) {
+        // Vyžaduje operátor – auto-uzavři případné pending před operátorem a pak dovol?
+        // Zde zablokujeme a poradíme
+        // Ale pro "5^(-2)" je před "(-" znak '(' – to je OK
+        // Takže blokuj pouze digit/')'/'.'
+        speak(_s('Nejprve vložte operátor', 'Insert operator first'));
+        return;
+      }
+    }
+    final insertPos = _cursorPosition;
+    _insertAtCursor('(-');
+    _pendingNegOpens.add(insertPos);
+    speak(_s('Záporné číslo, otevřena závorka', 'Negative number, parenthesis opened'));
+  }
+
+  void _syncPendingNegOnDelete(int deletedPos) {
+    // Po smazání posuň / odstraň pending pozice
+    for (int i = _pendingNegOpens.length - 1; i >= 0; i--) {
+      final p = _pendingNegOpens[i];
+      if (p == deletedPos) {
+        // Smazán '(' patřící k NEG – odstraň i '-' pokud existuje
+        _pendingNegOpens.removeAt(i);
+      } else if (p > deletedPos) {
+        _pendingNegOpens[i] = p - 1;
+      }
+    }
+    // Odstraň pending které již neukazuje na "(-"
+    _pendingNegOpens.removeWhere((p) {
+      if (p < 0 || p + 1 >= display.length) return true;
+      return !(display[p] == '(' && display[p + 1] == '-');
+    });
   }
 
   String? _findShortestPeriod(String digits) {
@@ -3273,6 +3431,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void calculateResult() {
     try {
+      // Auto-uzavři NEG před vyhodnocením
+      if (_pendingNegOpens.isNotEmpty) {
+        _closeAllPendingNegBeforeEval();
+        // Pokud stále zbývá neuzavřené (prázdné), vyčisti
+        if (_pendingNegOpens.isNotEmpty) {
+          // Pokud je poslední "(-" prázdné, odstraň je (prevence "(-)" chyby)
+          final pos = _pendingNegOpens.last;
+          if (pos + 2 >= _cursorPosition ||
+              !RegExp(r'\d').hasMatch(display.substring(pos + 2, _cursorPosition))) {
+            setState(() {
+              // odstraň prázdné "(-" – dvě znaky
+              if (pos + 1 < display.length && display.substring(pos, pos + 2) == '(-') {
+                display = display.substring(0, pos) + display.substring(pos + 2);
+                if (_cursorPosition > pos + 1) _cursorPosition -= 2;
+                if (_cursorPosition > pos) _cursorPosition = pos;
+              }
+              _pendingNegOpens.removeLast();
+            });
+          }
+        }
+      }
       if (display.isEmpty) return;
       String currentExpression =
           display; // Uložíme výraz před vymazáním displeje
@@ -3412,6 +3591,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _hasResult = true;
         display = '';
         _cursorPosition = 0;
+        _pendingNegOpens.clear();
       });
 
       speak(spoken, force: true);
@@ -3438,6 +3618,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       setState(() {
         _lastResult = 'Error';
         _hasResult = true;
+        // Nech pending pro opravu, ale pokud byl prázdný, vyčisti
       });
       speak(msg, force: true);
     }
@@ -6166,6 +6347,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           _cursorPosition = 0;
           _hasResult = false;
         }
+        _pendingNegOpens.clear();
       });
       if (alreadyHandled) return;
     }
@@ -6735,8 +6917,67 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         append(label, silent: silent);
       }
     } else if (label == ':') {
+      _autoClosePendingNegIfNeeded();
       append(':', silent: silent);
+    } else if (label == '±') {
+      _handleNegativeButton();
+    } else if (label == ')') {
+      // Blokovat prázdné "(-)" – musí obsahovat číslo
+      if (_pendingNegOpens.isNotEmpty) {
+        final p = _pendingNegOpens.last;
+        if (_cursorPosition > p + 2) {
+          if (!_canAutoClosePendingNeg(p)) {
+            // uvnitř je prázdné nebo neplatné – nedovolit další ')'
+            // Pokud je to prázdné "(-", zablokuj
+            final inner = display.substring(p + 2, _cursorPosition);
+            if (!RegExp(r'\d').hasMatch(inner)) {
+              speak(_s('Nejprve zadejte číslo', 'Enter number first'));
+              return;
+            }
+          }
+        } else {
+          // Kurzour těsně za "(-" bez čísla
+          speak(_s('Nejprve zadejte číslo', 'Enter number first'));
+          return;
+        }
+      }
+      // Pokud je pending NEG a lze bezpečně uzavřít, konzumuj ho místo duplicity
+      if (_pendingNegOpens.isNotEmpty && _canAutoClosePendingNeg(_pendingNegOpens.last)) {
+        _autoClosePendingNegIfNeeded(force: true);
+        if (!silent) speak(_getButtonName(')'));
+      } else {
+        // Zabránit duplicitnímu "))" těsně za kurzorem
+        if (_cursorPosition < display.length && display[_cursorPosition] == ')') {
+          setState(() => _cursorPosition++);
+          if (!silent) speak(_getButtonName(')'));
+        } else {
+          append(')', silent: silent);
+        }
+      }
     } else {
+      // Guard: pokud je otevřen NEG bez čísla, povolit jen číslice, '.' a případně další NEG již blokován
+      if (_pendingNegOpens.isNotEmpty) {
+        final p = _pendingNegOpens.last;
+        final insideEmpty = _cursorPosition <= p + 2 ||
+            !RegExp(r'\d').hasMatch(display.substring(p + 2, _cursorPosition));
+        if (insideEmpty) {
+          // povolit jen číslice a '.' uvnitř prázdného NEG
+          if (!RegExp(r'^[0-9.]$').hasMatch(label)) {
+            speak(_s('Nejprve zadejte číslo', 'Enter number first'));
+            return;
+          }
+        }
+      }
+      // Před operátory a funkcemi auto-uzavři NEG pokud je číslo dokončeno
+      const operators = ['+', '-', '*', '/', '^', '%', '(', ';', '!', 'x²', 'x³', 'EXP'];
+      if (operators.contains(label)) {
+        _autoClosePendingNegIfNeeded();
+      }
+      // Také před vkládáním funkcí/proměnných auto-uzavři
+      if (RegExp(r'^[A-Z]$').hasMatch(label) ||
+          ['SIN','COS','TAN','ASIN','ACOS','ATAN','√','∛','ABS','LOG','LN','ⁿ√','π','ANS'].contains(label)) {
+        _autoClosePendingNegIfNeeded();
+      }
       append(label, silent: silent);
     }
   }
@@ -6828,6 +7069,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'DEL',
           '0',
           '.',
+          '±',
           '…',
           '%',
           '=',
@@ -6858,6 +7100,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             '°→RAD',
             'RAD→°',
             'ABS',
+            '±',
             'ANS',
             'C',
             'DEL',
@@ -6883,6 +7126,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             '+',
             '0',
             '.',
+            '±',
             '…',
             'EXP',
             '%',
@@ -6915,6 +7159,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           '+',
           '0',
           '.',
+          '±',
           ';',
           '=',
         ];
@@ -6940,6 +7185,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           '-',
           '0',
           '.',
+          '±',
           'DEL',
           '+',
           'ANS',
@@ -6960,6 +7206,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           '9',
           '0',
           '.',
+          '±',
           'DEL',
           '=',
         ];
@@ -6982,6 +7229,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           '2',
           '3',
           '+',
+          '±',
           '0',
           ';',
           'NOW',
@@ -7002,6 +7250,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           '9',
           '0',
           '.',
+          '±',
           'DEL',
           '=',
         ];
@@ -9822,6 +10071,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   String get lastResultForTest => _lastResult;
+
+  @visibleForTesting
+  Future<void> handleButtonPressedForTest(String label) =>
+      _handleButtonPressed(label);
 
   @visibleForTesting
   BuildContext get contextForTest => context;
