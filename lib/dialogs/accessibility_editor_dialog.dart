@@ -9,8 +9,22 @@ class _AccessibilityProfileEditorDialog extends StatefulWidget {
 
 class _AccessibilityProfileEditorDialogState extends State<_AccessibilityProfileEditorDialog> {
   _CalculatorScreenState get parent => widget.parent;
-  AccessibilitySettings get editingSettings => parent.editingProfile?.settings ?? parent.activeAccessibilitySettings;
-  String get editingId => parent.editingProfileId ?? parent._activeProfileId;
+  AccessibilitySettings get editingSettings {
+    final d = parent.editingProfile;
+    assert(d != null, 'Editor invariant violated: _editingDraft is null');
+    if (d == null) {
+      // Fallback to active only for graceful degradation, but log
+      debugPrint('_AccessibilityProfileEditorDialog: editingProfile is null, using active');
+      return parent.activeAccessibilitySettings;
+    }
+    return d.settings;
+  }
+  bool get hasValidDraft => parent.editingProfile != null && parent.editingProfileId != null;
+  String get editingId {
+    final id = parent.editingProfileId;
+    assert(id != null, 'Editor invariant: editingProfileId is null');
+    return id ?? parent._activeProfileId;
+  }
   String get editingName {
     final d = parent.editingProfile;
     if (d != null) return parent._displayProfileName(d);
@@ -70,9 +84,30 @@ class _AccessibilityProfileEditorDialogState extends State<_AccessibilityProfile
   }
   @override
   Widget build(BuildContext context) {
+    if (!hasValidDraft) {
+      return AlertDialog(
+        insetPadding: parent._dialogInsetPadding(),
+        title: Semantics(header: true, child: Text(parent._s('Chyba','Error'))),
+        content: Text(parent._s('Editor nelze otevřít – chybí draft profilu.','Editor cannot be opened – profile draft missing.')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(parent._l10n.close)),
+        ],
+      );
+    }
     final s = editingSettings;
     final isActiveEditing = editingId == parent._activeProfileId;
-    return AlertDialog(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          // Pokud byl dialog zavřen křížkem/Esc bez Save, musíme revertnout preview
+          // saveEditingProfile by mezitím vyčistil draft, takže tento discard je no-op po Save
+          if (parent.editingProfile != null) {
+            parent.discardEditingProfile();
+          }
+        }
+      },
+      child: AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
       title: Semantics(header:true, child: Text(parent._s('Upravit profil: $editingName','Edit profile: $editingName'))),
       content: SingleChildScrollView(
@@ -123,16 +158,17 @@ class _AccessibilityProfileEditorDialogState extends State<_AccessibilityProfile
             const SizedBox(height:16),
             Column(children:[Semantics(header:true, child: Text(parent._s('Velikost písma tlačítek','Keyboard button font size'))), Row(mainAxisAlignment: MainAxisAlignment.center, children:[ElevatedButton(onPressed: ()=> _adjustKeyboardFontScale(-0.1), child: Text('-')), Padding(padding: EdgeInsets.symmetric(horizontal:16), child: Semantics(liveRegion:true, child: Text('${(s.fontSizeMultiplier*100).toInt()}%'))), ElevatedButton(onPressed: ()=> _adjustKeyboardFontScale(0.1), child: Text('+'))])]),
             const SizedBox(height:16),
-            Column(children:[Semantics(header:true, child: Text(parent._l10n.speechRate)), Row(mainAxisAlignment: MainAxisAlignment.center, children:[ElevatedButton(onPressed: ()=> _adjustSpeechRate(-0.1), child: Text('-')), Padding(padding: EdgeInsets.symmetric(horizontal:16), child: Semantics(liveRegion:true, child: Text('${(s.speechRate*100).toInt()}%'))), ElevatedButton(onPressed: ()=> _adjustSpeechRate(0.1), child: Text('+'))])]),
+            Column(children:[Semantics(header:true, child: Text(parent._l10n.speechRate)), Row(mainAxisAlignment: MainAxisAlignment.center, children:[ElevatedButton(onPressed: ()=> _adjustSpeechRate(-0.1), child: Text('-')), Padding(padding: EdgeInsets.symmetric(horizontal:16), child: Text('${(s.speechRate*100).toInt()}%')), ElevatedButton(onPressed: ()=> _adjustSpeechRate(0.1), child: Text('+'))])]),
             const SizedBox(height:16),
-            Column(children:[Semantics(header:true, child: Text(parent._l10n.volume)), Row(mainAxisAlignment: MainAxisAlignment.center, children:[ElevatedButton(onPressed: ()=> _adjustSpeechVolume(-0.1), child: Text('-')), Padding(padding: EdgeInsets.symmetric(horizontal:16), child: Semantics(liveRegion:true, child: Text('${(s.speechVolume*100).toInt()}%'))), ElevatedButton(onPressed: ()=> _adjustSpeechVolume(0.1), child: Text('+'))])]),
+            Column(children:[Semantics(header:true, child: Text(parent._l10n.volume)), Row(mainAxisAlignment: MainAxisAlignment.center, children:[ElevatedButton(onPressed: ()=> _adjustSpeechVolume(-0.1), child: Text('-')), Padding(padding: EdgeInsets.symmetric(horizontal:16), child: Text('${(s.speechVolume*100).toInt()}%')), ElevatedButton(onPressed: ()=> _adjustSpeechVolume(0.1), child: Text('+'))])]),
           ],
         ),
       ),
       actions: [
         Semantics(label: parent._s('Zrušit změny profilu $editingName','Discard changes for profile $editingName'), button:true, child: TextButton(onPressed: (){ parent.discardEditingProfile(); Navigator.pop(context); }, child: Text(parent._l10n.cancel))),
-        Semantics(label: parent._s('Uložit změny profilu $editingName','Save changes for profile $editingName'), button:true, child: FilledButton(autofocus:true, onPressed: () async { await parent.saveEditingProfile(); if(context.mounted) Navigator.pop(context); parent.speak(parent._s('Profil $editingName uložen','Profile $editingName saved')); }, child: Text(parent._s('Uložit','Save')))),
+        Semantics(label: parent._s('Uložit změny profilu $editingName','Save changes for profile $editingName'), button:true, child: FilledButton(autofocus:true, onPressed: () async { final ok = await parent.saveEditingProfile(); if (!ok) return; if(context.mounted) Navigator.pop(context); parent.speak(parent._s('Profil $editingName uložen','Profile $editingName saved')); }, child: Text(parent._s('Uložit','Save')))),
       ],
+      ),
     );
   }
 }

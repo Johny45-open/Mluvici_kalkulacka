@@ -120,9 +120,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   // Aktualizace nastavení aktivního profilu – jediný zápisový bod (zachován pro rychlé toggly mimo editor)
+  // Pokud je otevřen draft aktivního profilu, přesměruje se do draftu aby nevznikla desynchronizace
   void updateActiveAccessibilitySettings(
     AccessibilitySettings Function(AccessibilitySettings current) update,
   ) {
+    if (_editingDraft != null && _editingProfileId == _activeProfileId) {
+      updateEditingSettings(update);
+      return;
+    }
     final idx = _profiles.indexWhere((p) => p.id == _activeProfileId);
     if (idx == -1) return;
     final current = _profiles[idx].settings;
@@ -179,8 +184,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   // === Editing draft API – 8 operací ===
 
-  void startEditingProfile(String id) {
-    final src = _profiles.firstWhere((p) => p.id == id, orElse: () => _getActiveAccessibilityProfile());
+  bool startEditingProfile(String id) {
+    if (!_profilesLoaded) {
+      debugPrint('startEditingProfile: profiles not loaded yet, id=$id');
+      _showAccessibleSnackBar(_s('Profily se ještě načítají, zkuste to znovu.', 'Profiles are still loading, please try again.'));
+      return false;
+    }
+    final idx = _profiles.indexWhere((p) => p.id == id);
+    if (idx == -1) {
+      debugPrint('startEditingProfile: id not found: $id');
+      _showAccessibleSnackBar(_s('Profil $id neexistuje.', 'Profile $id does not exist.'));
+      return false;
+    }
+    final src = _profiles[idx];
     _editingProfileId = src.id;
     _editingDraft = src.copyWith();
     if (src.id == _activeProfileId) {
@@ -191,6 +207,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _editingPreviewThemeSnapshot = null;
     }
     if (mounted) setState(() {});
+    return true;
   }
 
   void updateEditingSettings(
@@ -208,10 +225,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  Future<void> saveEditingProfile() async {
-    if (_editingDraft == null || _editingProfileId == null) return;
+  Future<bool> saveEditingProfile() async {
+    if (_editingDraft == null || _editingProfileId == null) {
+      debugPrint('saveEditingProfile: no draft');
+      return false;
+    }
     final idx = _profiles.indexWhere((p) => p.id == _editingProfileId);
-    if (idx == -1) return;
+    if (idx == -1) {
+      debugPrint('saveEditingProfile: id not found: $_editingProfileId');
+      _showAccessibleSnackBar(_s('Uložení selhalo – profil neexistuje.', 'Save failed – profile does not exist.'));
+      return false;
+    }
+    if (_profiles[idx].id != _editingProfileId) {
+      debugPrint('saveEditingProfile: id mismatch');
+      _showAccessibleSnackBar(_s('Uložení selhalo – nesoulad profilu.', 'Save failed – profile mismatch.'));
+      return false;
+    }
     final savedId = _editingProfileId!;
     final wasActive = savedId == _activeProfileId;
     setState(() {
@@ -227,6 +256,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _editingPreviewSnapshot = null;
     _editingPreviewThemeSnapshot = null;
     if (mounted) setState(() {});
+    return true;
   }
 
   void discardEditingProfile() {
@@ -269,10 +299,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } else {
         defaults = AccessibilitySettings.defaultsStandard();
       }
+      final prevDraftSettings = _editingDraft!.settings;
       _editingDraft = _editingDraft!.copyWith(settings: defaults.copyWith());
       if (id == _activeProfileId) {
-        _applySettingsToRuntime(defaults, previous: _editingDraft?.settings);
+        _applySettingsToRuntime(defaults, previous: prevDraftSettings);
       }
+      // Snapshot zůstává původní před editací – Cancel vrátí původní stav (dokumentováno).
+      // Save po resetu uloží defaults. Runtime již odpovídá draftu (defaults).
       if (mounted) setState(() {});
       return;
     }
@@ -4718,7 +4751,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     AccessibilityProfile profile, {
     String? announcement,
   }) async {
-    if (!_profiles.any((p) => p.id == profile.id)) return;
+    if (!_profiles.any((p) => p.id == profile.id)) {
+      debugPrint('applyAccessibilityProfile: id not found: ${profile.id}');
+      _showAccessibleSnackBar(_s('Aktivace selhala – profil neexistuje.', 'Activation failed – profile does not exist.'));
+      return;
+    }
     setState(() {
       _activeProfileId = profile.id;
     });
@@ -4890,114 +4927,29 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  // Legacy wrappers – deprecated, delegují na per-ID varianty
+  @Deprecated('Use _showRenameProfileDialogForId instead')
   void _showRenameProfileDialog() {
-    final active = _getActiveAccessibilityProfile();
-    if (active.isBuiltIn) return;
-    final ctrl = TextEditingController(text: active.name);
-    showAppDialog<void>(
-      context: context,
-      routeSettings: const RouteSettings(name: 'Přejmenovat profil'),
-      builder: (ctx) => AlertDialog(
-        insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(_s('Přejmenovat profil', 'Rename profile'))),
-        content: Semantics(
-          label: _s('Nový název profilu', 'New profile name'),
-          child: TextField(
-            controller: ctrl,
-            autofocus: true,
-            decoration: InputDecoration(labelText: _s('Název', 'Name'), border: const OutlineInputBorder()),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
-          FilledButton(
-            onPressed: () {
-              final newName = ctrl.text.trim();
-              if (newName.isEmpty) return;
-              final idx = _profiles.indexWhere((p) => p.id == active.id);
-              if (idx == -1) return;
-              setState(() => _profiles[idx] = _profiles[idx].copyWith(name: newName));
-              _saveProfilesV2();
-              Navigator.pop(ctx);
-              speak(_s('Profil přejmenován na $newName', 'Profile renamed to $newName'));
-            },
-            child: Text(_l10n.confirmAction),
-          ),
-        ],
-      ),
-    );
+    _showRenameProfileDialogForId(_activeProfileId);
   }
 
+  @Deprecated('Use _confirmResetProfileForId instead')
   void _confirmResetActiveProfile(BuildContext dialogContext) {
-    final active = _getActiveAccessibilityProfile();
-    final displayName = _displayProfileName(active);
-    showAppDialog<void>(
-      context: context,
-      routeSettings: const RouteSettings(name: 'Reset profilu'),
-      builder: (ctx) => AlertDialog(
-        insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(_s('Obnovit výchozí', 'Reset'))),
-        content: Text(_s('Opravdu obnovit profil $displayName na výchozí hodnoty?',
-            'Reset profile $displayName to defaults?')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _resetActiveProfile();
-            },
-            child: Text(_s('Obnovit', 'Reset')),
-          ),
-        ],
-      ),
-    );
+    _confirmResetProfileForId(dialogContext, _activeProfileId);
   }
 
+  @Deprecated('Use resetProfile instead')
   void _resetActiveProfile() {
     final active = _getActiveAccessibilityProfile();
-    AccessibilitySettings defaults;
-    if (active.id == 'blind') {
-      defaults = AccessibilitySettings.defaultsBlind();
-    } else if (active.id == 'lowvision') {
-      defaults = AccessibilitySettings.defaultsLowVision();
-    } else if (active.id == 'standard') {
-      defaults = AccessibilitySettings.defaultsStandard();
-    } else {
-      // custom -> reset na standard
-      defaults = AccessibilitySettings.defaultsStandard();
-    }
-    updateActiveAccessibilitySettings((_) => defaults.copyWith());
+    resetProfile(active.id);
     final name = _displayProfileName(active);
     speak(_s('Profil $name obnoven', 'Profile $name reset'));
     _showAccessibleSnackBar(_s('Profil $name obnoven', 'Profile $name reset'));
   }
 
+  @Deprecated('Use _confirmDeleteProfileForId instead')
   void _confirmDeleteActiveProfile(BuildContext dialogContext) {
-    final active = _getActiveAccessibilityProfile();
-    if (active.isBuiltIn) return;
-    final name = active.name;
-    showAppDialog<void>(
-      context: context,
-      routeSettings: const RouteSettings(name: 'Smazat profil'),
-      builder: (ctx) => AlertDialog(
-        insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(_s('Smazat profil', 'Delete profile'))),
-        content: Text(_s('Opravdu smazat profil $name?', 'Really delete profile $name?')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              Navigator.pop(ctx);
-              // zavřít původní accessibility dialog aby se překreslil
-              Navigator.pop(dialogContext);
-              _deleteProfile(active.id);
-            },
-            child: Text(_s('Smazat', 'Delete')),
-          ),
-        ],
-      ),
-    );
+    _confirmDeleteProfileForId(dialogContext, _activeProfileId, parentDialogContext: dialogContext);
   }
 
   // Nové: operace nad libovolným id (výběr ≠ aktivace)
@@ -10004,16 +9956,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ThemeMode get themeModeForTest => widget.themeMode;
 
   @visibleForTesting
-  void startEditingForTest(String id) => startEditingProfile(id);
+  bool startEditingForTest(String id) => startEditingProfile(id);
 
   @visibleForTesting
   void updateEditingForTest(AccessibilitySettings Function(AccessibilitySettings) upd) => updateEditingSettings(upd);
 
   @visibleForTesting
-  Future<void> saveEditingForTest() => saveEditingProfile();
+  Future<bool> saveEditingForTest() => saveEditingProfile();
 
   @visibleForTesting
   void discardEditingForTest() => discardEditingProfile();
+
+  @visibleForTesting
+  Future<void> resetProfileForTest(String id) => resetProfile(id);
 
   @visibleForTesting
   ThousandGroupGap get thousandGroupGapForTest => _thousandGroupGap;

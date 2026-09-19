@@ -1897,38 +1897,31 @@ class _AccessibilityDialog extends StatefulWidget {
 
 class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   String? _selectedProfileId;
-  final Map<String, FocusNode> _profileFocusNodes = {};
   @override
   void initState() {
     super.initState();
     _selectedProfileId = widget.parent._activeProfileId;
-    for (final p in widget.parent._effectiveProfiles) {
-      _profileFocusNodes[p.id] = FocusNode(debugLabel: 'profile_' + p.id);
-    }
-  }
-  @override
-  void dispose() {
-    for (final n in _profileFocusNodes.values) n.dispose();
-    super.dispose();
   }
   void _openEditor() {
     if (_selectedProfileId == null) {
       widget.parent.speak(widget.parent._s('Nejprve vyberte profil','Select a profile first'));
       return;
     }
-    widget.parent.startEditingProfile(_selectedProfileId!);
+    if (!widget.parent._profilesLoaded) {
+      widget.parent.speak(widget.parent._s('Profily se ještě načítají, zkuste to znovu.','Profiles are still loading, please try again.'));
+      return;
+    }
+    final ok = widget.parent.startEditingProfile(_selectedProfileId!);
+    if (!ok) return;
     final editingId = _selectedProfileId!;
-    showDialog<void>(
+    final profileForName = widget.parent._profiles.firstWhere((p)=>p.id==editingId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
+    final routeName = 'Upravit profil ${widget.parent._displayProfileName(profileForName)}';
+    widget.parent.showAppDialog<void>(
       context: context,
+      routeSettings: RouteSettings(name: routeName),
       builder: (ctx) => _AccessibilityProfileEditorDialog(parent: widget.parent),
     ).then((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final node = _profileFocusNodes[editingId];
-        if (node != null && mounted) {
-          try { node.requestFocus(); } catch(_){}
-        }
-        setState((){});
-      });
+      if (mounted) setState((){});
     });
   }
   @override
@@ -1975,6 +1968,23 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 ),
                 const SizedBox(height: 8),
                 // Profily – výběr k editaci (nikoli aktivace)
+                if (!widget.parent._profilesLoaded)
+                  Semantics(
+                    liveRegion: true,
+                    label: widget.parent._s('Profily se načítají', 'Profiles loading'),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                          SizedBox(width: 8),
+                          Text(widget.parent._s('Načítám profily…', 'Loading profiles…')),
+                        ],
+                      ),
+                    ),
+                  )
+                else
                 Semantics(
                   label: widget.parent._s('Seznam profilů, vyberte profil k úpravě','Profile list, select profile to edit'),
                   child: Wrap(
@@ -1984,14 +1994,12 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     final isActive = profile.id == widget.parent._getActiveAccessibilityProfile().id;
                     final isSelected = profile.id == _selectedProfileId;
                     final displayName = widget.parent._displayProfileName(profile);
-                    final focusNode = _profileFocusNodes[profile.id];
                     final label = displayName + (isActive ? ', aktivní' : '') + (isSelected ? ', vybrán k úpravě' : '') + (profile.isBuiltIn ? ', vestavěný' : '');
                     return Semantics(
                       button: true,
-                      selected: isActive,
+                      selected: isSelected,
                       label: label,
                       child: ElevatedButton(
-                        focusNode: focusNode,
                         style: isSelected
                             ? ElevatedButton.styleFrom(
                                 backgroundColor: Theme.of(context).colorScheme.secondary,
@@ -2004,7 +2012,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                   )
                                 : null,
-                        onPressed: () {
+                        onPressed: !widget.parent._profilesLoaded ? null : () {
                           setState(() => _selectedProfileId = profile.id);
                           widget.parent.speak(label);
                         },
@@ -2017,32 +2025,38 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 // Management – operace nad vybraným profilem (výběr ≠ aktivace)
                 Builder(builder: (ctx) {
                   final selId = _selectedProfileId;
-                  final selProfile = selId == null ? null : widget.parent._effectiveProfiles.firstWhere((p)=>p.id==selId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
+                  final selProfile = selId == null ? null : widget.parent._profiles.firstWhere((p)=>p.id==selId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
                   final selIsBuiltIn = selProfile?.isBuiltIn ?? true;
                   final selName = selProfile == null ? '' : widget.parent._displayProfileName(selProfile);
+                  final profilesReady = widget.parent._profilesLoaded;
                   return Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
                     Semantics(
                       button: true,
-                      enabled: selId != null,
+                      enabled: selId != null && profilesReady,
                       label: selId == null ? widget.parent._s('Upravit profil – nejprve vyberte profil','Edit profile – select a profile first') : widget.parent._s('Upravit profil $selName','Edit profile $selName'),
                       child: FilledButton.icon(
                         icon: const Icon(Icons.edit, size: 18),
                         label: Text(widget.parent._s('Upravit','Edit')),
-                        onPressed: selId == null ? null : _openEditor,
+                        onPressed: (selId == null || !profilesReady) ? null : _openEditor,
                       ),
                     ),
                     Semantics(
                       button: true,
-                      enabled: selId != null,
+                      enabled: selId != null && profilesReady,
                       label: selId == null ? widget.parent._s('Aktivovat profil – nejprve vyberte profil','Activate profile – select a profile first') : widget.parent._s('Aktivovat profil $selName','Activate profile $selName'),
                       child: FilledButton.icon(
                         icon: const Icon(Icons.check_circle, size: 18),
                         label: Text(widget.parent._s('Aktivovat','Activate')),
-                        onPressed: selId == null ? null : () {
-                          final p = widget.parent._effectiveProfiles.firstWhere((e)=>e.id==selId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
+                        onPressed: (selId == null || !profilesReady) ? null : () {
+                          final p = widget.parent._profiles.firstWhere((e)=>e.id==selId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
+                          // Guard: ensure p.id == selId (exists in _profiles)
+                          if (p.id != selId) {
+                            widget.parent.speak(widget.parent._s('Profil neexistuje','Profile does not exist'));
+                            return;
+                          }
                           widget.parent.applyAccessibilityProfile(p, announcement: widget.parent._l10n.profileChangedTo(selName));
                           setState((){});
                         },
@@ -2050,11 +2064,12 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     ),
                     Semantics(
                       button: true,
+                      enabled: profilesReady,
                       label: widget.parent._s('Vytvořit nový profil', 'Create new profile'),
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.add, size: 18),
                         label: Text(widget.parent._s('Nový profil', 'New profile')),
-                        onPressed: () {
+                        onPressed: !profilesReady ? null : () {
                           Navigator.pop(context);
                           widget.parent._showCreateProfileDialog();
                         },
@@ -2062,24 +2077,24 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     ),
                     Semantics(
                       button: true,
-                      enabled: selId != null,
+                      enabled: selId != null && profilesReady,
                       label: selId == null ? widget.parent._s('Obnovit výchozí nastavení profilu','Reset profile to defaults') : widget.parent._s('Obnovit profil $selName','Reset profile $selName'),
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.restart_alt, size: 18),
                         label: Text(widget.parent._s('Obnovit výchozí', 'Reset')),
-                        onPressed: selId == null ? null : () {
+                        onPressed: (selId == null || !profilesReady) ? null : () {
                           widget.parent._confirmResetProfileForId(context, selId);
                         },
                       ),
                     ),
                     Semantics(
                       button: true,
-                      enabled: selId != null && !selIsBuiltIn,
+                      enabled: selId != null && !selIsBuiltIn && profilesReady,
                       label: selIsBuiltIn ? widget.parent._s('Přejmenovat profil $selName – nelze, vestavěný profil','Rename profile $selName – cannot, built-in profile') : widget.parent._s('Přejmenovat profil $selName','Rename profile $selName'),
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.edit, size: 18),
                         label: Text(widget.parent._s('Přejmenovat', 'Rename')),
-                        onPressed: (selId == null || selIsBuiltIn) ? null : () {
+                        onPressed: (selId == null || selIsBuiltIn || !profilesReady) ? null : () {
                           Navigator.pop(context);
                           widget.parent._showRenameProfileDialogForId(selId);
                         },
@@ -2087,13 +2102,13 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                     ),
                     Semantics(
                       button: true,
-                      enabled: selId != null && !selIsBuiltIn,
+                      enabled: selId != null && !selIsBuiltIn && profilesReady,
                       label: selIsBuiltIn ? widget.parent._s('Smazat profil $selName – nelze, vestavěný profil','Delete profile $selName – cannot, built-in profile') : widget.parent._s('Smazat profil $selName','Delete profile $selName'),
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.delete, size: 18),
                         label: Text(widget.parent._s('Smazat', 'Delete')),
                         style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                        onPressed: (selId == null || selIsBuiltIn) ? null : () {
+                        onPressed: (selId == null || selIsBuiltIn || !profilesReady) ? null : () {
                           widget.parent._confirmDeleteProfileForId(context, selId, parentDialogContext: context);
                         },
                       ),
@@ -2128,124 +2143,4 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
     );
   }
 
-  void _adjustDotMatrixZoom(double delta) {
-    final newVal = (widget.parent.activeAccessibilitySettings.dotMatrixZoom + delta).clamp(0.5, 5.0);
-    widget.parent.updateActiveAccessibilitySettings(
-      (s) => s.copyWith(dotMatrixZoom: newVal),
-    );
-    setState(() {});
-    widget.parent.speak(
-      widget.parent._l10n.zoomUpperPct(
-        (widget.parent._dotMatrixZoom * 100).toInt(),
-      ),
-    );
-  }
-
-  void _adjustResultZoom(double delta) {
-    final newVal = (widget.parent.activeAccessibilitySettings.resultZoom + delta).clamp(0.5, 5.0);
-    widget.parent.updateActiveAccessibilitySettings(
-      (s) => s.copyWith(resultZoom: newVal),
-    );
-    setState(() {});
-    widget.parent.speak(
-      widget.parent._l10n.zoomLowerPct(
-        (widget.parent._resultZoom * 100).toInt(),
-      ),
-    );
-  }
-
-  void _adjustSpeechRate(double delta) {
-    final newVal = (widget.parent.activeAccessibilitySettings.speechRate + delta).clamp(0.1, 1.0);
-    widget.parent.updateActiveAccessibilitySettings(
-      (s) => s.copyWith(speechRate: newVal),
-    );
-    setState(() {});
-    widget.parent.speak(
-      widget.parent._l10n.speechRatePct(
-        (widget.parent._speechRate * 100).toInt(),
-      ),
-    );
-  }
-
-  void _adjustSpeechVolume(double delta) {
-    final newVal = (widget.parent.activeAccessibilitySettings.speechVolume + delta).clamp(0.0, 1.0);
-    widget.parent.updateActiveAccessibilitySettings(
-      (s) => s.copyWith(speechVolume: newVal),
-    );
-    setState(() {});
-    widget.parent.speak(
-      widget.parent._l10n.volumePct(
-        (widget.parent._speechVolume * 100).toInt(),
-      ),
-    );
-  }
-
-  void _adjustDialogFontScale(double delta) {
-    final newVal = (widget.parent.activeAccessibilitySettings.dialogFontScale + delta).clamp(0.5, 5.0);
-    widget.parent.updateActiveAccessibilitySettings(
-      (s) => s.copyWith(dialogFontScale: newVal),
-    );
-    setState(() {});
-    widget.parent.speak(
-      widget.parent._s(
-        'Velikost písma dialogů ${(widget.parent._dialogFontScale * 100).toInt()} procent',
-        'Dialog font size ${(widget.parent._dialogFontScale * 100).toInt()} percent',
-      ),
-    );
-  }
-
-  void _adjustKeyboardFontScale(double delta) {
-    final newVal = (widget.parent.activeAccessibilitySettings.fontSizeMultiplier + delta).clamp(0.7, 2.5);
-    widget.parent.updateActiveAccessibilitySettings(
-      (s) => s.copyWith(fontSizeMultiplier: newVal),
-    );
-    setState(() {});
-    widget.parent.speak(
-      widget.parent._s(
-        'Velikost písma tlačítek ${(widget.parent._keyboardFontScale * 100).toInt()} procent',
-        'Keyboard button font size ${(widget.parent._keyboardFontScale * 100).toInt()} percent',
-      ),
-    );
-  }
-
-  void _adjustOverlineHeight(double delta) {
-    final newVal = (widget.parent.activeAccessibilitySettings.overlineHeight + delta).clamp(0.5, 2.0);
-    widget.parent.updateActiveAccessibilitySettings(
-      (s) => s.copyWith(overlineHeight: newVal),
-    );
-    setState(() {});
-    widget.parent.speak(
-      widget.parent._s(
-        'Výška periodické čáry ${(widget.parent._overlineHeight * 100).toInt()} procent',
-        'Repeating bar height ${(widget.parent._overlineHeight * 100).toInt()} percent',
-      ),
-    );
-  }
-
-  void _resetOverlineStyle() {
-    widget.parent.updateActiveAccessibilitySettings(
-      (s) => s.copyWith(overlineHeight: 1.0, overlineThickness: 1.0),
-    );
-    setState(() {});
-    widget.parent.speak(
-      widget.parent._s(
-        'Vzhled periodické čáry obnoven na výchozí hodnoty',
-        'Repeating bar appearance reset to defaults',
-      ),
-    );
-  }
-
-  void _adjustOverlineThickness(double delta) {
-    final newVal = (widget.parent.activeAccessibilitySettings.overlineThickness + delta).clamp(0.8, 4.0);
-    widget.parent.updateActiveAccessibilitySettings(
-      (s) => s.copyWith(overlineThickness: newVal),
-    );
-    setState(() {});
-    widget.parent.speak(
-      widget.parent._s(
-        'Tloušťka periodické čárky ${(widget.parent._overlineThickness * 100).toInt()} procent',
-        'Repeating bar thickness ${(widget.parent._overlineThickness * 100).toInt()} percent',
-      ),
-    );
-  }
 }
