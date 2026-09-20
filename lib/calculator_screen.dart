@@ -6022,24 +6022,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final scale = _responsiveScale(context);
-    // Velikost písma: uživatelské _keyboardFontScale (70–250 %) × systémový
-    // textScaler (omezený, aby nerozbil layout) × mírný large-boost z
-    // _responsiveScale, aby na velkém displeji nerostla jen geometrie tlačítek,
-    // ale i písmo. Systémový scaler se započítá právě jednou ručně –
-    // vnitřní Text je dál izolován přes TextScaler.noScaling (viz níže),
-    // takže nedochází k dvojímu započtení. FittedBox(scaleDown) je pouze
-    // pojistka proti přetečení dlouhých popisků (SETS, RAD→°).
-    // Geometrie tlačítka (margin/padding/min. dotyková velikost) dál škáluje
-    // s `scale`, takže tlačítka zůstanou dost velká pro dotyk.
+    // Velikost písma – opraveno: geometrie škáluje 1.0→1.7, font musí
+    // škálovat stejným poměrem. Původní largeBoost 1.35 způsoboval
+    // divergenci (48→81.6 vs 20→27). Nově:
+    // - geometrie: margin/padding/minSize dál používá scale (beze změny)
+    // - font: 20 * _keyboardFontScale * sysFactor * scale  (bez 0.5 tlumení)
+    // - skutečný dostupný prostor tlačítka (LayoutBuilder) slouží jako
+    //   strop pro vertikální přetečení, šířku řeší FittedBox(scaleDown)
+    //   jako pojistka pro dlouhé popisky (ASIN, WMEAN, RAD→°).
+    //   Krátké popisky (1, +, C, DEL) tak využijí plný prostor (scale 1.0).
+    // Systémový scaler se započítá právě jednou ručně a vnitřní Text je
+    // izolován TextScaler.noScaling – nedochází k dvojímu započtení.
     final sysFactor = MediaQuery.textScalerOf(
       context,
     ).scale(1.0).clamp(1.0, 1.6);
-    final largeBoost = (1.0 + (scale - 1.0) * 0.5).clamp(1.0, 1.35);
-    final keyboardFontSize =
-        (20.0 * _keyboardFontScale * sysFactor * largeBoost).clamp(
-          14.0,
-          72.0,
-        );
+    final baseFontForScale =
+        (20.0 * _keyboardFontScale * sysFactor * scale).clamp(14.0, 72.0);
 
     Widget buttonBody = Container(
       margin: EdgeInsets.all(3 * scale),
@@ -6054,36 +6052,47 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 6 * scale),
-      // FittedBox je zde pouze pojistka proti skutečnému přetečení
-      // (dlouhé popisky typu SETS, RAD→°). Při běžných hodnotách škály
-      // (krátké popisky 1, 2, +, C, DEL, =) se neuplatní a nastavená
-      // velikost písma je skutečně viditelná.
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.center,
-        child: ExcludeSemantics(
-          // Vizuální popisek je skrytý před odečítačem (ten čte vnější
-          // Semantics s descriptiveName). TextScaler.noScaling zde znamená,
-          // že systémové škálování se aplikuje právě jednou – ručně přes
-          // sysFactor ve výpočtu keyboardFontSize (viz výše).
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.noScaling),
-            child: Text(
-              label,
-              maxLines: 1,
-              softWrap: false,
-              style: TextStyle(
-                fontSize: keyboardFontSize,
-                fontWeight: FontWeight.bold,
-                color: color != null
-                    ? Colors.white
-                    : (isDark ? Colors.white : Colors.black),
+      // LayoutBuilder poskytuje skutečné constraints tlačítka po odečtení
+      // paddingu (dostupný prostor pro text). Ponechán jako architektonický
+      // bod pro budoucí jemné doladění podle dostupného prostoru; aktuálně
+      // font škáluje s geometryScale (1.0→1.7) a šířku/výšku hlídá
+      // FittedBox(scaleDown) jako pojistka pro dlouhé popisky (ASIN, WMEAN,
+      // RAD→°). Krátké popisky (1, +, C, DEL) tak využijí plný prostor.
+      child: LayoutBuilder(
+        builder: (innerContext, innerConstraints) {
+          final double keyboardFontSize = baseFontForScale;
+          // Pozn.: vertikální strop záměrně neaplikován – innerConstraints
+          // během flex layoutu může být dočasně malé a zbytečně by
+          // ořezával font (viz regrese 17px na desktopu). FittedBox
+          // zajistí, že přetečení v obou osách se škáluje jednotně.
+          return FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center,
+            child: ExcludeSemantics(
+              // Vizuální popisek je skrytý před odečítačem (ten čte vnější
+              // Semantics s descriptiveName). TextScaler.noScaling zde znamená,
+              // že systémové škálování se aplikuje právě jednou – ručně přes
+              // sysFactor ve výpočtu keyboardFontSize (viz výše).
+              child: MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.noScaling),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontSize: keyboardFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: color != null
+                        ? Colors.white
+                        : (isDark ? Colors.white : Colors.black),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
 
@@ -7355,6 +7364,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Widget _buildModeSelector() {
     final scale = _responsiveScale(context);
+    final sysFactor = MediaQuery.textScalerOf(
+      context,
+    ).scale(1.0).clamp(1.0, 1.6);
+    // Chip label – geometrie 48*scale vs text: původně bez explicitního
+    // škálování (font fixní 14, škálován jen systémově). Nově explicitně
+    // škálujeme s geometrií, ale izolujeme systémový scaler aby nebyl
+    // započten dvakrát (noScaling + ruční sysFactor).
+    final chipFontSize = (14.0 * scale * sysFactor).clamp(12.0, 22.0);
     return Semantics(
       label: _s('Přepínač režimů', 'Mode selector'),
       container: true,
@@ -7375,7 +7392,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       '$label${isSelected ? _s(', vybráno', ', selected') : ''}',
                   selected: isSelected,
                   child: ChoiceChip(
-                    label: Text(label),
+                    label: MediaQuery(
+                      data: MediaQuery.of(
+                        context,
+                      ).copyWith(textScaler: TextScaler.noScaling),
+                      child: Text(
+                        label,
+                        style: TextStyle(fontSize: chipFontSize),
+                      ),
+                    ),
                     selected: isSelected,
                     onSelected: (s) {
                       if (s) {

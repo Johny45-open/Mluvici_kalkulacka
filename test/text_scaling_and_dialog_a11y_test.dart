@@ -200,11 +200,15 @@ void main() {
       await pumpApp(tester, size: const Size(1280, 800));
       final desktop = keyboardFontSize(tester, '7');
 
-      // 412px: scale 412/360 → boost ≈ 1.07 → ≈21.4;
-      // desktop (shortest 800): scale 1.7 → boost 1.35 → 27.0.
-      expect(phone, closeTo(21.44, 0.1));
+      // Po opravě: font = 20 * scale (bez 0.5 tlumení).
+      // 412px: scale 412/360=1.144 → ≈22.88; desktop 800→1.7 →34.0.
+      // Test ověřuje chování, ne interní konstantu – povolena tolerance.
+      expect(phone, greaterThan(20.0));
+      expect(phone, lessThan(26.0));
       expect(desktop, greaterThan(phone));
-      expect(desktop, closeTo(27.0, 0.5));
+      expect(desktop, greaterThan(30.0));
+      // Poměr musí odpovídat scale poměru ~1.48, ne starému 1.26 (27/21.4)
+      expect(desktop / phone, greaterThan(1.35));
       expect(tester.takeException(), isNull);
     });
   });
