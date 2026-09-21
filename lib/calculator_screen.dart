@@ -5200,7 +5200,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       if (files.isEmpty) return;
 
-      final content = utf8.decode(await files.single.readAsBytes());
+      final file = files.first;
+      String content;
+      if (file.path != null) {
+        content = await File(file.path!).readAsString();
+      } else {
+        final bytes = await file.readAsBytes();
+        content = utf8.decode(bytes);
+      }
 
       final data = jsonDecode(content) as Map<String, dynamic>;
       final prefs = await SharedPreferences.getInstance();
@@ -5233,6 +5240,123 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       debugPrint('Chyba při obnově dat: $e');
       speak(_l10n.restoreError, force: true);
     }
+  }
+
+  // --- Kontrakt v1: import/export (konfigurator) ---
+  Future<void> _exportContract() async {
+    try {
+      final contract = buildContractJson(
+        profiles: _profiles.isNotEmpty ? _profiles : _effectiveProfiles,
+        activeProfileId: _activeProfileId,
+        themeMode: widget.themeMode,
+        isDegreeMode: _isDegreeMode,
+        defaultMode: _defaultMode,
+        statsSummaryOrder: _statsSummaryOrder,
+        statsComputedOrder: _statsComputedOrder,
+        currencyFrom: _currencyFrom,
+        currencyTo: _currencyTo,
+        devEnabled: _devModeEnabled,
+        devAutoDiagnostic: _devAutoDiagnosticEnabled,
+        devDiagnosticDurationMs: _devDiagnosticDurationMs,
+        devPinCode: _devPinCode,
+      );
+      await _exportContractFile(contract);
+      final msg = _s('Konfigurace exportována', 'Configuration exported');
+      speak(msg, force: true);
+      if (mounted) {
+        _showAccessibleSnackBar(msg);
+        _announce(msg);
+      }
+    } catch (e) {
+      debugPrint('Export kontraktu chyba: $e');
+      final msg = _s('Chyba při exportu konfigurace', 'Error exporting configuration');
+      speak(msg, force: true);
+      if (mounted) _showAccessibleSnackBar(msg);
+    }
+  }
+
+  Future<void> _importContract() async {
+    try {
+      final raw = await _pickAndReadContractFile();
+      if (raw == null) return;
+      final vr = validateContract(raw);
+      if (!vr.ok) {
+        final msgs = vr.errors.map((e) => '${e.path.isEmpty ? "root" : e.path}: ${e.message}').join('\n');
+        if (mounted) {
+          await showAppDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              insetPadding: _dialogInsetPadding(),
+              title: Semantics(header: true, child: Text(_s('Neplatná konfigurace', 'Invalid configuration'))),
+              content: SingleChildScrollView(child: Text(msgs)),
+              actions: [TextButton(onPressed: ()=> Navigator.pop(ctx), child: Text(_l10n.close))],
+            ),
+          );
+        }
+        speak(_s('Import selhal – neplatná konfigurace', 'Import failed – invalid configuration'), force: true);
+        return;
+      }
+      if (vr.warnings.isNotEmpty && mounted) {
+        final warns = vr.warnings.map((w)=> '${w.path}: ${w.message}').join('\n');
+        final proceed = await showAppDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            insetPadding: _dialogInsetPadding(),
+            title: Semantics(header: true, child: Text(_s('Varování při importu', 'Import warning'))),
+            content: SingleChildScrollView(child: Text(_s('Konfigurace obsahuje neznámá pole (budoucí verze), budou ignorována:\n\n$warns\n\nPokračovat?', 'Configuration contains unknown keys (future version), they will be ignored:\n\n$warns\n\nContinue?'))),
+            actions: [
+              TextButton(onPressed: ()=> Navigator.pop(ctx,false), child: Text(_l10n.cancel)),
+              FilledButton(onPressed: ()=> Navigator.pop(ctx,true), child: Text(_s('Importovat','Import'))),
+            ],
+          ),
+        );
+        if (proceed != true) return;
+      }
+      final parsed = parseContract(raw);
+      await _applyContract(parsed, raw);
+      final resolved = parsed.profiles.where((p)=> p.id==parsed.activeProfileId).isNotEmpty ? parsed.profiles.firstWhere((p)=> p.id==parsed.activeProfileId) : parsed.profiles.first;
+      final name = resolved.name;
+      final msg = _s('Konfigurace importována, aktivní profil $name', 'Configuration imported, active profile $name');
+      speak(msg, force: true);
+      if (mounted) {
+        _showAccessibleSnackBar(msg, announceMessage: msg);
+        _announce(msg);
+      }
+    } catch (e) {
+      debugPrint('Import kontraktu chyba: $e');
+      final msg = _s('Chyba při importu konfigurace', 'Error importing configuration');
+      speak(msg, force: true);
+      if (mounted) _showAccessibleSnackBar(msg);
+    }
+  }
+
+  Future<void> _applyContract(ParsedContract parsed, Map<String,dynamic> raw) async {
+    setState(() {
+      _profiles = parsed.profiles;
+      _activeProfileId = parsed.activeProfileId;
+      _statsSummaryOrder = List<StatsSummarySection>.from(parsed.statsSummaryOrder);
+      _statsComputedOrder = List<StatsComputedItem>.from(parsed.statsComputedOrder);
+      _isDegreeMode = parsed.isDegreeMode;
+      _defaultMode = parsed.defaultMode;
+      _currencyFrom = parsed.currencyFrom;
+      _currencyTo = parsed.currencyTo;
+      _devModeEnabled = parsed.devEnabled;
+      _devAutoDiagnosticEnabled = parsed.devAutoDiagnostic;
+      _devDiagnosticDurationMs = parsed.devDiagnosticDurationMs;
+      _devPinCode = parsed.devPinCode;
+    });
+    widget.onThemeModeChanged(parsed.themeMode);
+    await _saveProfilesV2();
+    await _saveActiveProfileId();
+    _saveGlobalSettings();
+    // persist raw contract atomically for parity
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('config_contract_v1', jsonEncode(raw));
+    } catch (_) {}
+    _applySettingsToRuntime(_getActiveAccessibilityProfile().settings);
+    _dialogFontScaleNotifier.value = activeAccessibilitySettings.dialogFontScale;
+    if (mounted) setState(() {});
   }
 
   void _showInitialAccessibilityDialog() {
@@ -5583,6 +5707,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         if (_editingProfileId == _activeProfileId && !Platform.isWindows) {
                           tts.setEngine(engine).catchError((e){ debugPrint('TTS setEngine Error: $e'); });
                         }
+                        speak(_s('Engine $engine vybrán','Engine $engine selected'), force: true);
                       } else {
                         updateActiveAccessibilitySettings(
                           (s) => s.copyWith(ttsEngine: engine),
@@ -5590,6 +5715,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         if (!Platform.isWindows) {
                           tts.setEngine(engine);
                         }
+                        speak(_s('Engine $engine vybrán','Engine $engine selected'), force: true);
                       }
                       Navigator.pop(context);
                     },
@@ -5715,12 +5841,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           if (_editingProfileId == _activeProfileId) {
                             tts.clearVoice();
                           }
+                          speak(_s('Hlas nastaven na výchozí','Voice set to default'), force: true);
                         } else {
                           updateActiveAccessibilitySettings(
                             (s) => s.copyWith(
                                 clearTtsVoice: true, clearTtsVoiceName: true),
                           );
                           tts.clearVoice();
+                          speak(_s('Hlas nastaven na výchozí','Voice set to default'), force: true);
                         }
                         Navigator.pop(context);
                       },
@@ -5762,12 +5890,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         if (_editingProfileId == _activeProfileId) {
                           tts.setVoice(voiceMap).catchError((e){ debugPrint('TTS setVoice Error: $e'); });
                         }
+                        speak(_s('Hlas $name vybrán','Voice $name selected'), force: true);
                       } else {
                         updateActiveAccessibilitySettings(
                           (s) => s.copyWith(
                               ttsVoice: voiceMap, ttsVoiceName: name),
                         );
                         tts.setVoice(voiceMap);
+                        speak(_s('Hlas $name vybrán','Voice $name selected'), force: true);
                       }
                       Navigator.pop(context);
                     },
@@ -11207,6 +11337,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     Navigator.pop(dialogContext);
                     Future.delayed(const Duration(milliseconds: 300), () {
                       if (mounted) _showStatsSummaryReadingOrderDialog();
+                    });
+                  },
+                ),
+                _buildMoreOptionTile(
+                  icon: Icons.file_download,
+                  label: _s('Importovat konfiguraci (kontrakt)', 'Import configuration (contract)'),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) _importContract();
+                    });
+                  },
+                ),
+                _buildMoreOptionTile(
+                  icon: Icons.file_upload,
+                  label: _s('Exportovat konfiguraci (kontrakt)', 'Export configuration (contract)'),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) _exportContract();
                     });
                   },
                 ),

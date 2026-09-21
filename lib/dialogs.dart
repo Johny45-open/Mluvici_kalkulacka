@@ -2119,6 +2119,55 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
             ),
                         const Divider(),
             Semantics(
+              header: true,
+              label: widget.parent._l10n.dataManagementSection,
+              child: ExcludeSemantics(
+                child: Text(
+                  widget.parent._l10n.dataManagementSection,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Semantics(
+                  button: true,
+                  label: widget.parent._s('Importovat konfiguraci (kontrakt)','Import configuration (contract)'),
+                  hint: widget.parent._s('Vybere JSON soubor s konfigurací a importuje jej','Pick a JSON configuration file and import it'),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.file_download, size: 18),
+                    label: Text(widget.parent._s('Importovat konfiguraci','Import configuration')),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Future.delayed(const Duration(milliseconds: 200), () {
+                        if (widget.parent.mounted) widget.parent._importContract();
+                      });
+                    },
+                  ),
+                ),
+                Semantics(
+                  button: true,
+                  label: widget.parent._s('Exportovat konfiguraci (kontrakt)','Export configuration (contract)'),
+                  hint: widget.parent._s('Exportuje aktuální konfiguraci ke sdílení','Exports current configuration for sharing'),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.file_upload, size: 18),
+                    label: Text(widget.parent._s('Exportovat konfiguraci','Export configuration')),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Future.delayed(const Duration(milliseconds: 200), () {
+                        if (widget.parent.mounted) widget.parent._exportContract();
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Divider(),
+            Semantics(
               label: widget.parent._s('Nastavení profilu upravíte stiskem Upravit u vybraného profilu','Edit profile settings via Edit button for selected profile'),
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical:8),

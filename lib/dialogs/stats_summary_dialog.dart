@@ -272,6 +272,24 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
           );
         }
 
+        void readFullSummary() {
+          final summary = p._getOrderedSpokenSummary(p._selectedFieldIndex);
+          final tabHint = p._showStatsNavigationHint
+              ? p._s(
+                  ' Jednotlivé statistiky můžete procházet klávesou Tab.',
+                  ' Use Tab to move through individual statistics.',
+                )
+              : '';
+          final fullWithHint = summary.isNotEmpty ? '$summary$tabHint' : tabHint.trimLeft();
+          final text = fullWithHint.isNotEmpty
+              ? p._s('Statistický souhrn: $fullWithHint', 'Statistics summary: $fullWithHint')
+              : p._s('Statistický souhrn otevřen.', 'Statistics summary opened.');
+          if (p._isScreenReaderActive) {
+            p._announce(text, dialogContext);
+          }
+          p.speak(text, force: true);
+        }
+
         return AlertDialog(
           insetPadding: p._dialogInsetPadding(),
           title: Semantics(header: true, child: Text(l10n.statsSummaryTitle)),
@@ -563,6 +581,17 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
             ),
           ),
           actions: [
+            if (!p._autoReadStatsSummary)
+              Semantics(
+                button: true,
+                label: p._s('Přečíst statistický souhrn', 'Read statistics summary'),
+                hint: p._s('Přečte celý souhrn v nastaveném pořadí', 'Reads full summary in configured order'),
+                child: FilledButton.icon(
+                  onPressed: readFullSummary,
+                  icon: const Icon(Icons.volume_up, size: 18),
+                  label: Text(p._s('Přečíst souhrn', 'Read summary')),
+                ),
+              ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext);

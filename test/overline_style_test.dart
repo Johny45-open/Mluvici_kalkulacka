@@ -178,6 +178,22 @@ void main() {
           await tester.tap(saveEnFinder.first);
         }
         await tester.pumpAndSettle();
+        // Potvrzovací dialog před uložením (nově) – pokud se zobrazil, potvrď
+        final confirmTitle = find.text('Potvrdit uložení');
+        final confirmTitleEn = find.text('Confirm save');
+        if (confirmTitle.evaluate().isNotEmpty || confirmTitleEn.evaluate().isNotEmpty) {
+          // V dialogu je opět tlačítko Uložit/Save – vezmi poslední (to v dialogu)
+          final confirmSave = find.text('Uložit');
+          final confirmSaveEn = find.text('Save');
+          if (confirmSave.evaluate().length > 1) {
+            await tester.tap(confirmSave.last);
+          } else if (confirmSave.evaluate().isNotEmpty) {
+            await tester.tap(confirmSave.last);
+          } else if (confirmSaveEn.evaluate().isNotEmpty) {
+            await tester.tap(confirmSaveEn.last);
+          }
+          await tester.pumpAndSettle();
+        }
 
         // 4) trvalé uložení per-profile v2
         final prefs = await SharedPreferences.getInstance();

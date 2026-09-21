@@ -19,6 +19,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'update_checker.dart';
 import 'currency_service.dart';
 import 'thousand_grouping.dart';
+import 'config_validator.dart';
 
 part 'models.dart';
 part 'calculator_screen.dart';
@@ -33,6 +34,7 @@ part 'dialogs/stats_summary_dialog.dart';
 part 'dialogs/reading_order_dialog.dart';
 part 'dialogs/accessibility_controls.dart';
 part 'dialogs/accessibility_editor_dialog.dart';
+part 'config_contract.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
