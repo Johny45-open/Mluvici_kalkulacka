@@ -1360,6 +1360,91 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
+  String? _czechExponentOrdinal(int absExp) {
+    switch (absExp) {
+      case 0:
+        return 'nultou';
+      case 1:
+        return 'první';
+      case 2:
+        return 'druhou';
+      case 3:
+        return 'třetí';
+      case 4:
+        return 'čtvrtou';
+      case 5:
+        return 'pátou';
+      case 6:
+        return 'šestou';
+      case 7:
+        return 'sedmou';
+      case 8:
+        return 'osmou';
+      case 9:
+        return 'devátou';
+      case 10:
+        return 'desátou';
+      case 11:
+        return 'jedenáctou';
+      case 12:
+        return 'dvanáctou';
+      case 13:
+        return 'třináctou';
+      case 14:
+        return 'čtrnáctou';
+      case 15:
+        return 'patnáctou';
+      case 16:
+        return 'šestnáctou';
+      case 17:
+        return 'sedmnáctou';
+      case 18:
+        return 'osmnáctou';
+      case 19:
+        return 'devatenáctou';
+      case 20:
+        return 'dvacátou';
+      case 30:
+        return 'třicátou';
+      default:
+        if (absExp > 20 && absExp < 30) {
+          // 21-29: dvacátou první etc. – fallback to kardinál + ordinál sufix approximation
+          return null;
+        }
+        return null;
+    }
+  }
+
+  String _speakExponentialPart(String mantissa, String sign, String expDigits) {
+    final l10n = _l10n;
+    final exp = int.tryParse(expDigits) ?? 0;
+    final isEnglishLocale = l10n.localeName.startsWith('en');
+    if (isEnglishLocale) {
+      return '$mantissa ${l10n.timesTenTo} ${sign == '-' ? '${l10n.minusWord} ' : ''}$exp';
+    }
+    final ordinal = _czechExponentOrdinal(exp.abs());
+    if (ordinal != null) {
+      final minusPart = sign == '-' ? '${l10n.minusWord} ' : '';
+      return '$mantissa ${l10n.timesTenTo} $minusPart$ordinal';
+    }
+    return '$mantissa ${l10n.timesTenTo} ${sign == '-' ? '${l10n.minusWord} ' : ''}$exp';
+  }
+
+  /// Centrální převod exponenciálního zápisu pro češtinu/angličtinu.
+  /// Používá strukturovaná data když jsou k dispozici, jinak parsuje display string.
+  String _speakForAutoExpValue(double value) {
+    final dec = _decomposeAutoExp(value);
+    if (dec != null) {
+      final mantissa = (dec.negative ? '-' : '') + dec.mantissa;
+      final sign = dec.exponent >= 0 ? '+' : '-';
+      final expDigits = dec.exponent.abs().toString().padLeft(1, '0');
+      // mantissa je bez desetinné čárky, ponecháme ","
+      final mantissaSpoken = mantissa.replaceAll('.', ',');
+      return _speakExponentialPart(mantissaSpoken, sign, expDigits);
+    }
+    return '';
+  }
+
   String _spokenForDisplay(String text) {
     String result = text.replaceAllMapped(
       RegExp(r'(\d+)(?:[.,](\d*))?\((\d+)\)'),
@@ -1371,6 +1456,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (nonRepeating.isEmpty) return '$intPart,$period $suffix';
         return '$intPart,$nonRepeating, $period $suffix';
       },
+    );
+    // Centrální exponenciální převod (mantisa E±exponent) – používá ordinál pro češtinu
+    result = result.replaceAllMapped(
+      RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"),
+      (m) => _speakExponentialPart(m.group(1)!, m.group(2)!, m.group(3)!),
     );
     return result.replaceAll('.', ',');
   }
@@ -1493,7 +1583,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final repeating = _tryFormatRepeating(value);
       if (repeating != null) return _spokenForDisplay(repeating);
     }
-    return _formatNumber(value).replaceAll('.', ',');
+    // Auto-exponenciální hodnoty: centrální speech přes strukturovaná data (ne jen parsování stringu)
+    final autoExp = _tryAutoExponential(value);
+    if (autoExp != null) {
+      final spoken = _speakForAutoExpValue(value);
+      if (spoken.isNotEmpty) return spoken;
+      return _spokenForDisplay(autoExp);
+    }
+    final raw = _formatNumber(value);
+    // Fallback: pokud format vrátil E-notaci (např. z sci), projde centrálním speech
+    if (raw.contains('E')) {
+      return _spokenForDisplay(raw);
+    }
+    return raw.replaceAll('.', ',');
   }
 
   String _getButtonName(String label) {
@@ -2751,17 +2853,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   String _formatForSpeech(String text) {
     final l10n = _l10n;
-    String processed = _spokenForDisplay(
-      text,
-    ).replaceAll('\u03C0', l10n.piSpoken);
-    processed = processed.replaceAllMapped(
-      RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"),
-      (m) {
-        int exp = int.parse(m[3]!);
-        return '${m[1]} ${l10n.timesTenTo} '
-            '${m[2] == '-' ? '${l10n.minusWord} ' : ''}$exp';
-      },
-    );
+    // Sjednoceno s _spokenForDisplay – exponenciála řeší centrálně tam (ordinál pro češtinu).
+    String processed = _spokenForDisplay(text).replaceAll('\u03C0', l10n.piSpoken);
     return processed;
   }
 
@@ -3722,7 +3815,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     });
 
-    // 3. NAHRAZENÍ PROMĚNNÝCH
+    // 2b. OCHRANA E-NOTACE (validní tvary: mantisa E exponent)
+    // Validní: (\d+(?:\.\d+)?|\))E([+-]?\d+)
+    //  mantisa = číslo (10, 2.5) nebo ')'  ;  exponent = volitelně +/- + číslice
+    //  Příklady platné: 10E5, 10E+5, 10E-5, 2.5E3, 2.5E-3, (10)E5, (2.5)E3
+    //  Neplatné (zůstane proměnná E): E, E+2, 2*E, A+E
+    final expPlaceholders = <String, String>{};
+    int expIdx = 0;
+    processed = processed.replaceAllMapped(
+      RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"),
+      (m) {
+        final key = '__EXP_${expIdx}__';
+        expPlaceholders[key] = '${m[1]}*10^(${m[2]})';
+        expIdx++;
+        return key;
+      },
+    );
+
+    // 3. NAHRAZENÍ PROMĚNNÝCH (E uvnitř chráněné notace již není v textu)
     _memory.forEach((key, value) {
       processed = processed.replaceAll(
         RegExp('\\b$key\\b'),
@@ -3730,11 +3840,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     });
 
-    // 4. E-NOTACE
-    processed = processed.replaceAllMapped(
-      RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"),
-      (m) => '${m[1]}*10^(${m[2]})',
-    );
+    // 3b. EXPANZE E-NOTACE z placeholderů
+    expPlaceholders.forEach((k, v) {
+      processed = processed.replaceAll(k, v);
+    });
 
     // 5. ROBUSTNÍ IMPLICITNÍ NÁSOBENÍ
     processed = processed.replaceAllMapped(
@@ -3769,11 +3878,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     if (processed.isEmpty) return 0.0;
 
-    // E-NOTACE
-    processed = processed.replaceAllMapped(
-      RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"),
-      (m) => '${m[1]}*10^(${m[2]})',
-    );
+    // (E-notace již expandována z placeholderů – druhý průchod odstraněn)
 
     // N-TÁ ODMOCNINA: xⁿ√y -> root(x, y)
     processed = processed.replaceAllMapped(
@@ -3912,6 +4017,47 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  /// Automatická exponenciální prezentace (pouze DisplayFormat.standard).
+  /// Podmínky: celé číslo, |value| >= 1e9 (alespoň 10 cifer), po první nenulové číslici jen nuly.
+  /// Příklad: 1000000000 -> 1E+09, 10000000000 -> 1E+10. Nevztahuje se na 1230000000 apod.
+  /// Bezpečnost double: toStringAsFixed(0) není důkaz přesnosti – provádí se round-trip check
+  /// double.parse(absStr) == value; pokud nelze jednoznačně určit, vrací null.
+  String? _tryAutoExponential(double value) {
+    if (value.isNaN || value.isInfinite) return null;
+    if (_displayFormat != DisplayFormat.standard) return null;
+    if (value % 1 != 0) return null;
+    final absVal = value.abs();
+    if (absVal < 1e9) return null;
+    // Kandidát jako celé číslo bez vědecké notace
+    final absStr = absVal.toStringAsFixed(0);
+    if (absStr.contains('.') || absStr.contains('e') || absStr.contains('E')) {
+      return null;
+    }
+    if (absStr.length < 10) return null;
+    // Round-trip přesnost: pokud parse nevrátí původní double, je reprezentace nejednoznačná
+    final parsed = double.tryParse(absStr);
+    if (parsed == null || parsed != absVal) return null;
+    if (!RegExp(r'^[1-9]0+$').hasMatch(absStr)) return null;
+    final exponent = absStr.length - 1;
+    final mantissaDigit = absStr[0];
+    final sign = value < 0 ? '-' : '';
+    final expStr = exponent.toString().padLeft(2, '0');
+    return '$sign${mantissaDigit}E+$expStr';
+  }
+
+  /// Rozklad na mantisu + exponent pro centrální speech (strukturovaná data, ne parsování stringu).
+  ({String mantissa, int exponent, bool negative})? _decomposeAutoExp(double value) {
+    final expStr = _tryAutoExponential(value);
+    if (expStr == null) return null;
+    // expStr je tvar "[-]dE+NN"
+    final m = RegExp(r'^(-?)(\d)E\+(\d+)$').firstMatch(expStr);
+    if (m == null) return null;
+    final neg = m.group(1) == '-';
+    final mant = m.group(2)!;
+    final exp = int.parse(m.group(3)!);
+    return (mantissa: mant, exponent: exp, negative: neg);
+  }
+
   String _formatNumber(double value) {
     if (value.isNaN || value.isInfinite) {
       return value.toString();
@@ -3929,6 +4075,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             ((math.log(value.abs()) / math.ln10).floor() / 3).floor() * 3;
         return "${(value / math.pow(10, engExp)).toStringAsFixed(_precision)}E${engExp >= 0 ? '+' : ''}${engExp.toString().padLeft(2, '0')}";
       default:
+        final auto = _tryAutoExponential(value);
+        if (auto != null) return auto;
         return value.toString().contains('.')
             ? value
                   .toStringAsFixed(10)
@@ -3940,7 +4088,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   String _formatNumberSmart(double value) {
     if (_displayFormat == DisplayFormat.standard && _usePeriodicNotation) {
-      return _tryFormatRepeating(value) ?? _formatNumber(value);
+      final rep = _tryFormatRepeating(value);
+      if (rep != null) return rep;
+      final auto = _tryAutoExponential(value);
+      if (auto != null) return auto;
+    } else if (_displayFormat == DisplayFormat.standard) {
+      final auto = _tryAutoExponential(value);
+      if (auto != null) return auto;
     }
     return _formatNumber(value);
   }
@@ -4151,8 +4305,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (res.contains('°')) {
       return _buildDmsDisplay(res, fitScale: fitScale);
     }
-    if ((_displayFormat != DisplayFormat.standard) &&
-        res.toLowerCase() != 'error') {
+    // Auto-exponenciální prezentace ve standard režimu (obsahuje 'E') používá stejný vědecký displej
+    final isAutoExp = res.contains('E') && RegExp(r'^-?\dE[+-]\d+$').hasMatch(res);
+    if (((_displayFormat != DisplayFormat.standard) && res.toLowerCase() != 'error') ||
+        isAutoExp) {
       return _buildScientificTripleDisplay(res, fitScale: fitScale);
     }
     return _buildStandardDisplay(res, fitScale: fitScale);
@@ -7348,19 +7504,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         break;
     }
 
-    // Varianta B: na malém displeji s velkým fontem přepnout na scrollovatelný Wrap (jako statistický režim v dialozích)
-    // Práh používá efektivní škálu písma (uživatel × systém × large-boost),
-    // aby se Wrap zapnul i při velkém systémovém písmu, ne jen při velkém _keyboardFontScale.
-    final shortest = MediaQuery.of(context).size.shortestSide;
-    final isSmall = shortest < 360;
-    final sysScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.6);
-    final boostScale = (1.0 + (_responsiveScale(context) - 1.0) * 0.5).clamp(
-      1.0,
-      1.35,
-    );
-    final needScroll =
-        isSmall && _keyboardFontScale * sysScale * boostScale > 1.6;
-
+    // Konzistentní velikost tlačítek napříč režimy:
+    // - 4 sloupce, fixní výška (54*scale) místo Expanded řádků (které dělily výšku podle počtu řádků)
+    // - při nedostatku výšky vertikální scroll místo zmenšování textu
+    // - zachovává _keyboardFontScale, TextScaler, _responsiveScale, Semantics a focus order
     Widget buttonFor(String b) {
       Color? color;
       if (['/', '*', '-', '+'].contains(b)) {
@@ -7382,7 +7529,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         b,
         color: color,
         semanticLabel: _getElectricianButtonSemanticLabel(b),
-        expanded: !needScroll,
+        expanded: false,
         onPressed: () async {
           if (b == 'M+' && _currentMode == CalculatorMode.statistics) {
             await _addSingleValueToStats();
@@ -7398,22 +7545,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     }
 
-    if (needScroll) {
-      // Scrollovatelný Wrap – velikost tlačítek jako ve Statistickém režimu (Wrap + LayoutBuilder v dialozích: 50*scale)
-      return LayoutBuilder(
-        builder: (ctx, constraints) {
-          final maxW = constraints.maxWidth.isFinite
-              ? constraints.maxWidth
-              : MediaQuery.of(ctx).size.width;
-          final scale = _responsiveScale(ctx);
-          // šířka 4 sloupce, výška jako v dialogu statistiky: 50*scale, min 48dp pro hmatatelnost
-          final btnW = (maxW - 6) / 4;
-          final btnH = (54 * scale).clamp(48.0 * scale, 80.0 * scale);
-          return Scrollbar(
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(2),
+    // Jednotná cesta pro všechny režimy: fixní velikost + scroll při nedostatku místa.
+    // Zachovává přístupnost: FocusTraversalGroup + ReadingOrderTraversalPolicy
+    // zajistí pořadí zleva doprava, shora dolů i pro Wrap.
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final maxW = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.of(ctx).size.width;
+        final scale = _responsiveScale(ctx);
+        // šířka 4 sloupce, výška konzistentní pro všechny režimy (min 48dp pro hmatatelnost)
+        final btnW = (maxW - 6) / 4;
+        final btnH = (54 * scale).clamp(48.0 * scale, 80.0 * scale);
+        return Scrollbar(
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: FocusTraversalGroup(
+                policy: ReadingOrderTraversalPolicy(),
                 child: Wrap(
                   spacing: 2,
                   runSpacing: 2,
@@ -7427,31 +7577,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
               ),
             ),
-          );
-        },
-      );
-    }
-
-    List<List<String>> rows = [];
-    for (var i = 0; i < btns.length; i += 4) {
-      rows.add(btns.sublist(i, i + 4 > btns.length ? btns.length : i + 4));
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: FocusTraversalGroup(
-        child: Column(
-          children: [
-            ...rows.map((row) {
-              return Expanded(
-                child: FocusTraversalGroup(
-                  child: Row(children: row.map((b) => buttonFor(b)).toList()),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -10185,6 +10313,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @visibleForTesting
   Future<void> handleButtonPressedForTest(String label) =>
       _handleButtonPressed(label);
+
+  @visibleForTesting
+  double evaluateExpressionForTest(String expr) => _evaluateExpression(expr);
+
+  @visibleForTesting
+  String formatNumberForTest(double v) => _formatNumber(v);
+
+  @visibleForTesting
+  String formatNumberSmartForTest(double v) => _formatNumberSmart(v);
+
+  @visibleForTesting
+  String? tryAutoExponentialForTest(double v) => _tryAutoExponential(v);
+
+  @visibleForTesting
+  String spokenForDisplayForTest(String t) => _spokenForDisplay(t);
+
+  @visibleForTesting
+  String formatForSpeechForTest(String t) => _formatForSpeech(t);
+
+  @visibleForTesting
+  String formatSpokenNumberForTest(double v) => _formatSpokenNumber(v);
+
+  @visibleForTesting
+  void setMemoryForTest(String key, double value) {
+    setState(() => _memory[key] = value);
+  }
+
+  @visibleForTesting
+  void setDisplayFormatForTest(DisplayFormat f) {
+    setState(() => _displayFormat = f);
+  }
+
+  @visibleForTesting
+  void setPrecisionForTest(int p) {
+    setState(() => _precision = p);
+  }
 
   @visibleForTesting
   BuildContext get contextForTest => context;
