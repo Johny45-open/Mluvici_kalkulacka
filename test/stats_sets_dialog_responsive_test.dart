@@ -57,8 +57,7 @@ void main() {
         name: 'Dlouhy nazev sady pro uzky displej',
         fieldNames: const ['Hodnota', 'Poznamka'],
         records: [
-          for (var i = 0; i < 5; i++)
-            StatisticsRecord(values: [i.toDouble()]),
+          for (var i = 0; i < 5; i++) StatisticsRecord(values: [i.toDouble()]),
         ],
       ),
     );
@@ -67,8 +66,7 @@ void main() {
         name: 'Druha sada',
         fieldNames: const ['X'],
         records: [
-          for (var i = 0; i < 3; i++)
-            StatisticsRecord(values: [i.toDouble()]),
+          for (var i = 0; i < 3; i++) StatisticsRecord(values: [i.toDouble()]),
         ],
       ),
     );
@@ -111,8 +109,7 @@ void main() {
     await tester.pumpAndSettle();
     final bool withKeyboard = keyboardBottom > 0;
     if (withKeyboard) {
-      tester.view.viewInsets =
-          FakeViewPadding(bottom: keyboardBottom);
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboardBottom);
       await tester.pump();
       // Tělo za modální bariérou může za extrémních podmínek
       // (malý telefon + vysoká klávesnice) ohlásit overflow;
@@ -141,13 +138,21 @@ void main() {
     expect(find.byIcon(Icons.more_vert), findsWidgets);
     // Dialog nesmí přetéct mimo obrazovku.
     final dialogRect = tester.getRect(find.byType(AlertDialog));
-    expect(dialogRect.left, greaterThanOrEqualTo(-1),
-        reason: 'Dialog přetéká vlevo ($label)');
-    expect(dialogRect.top, greaterThanOrEqualTo(-1),
-        reason: 'Dialog přetéká nahoře ($label)');
-    expect(dialogRect.right,
-        lessThanOrEqualTo(size.width + 1),
-        reason: 'Dialog přetéká vpravo ($label)');
+    expect(
+      dialogRect.left,
+      greaterThanOrEqualTo(-1),
+      reason: 'Dialog přetéká vlevo ($label)',
+    );
+    expect(
+      dialogRect.top,
+      greaterThanOrEqualTo(-1),
+      reason: 'Dialog přetéká nahoře ($label)',
+    );
+    expect(
+      dialogRect.right,
+      lessThanOrEqualTo(size.width + 1),
+      reason: 'Dialog přetéká vpravo ($label)',
+    );
     // Sémantika: popis sady a akce úpravy musí zůstat samostatně dostupné.
     expect(
       find.byWidgetPredicate(
@@ -161,8 +166,11 @@ void main() {
     if (withKeyboard) {
       // Vyhledávací pole musí zůstat viditelné nad klávesnicí.
       final fieldRect = tester.getRect(find.byType(TextField).first);
-      expect(fieldRect.top, greaterThanOrEqualTo(-1),
-          reason: 'TextField nesmí zmizet nad horní okraj ($label)');
+      expect(
+        fieldRect.top,
+        greaterThanOrEqualTo(-1),
+        reason: 'TextField nesmí zmizet nad horní okraj ($label)',
+      );
       expect(
         fieldRect.bottom,
         lessThanOrEqualTo(size.height - keyboardBottom + 1),

@@ -54,7 +54,10 @@ class _DevModeDialogState extends State<_DevModeDialog> {
                 children: [
                   Text(
                     'Verze: ${parent._currentAppVersion}',
-                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
                   ),
                   Text(
                     'Režim: ${parent._getModeName(parent._currentMode)}',
@@ -94,8 +97,14 @@ class _DevModeDialogState extends State<_DevModeDialog> {
                   parent._saveSettings();
                   parent.speak(
                     v
-                        ? parent._s('Autodiagnostika zapnuta', 'Autodiagnostics on')
-                        : parent._s('Autodiagnostika vypnuta', 'Autodiagnostics off'),
+                        ? parent._s(
+                            'Autodiagnostika zapnuta',
+                            'Autodiagnostics on',
+                          )
+                        : parent._s(
+                            'Autodiagnostika vypnuta',
+                            'Autodiagnostics off',
+                          ),
                   );
                   setState(() {});
                 },
@@ -115,7 +124,10 @@ class _DevModeDialogState extends State<_DevModeDialog> {
                     'Délka zobrazení jednoho znaku',
                     'Single character display duration',
                   ),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -225,7 +237,9 @@ class _DevModeDialogState extends State<_DevModeDialog> {
               ),
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.storage),
-                label: Text(parent._s('Zobrazit uložená data', 'Show stored data')),
+                label: Text(
+                  parent._s('Zobrazit uložená data', 'Show stored data'),
+                ),
                 onPressed: () {
                   Navigator.pop(context);
                   Future.delayed(const Duration(milliseconds: 200), () {
@@ -257,11 +271,12 @@ class _DevModeDialogState extends State<_DevModeDialog> {
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.lock_open, color: Colors.red),
                 label: Text(
-                  parent._s('Deaktivovat vývojářský režim', 'Deactivate developer mode'),
+                  parent._s(
+                    'Deaktivovat vývojářský režim',
+                    'Deactivate developer mode',
+                  ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                ),
+                style: ElevatedButton.styleFrom(foregroundColor: Colors.red),
                 onPressed: () {
                   Navigator.pop(context);
                   Future.delayed(const Duration(milliseconds: 200), () {
@@ -287,7 +302,9 @@ class _DevModeDialogState extends State<_DevModeDialog> {
                 ElevatedButton(
                   onPressed: () {
                     parent._saveSettings();
-                    parent.speak(parent._s('Nastavení uloženo', 'Settings saved'));
+                    parent.speak(
+                      parent._s('Nastavení uloženo', 'Settings saved'),
+                    );
                     if (parent.mounted) {
                       parent._showAccessibleSnackBar(
                         parent._s('Nastavení uloženo', 'Settings saved'),
@@ -308,9 +325,13 @@ class _DevModeDialogState extends State<_DevModeDialog> {
                         scaffoldContext: context,
                       );
                     }
-                    parent.speak(parent._s('Onboarding resetován', 'Onboarding reset'));
+                    parent.speak(
+                      parent._s('Onboarding resetován', 'Onboarding reset'),
+                    );
                   },
-                  child: Text(parent._s('Reset onboarding', 'Reset onboarding')),
+                  child: Text(
+                    parent._s('Reset onboarding', 'Reset onboarding'),
+                  ),
                 ),
               ],
             ),
@@ -389,10 +410,7 @@ class _DisplayDiagnosticsDialogState extends State<_DisplayDiagnosticsDialog> {
       } else {
         _timer?.cancel();
         parent.speak(
-          parent._s(
-            'Autodiagnostika dokončena',
-            'Autodiagnostics finished',
-          ),
+          parent._s('Autodiagnostika dokončena', 'Autodiagnostics finished'),
           force: true,
         );
         Future.delayed(const Duration(milliseconds: 800), () {
@@ -601,10 +619,14 @@ class _VoiceTestDialogState extends State<_VoiceTestDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Engine: ${parent._ttsEngine ?? parent._s('Výchozí', 'Default')}',
-                      style: const TextStyle(fontSize: 12)),
-                  Text('Hlas: ${parent._ttsVoiceName ?? parent._s('Výchozí', 'Default')}',
-                      style: const TextStyle(fontSize: 12)),
+                  Text(
+                    'Engine: ${parent._ttsEngine ?? parent._s('Výchozí', 'Default')}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    'Hlas: ${parent._ttsVoiceName ?? parent._s('Výchozí', 'Default')}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                   Text(
                     'Rychlost: ${(parent._speechRate * 100).toInt()} %',
                     style: const TextStyle(fontSize: 12),
@@ -674,7 +696,10 @@ class _VoiceTestDialogState extends State<_VoiceTestDialog> {
                 icon: const Icon(Icons.cut),
                 label: Text(parent._s('Test přerušení', 'Interruption test')),
                 onPressed: () async {
-                  parent.speak('První věta, která by měla být přerušena druhou větou.', force: true);
+                  parent.speak(
+                    'První věta, která by měla být přerušena druhou větou.',
+                    force: true,
+                  );
                   await Future.delayed(const Duration(milliseconds: 400));
                   parent.speak('Druhá věta přerušila první.', force: true);
                 },
@@ -708,26 +733,74 @@ class _PrefsDumpDialogState extends State<_PrefsDumpDialog> {
 
   final Map<String, Map<String, String>> _labels = {
     "isDegreeMode": {"cs": "Režim úhlů (DEG/RAD)", "en": "Angle mode"},
-    "accessibility_profiles_v2": {"cs": "Profily přístupnosti (v2)", "en": "Accessibility profiles (v2)"},
+    "accessibility_profiles_v2": {
+      "cs": "Profily přístupnosti (v2)",
+      "en": "Accessibility profiles (v2)",
+    },
     "activeProfileId": {"cs": "Aktivní profil", "en": "Active profile"},
-    "ttsEnabled": {"cs": "Hlasový výstup (per-profil)", "en": "Voice output (per-profile)"},
-    "speechRate": {"cs": "Rychlost hlasu (per-profil)", "en": "Speech rate (per-profile)"},
-    "speechVolume": {"cs": "Hlasitost (per-profil)", "en": "Volume (per-profile)"},
-    "dotMatrixZoom": {"cs": "Zoom horního displeje (per-profil)", "en": "Upper display zoom (per-profile)"},
-    "resultZoom": {"cs": "Zoom dolního displeje (per-profil)", "en": "Lower display zoom (per-profile)"},
-    "overlineThickness": {"cs": "Tloušťka čárky periody (per-profil)", "en": "Repeating bar thickness (per-profile)"},
-    "overlineHeight": {"cs": "Výška čárky periody (per-profil)", "en": "Repeating bar height (per-profile)"},
-    "alignInputLeft": {"cs": "Zarovnání vstupu vlevo (per-profil)", "en": "Input alignment left (per-profile)"},
-    "dialogFontScale": {"cs": "Velikost písma dialogů (per-profil)", "en": "Dialog font scale (per-profile)"},
-    "usePeriodicNotation": {"cs": "Periodický zápis (per-profil)", "en": "Periodic notation (per-profile)"},
-    "useSixteenSegment": {"cs": "16-segmentový displej (per-profil)", "en": "16-segment display (per-profile)"},
-    "announceExpression": {"cs": "Oznamování příkladu (per-profil)", "en": "Announce expression (per-profile)"},
-    "accessibilityType": {"cs": "Typ usnadnění (legacy)", "en": "Accessibility type (legacy)"},
+    "ttsEnabled": {
+      "cs": "Hlasový výstup (per-profil)",
+      "en": "Voice output (per-profile)",
+    },
+    "speechRate": {
+      "cs": "Rychlost hlasu (per-profil)",
+      "en": "Speech rate (per-profile)",
+    },
+    "speechVolume": {
+      "cs": "Hlasitost (per-profil)",
+      "en": "Volume (per-profile)",
+    },
+    "dotMatrixZoom": {
+      "cs": "Zoom horního displeje (per-profil)",
+      "en": "Upper display zoom (per-profile)",
+    },
+    "resultZoom": {
+      "cs": "Zoom dolního displeje (per-profil)",
+      "en": "Lower display zoom (per-profile)",
+    },
+    "overlineThickness": {
+      "cs": "Tloušťka čárky periody (per-profil)",
+      "en": "Repeating bar thickness (per-profile)",
+    },
+    "overlineHeight": {
+      "cs": "Výška čárky periody (per-profil)",
+      "en": "Repeating bar height (per-profile)",
+    },
+    "alignInputLeft": {
+      "cs": "Zarovnání vstupu vlevo (per-profil)",
+      "en": "Input alignment left (per-profile)",
+    },
+    "dialogFontScale": {
+      "cs": "Velikost písma dialogů (per-profil)",
+      "en": "Dialog font scale (per-profile)",
+    },
+    "usePeriodicNotation": {
+      "cs": "Periodický zápis (per-profil)",
+      "en": "Periodic notation (per-profile)",
+    },
+    "useSixteenSegment": {
+      "cs": "16-segmentový displej (per-profil)",
+      "en": "16-segment display (per-profile)",
+    },
+    "announceExpression": {
+      "cs": "Oznamování příkladu (per-profil)",
+      "en": "Announce expression (per-profile)",
+    },
+    "accessibilityType": {
+      "cs": "Typ usnadnění (legacy)",
+      "en": "Accessibility type (legacy)",
+    },
     "defaultMode": {"cs": "Výchozí režim", "en": "Default mode"},
     "screenReaderModeState": {"cs": "Režim čtečky", "en": "Screen reader mode"},
     "devModeEnabled": {"cs": "Vývojářský režim", "en": "Developer mode"},
-    "devAutoDiagnosticEnabled": {"cs": "Autodiagnostika při startu", "en": "Autodiagnostics on startup"},
-    "devDiagnosticDurationMs": {"cs": "Délka diagnostiky (ms)", "en": "Diagnostics duration (ms)"},
+    "devAutoDiagnosticEnabled": {
+      "cs": "Autodiagnostika při startu",
+      "en": "Autodiagnostics on startup",
+    },
+    "devDiagnosticDurationMs": {
+      "cs": "Délka diagnostiky (ms)",
+      "en": "Diagnostics duration (ms)",
+    },
   };
 
   @override
@@ -749,21 +822,27 @@ class _PrefsDumpDialogState extends State<_PrefsDumpDialog> {
     if (mounted) setState(() => _data = map);
   }
 
-  String _labelFor(String k) => _labels[k]?[parent._isEnglish() ? "en" : "cs"] ?? k;
+  String _labelFor(String k) =>
+      _labels[k]?[parent._isEnglish() ? "en" : "cs"] ?? k;
 
   String _spokenValue(String k, Object? v) {
     if (v == null) return parent._s('prázdné', 'empty');
-    if (v is bool) return v ? parent._s('Zapnuto', 'On') : parent._s('Vypnuto', 'Off');
+    if (v is bool)
+      return v ? parent._s('Zapnuto', 'On') : parent._s('Vypnuto', 'Off');
     if (v is List) return parent._s('${v.length} položek', '${v.length} items');
     return v.toString();
   }
 
   String _buildSummary() {
     if (_data == null) return '';
-    final buffer = StringBuffer(parent._s('Uložená data. Celkem ', 'Stored data. Total '));
+    final buffer = StringBuffer(
+      parent._s('Uložená data. Celkem ', 'Stored data. Total '),
+    );
     buffer.write('${_data!.length} položek. ');
     for (final entry in _data!.entries) {
-      buffer.write('${_labelFor(entry.key)}: ${_spokenValue(entry.key, entry.value)}. ');
+      buffer.write(
+        '${_labelFor(entry.key)}: ${_spokenValue(entry.key, entry.value)}. ',
+      );
     }
     return buffer.toString();
   }
@@ -790,13 +869,16 @@ class _PrefsDumpDialogState extends State<_PrefsDumpDialog> {
           children: [
             Expanded(child: Text(parent._s('Uložená data', 'Stored data'))),
             IconButton(
-              icon: Icon(_currentSize == DialogSize.fullscreen
-                  ? Icons.fullscreen_exit
-                  : Icons.fullscreen),
-              onPressed: () => setState(() => _currentSize =
-                  _currentSize == DialogSize.fullscreen
-                      ? DialogSize.compact
-                      : DialogSize.fullscreen),
+              icon: Icon(
+                _currentSize == DialogSize.fullscreen
+                    ? Icons.fullscreen_exit
+                    : Icons.fullscreen,
+              ),
+              onPressed: () => setState(
+                () => _currentSize = _currentSize == DialogSize.fullscreen
+                    ? DialogSize.compact
+                    : DialogSize.fullscreen,
+              ),
             ),
           ],
         ),
@@ -807,7 +889,9 @@ class _PrefsDumpDialogState extends State<_PrefsDumpDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SwitchListTile(
-              title: Text(parent._s('Zobrazit technické klíče', 'Show raw keys')),
+              title: Text(
+                parent._s('Zobrazit technické klíče', 'Show raw keys'),
+              ),
               value: _showRaw,
               onChanged: (v) => setState(() => _showRaw = v),
             ),
@@ -833,12 +917,17 @@ class _PrefsDumpDialogState extends State<_PrefsDumpDialog> {
                           children: [
                             Text(
                               '${_labelFor(k)}: ${v ?? 'null'}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             if (_showRaw)
                               Text(
                                 '($k)',
-                                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey,
+                                ),
                               ),
                           ],
                         ),
@@ -904,9 +993,13 @@ class _DevPinDialogState extends State<_DevPinDialog> {
   }
 
   String _pinPatternError(String pin) {
-    if (pin.length != 4) return parent._s('PIN musí mít 4 číslice', 'PIN must be 4 digits');
+    if (pin.length != 4)
+      return parent._s('PIN musí mít 4 číslice', 'PIN must be 4 digits');
     if (!RegExp(r'^\d{4}$').hasMatch(pin)) {
-      return parent._s('PIN musí obsahovat pouze číslice', 'PIN must contain digits only');
+      return parent._s(
+        'PIN musí obsahovat pouze číslice',
+        'PIN must contain digits only',
+      );
     }
     return '';
   }
@@ -951,8 +1044,11 @@ class _DevPinDialogState extends State<_DevPinDialog> {
                     labelText: parent._s('Starý PIN', 'Old PIN'),
                     counterText: '',
                     suffixIcon: IconButton(
-                      icon: Icon(_obscureOld ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _obscureOld = !_obscureOld),
+                      icon: Icon(
+                        _obscureOld ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureOld = !_obscureOld),
                     ),
                   ),
                 ),
@@ -979,7 +1075,9 @@ class _DevPinDialogState extends State<_DevPinDialog> {
                       : parent._s('Nový PIN (4 číslice)', 'New PIN (4 digits)'),
                   counterText: '',
                   suffixIcon: IconButton(
-                    icon: Icon(_obscure1 ? Icons.visibility : Icons.visibility_off),
+                    icon: Icon(
+                      _obscure1 ? Icons.visibility : Icons.visibility_off,
+                    ),
                     onPressed: () => setState(() => _obscure1 = !_obscure1),
                   ),
                 ),
@@ -1002,7 +1100,9 @@ class _DevPinDialogState extends State<_DevPinDialog> {
                     labelText: parent._s('Potvrďte PIN', 'Confirm PIN'),
                     counterText: '',
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure2 ? Icons.visibility : Icons.visibility_off),
+                      icon: Icon(
+                        _obscure2 ? Icons.visibility : Icons.visibility_off,
+                      ),
                       onPressed: () => setState(() => _obscure2 = !_obscure2),
                     ),
                   ),
@@ -1064,7 +1164,10 @@ class _DevPinDialogState extends State<_DevPinDialog> {
               }
               if (pin1 != pin2) {
                 setState(
-                  () => _error = parent._s('PINy se neshodují', 'PINs do not match'),
+                  () => _error = parent._s(
+                    'PINy se neshodují',
+                    'PINs do not match',
+                  ),
                 );
                 return;
               }
@@ -1074,7 +1177,12 @@ class _DevPinDialogState extends State<_DevPinDialog> {
               parent.setState(() => parent._devModeEnabled = true);
               parent._saveSettings();
               Navigator.pop(context);
-              parent.speak(parent._s('PIN nastaven. Vývojářský režim aktivován', 'PIN set. Developer mode activated'));
+              parent.speak(
+                parent._s(
+                  'PIN nastaven. Vývojářský režim aktivován',
+                  'PIN set. Developer mode activated',
+                ),
+              );
               if (parent.mounted) {
                 parent._showAccessibleSnackBar(
                   parent._s('PIN nastaven', 'PIN set'),
@@ -1087,7 +1195,9 @@ class _DevPinDialogState extends State<_DevPinDialog> {
               if (pin != parent._devPinCode) {
                 parent._devPinFails++;
                 if (parent._devPinFails >= 5) {
-                  parent._devPinLockUntil = DateTime.now().add(const Duration(seconds: 30));
+                  parent._devPinLockUntil = DateTime.now().add(
+                    const Duration(seconds: 30),
+                  );
                   parent._devPinFails = 0;
                 }
                 setState(
@@ -1104,7 +1214,12 @@ class _DevPinDialogState extends State<_DevPinDialog> {
               final pin1 = _ctrl1.text.trim();
               final pin2 = _ctrl2.text.trim();
               if (oldPin != parent._devPinCode) {
-                setState(() => _error = parent._s('Nesprávný starý PIN', 'Incorrect old PIN'));
+                setState(
+                  () => _error = parent._s(
+                    'Nesprávný starý PIN',
+                    'Incorrect old PIN',
+                  ),
+                );
                 return;
               }
               final err1 = _pinPatternError(pin1);
@@ -1113,7 +1228,12 @@ class _DevPinDialogState extends State<_DevPinDialog> {
                 return;
               }
               if (pin1 != pin2) {
-                setState(() => _error = parent._s('PINy se neshodují', 'PINs do not match'));
+                setState(
+                  () => _error = parent._s(
+                    'PINy se neshodují',
+                    'PINs do not match',
+                  ),
+                );
                 return;
               }
               parent.setState(() => parent._devPinCode = pin1);

@@ -134,7 +134,9 @@ void main() {
         await tester.tap(targetMoreVert, warnIfMissed: false);
         await tester.pumpAndSettle();
         final editItem = find.text('Edit fields');
-        final editFinder = editItem.evaluate().isNotEmpty ? editItem : find.textContaining('Upravit pole');
+        final editFinder = editItem.evaluate().isNotEmpty
+            ? editItem
+            : find.textContaining('Upravit pole');
         if (editFinder.evaluate().isNotEmpty) {
           await tester.tap(editFinder.first, warnIfMissed: false);
           await tester.pumpAndSettle();

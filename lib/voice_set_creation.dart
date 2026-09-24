@@ -71,11 +71,11 @@ class _VoiceSetCreationSession {
     parent.speak(
       parent._s(
         'Hlasové rozpoznávání není dostupné nebo nebylo povoleno oprávnění k '
-        'mikrofonu. Zkontrolujte oprávnění aplikace v nastavení systému, nebo '
-        'sadu vytvořte ručně tlačítkem SETS.',
+            'mikrofonu. Zkontrolujte oprávnění aplikace v nastavení systému, nebo '
+            'sadu vytvořte ručně tlačítkem SETS.',
         'Speech recognition is not available or the microphone permission was '
-        'not granted. Check the app permissions in system settings, or create '
-        'the set manually using the SETS button.',
+            'not granted. Check the app permissions in system settings, or create '
+            'the set manually using the SETS button.',
       ),
       force: true,
     );
@@ -309,8 +309,9 @@ class _VoiceSetCreationSession {
       parent._statsSets.length + 1,
     );
     final name = _name.trim().isEmpty ? defaultName : _name.trim();
-    final fieldNames =
-        _fields.isEmpty ? <String>[parent._s('Hodnota', 'Value')] : _fields;
+    final fieldNames = _fields.isEmpty
+        ? <String>[parent._s('Hodnota', 'Value')]
+        : _fields;
 
     // ignore: invalid_use_of_protected_member
     parent.setState(() {
@@ -332,9 +333,9 @@ class _VoiceSetCreationSession {
     parent.speak(
       parent._s(
         'Sada $name byla vytvořena. Pole: $fieldsSpoken. Hodnoty můžete '
-        'přidávat tlačítkem M plus.',
+            'přidávat tlačítkem M plus.',
         'Set $name was created. Fields: $fieldsSpoken. You can add values '
-        'using the M+ button.',
+            'using the M+ button.',
       ),
       force: true,
     );
@@ -365,15 +366,16 @@ class _VoiceSetCreationSession {
     parent._onVoiceSessionEnded();
     parent.speak(message, force: true);
   }
+
   Future<void> _retryOrAbort(Future<void> Function() retryAsk) async {
     _attempts++;
     if (_attempts >= _maxAttempts) {
       _abortWithMessage(
         parent._s(
           'Nerozuměl jsem vám. Hlasové vytváření ukončuji. Sadu můžete '
-          'vytvořit ručně tlačítkem SETS.',
+              'vytvořit ručně tlačítkem SETS.',
           "I could not understand you. Ending voice creation. You can create "
-          'the set manually using the SETS button.',
+              'the set manually using the SETS button.',
         ),
       );
       return;
@@ -480,11 +482,7 @@ class _VoiceSetCreationSession {
 
   bool _isNo(String text) {
     final t = _normalize(text);
-    return t == 'ne' ||
-        t == 'ne ne' ||
-        t == 'no' ||
-        t == 'nope' ||
-        t == 'nah';
+    return t == 'ne' || t == 'ne ne' || t == 'no' || t == 'nope' || t == 'nah';
   }
 
   bool _isCancel(String text) {

@@ -28,8 +28,8 @@ Set<int> computeThousandGapIndicesForDisplay(
   while (i < n) {
     final ch = display[i];
     // start of a number: digit or '-' followed by digit
-    bool isStart = _isDigit(ch) ||
-        (ch == '-' && i + 1 < n && _isDigit(display[i + 1]));
+    bool isStart =
+        _isDigit(ch) || (ch == '-' && i + 1 < n && _isDigit(display[i + 1]));
     if (!isStart) {
       i++;
       continue;
@@ -135,8 +135,10 @@ Set<int> computeThousandGapIndicesForItems(
     if (ch == '-') {
       int k = i + 1;
       while (k < n && items[k].char == '_') k++;
-      if (k < n && isDigitChar(items[k].char)) isStart = true;
-      else isStart = false;
+      if (k < n && isDigitChar(items[k].char))
+        isStart = true;
+      else
+        isStart = false;
     }
     if (!isStart) {
       i++;
@@ -200,8 +202,14 @@ Set<int> computeThousandGapIndicesForItems(
       while (k < n && items[k].char == '_') k++;
       if (k < n && (items[k].char == '+' || items[k].char == '-')) k++;
       while (k < n) {
-        if (items[k].char == '_') { k++; continue; }
-        if (isDigitChar(items[k].char)) k++; else break;
+        if (items[k].char == '_') {
+          k++;
+          continue;
+        }
+        if (isDigitChar(items[k].char))
+          k++;
+        else
+          break;
       }
       j = k;
     }
@@ -211,8 +219,14 @@ Set<int> computeThousandGapIndicesForItems(
       int k = j + 1;
       while (k < n) {
         final cj = items[k].char;
-        if (cj == '_') { k++; continue; }
-        if (isDigitChar(cj)) k++; else break;
+        if (cj == '_') {
+          k++;
+          continue;
+        }
+        if (isDigitChar(cj))
+          k++;
+        else
+          break;
       }
       if (k < n && items[k].char == ')') k++;
       j = k;

@@ -55,8 +55,12 @@ void main() {
   }
 
   group('Accessibility profiles v2', () {
-    testWidgets('A) fresh start offers Blind / Low vision choice', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
+    testWidgets('A) fresh start offers Blind / Low vision choice', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
       mockChannels();
       final state = await pumpApp(tester);
       var prefs = await SharedPreferences.getInstance();
@@ -71,7 +75,9 @@ void main() {
     });
 
     testWidgets('B) choosing Blind saves v2 and announces', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
       mockChannels();
       final state = await pumpApp(tester);
       state.showInitialAccessibilityDialogForTest();
@@ -86,59 +92,73 @@ void main() {
       expect(decoded.any((e) => (e as Map)['id'] == 'blind'), isTrue);
       expect(state.ttsEnabled, isTrue);
       expect(
-        find.byWidgetPredicate((w) => w is Text && (w.data ?? '').contains('Accessibility mode Blind has been set')),
+        find.byWidgetPredicate(
+          (w) =>
+              w is Text &&
+              (w.data ?? '').contains('Accessibility mode Blind has been set'),
+        ),
         findsWidgets,
       );
       await tester.pumpAndSettle();
     });
 
-    testWidgets('C) restart keeps Blind; D) change to Low vision via dialog; E) restart keeps Low vision', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
-      mockChannels();
-      dynamic state = await pumpApp(tester);
-      state.showInitialAccessibilityDialogForTest();
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('BLIND'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'C) restart keeps Blind; D) change to Low vision via dialog; E) restart keeps Low vision',
+      (tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'modeQuestionAsked': true,
+        });
+        mockChannels();
+        dynamic state = await pumpApp(tester);
+        state.showInitialAccessibilityDialogForTest();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('BLIND'));
+        await tester.pumpAndSettle();
 
-      // C restart
-      await tester.pumpWidget(const ScientificCalculatorApp());
-      await tester.pumpAndSettle();
-      var prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('activeProfileId'), 'blind');
-      state = tester.state(find.byType(CalculatorScreen)) as dynamic;
-      expect(state.displayAccessibilityTypeForTest, AccessibilityType.blind);
+        // C restart
+        await tester.pumpWidget(const ScientificCalculatorApp());
+        await tester.pumpAndSettle();
+        var prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('activeProfileId'), 'blind');
+        state = tester.state(find.byType(CalculatorScreen)) as dynamic;
+        expect(state.displayAccessibilityTypeForTest, AccessibilityType.blind);
 
-      // D: změna v dialogu – nový UI: přímé tlačítka profilů bez preview
-      tester.view.physicalSize = const Size(800, 1280);
-      await tester.pumpAndSettle();
-      state.showAccessibilityDialogForTest();
-      await tester.pumpAndSettle();
-      expect(find.text('Accessibility profile'), findsOneWidget);
-      // Najdi tlačítko Low vision uvnitř dialogu (English)
-      await tester.tap(find.text('Low vision'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Activate'));
-      await tester.pumpAndSettle();
-      // Nyní již bez Preview – rovnou se aplikuje
-      prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('activeProfileId'), 'lowvision');
-      // ověř per-profile hodnoty
-      expect(state.keyboardFontScaleForTest, 1.75);
+        // D: změna v dialogu – nový UI: přímé tlačítka profilů bez preview
+        tester.view.physicalSize = const Size(800, 1280);
+        await tester.pumpAndSettle();
+        state.showAccessibilityDialogForTest();
+        await tester.pumpAndSettle();
+        expect(find.text('Accessibility profile'), findsOneWidget);
+        // Najdi tlačítko Low vision uvnitř dialogu (English)
+        await tester.tap(find.text('Low vision'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Activate'));
+        await tester.pumpAndSettle();
+        // Nyní již bez Preview – rovnou se aplikuje
+        prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('activeProfileId'), 'lowvision');
+        // ověř per-profile hodnoty
+        expect(state.keyboardFontScaleForTest, 1.75);
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // E restart
-      await tester.pumpWidget(const ScientificCalculatorApp());
-      await tester.pumpAndSettle();
-      prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('activeProfileId'), 'lowvision');
-      state = tester.state(find.byType(CalculatorScreen)) as dynamic;
-      expect(state.displayAccessibilityTypeForTest, AccessibilityType.visuallyImpaired);
-    });
+        // E restart
+        await tester.pumpWidget(const ScientificCalculatorApp());
+        await tester.pumpAndSettle();
+        prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString('activeProfileId'), 'lowvision');
+        state = tester.state(find.byType(CalculatorScreen)) as dynamic;
+        expect(
+          state.displayAccessibilityTypeForTest,
+          AccessibilityType.visuallyImpaired,
+        );
+      },
+    );
 
     testWidgets('Per-profile independence A-G', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
       mockChannels();
       dynamic state = await pumpApp(tester);
       await tester.pumpAndSettle();
@@ -147,13 +167,15 @@ void main() {
       state.switchProfileForTest('blind');
       await tester.pumpAndSettle();
       // B) změň několik nastavení Blind
-      state.updateActiveSettingsForTest((s) => s.copyWith(
-            fontSizeMultiplier: 1.0,
-            dialogFontScale: 1.0,
-            thousandGroupGap: ThousandGroupGap.small,
-            announceExpression: true,
-            speechRate: 0.8,
-          ));
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(
+          fontSizeMultiplier: 1.0,
+          dialogFontScale: 1.0,
+          thousandGroupGap: ThousandGroupGap.small,
+          announceExpression: true,
+          speechRate: 0.8,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // C) přepni na Low vision
@@ -162,13 +184,15 @@ void main() {
       expect(state.keyboardFontScaleForTest, 1.75); // defaults
 
       // D) změň stejná jinak
-      state.updateActiveSettingsForTest((s) => s.copyWith(
-            fontSizeMultiplier: 2.0,
-            dialogFontScale: 2.5,
-            thousandGroupGap: ThousandGroupGap.large,
-            announceExpression: false,
-            speechRate: 0.3,
-          ));
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(
+          fontSizeMultiplier: 2.0,
+          dialogFontScale: 2.5,
+          thousandGroupGap: ThousandGroupGap.large,
+          announceExpression: false,
+          speechRate: 0.3,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // E) zpět na Blind
@@ -211,16 +235,22 @@ void main() {
     });
 
     testWidgets('persistence per-profile after restart', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
       mockChannels();
       dynamic state = await pumpApp(tester);
       state.switchProfileForTest('blind');
       await tester.pumpAndSettle();
-      state.updateActiveSettingsForTest((s) => s.copyWith(fontSizeMultiplier: 1.42, speechRate: 0.77));
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(fontSizeMultiplier: 1.42, speechRate: 0.77),
+      );
       await tester.pumpAndSettle();
       state.switchProfileForTest('lowvision');
       await tester.pumpAndSettle();
-      state.updateActiveSettingsForTest((s) => s.copyWith(fontSizeMultiplier: 1.99, speechRate: 0.33));
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(fontSizeMultiplier: 1.99, speechRate: 0.33),
+      );
       await tester.pumpAndSettle();
 
       await tester.pumpWidget(const ScientificCalculatorApp());
@@ -237,12 +267,16 @@ void main() {
     });
 
     testWidgets('reset active profile to defaults', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
       mockChannels();
       dynamic state = await pumpApp(tester);
       state.switchProfileForTest('blind');
       await tester.pumpAndSettle();
-      state.updateActiveSettingsForTest((s) => s.copyWith(fontSizeMultiplier: 2.2, dialogFontScale: 2.2));
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(fontSizeMultiplier: 2.2, dialogFontScale: 2.2),
+      );
       await tester.pumpAndSettle();
       expect(state.keyboardFontScaleForTest, 2.2);
       state.resetActiveProfileForTest();
@@ -252,7 +286,9 @@ void main() {
     });
 
     testWidgets('custom profile isolates from base', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
       mockChannels();
       dynamic state = await pumpApp(tester);
       state.switchProfileForTest('blind');
@@ -261,7 +297,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(state.activeProfileIdForTest, isNot('blind'));
       // změň custom
-      state.updateActiveSettingsForTest((s) => s.copyWith(fontSizeMultiplier: 2.5));
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(fontSizeMultiplier: 2.5),
+      );
       await tester.pumpAndSettle();
       expect(state.keyboardFontScaleForTest, 2.5);
       // zpět na blind – musí zůstat původní
@@ -269,14 +307,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(state.keyboardFontScaleForTest, 1.0);
       // custom stále 2.5
-      final customId = (state.profilesForTest as List).firstWhere((p) => p.name == 'Moje').id as String;
+      final customId =
+          (state.profilesForTest as List).firstWhere((p) => p.name == 'Moje').id
+              as String;
       state.switchProfileForTest(customId);
       await tester.pumpAndSettle();
       expect(state.keyboardFontScaleForTest, 2.5);
     });
 
     testWidgets('delete custom profile fallback to standard', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
       mockChannels();
       dynamic state = await pumpApp(tester);
       state.createProfileForTest('DeleteMe', 'standard');
@@ -289,8 +331,12 @@ void main() {
       expect(state.activeProfileIdForTest, 'standard');
     });
 
-    testWidgets('Semantics: no grouping, active profile selected', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
+    testWidgets('Semantics: no grouping, active profile selected', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
       mockChannels();
       // enlarge to avoid Row overflow with new profile UI
       tester.view.physicalSize = const Size(800, 1280);
@@ -301,12 +347,23 @@ void main() {
       final semantics = tester.getSemantics(find.text('Standard'));
       // Pokud je aktivní Standard, měl by mít selected
       // Kontrola že neexistuje Semantics s label 'Seskupení' (en: group)
-      expect(find.byWidgetPredicate((w) => w is Semantics && (w.properties.label ?? '').toLowerCase().contains('seskupení')), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Semantics &&
+              (w.properties.label ?? '').toLowerCase().contains('seskupení'),
+        ),
+        findsNothing,
+      );
       await tester.pump(const Duration(milliseconds: 200));
     });
 
-    testWidgets('Blind keeps font/zoom, Low vision sets them via apply', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{'modeQuestionAsked': true});
+    testWidgets('Blind keeps font/zoom, Low vision sets them via apply', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
       mockChannels();
       dynamic state = await pumpApp(tester);
       await tester.pumpAndSettle();

@@ -8,16 +8,36 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   void mockChannels() {
-    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(const MethodChannel('flutter_tts'), (c) async => null);
-    messenger.setMockMethodCallHandler(const MethodChannel('com.example.mluvici_kalkulacka/accessibility'), (c) async => false);
-    messenger.setMockMethodCallHandler(const MethodChannel('dev.fluttercommunity.plus/package_info'), (c) async => <String,Object>{'appName':'mluvici_kalkulacka','packageName':'com.example.mluvici_kalkulacka','version':'6.2.0','buildNumber':'1'});
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('flutter_tts'),
+      (c) async => null,
+    );
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
+      (c) async => false,
+    );
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('dev.fluttercommunity.plus/package_info'),
+      (c) async => <String, Object>{
+        'appName': 'mluvici_kalkulacka',
+        'packageName': 'com.example.mluvici_kalkulacka',
+        'version': '6.2.0',
+        'buildNumber': '1',
+      },
+    );
   }
 
-  Future<dynamic> pumpApp(WidgetTester tester, {Locale locale = const Locale('cs')}) async {
-    SharedPreferences.setMockInitialValues(<String,Object>{'modeQuestionAsked': true});
+  Future<dynamic> pumpApp(
+    WidgetTester tester, {
+    Locale locale = const Locale('cs'),
+  }) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'modeQuestionAsked': true,
+    });
     mockChannels();
-    tester.view.physicalSize = const Size(412,860);
+    tester.view.physicalSize = const Size(412, 860);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(ScientificCalculatorApp(locale: locale));
@@ -27,7 +47,9 @@ void main() {
   }
 
   group('EXP placeholder ochrana', () {
-    testWidgets('10E5, 10E+5, 10E-5, 2.5E3, 2.5E-3, (10)E5, (2.5)E3', (tester) async {
+    testWidgets('10E5, 10E+5, 10E-5, 2.5E3, 2.5E-3, (10)E5, (2.5)E3', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setMemoryForTest('E', 5.0);
       state.setMemoryForTest('A', 2.0);
@@ -37,7 +59,10 @@ void main() {
       expect(state.evaluateExpressionForTest('10E-5'), closeTo(0.0001, 1e-9));
       expect(state.evaluateExpressionForTest('2.5E3'), closeTo(2500, 0.001));
       expect(state.evaluateExpressionForTest('2.5E-3'), closeTo(0.0025, 1e-9));
-      expect(state.evaluateExpressionForTest('(10)E5'), closeTo(1000000, 0.001));
+      expect(
+        state.evaluateExpressionForTest('(10)E5'),
+        closeTo(1000000, 0.001),
+      );
       expect(state.evaluateExpressionForTest('(2.5)E3'), closeTo(2500, 0.001));
     });
 
@@ -125,33 +150,61 @@ void main() {
       final state = await pumpApp(tester);
       state.setDisplayFormatForTest(DisplayFormat.standard);
       await tester.pump();
-      expect(state.formatSpokenNumberForTest(1000000000.0), contains('devátou'));
-      expect(state.formatSpokenNumberForTest(10000000000.0), contains('desátou'));
+      expect(
+        state.formatSpokenNumberForTest(1000000000.0),
+        contains('devátou'),
+      );
+      expect(
+        state.formatSpokenNumberForTest(10000000000.0),
+        contains('desátou'),
+      );
       expect(state.formatSpokenNumberForTest(999999999.0), equals('999999999'));
     });
   });
 
   group('Klavesnice focus order', () {
-    testWidgets('Wrap poradi zleva doprava shora dolu s ReadingOrderTraversalPolicy', (tester) async {
-      SharedPreferences.setMockInitialValues(<String,Object>{'modeQuestionAsked': true});
-      mockChannels();
-      tester.view.physicalSize = const Size(412,860);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(const ScientificCalculatorApp());
-      await tester.pumpAndSettle();
-      final wrapGroups = tester.widgetList<FocusTraversalGroup>(find.byType(FocusTraversalGroup)).toList();
-      expect(wrapGroups, isNotEmpty);
-      final hasReadingOrder = wrapGroups.any((g) => g.policy is ReadingOrderTraversalPolicy);
-      expect(hasReadingOrder, isTrue, reason: 'klavesnice musi mit ReadingOrderTraversalPolicy pro Wrap');
-      final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox)).where((s) => s.width != null && s.height != null && s.width! > 50).toList();
-      final btnBoxes = sizedBoxes.where((s) => s.width! > 80 && s.width! < 150).toList();
-      if (btnBoxes.length >= 8) {
-        final h0 = btnBoxes.first.height!;
-        for (final b in btnBoxes) {
-          expect(b.height, closeTo(h0, 0.5), reason: 'vsechna tlacitka musi mit stejnou vysku');
+    testWidgets(
+      'Wrap poradi zleva doprava shora dolu s ReadingOrderTraversalPolicy',
+      (tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'modeQuestionAsked': true,
+        });
+        mockChannels();
+        tester.view.physicalSize = const Size(412, 860);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(const ScientificCalculatorApp());
+        await tester.pumpAndSettle();
+        final wrapGroups = tester
+            .widgetList<FocusTraversalGroup>(find.byType(FocusTraversalGroup))
+            .toList();
+        expect(wrapGroups, isNotEmpty);
+        final hasReadingOrder = wrapGroups.any(
+          (g) => g.policy is ReadingOrderTraversalPolicy,
+        );
+        expect(
+          hasReadingOrder,
+          isTrue,
+          reason: 'klavesnice musi mit ReadingOrderTraversalPolicy pro Wrap',
+        );
+        final sizedBoxes = tester
+            .widgetList<SizedBox>(find.byType(SizedBox))
+            .where((s) => s.width != null && s.height != null && s.width! > 50)
+            .toList();
+        final btnBoxes = sizedBoxes
+            .where((s) => s.width! > 80 && s.width! < 150)
+            .toList();
+        if (btnBoxes.length >= 8) {
+          final h0 = btnBoxes.first.height!;
+          for (final b in btnBoxes) {
+            expect(
+              b.height,
+              closeTo(h0, 0.5),
+              reason: 'vsechna tlacitka musi mit stejnou vysku',
+            );
+          }
         }
-      }
-    });
+      },
+    );
   });
 }

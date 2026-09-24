@@ -203,7 +203,8 @@ class AccessibilitySettings {
       useSixteenSegment: useSixteenSegment ?? this.useSixteenSegment,
       usePeriodicNotation: usePeriodicNotation ?? this.usePeriodicNotation,
       announceExpression: announceExpression ?? this.announceExpression,
-      readStatsMemoryValues: readStatsMemoryValues ?? this.readStatsMemoryValues,
+      readStatsMemoryValues:
+          readStatsMemoryValues ?? this.readStatsMemoryValues,
       autoReadStatsSummary: autoReadStatsSummary ?? this.autoReadStatsSummary,
       showStatsNavigationHint:
           showStatsNavigationHint ?? this.showStatsNavigationHint,
@@ -217,10 +218,10 @@ class AccessibilitySettings {
       ttsVoice: clearTtsVoice
           ? null
           : (ttsVoice != null
-              ? Map<String, String>.from(ttsVoice)
-              : (this.ttsVoice != null
-                  ? Map<String, String>.from(this.ttsVoice!)
-                  : null)),
+                ? Map<String, String>.from(ttsVoice)
+                : (this.ttsVoice != null
+                      ? Map<String, String>.from(this.ttsVoice!)
+                      : null)),
       ttsVoiceName: clearTtsVoiceName
           ? null
           : (ttsVoiceName ?? this.ttsVoiceName),
@@ -231,31 +232,31 @@ class AccessibilitySettings {
   }
 
   Map<String, dynamic> toJson() => {
-        'accessibilityType': accessibilityType.index,
-        'screenReaderMode': screenReaderMode.index,
-        'fontSizeMultiplier': fontSizeMultiplier,
-        'dialogFontScale': dialogFontScale,
-        'dotMatrixZoom': dotMatrixZoom,
-        'resultZoom': resultZoom,
-        'thousandGroupGap': thousandGroupGap.index,
-        'dialogSize': dialogSize.index,
-        'useSixteenSegment': useSixteenSegment,
-        'usePeriodicNotation': usePeriodicNotation,
-        'announceExpression': announceExpression,
-        'readStatsMemoryValues': readStatsMemoryValues,
-        'autoReadStatsSummary': autoReadStatsSummary,
-        'showStatsNavigationHint': showStatsNavigationHint,
-        'alignInputLeft': alignInputLeft,
-        'overlineThickness': overlineThickness,
-        'overlineHeight': overlineHeight,
-        'speechRate': speechRate,
-        'speechVolume': speechVolume,
-        'ttsEnabled': ttsEnabled,
-        'ttsEngine': ttsEngine,
-        'ttsVoice': ttsVoice,
-        'ttsVoiceName': ttsVoiceName,
-        'inverseFormatPreference': inverseFormatPreference,
-      };
+    'accessibilityType': accessibilityType.index,
+    'screenReaderMode': screenReaderMode.index,
+    'fontSizeMultiplier': fontSizeMultiplier,
+    'dialogFontScale': dialogFontScale,
+    'dotMatrixZoom': dotMatrixZoom,
+    'resultZoom': resultZoom,
+    'thousandGroupGap': thousandGroupGap.index,
+    'dialogSize': dialogSize.index,
+    'useSixteenSegment': useSixteenSegment,
+    'usePeriodicNotation': usePeriodicNotation,
+    'announceExpression': announceExpression,
+    'readStatsMemoryValues': readStatsMemoryValues,
+    'autoReadStatsSummary': autoReadStatsSummary,
+    'showStatsNavigationHint': showStatsNavigationHint,
+    'alignInputLeft': alignInputLeft,
+    'overlineThickness': overlineThickness,
+    'overlineHeight': overlineHeight,
+    'speechRate': speechRate,
+    'speechVolume': speechVolume,
+    'ttsEnabled': ttsEnabled,
+    'ttsEngine': ttsEngine,
+    'ttsVoice': ttsVoice,
+    'ttsVoiceName': ttsVoiceName,
+    'inverseFormatPreference': inverseFormatPreference,
+  };
 
   factory AccessibilitySettings.fromJson(Map<String, dynamic> json) {
     AccessibilityType parseType(dynamic v) {
@@ -291,7 +292,8 @@ class AccessibilitySettings {
       if (v is Map) {
         try {
           return Map<String, String>.from(
-              v.map((k, val) => MapEntry(k.toString(), val.toString())));
+            v.map((k, val) => MapEntry(k.toString(), val.toString())),
+          );
         } catch (_) {
           return null;
         }
@@ -314,8 +316,7 @@ class AccessibilitySettings {
       announceExpression: json['announceExpression'] as bool? ?? false,
       readStatsMemoryValues: json['readStatsMemoryValues'] as bool? ?? true,
       autoReadStatsSummary: json['autoReadStatsSummary'] as bool? ?? true,
-      showStatsNavigationHint:
-          json['showStatsNavigationHint'] as bool? ?? true,
+      showStatsNavigationHint: json['showStatsNavigationHint'] as bool? ?? true,
       alignInputLeft: json['alignInputLeft'] as bool? ?? true,
       overlineThickness: (json['overlineThickness'] as num?)?.toDouble() ?? 1.0,
       overlineHeight: (json['overlineHeight'] as num?)?.toDouble() ?? 1.0,
@@ -325,7 +326,8 @@ class AccessibilitySettings {
       ttsEngine: json['ttsEngine'] as String?,
       ttsVoice: parseVoice(json['ttsVoice']),
       ttsVoiceName: json['ttsVoiceName'] as String?,
-      inverseFormatPreference: (json['inverseFormatPreference'] as num?)?.toInt(),
+      inverseFormatPreference: (json['inverseFormatPreference'] as num?)
+          ?.toInt(),
     );
   }
 }
@@ -344,11 +346,11 @@ class AccessibilityProfile {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'isBuiltIn': isBuiltIn,
-        'settings': settings.toJson(),
-      };
+    'id': id,
+    'name': name,
+    'isBuiltIn': isBuiltIn,
+    'settings': settings.toJson(),
+  };
 
   factory AccessibilityProfile.fromJson(Map<String, dynamic> json) {
     final rawSettings = json['settings'];
@@ -356,8 +358,9 @@ class AccessibilityProfile {
     if (rawSettings is Map<String, dynamic>) {
       parsedSettings = AccessibilitySettings.fromJson(rawSettings);
     } else if (rawSettings is Map) {
-      parsedSettings =
-          AccessibilitySettings.fromJson(Map<String, dynamic>.from(rawSettings));
+      parsedSettings = AccessibilitySettings.fromJson(
+        Map<String, dynamic>.from(rawSettings),
+      );
     } else {
       parsedSettings = AccessibilitySettings.defaultsStandard();
     }
@@ -395,7 +398,18 @@ enum DialogSize { compact, wide, fullscreen }
 
 enum StatsSummarySection { header, dataValues, computed }
 
-enum StatsComputedItem { mean, sum, variance, sd, median, min, max, mode, cv, wmean }
+enum StatsComputedItem {
+  mean,
+  sum,
+  variance,
+  sd,
+  median,
+  min,
+  max,
+  mode,
+  cv,
+  wmean,
+}
 
 enum StatsOrderPreset { def, valuesFirst, statsFirst, headerLast, custom }
 
@@ -562,11 +576,11 @@ class StatisticsSet {
     this.folderId,
     this.colorIndex = 0,
     this.iconName = 'dataset',
-  })  : id = id ?? _generateStatsId(),
-        fieldUnits = fieldUnits ?? List.filled(fieldNames.length, null),
-        createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now(),
-        lastUsedAt = lastUsedAt ?? DateTime.now();
+  }) : id = id ?? _generateStatsId(),
+       fieldUnits = fieldUnits ?? List.filled(fieldNames.length, null),
+       createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now(),
+       lastUsedAt = lastUsedAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
     'id': id,

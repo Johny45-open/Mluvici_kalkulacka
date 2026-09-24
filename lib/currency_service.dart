@@ -19,7 +19,9 @@ class CurrencyService {
 
   void close() => _client.close();
 
-  Future<CnbRates?> fetchCnbRates({Duration timeout = const Duration(seconds: 8)}) async {
+  Future<CnbRates?> fetchCnbRates({
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
     try {
       final resp = await _client.get(Uri.parse(cnbUrl)).timeout(timeout);
       if (resp.statusCode != 200) return null;
@@ -38,7 +40,11 @@ class CurrencyService {
   }
 
   CnbRates _parseCnbTxt(String txt) {
-    final lines = txt.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+    final lines = txt
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
     if (lines.isEmpty) throw const FormatException('Empty CNB response');
     // First line: "28.08.2026 #241"
     DateTime date = DateTime.now();

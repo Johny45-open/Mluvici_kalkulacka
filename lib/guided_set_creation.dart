@@ -28,21 +28,21 @@ extension on _CalculatorScreenState {
     ];
 
     String speakNameQuestion() => _s(
-          'Jak se bude jmenovat nová sada? Předvyplněno $defaultName. Můžete ponechat nebo přepsat. Odpověď můžete napsat bez háčků a čárek.',
-          'What will be the name of the new set? Pre-filled $defaultName. You can keep it or overwrite it. You may type without diacritics.',
-        );
+      'Jak se bude jmenovat nová sada? Předvyplněno $defaultName. Můžete ponechat nebo přepsat. Odpověď můžete napsat bez háčků a čárek.',
+      'What will be the name of the new set? Pre-filled $defaultName. You can keep it or overwrite it. You may type without diacritics.',
+    );
     String speakCountQuestion() => _s(
-          'Kolik polí bude mít sada? Zadejte číslo 1 až 10. Můžete napsat číslicí nebo slovem, například 3 nebo tri, bez diakritiky.',
-          'How many fields will the set have? Enter a number 1 to 10. You can type a digit or a word, e.g. 3 or three, without diacritics.',
-        );
+      'Kolik polí bude mít sada? Zadejte číslo 1 až 10. Můžete napsat číslicí nebo slovem, například 3 nebo tri, bez diakritiky.',
+      'How many fields will the set have? Enter a number 1 to 10. You can type a digit or a word, e.g. 3 or three, without diacritics.',
+    );
     String speakFieldQuestion(int idx, int total) => _s(
-          'Jak se jmenuje pole ${idx + 1} z $total? Napište název bez háčků a čárek, nebo vyberte z rychlé nabídky.',
-          'What is the name of field ${idx + 1} of $total? Type the name without diacritics, or pick from quick choices.',
-        );
+      'Jak se jmenuje pole ${idx + 1} z $total? Napište název bez háčků a čárek, nebo vyberte z rychlé nabídky.',
+      'What is the name of field ${idx + 1} of $total? Type the name without diacritics, or pick from quick choices.',
+    );
     String speakUnitQuestion(String fieldName) => _s(
-          'Jaké jednotky pro pole $fieldName? Vyberte jednotku nebo zvolte Bez jednotky. Odpověď bez diakritiky stačí.',
-          'What units for field $fieldName? Pick a unit or choose No unit. Answer without diacritics is enough.',
-        );
+      'Jaké jednotky pro pole $fieldName? Vyberte jednotku nebo zvolte Bez jednotky. Odpověď bez diakritiky stačí.',
+      'What units for field $fieldName? Pick a unit or choose No unit. Answer without diacritics is enough.',
+    );
 
     void speakStep(int s) {
       String text;
@@ -58,13 +58,26 @@ extension on _CalculatorScreenState {
               '${speakFieldQuestion(currentFieldIndex, fieldCount)} ${speakUnitQuestion(fieldNameControllers[currentFieldIndex].text.isEmpty ? _s('Pole ${currentFieldIndex + 1}', 'Field ${currentFieldIndex + 1}') : fieldNameControllers[currentFieldIndex].text)}';
           break;
         case 3:
-          final names = fieldNameControllers.map((c) => c.text.trim().isEmpty ? 'Hodnota' : _restoreDiacritics(c.text.trim())).toList();
-          final units = List<String?>.generate(names.length, (i) => fieldUnitValues[i] == '--' ? null : fieldUnitValues[i]);
+          final names = fieldNameControllers
+              .map(
+                (c) => c.text.trim().isEmpty
+                    ? 'Hodnota'
+                    : _restoreDiacritics(c.text.trim()),
+              )
+              .toList();
+          final units = List<String?>.generate(
+            names.length,
+            (i) => fieldUnitValues[i] == '--' ? null : fieldUnitValues[i],
+          );
           final fieldsDesc = List.generate(names.length, (i) {
             final u = units[i];
-            return u == null ? '${names[i]} bez jednotky' : '${names[i]} ${_getUnitSpeech(u)}';
+            return u == null
+                ? '${names[i]} bez jednotky'
+                : '${names[i]} ${_getUnitSpeech(u)}';
           }).join(', ');
-          final rawName = nameController.text.trim().isEmpty ? defaultName : nameController.text.trim();
+          final rawName = nameController.text.trim().isEmpty
+              ? defaultName
+              : nameController.text.trim();
           final setNameSpoken = _restoreDiacritics(rawName);
           text = _s(
             'Náhled. Sada $setNameSpoken se ${names.length} poli: $fieldsDesc. Zkontrolujte a potvrďte uložení.',
@@ -85,7 +98,9 @@ extension on _CalculatorScreenState {
 
     showAppDialog<void>(
       context: context,
-      routeSettings: RouteSettings(name: _s('Průvodce vytvořením sady', 'Set creation wizard')),
+      routeSettings: RouteSettings(
+        name: _s('Průvodce vytvořením sady', 'Set creation wizard'),
+      ),
       barrierDismissible: false,
       builder: (ctx) {
         return StatefulBuilder(
@@ -93,14 +108,22 @@ extension on _CalculatorScreenState {
             // Zajisti správný počet kontrolerů podle fieldCount
             void ensureFieldControllers() {
               while (fieldNameControllers.length < fieldCount) {
-                fieldNameControllers.add(TextEditingController(text: _s('Pole ${fieldNameControllers.length + 1}', 'Field ${fieldNameControllers.length + 1}')));
+                fieldNameControllers.add(
+                  TextEditingController(
+                    text: _s(
+                      'Pole ${fieldNameControllers.length + 1}',
+                      'Field ${fieldNameControllers.length + 1}',
+                    ),
+                  ),
+                );
                 fieldUnitValues.add('--');
               }
               while (fieldNameControllers.length > fieldCount) {
                 fieldNameControllers.removeLast().dispose();
                 fieldUnitValues.removeLast();
               }
-              if (currentFieldIndex >= fieldCount) currentFieldIndex = fieldCount - 1;
+              if (currentFieldIndex >= fieldCount)
+                currentFieldIndex = fieldCount - 1;
               if (currentFieldIndex < 0) currentFieldIndex = 0;
             }
 
@@ -123,26 +146,40 @@ extension on _CalculatorScreenState {
                   ),
                   const SizedBox(height: 8),
                   Semantics(
-                    label: _s('Jak se bude jmenovat nová sada', 'What will be the name of the new set'),
+                    label: _s(
+                      'Jak se bude jmenovat nová sada',
+                      'What will be the name of the new set',
+                    ),
                     child: TextField(
                       controller: nameController,
                       autofocus: true,
                       decoration: InputDecoration(
                         labelText: _l10n.statsSetNameLabel,
-                        hintText: _s('Můžete psát bez háčků a čárek', 'You may type without diacritics'),
+                        hintText: _s(
+                          'Můžete psát bez háčků a čárek',
+                          'You may type without diacritics',
+                        ),
                       ),
                       textInputAction: TextInputAction.next,
                       onSubmitted: (_) {
                         setDialogState(() => step = 1);
-                        Future.delayed(const Duration(milliseconds: 300), () => speakStep(1));
+                        Future.delayed(
+                          const Duration(milliseconds: 300),
+                          () => speakStep(1),
+                        );
                       },
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _s('Tip: můžete napsat bez diakritiky, například Skolni test, uloží se jako Školní test.',
-                        'Tip: you may type without diacritics, e.g. Skolni test will be saved as Školní test.'),
-                    style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                    _s(
+                      'Tip: můžete napsat bez diakritiky, například Skolni test, uloží se jako Školní test.',
+                      'Tip: you may type without diacritics, e.g. Skolni test will be saved as Školní test.',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ],
               );
@@ -156,12 +193,20 @@ extension on _CalculatorScreenState {
                   Semantics(
                     header: true,
                     child: Text(
-                      _s('Krok 2 ze 4 — Počet polí', 'Step 2 of 4 — Number of fields'),
+                      _s(
+                        'Krok 2 ze 4 — Počet polí',
+                        'Step 2 of 4 — Number of fields',
+                      ),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(_s('Kolik polí bude mít sada? 1 až 10', 'How many fields will the set have? 1 to 10')),
+                  Text(
+                    _s(
+                      'Kolik polí bude mít sada? 1 až 10',
+                      'How many fields will the set have? 1 to 10',
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Semantics(
                     label: _s('Počet polí 1 až 10', 'Number of fields 1 to 10'),
@@ -219,7 +264,10 @@ extension on _CalculatorScreenState {
                   Semantics(
                     header: true,
                     child: Text(
-                      _s('Krok 3 ze 4 — Pole ${idx + 1} z $fieldCount', 'Step 3 of 4 — Field ${idx + 1} of $fieldCount'),
+                      _s(
+                        'Krok 3 ze 4 — Pole ${idx + 1} z $fieldCount',
+                        'Step 3 of 4 — Field ${idx + 1} of $fieldCount',
+                      ),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -241,7 +289,9 @@ extension on _CalculatorScreenState {
                       spacing: 6,
                       runSpacing: 4,
                       children: quickNames.map((q) {
-                        final isSelected = _normalizeAnswer(controller.text) == _normalizeAnswer(q);
+                        final isSelected =
+                            _normalizeAnswer(controller.text) ==
+                            _normalizeAnswer(q);
                         return ChoiceChip(
                           label: Text(q),
                           selected: isSelected,
@@ -255,7 +305,10 @@ extension on _CalculatorScreenState {
                   ),
                   const SizedBox(height: 12),
                   Semantics(
-                    label: _s('Jednotka pro pole ${idx + 1}', 'Unit for field ${idx + 1}'),
+                    label: _s(
+                      'Jednotka pro pole ${idx + 1}',
+                      'Unit for field ${idx + 1}',
+                    ),
                     child: DropdownButtonFormField<String>(
                       key: ValueKey('unit_${idx}_$fieldCount'),
                       initialValue: unitVal,
@@ -293,22 +346,40 @@ extension on _CalculatorScreenState {
                             label: Text(_s('Předchozí', 'Previous')),
                             onPressed: () {
                               setDialogState(() => currentFieldIndex--);
-                              Future.delayed(const Duration(milliseconds: 250), () => speakStep(2));
+                              Future.delayed(
+                                const Duration(milliseconds: 250),
+                                () => speakStep(2),
+                              );
                             },
                           ),
                         ),
                       if (idx > 0) const SizedBox(width: 8),
                       Expanded(
                         child: FilledButton.icon(
-                          icon: Icon(idx == fieldCount - 1 ? Icons.check : Icons.arrow_forward, size: 16),
-                          label: Text(idx == fieldCount - 1 ? _s('Hotovo', 'Done') : _s('Další pole', 'Next field')),
+                          icon: Icon(
+                            idx == fieldCount - 1
+                                ? Icons.check
+                                : Icons.arrow_forward,
+                            size: 16,
+                          ),
+                          label: Text(
+                            idx == fieldCount - 1
+                                ? _s('Hotovo', 'Done')
+                                : _s('Další pole', 'Next field'),
+                          ),
                           onPressed: () {
                             if (idx < fieldCount - 1) {
                               setDialogState(() => currentFieldIndex++);
-                              Future.delayed(const Duration(milliseconds: 250), () => speakStep(2));
+                              Future.delayed(
+                                const Duration(milliseconds: 250),
+                                () => speakStep(2),
+                              );
                             } else {
                               setDialogState(() => step = 3);
-                              Future.delayed(const Duration(milliseconds: 300), () => speakStep(3));
+                              Future.delayed(
+                                const Duration(milliseconds: 300),
+                                () => speakStep(3),
+                              );
                             }
                           },
                         ),
@@ -321,14 +392,18 @@ extension on _CalculatorScreenState {
 
             Widget buildPreviewStep() {
               final rawName = nameController.text.trim();
-              final displayName = rawName.isEmpty ? defaultName : _restoreDiacritics(rawName);
+              final displayName = rawName.isEmpty
+                  ? defaultName
+                  : _restoreDiacritics(rawName);
               final names = fieldNameControllers.map((c) {
                 final t = c.text.trim();
                 return t.isEmpty ? 'Hodnota' : _restoreDiacritics(t);
               }).toList();
               final fieldsDesc = List.generate(names.length, (i) {
                 final u = fieldUnitValues[i];
-                final unitLabel = u == '--' ? _s('bez jednotky', 'no unit') : _getUnitSpeech(u);
+                final unitLabel = u == '--'
+                    ? _s('bez jednotky', 'no unit')
+                    : _getUnitSpeech(u);
                 return '${i + 1}. ${names[i]} ($unitLabel)';
               }).join('\n');
 
@@ -351,23 +426,37 @@ extension on _CalculatorScreenState {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Semantics(
-                            label: _s('Název sady $displayName', 'Set name $displayName'),
+                            label: _s(
+                              'Název sady $displayName',
+                              'Set name $displayName',
+                            ),
                             child: ExcludeSemantics(
                               child: Text(
                                 '${_l10n.statsSetNameLabel}: $displayName',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(height: 8),
                           ...List.generate(names.length, (i) {
                             final u = fieldUnitValues[i];
-                            final unitLabel = u == '--' ? _s('bez jednotky', 'no unit') : _getUnitSpeech(u);
+                            final unitLabel = u == '--'
+                                ? _s('bez jednotky', 'no unit')
+                                : _getUnitSpeech(u);
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 4),
                               child: Semantics(
-                                label: _s('Pole ${i + 1}: ${names[i]}, $unitLabel', 'Field ${i + 1}: ${names[i]}, $unitLabel'),
-                                child: ExcludeSemantics(child: Text('${i + 1}. ${names[i]} — $unitLabel')),
+                                label: _s(
+                                  'Pole ${i + 1}: ${names[i]}, $unitLabel',
+                                  'Field ${i + 1}: ${names[i]}, $unitLabel',
+                                ),
+                                child: ExcludeSemantics(
+                                  child: Text(
+                                    '${i + 1}. ${names[i]} — $unitLabel',
+                                  ),
+                                ),
                               ),
                             );
                           }),
@@ -416,7 +505,9 @@ extension on _CalculatorScreenState {
               insetPadding: _dialogInsetPadding(),
               title: Semantics(
                 header: true,
-                child: Text(_s('Průvodce vytvořením sady', 'Set creation wizard')),
+                child: Text(
+                  _s('Průvodce vytvořením sady', 'Set creation wizard'),
+                ),
               ),
               content: FocusTraversalGroup(
                 policy: ReadingOrderTraversalPolicy(),
@@ -434,10 +525,16 @@ extension on _CalculatorScreenState {
                     _returnFocusToKeyboard();
                     Future.delayed(const Duration(milliseconds: 100), () {
                       for (final c in fieldNameControllers) {
-                        try { c.dispose(); } catch (_) {}
+                        try {
+                          c.dispose();
+                        } catch (_) {}
                       }
-                      try { nameController.dispose(); } catch (_) {}
-                      try { countController.dispose(); } catch (_) {}
+                      try {
+                        nameController.dispose();
+                      } catch (_) {}
+                      try {
+                        countController.dispose();
+                      } catch (_) {}
                     });
                     speak(_s('Průvodce zrušen.', 'Wizard cancelled.'));
                   },
@@ -454,7 +551,10 @@ extension on _CalculatorScreenState {
                           step--;
                         }
                       });
-                      Future.delayed(const Duration(milliseconds: 250), () => speakStep(step));
+                      Future.delayed(
+                        const Duration(milliseconds: 250),
+                        () => speakStep(step),
+                      );
                     },
                     child: Text(_s('Zpět', 'Back')),
                   ),
@@ -464,9 +564,18 @@ extension on _CalculatorScreenState {
                       if (step == 1) {
                         final parsed = _parseNumberAnswer(countController.text);
                         if (parsed == null || parsed < 1 || parsed > 10) {
-                          speak(_s('Zadejte číslo 1 až 10.', 'Enter a number 1 to 10.'), force: true);
+                          speak(
+                            _s(
+                              'Zadejte číslo 1 až 10.',
+                              'Enter a number 1 to 10.',
+                            ),
+                            force: true,
+                          );
                           _showAccessibleSnackBar(
-                            _s('Zadejte číslo 1 až 10.', 'Enter a number 1 to 10.'),
+                            _s(
+                              'Zadejte číslo 1 až 10.',
+                              'Enter a number 1 to 10.',
+                            ),
                             scaffoldContext: this.context,
                           );
                           return;
@@ -474,7 +583,14 @@ extension on _CalculatorScreenState {
                         fieldCount = parsed;
                         // ensure controllers
                         while (fieldNameControllers.length < fieldCount) {
-                          fieldNameControllers.add(TextEditingController(text: _s('Pole ${fieldNameControllers.length + 1}', 'Field ${fieldNameControllers.length + 1}')));
+                          fieldNameControllers.add(
+                            TextEditingController(
+                              text: _s(
+                                'Pole ${fieldNameControllers.length + 1}',
+                                'Field ${fieldNameControllers.length + 1}',
+                              ),
+                            ),
+                          );
                           fieldUnitValues.add('--');
                         }
                         while (fieldNameControllers.length > fieldCount) {
@@ -484,7 +600,10 @@ extension on _CalculatorScreenState {
                         currentFieldIndex = 0;
                       }
                       setDialogState(() => step++);
-                      Future.delayed(const Duration(milliseconds: 300), () => speakStep(step));
+                      Future.delayed(
+                        const Duration(milliseconds: 300),
+                        () => speakStep(step),
+                      );
                     },
                     child: Text(_s('Další', 'Next')),
                   ),
@@ -493,24 +612,47 @@ extension on _CalculatorScreenState {
                     onPressed: () {
                       try {
                         final rawName = nameController.text.trim();
-                        final finalName = rawName.isEmpty ? defaultName : _restoreDiacritics(rawName);
+                        final finalName = rawName.isEmpty
+                            ? defaultName
+                            : _restoreDiacritics(rawName);
                         // Kontrola duplicity po normalizaci
                         final normNew = _normalizeAnswer(finalName);
-                        final duplicate = _statsSets.any((s) => _normalizeAnswer(s.name) == normNew);
+                        final duplicate = _statsSets.any(
+                          (s) => _normalizeAnswer(s.name) == normNew,
+                        );
                         if (duplicate) {
-                          speak(_s('Název $finalName už existuje. Zvolte jiný.', 'Name $finalName already exists. Choose another.'), force: true);
+                          speak(
+                            _s(
+                              'Název $finalName už existuje. Zvolte jiný.',
+                              'Name $finalName already exists. Choose another.',
+                            ),
+                            force: true,
+                          );
                           // Použij root context (this.context) pro ScaffoldMessenger – dialogový context nemusí mít Scaffold
                           _showAccessibleSnackBar(
-                            _s('Název $finalName už existuje.', 'Name $finalName already exists.'),
+                            _s(
+                              'Název $finalName už existuje.',
+                              'Name $finalName already exists.',
+                            ),
                             scaffoldContext: this.context,
                           );
                           setDialogState(() => step = 0);
-                          Future.delayed(const Duration(milliseconds: 300), () => speakStep(0));
+                          Future.delayed(
+                            const Duration(milliseconds: 300),
+                            () => speakStep(0),
+                          );
                           return;
                         }
                         // Zajisti konzistenci před generováním
                         while (fieldNameControllers.length < fieldCount) {
-                          fieldNameControllers.add(TextEditingController(text: _s('Pole ${fieldNameControllers.length + 1}', 'Field ${fieldNameControllers.length + 1}')));
+                          fieldNameControllers.add(
+                            TextEditingController(
+                              text: _s(
+                                'Pole ${fieldNameControllers.length + 1}',
+                                'Field ${fieldNameControllers.length + 1}',
+                              ),
+                            ),
+                          );
                           fieldUnitValues.add('--');
                         }
                         while (fieldNameControllers.length > fieldCount) {
@@ -527,7 +669,12 @@ extension on _CalculatorScreenState {
                             fieldUnitValues.add('--');
                           }
                         }
-                        final fieldUnits = List<String?>.generate(fieldNames.length, (i) => fieldUnitValues[i] == '--' ? null : fieldUnitValues[i]);
+                        final fieldUnits = List<String?>.generate(
+                          fieldNames.length,
+                          (i) => fieldUnitValues[i] == '--'
+                              ? null
+                              : fieldUnitValues[i],
+                        );
 
                         // ignore: invalid_use_of_protected_member
                         setState(() {
@@ -549,10 +696,16 @@ extension on _CalculatorScreenState {
                         // Dispose až po pop, aby nedošlo k použití po dispose během animace
                         Future.delayed(const Duration(milliseconds: 100), () {
                           for (final c in fieldNameControllers) {
-                            try { c.dispose(); } catch (_) {}
+                            try {
+                              c.dispose();
+                            } catch (_) {}
                           }
-                          try { nameController.dispose(); } catch (_) {}
-                          try { countController.dispose(); } catch (_) {}
+                          try {
+                            nameController.dispose();
+                          } catch (_) {}
+                          try {
+                            countController.dispose();
+                          } catch (_) {}
                         });
                         final fieldsSpoken = fieldNames.join(', ');
                         speak(
@@ -565,7 +718,10 @@ extension on _CalculatorScreenState {
                       } catch (e) {
                         debugPrint('Guided wizard confirm error: $e');
                         _showAccessibleSnackBar(
-                          _s('Chyba při vytváření sady: $e', 'Error creating set: $e'),
+                          _s(
+                            'Chyba při vytváření sady: $e',
+                            'Error creating set: $e',
+                          ),
                           scaffoldContext: this.context,
                         );
                       }

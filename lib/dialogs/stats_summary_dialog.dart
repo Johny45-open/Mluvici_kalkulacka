@@ -257,9 +257,7 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
             (s) => s.copyWith(showStatsNavigationHint: newVal),
           );
           setDialogState(() {});
-          final state = newVal
-              ? p._s('Zapnuto', 'On')
-              : p._s('Vypnuto', 'Off');
+          final state = newVal ? p._s('Zapnuto', 'On') : p._s('Vypnuto', 'Off');
           final full = p._l10n.statsNavigationHintState(state);
           if (p._isScreenReaderActive) {
             p._announce(full, dialogContext);
@@ -280,10 +278,18 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                   ' Use Tab to move through individual statistics.',
                 )
               : '';
-          final fullWithHint = summary.isNotEmpty ? '$summary$tabHint' : tabHint.trimLeft();
+          final fullWithHint = summary.isNotEmpty
+              ? '$summary$tabHint'
+              : tabHint.trimLeft();
           final text = fullWithHint.isNotEmpty
-              ? p._s('Statistický souhrn: $fullWithHint', 'Statistics summary: $fullWithHint')
-              : p._s('Statistický souhrn otevřen.', 'Statistics summary opened.');
+              ? p._s(
+                  'Statistický souhrn: $fullWithHint',
+                  'Statistics summary: $fullWithHint',
+                )
+              : p._s(
+                  'Statistický souhrn otevřen.',
+                  'Statistics summary opened.',
+                );
           if (p._isScreenReaderActive) {
             p._announce(text, dialogContext);
           }
@@ -302,281 +308,275 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                   maxHeight: MediaQuery.of(dialogContext).size.height * 0.72,
                 ),
                 child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Tlačítko pořadí – první fokusovatelné, s jasným hintem
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Tlačítko pořadí – první fokusovatelné, s jasným hintem
+                      Semantics(
+                        button: true,
+                        label: p._s(
+                          'Změnit pořadí čtení souhrnu',
+                          'Change summary reading order',
+                        ),
+                        hint: p._s(
+                          'Otevře dialog pro nastavení pořadí čtení',
+                          'Opens reading order settings',
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              Navigator.pop(dialogContext);
+                              // Odložit otevření až po doběhnutí _FocusRestoreObserver (150 ms),
+                              // jinak observer vytrhne fokus novému dialogu – viz _showStatsSaveReviewDialog.
+                              Future.delayed(
+                                const Duration(milliseconds: 300),
+                                () {
+                                  if (p.mounted)
+                                    p._showStatsSummaryReadingOrderDialog();
+                                },
+                              );
+                            },
+                            icon: const Icon(Icons.reorder, size: 18),
+                            label: Text(p._s('Pořadí čtení', 'Reading order')),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Název sady – header pro VoiceOver rotor / NVDA H
+                      Semantics(
+                        header: true,
+                        label: l10n.statsCurrentSetLabel(currentSetName),
+                        child: Text(
+                          l10n.statsCurrentSetLabel(currentSetName),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      if (fieldNames.length > 1) ...[
+                        const SizedBox(height: 8),
+                        // Přepínač pole – button s liveRegion
                         Semantics(
                           button: true,
+                          liveRegion: true,
                           label: p._s(
-                            'Změnit pořadí čtení souhrnu',
-                            'Change summary reading order',
+                            'Pole: ${fieldNames[p._selectedFieldIndex]}${fieldUnit != null ? ', ${p._getUnitSpeech(fieldUnit)}' : ''}',
+                            'Field: ${fieldNames[p._selectedFieldIndex]}${fieldUnit != null ? ', ${p._getUnitSpeech(fieldUnit)}' : ''}',
                           ),
                           hint: p._s(
-                            'Otevře dialog pro nastavení pořadí čtení',
-                            'Opens reading order settings',
+                            'Poklepáním přepnete pole',
+                            'Double tap to switch field',
                           ),
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: () {
-                                Navigator.pop(dialogContext);
-                                // Odložit otevření až po doběhnutí _FocusRestoreObserver (150 ms),
-                                // jinak observer vytrhne fokus novému dialogu – viz _showStatsSaveReviewDialog.
-                                Future.delayed(
-                                  const Duration(milliseconds: 300),
-                                  () {
-                                    if (p.mounted)
-                                      p._showStatsSummaryReadingOrderDialog();
-                                  },
-                                );
-                              },
-                              icon: const Icon(Icons.reorder, size: 18),
-                              label: Text(
-                                p._s('Pořadí čtení', 'Reading order'),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        // Název sady – header pro VoiceOver rotor / NVDA H
-                        Semantics(
-                          header: true,
-                          label: l10n.statsCurrentSetLabel(currentSetName),
-                          child: Text(
-                            l10n.statsCurrentSetLabel(currentSetName),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        if (fieldNames.length > 1) ...[
-                          const SizedBox(height: 8),
-                          // Přepínač pole – button s liveRegion
-                          Semantics(
-                            button: true,
-                            liveRegion: true,
-                            label: p._s(
-                              'Pole: ${fieldNames[p._selectedFieldIndex]}${fieldUnit != null ? ', ${p._getUnitSpeech(fieldUnit)}' : ''}',
-                              'Field: ${fieldNames[p._selectedFieldIndex]}${fieldUnit != null ? ', ${p._getUnitSpeech(fieldUnit)}' : ''}',
-                            ),
-                            hint: p._s(
-                              'Poklepáním přepnete pole',
-                              'Double tap to switch field',
-                            ),
+                          onTap: cycleField,
+                          child: InkWell(
                             onTap: cycleField,
-                            child: InkWell(
-                              onTap: cycleField,
-                              borderRadius: BorderRadius.circular(6),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
-                                  horizontal: 4,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Text(p._s('Pole: ', 'Field: ')),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 4,
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(p._s('Pole: ', 'Field: ')),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      fieldNames[p._selectedFieldIndex],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  if (fieldUnit != null) ...[
                                     const SizedBox(width: 4),
                                     Flexible(
                                       child: Text(
-                                        fieldNames[p._selectedFieldIndex],
+                                        '(${p._getUnitSpeech(fieldUnit)})',
                                         style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: Colors.grey,
                                         ),
                                       ),
                                     ),
-                                    if (fieldUnit != null) ...[
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          '(${p._getUnitSpeech(fieldUnit)})',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(width: 6),
-                                    const Icon(Icons.swap_horiz, size: 18),
                                   ],
-                                ),
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.swap_horiz, size: 18),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                        const SizedBox(height: 4),
-                        // Checkbox – s jasným hintem o efektu
-                        Semantics(
-                          checked: p._readStatsMemoryValues,
-                          label: p._s(
-                            'Číst hodnoty v paměti',
-                            'Read values in memory',
-                          ),
-                          hint: p._s(
-                            'Vypnutím se skryje sekce Všechny hodnoty v paměti',
-                            'Off hides the All values in memory section',
-                          ),
-                          child: CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              p._s(
-                                'Číst hodnoty v paměti',
-                                'Read values in memory',
-                              ),
-                            ),
-                            subtitle: Text(
-                              p._s(
-                                'Ovlivňuje i hlasové čtení souhrnu',
-                                'Also affects speech reading of summary',
-                              ),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            value: p._readStatsMemoryValues,
-                            onChanged: toggleReadValues,
                           ),
                         ),
-                        Semantics(
-                          checked: p._autoReadStatsSummary,
-                          label: p._s(
-                            'Automaticky číst souhrn při otevření',
-                            'Auto-read summary on open',
-                          ),
-                          hint: p._s(
-                            'Když je zapnuto, po otevření se rovnou přečte celý souhrn v nastaveném pořadí plus nápověda pro Tab',
-                            'When on, opening the dialog reads the full summary in the configured order plus Tab hint',
-                          ),
-                          child: CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              p._s(
-                                'Automaticky číst souhrn při otevření',
-                                'Auto-read summary on open',
-                              ),
-                            ),
-                            subtitle: Text(
-                              p._s(
-                                'Vypnutím se řekne jen hlavička s nápovědou pro Tab',
-                                'When off only the header with Tab hint is announced',
-                              ),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            value: p._autoReadStatsSummary,
-                            onChanged: toggleAutoRead,
-                          ),
+                      ],
+                      const SizedBox(height: 4),
+                      // Checkbox – s jasným hintem o efektu
+                      Semantics(
+                        checked: p._readStatsMemoryValues,
+                        label: p._s(
+                          'Číst hodnoty v paměti',
+                          'Read values in memory',
                         ),
-                        Semantics(
-                          checked: p._showStatsNavigationHint,
-                          label: p._s(
-                            'Nápověda pro pohyb ve statistickém souhrnu',
-                            'Stats navigation hint',
-                          ),
-                          hint: p._l10n.statsNavigationHintHint,
-                          child: CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              p._s(
-                                'Nápověda pro pohyb ve statistickém souhrnu',
-                                'Stats navigation hint',
-                              ),
-                            ),
-                            subtitle: Text(
-                              p._l10n.statsNavigationHintHint,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            value: p._showStatsNavigationHint,
-                            onChanged: toggleNavigationHint,
-                          ),
+                        hint: p._s(
+                          'Vypnutím se skryje sekce Všechny hodnoty v paměti',
+                          'Off hides the All values in memory section',
                         ),
-                        if (p._readStatsMemoryValues) ...[
-                          const Divider(height: 12),
-                          Semantics(
-                            header: true,
-                            label: l10n.statsAllValuesSection,
-                            liveRegion: true,
-                            child: Text(
-                              l10n.statsAllValuesSection,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
+                        child: CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            p._s(
+                              'Číst hodnoty v paměti',
+                              'Read values in memory',
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          // Hodnoty – jedna sémantická položka s mluvenou formou
-                          Semantics(
-                            label: p._s(
-                              'Všechny hodnoty pole $selectedFieldName: $allValuesSpoken',
-                              'All values of field $selectedFieldName: $allValuesSpoken',
+                          subtitle: Text(
+                            p._s(
+                              'Ovlivňuje i hlasové čtení souhrnu',
+                              'Also affects speech reading of summary',
                             ),
-                            child: _PeriodicText(
-                              allValues,
-                              overlineThickness: p._overlineThickness,
-                              overlineHeight: p._overlineHeight,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
                             ),
                           ),
-                        ],
-                        const SizedBox(height: 12),
+                          value: p._readStatsMemoryValues,
+                          onChanged: toggleReadValues,
+                        ),
+                      ),
+                      Semantics(
+                        checked: p._autoReadStatsSummary,
+                        label: p._s(
+                          'Automaticky číst souhrn při otevření',
+                          'Auto-read summary on open',
+                        ),
+                        hint: p._s(
+                          'Když je zapnuto, po otevření se rovnou přečte celý souhrn v nastaveném pořadí plus nápověda pro Tab',
+                          'When on, opening the dialog reads the full summary in the configured order plus Tab hint',
+                        ),
+                        child: CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            p._s(
+                              'Automaticky číst souhrn při otevření',
+                              'Auto-read summary on open',
+                            ),
+                          ),
+                          subtitle: Text(
+                            p._s(
+                              'Vypnutím se řekne jen hlavička s nápovědou pro Tab',
+                              'When off only the header with Tab hint is announced',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          value: p._autoReadStatsSummary,
+                          onChanged: toggleAutoRead,
+                        ),
+                      ),
+                      Semantics(
+                        checked: p._showStatsNavigationHint,
+                        label: p._s(
+                          'Nápověda pro pohyb ve statistickém souhrnu',
+                          'Stats navigation hint',
+                        ),
+                        hint: p._l10n.statsNavigationHintHint,
+                        child: CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            p._s(
+                              'Nápověda pro pohyb ve statistickém souhrnu',
+                              'Stats navigation hint',
+                            ),
+                          ),
+                          subtitle: Text(
+                            p._l10n.statsNavigationHintHint,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          value: p._showStatsNavigationHint,
+                          onChanged: toggleNavigationHint,
+                        ),
+                      ),
+                      if (p._readStatsMemoryValues) ...[
+                        const Divider(height: 12),
                         Semantics(
                           header: true,
-                          label: l10n.statsComputedSection,
+                          label: l10n.statsAllValuesSection,
+                          liveRegion: true,
                           child: Text(
-                            l10n.statsComputedSection,
+                            l10n.statsAllValuesSection,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                         const SizedBox(height: 6),
+                        // Hodnoty – jedna sémantická položka s mluvenou formou
                         Semantics(
                           label: p._s(
-                            'Tabulka vypočtených statistik, ${statRows.length} řádků',
-                            'Table of computed statistics, ${statRows.length} rows',
+                            'Všechny hodnoty pole $selectedFieldName: $allValuesSpoken',
+                            'All values of field $selectedFieldName: $allValuesSpoken',
                           ),
-                          container: true,
-                          explicitChildNodes: true,
-                          child: Column(
-                            children: statRows.asMap().entries.map((entry) {
-                              final row = entry.value;
-                              final spokenValue = p._spokenForDisplay(
-                                row.value,
-                              );
-                              return _ComputedStatRow(
-                                name: row.key,
-                                value: row.value,
-                                spokenValue: spokenValue,
-                                index: entry.key,
-                                total: statRows.length,
-                                rowHint: p._s(
-                                  'Řádek ${entry.key + 1} z ${statRows.length}',
-                                  'Row ${entry.key + 1} of ${statRows.length}',
-                                ),
-                                overlineThickness: p._overlineThickness,
-                                overlineHeight: p._overlineHeight,
-                              );
-                            }).toList(),
+                          child: _PeriodicText(
+                            allValues,
+                            overlineThickness: p._overlineThickness,
+                            overlineHeight: p._overlineHeight,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        // Scroll hint pro čtečky
-                        Semantics(
-                          label: p._s(
-                            'Konec souhrnu. Použijte akce níže pro správu sad.',
-                            'End of summary. Use actions below to manage sets.',
-                          ),
-                          child: const SizedBox.shrink(),
                         ),
                       ],
-                    ),
+                      const SizedBox(height: 12),
+                      Semantics(
+                        header: true,
+                        label: l10n.statsComputedSection,
+                        child: Text(
+                          l10n.statsComputedSection,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Semantics(
+                        label: p._s(
+                          'Tabulka vypočtených statistik, ${statRows.length} řádků',
+                          'Table of computed statistics, ${statRows.length} rows',
+                        ),
+                        container: true,
+                        explicitChildNodes: true,
+                        child: Column(
+                          children: statRows.asMap().entries.map((entry) {
+                            final row = entry.value;
+                            final spokenValue = p._spokenForDisplay(row.value);
+                            return _ComputedStatRow(
+                              name: row.key,
+                              value: row.value,
+                              spokenValue: spokenValue,
+                              index: entry.key,
+                              total: statRows.length,
+                              rowHint: p._s(
+                                'Řádek ${entry.key + 1} z ${statRows.length}',
+                                'Row ${entry.key + 1} of ${statRows.length}',
+                              ),
+                              overlineThickness: p._overlineThickness,
+                              overlineHeight: p._overlineHeight,
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Scroll hint pro čtečky
+                      Semantics(
+                        label: p._s(
+                          'Konec souhrnu. Použijte akce níže pro správu sad.',
+                          'End of summary. Use actions below to manage sets.',
+                        ),
+                        child: const SizedBox.shrink(),
+                      ),
+                    ],
                   ),
+                ),
               ),
             ),
           ),
@@ -584,8 +584,14 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
             if (!p._autoReadStatsSummary)
               Semantics(
                 button: true,
-                label: p._s('Přečíst statistický souhrn', 'Read statistics summary'),
-                hint: p._s('Přečte celý souhrn v nastaveném pořadí', 'Reads full summary in configured order'),
+                label: p._s(
+                  'Přečíst statistický souhrn',
+                  'Read statistics summary',
+                ),
+                hint: p._s(
+                  'Přečte celý souhrn v nastaveném pořadí',
+                  'Reads full summary in configured order',
+                ),
                 child: FilledButton.icon(
                   onPressed: readFullSummary,
                   icon: const Icon(Icons.volume_up, size: 18),

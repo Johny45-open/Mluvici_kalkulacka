@@ -89,10 +89,11 @@ void main() {
       return tester.getSize(containerFinder.first);
     } catch (_) {
       // alternative: find Expanded ancestor
-      return tester.getSize(find.ancestor(
-        of: find.byWidget(target),
-        matching: find.byType(InkWell),
-      ).first);
+      return tester.getSize(
+        find
+            .ancestor(of: find.byWidget(target), matching: find.byType(InkWell))
+            .first,
+      );
     }
   }
 
@@ -124,8 +125,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('B - larger viewport larger font and larger button',
-        (tester) async {
+    testWidgets('B - larger viewport larger font and larger button', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -136,8 +138,11 @@ void main() {
 
       await pumpApp(tester, size: const Size(600, 900), textScale: 1.0);
       final largeFont = keyboardFontSize(tester, '7');
-      expect(largeFont, greaterThan(baseFont),
-          reason: 'font on larger viewport must be larger');
+      expect(
+        largeFont,
+        greaterThan(baseFont),
+        reason: 'font on larger viewport must be larger',
+      );
 
       // button container also larger – check via Container constraints indirectly
       // Compare font ratio approximates scale growth
@@ -146,8 +151,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('C - desktop large viewport short labels not scaled down',
-        (tester) async {
+    testWidgets('C - desktop large viewport short labels not scaled down', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -158,8 +164,11 @@ void main() {
       await pumpApp(tester, size: const Size(1280, 800), textScale: 1.0);
       final desktopFont = keyboardFontSize(tester, '7');
 
-      expect(desktopFont, greaterThan(phoneFont),
-          reason: 'desktop font must be larger than phone');
+      expect(
+        desktopFont,
+        greaterThan(phoneFont),
+        reason: 'desktop font must be larger than phone',
+      );
       // Desktop shortest 800 -> scale 1.7 -> font ~34, phone ~22-23
       expect(desktopFont, greaterThan(28.0));
       expect(desktopFont, lessThanOrEqualTo(72.0));
@@ -180,8 +189,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('D - system scaling enlarges font roughly proportionally',
-        (tester) async {
+    testWidgets('D - system scaling enlarges font roughly proportionally', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -209,22 +219,30 @@ void main() {
       final scales = [1.0, 1.5, 1.75, 2.0];
       final fonts = <double>[];
       for (final s in scales) {
-        await pumpApp(tester,
-            size: const Size(412, 860), textScale: 1.0, keyboardFontScale: s);
+        await pumpApp(
+          tester,
+          size: const Size(412, 860),
+          textScale: 1.0,
+          keyboardFontScale: s,
+        );
         fonts.add(keyboardFontSize(tester, '7'));
         expect(tester.takeException(), isNull);
       }
       for (int i = 1; i < fonts.length; i++) {
-        expect(fonts[i], greaterThan(fonts[i - 1]),
-            reason: 'font at scale ${scales[i]} must be > ${scales[i - 1]}');
+        expect(
+          fonts[i],
+          greaterThan(fonts[i - 1]),
+          reason: 'font at scale ${scales[i]} must be > ${scales[i - 1]}',
+        );
       }
       // Check monotonic and within clamp
       expect(fonts.first, greaterThanOrEqualTo(14.0));
       expect(fonts.last, lessThanOrEqualTo(72.0));
     });
 
-    testWidgets('F - long labels fit without overflow, short not penalized',
-        (tester) async {
+    testWidgets('F - long labels fit without overflow, short not penalized', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -246,12 +264,19 @@ void main() {
       for (final lbl in longLabels) {
         final finder = find.text(lbl);
         if (finder.evaluate().isEmpty) continue;
-        expect(finder, findsWidgets, reason: 'long label $lbl should be present');
+        expect(
+          finder,
+          findsWidgets,
+          reason: 'long label $lbl should be present',
+        );
         expect(tester.takeException(), isNull);
         final longFont = keyboardFontSize(tester, lbl);
         expect(longFont, lessThanOrEqualTo(baselineFont + 0.01));
-        expect(longFont, greaterThan(baselineFont * 0.5),
-            reason: 'long label $lbl not too small');
+        expect(
+          longFont,
+          greaterThan(baselineFont * 0.5),
+          reason: 'long label $lbl not too small',
+        );
       }
 
       // Verify baseline still large
@@ -289,40 +314,50 @@ void main() {
       });
       mockChannels();
       await pumpApp(tester, size: const Size(412, 860), textScale: 1.0);
-      final semanticsBefore = tester.getSemantics(find.byType(CalculatorScreen));
+      final semanticsBefore = tester.getSemantics(
+        find.byType(CalculatorScreen),
+      );
       // Find a button semantics
-      final btnSemBefore = find.byWidgetPredicate((w) =>
-          w is Semantics &&
-          w.properties.label != null &&
-          w.properties.label!.contains('Sedm') ||
-          w is Semantics &&
-              w.properties.label != null &&
-              w.properties.label!.contains('Seven'));
+      final btnSemBefore = find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+                w.properties.label != null &&
+                w.properties.label!.contains('Sedm') ||
+            w is Semantics &&
+                w.properties.label != null &&
+                w.properties.label!.contains('Seven'),
+      );
       // At least one semantics for '7' exists
       expect(
-          find.byWidgetPredicate((w) =>
+        find.byWidgetPredicate(
+          (w) =>
               w is Semantics &&
               w.properties.label != null &&
               (w.properties.label!.contains('Sedm') ||
                   w.properties.label!.contains('Seven') ||
-                  w.properties.label == '7')),
-          findsWidgets);
+                  w.properties.label == '7'),
+        ),
+        findsWidgets,
+      );
 
       await pumpApp(tester, size: const Size(1280, 800), textScale: 1.5);
 
       // Semantics for '7' must still exist and be button
-      final semFinder = find.byWidgetPredicate((w) =>
-          w is Semantics &&
-          w.properties.label != null &&
-          w.properties.button == true);
+      final semFinder = find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            w.properties.label != null &&
+            w.properties.button == true,
+      );
       expect(semFinder, findsWidgets);
 
       // Ensure no semantics lost
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Regression - text/button ratio not degrading on large viewport',
-        (tester) async {
+    testWidgets('Regression - text/button ratio not degrading on large viewport', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -342,24 +377,31 @@ void main() {
         phoneW = e;
         break;
       }
-      final phoneBtnSize = tester.getSize(find
-          .ancestor(of: find.text('7'), matching: find.byType(Container))
-          .first);
+      final phoneBtnSize = tester.getSize(
+        find
+            .ancestor(of: find.text('7'), matching: find.byType(Container))
+            .first,
+      );
 
       await pumpApp(tester, size: const Size(1280, 800), textScale: 1.0);
       final desktopFont = keyboardFontSize(tester, '7');
-      final desktopBtnSize = tester.getSize(find
-          .ancestor(of: find.text('7'), matching: find.byType(Container))
-          .first);
+      final desktopBtnSize = tester.getSize(
+        find
+            .ancestor(of: find.text('7'), matching: find.byType(Container))
+            .first,
+      );
 
       final phoneRatio = phoneFont / phoneBtnSize.height;
       final desktopRatio = desktopFont / desktopBtnSize.height;
 
       // Ratio on desktop must not be significantly smaller (old bug: 0.416 -> 0.33 = -20%)
       // New: should be similar or larger (within 10% tolerance)
-      expect(desktopRatio, greaterThanOrEqualTo(phoneRatio * 0.90),
-          reason:
-              'desktop text/button ratio $desktopRatio must not be <90% of phone $phoneRatio (old bug degraded to 80%)');
+      expect(
+        desktopRatio,
+        greaterThanOrEqualTo(phoneRatio * 0.90),
+        reason:
+            'desktop text/button ratio $desktopRatio must not be <90% of phone $phoneRatio (old bug degraded to 80%)',
+      );
       // Also absolute ratio reasonable
       expect(desktopRatio, greaterThan(0.30));
       expect(desktopRatio, lessThan(0.65));

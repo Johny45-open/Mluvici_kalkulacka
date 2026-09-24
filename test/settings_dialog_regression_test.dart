@@ -66,33 +66,34 @@ void main() {
 
   group('Settings dialog regression', () {
     testWidgets(
-        'Settings opens while profiles are unavailable (load failed/pending)',
-        (tester) async {
-      // Poškozený JSON deterministicky simuluje stav závodu: na neopraveném
-      // kódu `_loadProfiles` vyhodí výjimku a `_profiles` zůstane prázdné
-      // (stejný pozorovatelný stav jako otevření Nastavení před dokončením
-      // preloadu). Dialog se otevírá okamžitě, jediným `pump`, bez čekání.
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'modeQuestionAsked': true,
-        'accessibility_profiles': 'corrupted-json{',
-      });
-      mockChannels();
-      final state = await pumpAppEarly(tester);
+      'Settings opens while profiles are unavailable (load failed/pending)',
+      (tester) async {
+        // Poškozený JSON deterministicky simuluje stav závodu: na neopraveném
+        // kódu `_loadProfiles` vyhodí výjimku a `_profiles` zůstane prázdné
+        // (stejný pozorovatelný stav jako otevření Nastavení před dokončením
+        // preloadu). Dialog se otevírá okamžitě, jediným `pump`, bez čekání.
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'modeQuestionAsked': true,
+          'accessibility_profiles': 'corrupted-json{',
+        });
+        mockChannels();
+        final state = await pumpAppEarly(tester);
 
-      // Otevřít Nastavení velmi brzy, bez čekání na dokončení preloadu.
-      state.showAccessibilityDialogForTest();
-      await tester.pump();
+        // Otevřít Nastavení velmi brzy, bez čekání na dokončení preloadu.
+        state.showAccessibilityDialogForTest();
+        await tester.pump();
 
-      expect(tester.takeException(), isNull);
-      expect(find.byType(AlertDialog), findsWidgets);
-      expect(profileSectionHeader(), findsOneWidget);
-      // Fallback vykreslí výchozí profily, dialog je plně použitelný.
-      expect(find.text('Standard'), findsOneWidget);
-      expect(find.text('Blind'), findsOneWidget);
-      expect(find.text('Low vision'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        expect(find.byType(AlertDialog), findsWidgets);
+        expect(profileSectionHeader(), findsOneWidget);
+        // Fallback vykreslí výchozí profily, dialog je plně použitelný.
+        expect(find.text('Standard'), findsOneWidget);
+        expect(find.text('Blind'), findsOneWidget);
+        expect(find.text('Low vision'), findsOneWidget);
 
-      await tester.pump(const Duration(seconds: 3));
-    });
+        await tester.pump(const Duration(seconds: 3));
+      },
+    );
 
     testWidgets('Empty stored profiles fall back to defaults', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{

@@ -20,16 +20,15 @@ void main() {
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
-    messenger.setMockMethodCallHandler(
-      const MethodChannel('flutter_tts'),
-      (MethodCall call) async {
-        if (call.method == 'speak') {
-          final text = call.arguments as String? ?? '';
-          ttsLog.add(text);
-        }
-        return 1;
-      },
-    );
+    messenger.setMockMethodCallHandler(const MethodChannel('flutter_tts'), (
+      MethodCall call,
+    ) async {
+      if (call.method == 'speak') {
+        final text = call.arguments as String? ?? '';
+        ttsLog.add(text);
+      }
+      return 1;
+    });
     messenger.setMockMethodCallHandler(
       const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
       (MethodCall call) async {
@@ -37,7 +36,8 @@ void main() {
             call.method == 'isScreenReaderEnabled') {
           return false;
         }
-        if (call.method == 'announce' || call.method == 'announceForAccessibility') {
+        if (call.method == 'announce' ||
+            call.method == 'announceForAccessibility') {
           // not used directly – SemanticsService.announce uses different channel
         }
         return false;
@@ -54,7 +54,10 @@ void main() {
     );
   });
 
-  Future<dynamic> pumpApp(WidgetTester tester, {Locale locale = const Locale('cs')}) async {
+  Future<dynamic> pumpApp(
+    WidgetTester tester, {
+    Locale locale = const Locale('cs'),
+  }) async {
     tester.view.physicalSize = const Size(360, 740);
     tester.view.devicePixelRatio = 1.0;
     tester.platformDispatcher.localeTestValue = locale;
@@ -95,7 +98,9 @@ void main() {
   }
 
   group('M+ kratky stisk ve Statistickem rezimu', () {
-    testWidgets('M+ s jednou hodnotou oznami Připravena 1 hodnota', (tester) async {
+    testWidgets('M+ s jednou hodnotou oznami Připravena 1 hodnota', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await switchToStatistics(tester);
       state.addStatsSetForTest(
@@ -134,7 +139,9 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('M+ se dvema hodnotami oznami Připraveny 2 hodnoty', (tester) async {
+    testWidgets('M+ se dvema hodnotami oznami Připraveny 2 hodnoty', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await switchToStatistics(tester);
       state.addStatsSetForTest(
@@ -146,8 +153,11 @@ void main() {
       await tester.pump();
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(ttsLog.any((t) => t.contains('Připraveny 2 hodnoty')), isTrue,
-          reason: 'TTS log: $ttsLog');
+      expect(
+        ttsLog.any((t) => t.contains('Připraveny 2 hodnoty')),
+        isTrue,
+        reason: 'TTS log: $ttsLog',
+      );
       expect(state.statsMemoryForTest.length, 0);
       expect(hasRepeatDialog(), isTrue);
       // zrusit
@@ -157,7 +167,9 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('M+ s peti hodnotami oznami Připraveno 5 hodnot', (tester) async {
+    testWidgets('M+ s peti hodnotami oznami Připraveno 5 hodnot', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await switchToStatistics(tester);
       state.addStatsSetForTest(
@@ -169,8 +181,11 @@ void main() {
       await tester.pump();
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(ttsLog.any((t) => t.contains('Připraveno 5 hodnot')), isTrue,
-          reason: 'TTS log: $ttsLog');
+      expect(
+        ttsLog.any((t) => t.contains('Připraveno 5 hodnot')),
+        isTrue,
+        reason: 'TTS log: $ttsLog',
+      );
       expect(hasRepeatDialog(), isTrue);
       await tester.tap(findCancelButton());
       await tester.pumpAndSettle();
@@ -189,8 +204,11 @@ void main() {
       await tester.pump();
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(ttsLog.any((t) => t.contains('Displej je prázdný')), isTrue,
-          reason: 'TTS log: $ttsLog');
+      expect(
+        ttsLog.any((t) => t.contains('Displej je prázdný')),
+        isTrue,
+        reason: 'TTS log: $ttsLog',
+      );
       expect(hasRepeatDialog(), isFalse);
       await tester.pump(const Duration(seconds: 1));
     });
@@ -205,12 +223,16 @@ void main() {
       await tester.pump();
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(ttsLog.any((t) => t.contains('Není vytvořena žádná statistická sada')), isTrue,
-          reason: 'TTS log: $ttsLog');
       expect(
-          find.text('Vytvořit novou sadu').evaluate().isNotEmpty ||
-              find.text('Create new set').evaluate().isNotEmpty,
-          isTrue);
+        ttsLog.any((t) => t.contains('Není vytvořena žádná statistická sada')),
+        isTrue,
+        reason: 'TTS log: $ttsLog',
+      );
+      expect(
+        find.text('Vytvořit novou sadu').evaluate().isNotEmpty ||
+            find.text('Create new set').evaluate().isNotEmpty,
+        isTrue,
+      );
       await tester.pump(const Duration(seconds: 1));
     });
 
@@ -218,9 +240,13 @@ void main() {
       final state = await pumpApp(tester);
       await switchToStatistics(tester);
       state.addStatsSetForTest(
-        StatisticsSet(name: 'MojeSada', fieldNames: const ['Value'], records: [
-          StatisticsRecord(values: [1]),
-        ]),
+        StatisticsSet(
+          name: 'MojeSada',
+          fieldNames: const ['Value'],
+          records: [
+            StatisticsRecord(values: [1]),
+          ],
+        ),
       );
       await tester.pumpAndSettle();
       ttsLog.clear();
@@ -263,13 +289,18 @@ void main() {
       state.setDisplayForTest('1;2;3;4;5', 9);
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(ttsLog.any((t) => t.contains('hodnot') && t.contains('5')), isTrue);
+      expect(
+        ttsLog.any((t) => t.contains('hodnot') && t.contains('5')),
+        isTrue,
+      );
       await tester.tap(findCancelButton());
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('hodnota se dostane do sady az po potvrzeni repeat dialogu', (tester) async {
+    testWidgets('hodnota se dostane do sady az po potvrzeni repeat dialogu', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await switchToStatistics(tester);
       state.addStatsSetForTest(
@@ -280,8 +311,11 @@ void main() {
       state.setDisplayForTest('7;8', 3);
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(state.statsMemoryForTest.length, before,
-          reason: 'Pred potvrzenim nesmi byt ulozeno');
+      expect(
+        state.statsMemoryForTest.length,
+        before,
+        reason: 'Pred potvrzenim nesmi byt ulozeno',
+      );
       // zmenit pocet opakovani na 2
       final textField = find.byType(TextField);
       expect(textField, findsOneWidget);
@@ -294,7 +328,9 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('M+ nespusti nesouvisejici obecnou TTS vysledku', (tester) async {
+    testWidgets('M+ nespusti nesouvisejici obecnou TTS vysledku', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await switchToStatistics(tester);
       state.addStatsSetForTest(
@@ -311,8 +347,11 @@ void main() {
       state.setDisplayForTest('', 0);
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(ttsLog.any((t) => t.contains('Výsledek je') || t.contains('resultOf')), isFalse,
-          reason: 'TTS log nesmi obsahovat obecnou hlasku vysledku: $ttsLog');
+      expect(
+        ttsLog.any((t) => t.contains('Výsledek je') || t.contains('resultOf')),
+        isFalse,
+        reason: 'TTS log nesmi obsahovat obecnou hlasku vysledku: $ttsLog',
+      );
       await tester.pump(const Duration(seconds: 1));
     });
   });
