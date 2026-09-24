@@ -178,21 +178,52 @@ void main() {
           await tester.tap(saveEnFinder.first);
         }
         await tester.pumpAndSettle();
+        // Potvrzovací dialog před uložením (nově) – pokud se zobrazil, potvrď
+        final confirmTitle = find.text('Potvrdit uložení');
+        final confirmTitleEn = find.text('Confirm save');
+        if (confirmTitle.evaluate().isNotEmpty ||
+            confirmTitleEn.evaluate().isNotEmpty) {
+          // V dialogu je opět tlačítko Uložit/Save – vezmi poslední (to v dialogu)
+          final confirmSave = find.text('Uložit');
+          final confirmSaveEn = find.text('Save');
+          if (confirmSave.evaluate().length > 1) {
+            await tester.tap(confirmSave.last);
+          } else if (confirmSave.evaluate().isNotEmpty) {
+            await tester.tap(confirmSave.last);
+          } else if (confirmSaveEn.evaluate().isNotEmpty) {
+            await tester.tap(confirmSaveEn.last);
+          }
+          await tester.pumpAndSettle();
+        }
 
         // 4) trvalé uložení per-profile v2
         final prefs = await SharedPreferences.getInstance();
         final v2 = jsonDecode(prefs.getString('accessibility_profiles_v2')!);
         final activeId = prefs.getString('activeProfileId')!;
         final activeJson = (v2 as List).firstWhere((e) => e['id'] == activeId);
-        expect((activeJson['settings']['overlineHeight'] as num).toDouble(), closeTo(1.1, 1e-9));
-        expect((activeJson['settings']['overlineThickness'] as num).toDouble(), closeTo(1.2, 1e-9));
+        expect(
+          (activeJson['settings']['overlineHeight'] as num).toDouble(),
+          closeTo(1.1, 1e-9),
+        );
+        expect(
+          (activeJson['settings']['overlineThickness'] as num).toDouble(),
+          closeTo(1.2, 1e-9),
+        );
         expect(tester.takeException(), isNull);
       },
     );
 
     testWidgets('5) hodnoty se po restartu načtou', (tester) async {
-      final settings = AccessibilitySettings.defaultsStandard().copyWith(overlineHeight: 1.7, overlineThickness: 2.4);
-      final profile = AccessibilityProfile(id: 'standard', name: 'Standard', isBuiltIn: true, settings: settings);
+      final settings = AccessibilitySettings.defaultsStandard().copyWith(
+        overlineHeight: 1.7,
+        overlineThickness: 2.4,
+      );
+      final profile = AccessibilityProfile(
+        id: 'standard',
+        name: 'Standard',
+        isBuiltIn: true,
+        settings: settings,
+      );
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
         'accessibility_profiles_v2': jsonEncode([profile.toJson()]),
@@ -212,8 +243,16 @@ void main() {
     });
 
     testWidgets('6) reset vrátí výchozí hodnoty', (tester) async {
-      final settings = AccessibilitySettings.defaultsStandard().copyWith(overlineHeight: 1.7, overlineThickness: 2.4);
-      final profile = AccessibilityProfile(id: 'standard', name: 'Standard', isBuiltIn: true, settings: settings);
+      final settings = AccessibilitySettings.defaultsStandard().copyWith(
+        overlineHeight: 1.7,
+        overlineThickness: 2.4,
+      );
+      final profile = AccessibilityProfile(
+        id: 'standard',
+        name: 'Standard',
+        isBuiltIn: true,
+        settings: settings,
+      );
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
         'accessibility_profiles_v2': jsonEncode([profile.toJson()]),
@@ -227,7 +266,9 @@ void main() {
       await tester.pumpAndSettle();
       await state.resetProfile('standard');
       await tester.pumpAndSettle();
-      print('after reset editing draft: ${state.editingDraftForTest?.settings.overlineHeight}');
+      print(
+        'after reset editing draft: ${state.editingDraftForTest?.settings.overlineHeight}',
+      );
       print('after reset active: ${state.overlineHeightForTest}');
       await tester.pumpAndSettle();
 
@@ -245,8 +286,14 @@ void main() {
       final v2c = jsonDecode(prefs.getString('accessibility_profiles_v2')!);
       final activeIdC = prefs.getString('activeProfileId')!;
       final activeJsonC = (v2c as List).firstWhere((e) => e['id'] == activeIdC);
-      expect((activeJsonC['settings']['overlineHeight'] as num).toDouble(), 1.0);
-      expect((activeJsonC['settings']['overlineThickness'] as num).toDouble(), 1.0);
+      expect(
+        (activeJsonC['settings']['overlineHeight'] as num).toDouble(),
+        1.0,
+      );
+      expect(
+        (activeJsonC['settings']['overlineThickness'] as num).toDouble(),
+        1.0,
+      );
       expect(tester.takeException(), isNull);
     });
 

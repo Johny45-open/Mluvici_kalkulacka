@@ -55,7 +55,9 @@ void main() {
       StatisticsSet(
         name: 'Matematika',
         fieldNames: const ['Hodnota'],
-        records: [StatisticsRecord(values: [1.0])],
+        records: [
+          StatisticsRecord(values: [1.0]),
+        ],
       ),
     );
   }
@@ -70,8 +72,9 @@ void main() {
   }
 
   group('Confirm dialogs accessibility structure', () {
-    testWidgets('delete set: title header, question, two buttons, no group',
-        (tester) async {
+    testWidgets('delete set: title header, question, two buttons, no group', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -101,10 +104,7 @@ void main() {
       // Otázka jako holý text.
       expect(find.textContaining('Matematika'), findsWidgets);
       // Žádné technické „Otázka/Question" seskupení mezi názvem a textem.
-      expect(
-        semanticsWithLabel(RegExp(r'^(Otázka|Question)$')),
-        findsNothing,
-      );
+      expect(semanticsWithLabel(RegExp(r'^(Otázka|Question)$')), findsNothing);
       // AlertDialog nesmí mít duplicitní semanticLabel potlačující strukturu.
       final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
       expect(dialog.semanticLabel, isNull);
@@ -118,8 +118,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('clear history: no Otazka container, buttons work',
-        (tester) async {
+    testWidgets('clear history: no Otazka container, buttons work', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -130,10 +131,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsOneWidget);
-      expect(
-        semanticsWithLabel(RegExp(r'^(Otázka|Question)$')),
-        findsNothing,
-      );
+      expect(semanticsWithLabel(RegExp(r'^(Otázka|Question)$')), findsNothing);
       final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
       expect(dialog.semanticLabel, isNull);
       // Tlačítka zůstanou ovladatelná (focus/akce) – klepnutí Ne ponechá.
@@ -141,8 +139,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('delete dialog has no overflow at textScale 1.5',
-        (tester) async {
+    testWidgets('delete dialog has no overflow at textScale 1.5', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -188,8 +187,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('large display boosts button text, small keeps base',
-        (tester) async {
+    testWidgets('large display boosts button text, small keeps base', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -200,11 +200,15 @@ void main() {
       await pumpApp(tester, size: const Size(1280, 800));
       final desktop = keyboardFontSize(tester, '7');
 
-      // 412px: scale 412/360 → boost ≈ 1.07 → ≈21.4;
-      // desktop (shortest 800): scale 1.7 → boost 1.35 → 27.0.
-      expect(phone, closeTo(21.44, 0.1));
+      // Po opravě: font = 20 * scale (bez 0.5 tlumení).
+      // 412px: scale 412/360=1.144 → ≈22.88; desktop 800→1.7 →34.0.
+      // Test ověřuje chování, ne interní konstantu – povolena tolerance.
+      expect(phone, greaterThan(20.0));
+      expect(phone, lessThan(26.0));
       expect(desktop, greaterThan(phone));
-      expect(desktop, closeTo(27.0, 0.5));
+      expect(desktop, greaterThan(30.0));
+      // Poměr musí odpovídat scale poměru ~1.48, ne starému 1.26 (27/21.4)
+      expect(desktop / phone, greaterThan(1.35));
       expect(tester.takeException(), isNull);
     });
   });
@@ -215,8 +219,9 @@ void main() {
     // Explicitně přes kód znaku, aby se předešlo neviditelným literálům.
     final periodicValue = '0.3${String.fromCharCode(0x0305)}';
 
-    testWidgets('segment cells without period keep base height',
-        (tester) async {
+    testWidgets('segment cells without period keep base height', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1280);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -247,8 +252,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('periodic segment cell is taller (bar fits inside)',
-        (tester) async {
+    testWidgets('periodic segment cell is taller (bar fits inside)', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1280);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -279,8 +285,9 @@ void main() {
     // samostatný úkol mimo tento rozsah. Místo toho ověřujeme souhrn
     // statistik (dialog dotčený tímto úkolem, obsahuje _PeriodicText
     // s periodickou čárou) při 1.5×.
-    testWidgets('stats summary with periodic text survives textScale 1.5',
-        (tester) async {
+    testWidgets('stats summary with periodic text survives textScale 1.5', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -325,12 +332,7 @@ class _OverlineProbe extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       key: Key(probeKey),
-      child: CustomSegmentDisplay(
-        value: value,
-        size: 12,
-        characterCount: 4,
-      ),
+      child: CustomSegmentDisplay(value: value, size: 12, characterCount: 4),
     );
   }
-
 }

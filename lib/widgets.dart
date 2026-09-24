@@ -23,9 +23,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
               widget.title,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            trailing: Icon(
-              _isExpanded ? Icons.expand_less : Icons.expand_more,
-            ),
+            trailing: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
             onTap: () => setState(() => _isExpanded = !_isExpanded),
           ),
         ),
@@ -1392,7 +1390,8 @@ class CustomDotMatrixDisplay extends StatelessWidget {
   });
 
   // Exponent parsing helpers
-  bool _isDigitExp(String c) => c.length == 1 && c.codeUnitAt(0) >= 0x30 && c.codeUnitAt(0) <= 0x39;
+  bool _isDigitExp(String c) =>
+      c.length == 1 && c.codeUnitAt(0) >= 0x30 && c.codeUnitAt(0) <= 0x39;
 
   int? _findExponentEnd(List<({String char, bool overline})> items, int start) {
     final n = items.length;
@@ -1434,8 +1433,15 @@ class CustomDotMatrixDisplay extends StatelessWidget {
         int j = k + 1;
         while (j < n) {
           final cj = items[j].char;
-          if (cj == '_') { j++; continue; }
-          if (_isDigitExp(cj) || cj == '.' || cj == ',') { end = j; j++; } else break;
+          if (cj == '_') {
+            j++;
+            continue;
+          }
+          if (_isDigitExp(cj) || cj == '.' || cj == ',') {
+            end = j;
+            j++;
+          } else
+            break;
         }
         // zahrnout případnou periodu "(digits)" za číslem např. "3.(3)" v exponentu – vzácné, ale povolíme
         if (j < n && items[j].char == '(') {
@@ -1456,8 +1462,15 @@ class CustomDotMatrixDisplay extends StatelessWidget {
       int j = s + 1;
       while (j < n) {
         final cj = items[j].char;
-        if (cj == '_') { j++; continue; }
-        if (_isDigitExp(cj) || cj == '.' || cj == ',') { end = j; j++; } else break;
+        if (cj == '_') {
+          j++;
+          continue;
+        }
+        if (_isDigitExp(cj) || cj == '.' || cj == ',') {
+          end = j;
+          j++;
+        } else
+          break;
       }
       if (j < n && items[j].char == '(') {
         int p = j + 1;
@@ -1480,28 +1493,26 @@ class CustomDotMatrixDisplay extends StatelessWidget {
     for (final unit in text.split('')) {
       if (unit == '\u0305') {
         if (items.isNotEmpty) {
-          items[items.length - 1] = (
-            char: items.last.char,
-            overline: true,
-          );
+          items[items.length - 1] = (char: items.last.char, overline: true);
         }
       } else {
         items.add((char: unit, overline: false));
       }
     }
 
-    final Set<int> gapAfterIndices = (enableThousandGrouping &&
-            thousandGroupGap > 0)
+    final Set<int> gapAfterIndices =
+        (enableThousandGrouping && thousandGroupGap > 0)
         ? _computeThousandGaps(items)
         : const <int>{};
 
     // Detekce exponentů: najdi '^' a k nim platný exponent rozsah
     final Set<int> exponentIndices = {};
-    final Set<int> caretSkip = {}; // indexy '^' které se nevykreslí (nahrazeny superscriptem)
+    final Set<int> caretSkip =
+        {}; // indexy '^' které se nevykreslí (nahrazeny superscriptem)
     final n = items.length;
     for (int i = 0; i < n; i++) {
       if (items[i].char != '^') continue;
-      // Najdi start za '^' přes '_' 
+      // Najdi start za '^' přes '_'
       int start = i + 1;
       while (start < n && items[start].char == '_') start++;
       if (start >= n) continue;
@@ -1510,7 +1521,7 @@ class CustomDotMatrixDisplay extends StatelessWidget {
         // Limit délky exponentu (6 znaků bez '_' ) – jinak fallback lineární
         int digitCount = 0;
         for (int k = start; k <= end; k++) {
-          if (items[k].char != '_' ) digitCount++;
+          if (items[k].char != '_') digitCount++;
         }
         if (digitCount > 8) continue;
         // Označ exponent a caret
@@ -1532,7 +1543,10 @@ class CustomDotMatrixDisplay extends StatelessWidget {
     // Najdi poslední vykreslený index (ne skip)
     int lastVisible = -1;
     for (int i = n - 1; i >= 0; i--) {
-      if (!caretSkip.contains(i)) { lastVisible = i; break; }
+      if (!caretSkip.contains(i)) {
+        lastVisible = i;
+        break;
+      }
     }
 
     final children = <Widget>[];
@@ -1541,8 +1555,12 @@ class CustomDotMatrixDisplay extends StatelessWidget {
       final item = items[idx];
       final isExp = exponentIndices.contains(idx);
       final isLast = idx == lastVisible;
-      final extra = (!isExp && gapAfterIndices.contains(idx)) ? thousandGroupGap : 0.0;
-      final rightMargin = isLast ? 0.0 : (isExp ? expLedSpacing * 2 : ledSpacing * 2) + extra;
+      final extra = (!isExp && gapAfterIndices.contains(idx))
+          ? thousandGroupGap
+          : 0.0;
+      final rightMargin = isLast
+          ? 0.0
+          : (isExp ? expLedSpacing * 2 : ledSpacing * 2) + extra;
 
       Widget cell;
       if (isExp) {
@@ -1585,10 +1603,12 @@ class CustomDotMatrixDisplay extends StatelessWidget {
         );
       }
 
-      children.add(Container(
-        margin: EdgeInsets.only(right: rightMargin),
-        child: cell,
-      ));
+      children.add(
+        Container(
+          margin: EdgeInsets.only(right: rightMargin),
+          child: cell,
+        ),
+      );
     }
 
     return Row(
@@ -1601,9 +1621,7 @@ class CustomDotMatrixDisplay extends StatelessWidget {
   // Delegates to pure helper in thousand_grouping.dart to keep
   // presentation logic testable. Keeping a local wrapper avoids
   // importing that file as part of main.dart via `part` issues.
-  Set<int> _computeThousandGaps(
-    List<({String char, bool overline})> items,
-  ) {
+  Set<int> _computeThousandGaps(List<({String char, bool overline})> items) {
     // Inline copy of computeThousandGapIndicesForItems logic to avoid
     // extra import cycle (widgets.dart is part of main.dart).
     final gaps = <int>{};

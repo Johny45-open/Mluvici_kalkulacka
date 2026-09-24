@@ -31,7 +31,14 @@ class StatsStorage {
     } catch (_) {}
   }
 
-  static Future<({List<StatisticsSet> sets, List<StatisticsFolder> folders, int currentIndex})> load() async {
+  static Future<
+    ({
+      List<StatisticsSet> sets,
+      List<StatisticsFolder> folders,
+      int currentIndex,
+    })
+  >
+  load() async {
     final fileJson = await _readFileJson();
     if (fileJson != null) {
       try {
@@ -40,11 +47,17 @@ class StatsStorage {
             .toList();
         final folders = fileJson['folders'] != null
             ? (fileJson['folders'] as List)
-                .map((e) => StatisticsFolder.fromJson(e as Map<String, dynamic>))
-                .toList()
+                  .map(
+                    (e) => StatisticsFolder.fromJson(e as Map<String, dynamic>),
+                  )
+                  .toList()
             : <StatisticsFolder>[];
         final idx = (fileJson['currentIndex'] as num?)?.toInt() ?? 0;
-        return (sets: sets, folders: folders, currentIndex: idx.clamp(0, sets.isEmpty ? 0 : sets.length - 1));
+        return (
+          sets: sets,
+          folders: folders,
+          currentIndex: idx.clamp(0, sets.isEmpty ? 0 : sets.length - 1),
+        );
       } catch (_) {}
     }
     final prefs = await SharedPreferences.getInstance();
@@ -75,7 +88,11 @@ class StatsStorage {
         'migratedAt': DateTime.now().toIso8601String(),
       });
     }
-    return (sets: sets, folders: folders, currentIndex: idx.clamp(0, sets.isEmpty ? 0 : sets.length - 1));
+    return (
+      sets: sets,
+      folders: folders,
+      currentIndex: idx.clamp(0, sets.isEmpty ? 0 : sets.length - 1),
+    );
   }
 
   static Future<void> save({
@@ -96,8 +113,14 @@ class StatsStorage {
       final f = await _file();
       final len = await f.length();
       if (len < 500 * 1024) {
-        await prefs.setString(_prefsSetsKey, jsonEncode(sets.map((s) => s.toJson()).toList()));
-        await prefs.setString(_prefsFoldersKey, jsonEncode(folders.map((f) => f.toJson()).toList()));
+        await prefs.setString(
+          _prefsSetsKey,
+          jsonEncode(sets.map((s) => s.toJson()).toList()),
+        );
+        await prefs.setString(
+          _prefsFoldersKey,
+          jsonEncode(folders.map((f) => f.toJson()).toList()),
+        );
       } else {
         await prefs.remove(_prefsSetsKey);
         await prefs.remove(_prefsFoldersKey);

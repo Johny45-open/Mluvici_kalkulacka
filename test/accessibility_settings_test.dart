@@ -38,10 +38,22 @@ void main() {
 
     test('profile copyWith does not share settings', () {
       final base = AccessibilitySettings.defaultsStandard();
-      final p1 = AccessibilityProfile(id: 'a', name: 'A', settings: base, isBuiltIn: false);
-      final p2 = AccessibilityProfile(id: 'b', name: 'B', settings: base, isBuiltIn: false);
+      final p1 = AccessibilityProfile(
+        id: 'a',
+        name: 'A',
+        settings: base,
+        isBuiltIn: false,
+      );
+      final p2 = AccessibilityProfile(
+        id: 'b',
+        name: 'B',
+        settings: base,
+        isBuiltIn: false,
+      );
       // p1 and p2 currently share same base instance – copyWith should break sharing
-      final p1Updated = p1.copyWith(settings: p1.settings.copyWith(fontSizeMultiplier: 2.5));
+      final p1Updated = p1.copyWith(
+        settings: p1.settings.copyWith(fontSizeMultiplier: 2.5),
+      );
       expect(p1.settings.fontSizeMultiplier, 1.0);
       expect(p1Updated.settings.fontSizeMultiplier, 2.5);
       expect(p2.settings.fontSizeMultiplier, 1.0);

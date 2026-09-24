@@ -16,10 +16,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 11.5.0
+version: 12.5.0
 
 environment:
-  sdk: ^3.11.1
+  sdk: ^3.12.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -32,21 +32,21 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  intl: ^0.20.2
+  intl: ^0.20.3
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
-  math_expressions: ^3.1.0
-  shared_preferences: ^2.5.4
-  path_provider: ^2.1.5
-  file_picker: ^12.0.0-beta.7
-  share_plus: ^13.2.1
+  cupertino_icons: ^1.0.9
+  math_expressions: ^3.2.0
+  shared_preferences: ^2.5.5
+  path_provider: ^2.1.6
+  file_picker: ^13.1.0
+  share_plus: ^13.3.0
   flutter_tts: ^4.2.5
-  http: ^1.2.2
+  http: ^1.6.0
   package_info_plus: ^10.2.1
-  url_launcher: ^6.3.1
-  speech_to_text: ^7.4.0
+  url_launcher: ^6.3.2
+  speech_to_text: ^7.5.0
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +70,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   generate: true
+  assets:
+    - assets/config_schema_v1.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

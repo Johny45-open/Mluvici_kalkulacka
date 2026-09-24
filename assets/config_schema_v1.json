@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Johny45-open/Mluvici_kalkulacka/config_schema_v1.json",
+  "title": "Mluvici kalkulacka config contract v1",
+  "description": "Kanonicke schema pro prenositelny konfiguracni soubor mluvici kalkulacky. Verze 1.",
+  "type": "object",
+  "required": ["schemaVersion", "activeProfileId", "profiles", "globalSettings"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Verze schema. MVP podporuje pouze 1."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 cas vytvoreni souboru. Dynamicke metadata, ignoruje se pri semantickem porovnani."
+    },
+    "generator": {
+      "type": "string",
+      "description": "Identifikator generatoru, napr. Konfigurator_mluvici_kalkulacky/1.0. Dynamicke metadata."
+    },
+    "calculatorCompatibility": {
+      "type": "object",
+      "required": ["minVersion"],
+      "properties": {
+        "minVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+.*$",
+          "description": "Minimalni verze kalkulacky, ktera umi nactit tento soubor."
+        },
+        "maxVersion": {
+          "type": ["string", "null"],
+          "pattern": "^\\d+\\.\\d+\\.\\d+.*$",
+          "description": "Maximalni verze, null = bez omezeni."
+        }
+      }
+    },
+    "activeProfileId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID aktivniho profilu, musi existovat v profiles."
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/profile" }
+    },
+    "globalSettings": { "$ref": "#/$defs/globalSettings" }
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "required": ["id", "name", "isBuiltIn", "settings"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "isBuiltIn": { "type": "boolean" },
+        "settings": { "$ref": "#/$defs/accessibilitySettings" }
+      }
+    },
+    "accessibilitySettings": {
+      "type": "object",
+      "required": [
+        "accessibilityType", "screenReaderMode", "fontSizeMultiplier", "dialogFontScale",
+        "dotMatrixZoom", "resultZoom", "thousandGroupGap", "dialogSize",
+        "useSixteenSegment", "usePeriodicNotation", "announceExpression",
+        "readStatsMemoryValues", "autoReadStatsSummary", "showStatsNavigationHint",
+        "alignInputLeft", "overlineThickness", "overlineHeight",
+        "speechRate", "speechVolume", "ttsEnabled"
+      ],
+      "properties": {
+        "accessibilityType": { "type": "string", "enum": ["none", "blind", "visuallyImpaired"] },
+        "screenReaderMode": { "type": "string", "enum": ["auto", "on", "off"] },
+        "fontSizeMultiplier": { "type": "number", "minimum": 0.7, "maximum": 2.5 },
+        "dialogFontScale": { "type": "number", "minimum": 0.5, "maximum": 5.0 },
+        "dotMatrixZoom": { "type": "number", "minimum": 0.5, "maximum": 5.0 },
+        "resultZoom": { "type": "number", "minimum": 0.5, "maximum": 5.0 },
+        "thousandGroupGap": { "type": "string", "enum": ["small", "medium", "large"] },
+        "dialogSize": { "type": "string", "enum": ["compact", "wide", "fullscreen"] },
+        "useSixteenSegment": { "type": "boolean" },
+        "usePeriodicNotation": { "type": "boolean" },
+        "announceExpression": { "type": "boolean" },
+        "readStatsMemoryValues": { "type": "boolean" },
+        "autoReadStatsSummary": { "type": "boolean" },
+        "showStatsNavigationHint": { "type": "boolean" },
+        "alignInputLeft": { "type": "boolean" },
+        "overlineThickness": { "type": "number", "minimum": 0.8, "maximum": 4.0 },
+        "overlineHeight": { "type": "number", "minimum": 0.5, "maximum": 2.0 },
+        "speechRate": { "type": "number", "minimum": 0.1, "maximum": 1.0 },
+        "speechVolume": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "ttsEnabled": { "type": "boolean" },
+        "ttsEngine": { "type": ["string", "null"] },
+        "ttsVoice": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["name", "locale"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "locale": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
+        },
+        "ttsVoiceName": { "type": ["string", "null"] },
+        "inverseFormatPreference": { "type": ["string", "null"], "enum": ["dms", "decimal", null] }
+      }
+    },
+    "globalSettings": {
+      "type": "object",
+      "required": ["themeMode", "isDegreeMode", "defaultMode", "statsSummaryOrder", "statsComputedOrder", "currency", "devMode"],
+      "properties": {
+        "themeMode": { "type": "string", "enum": ["light", "dark"] },
+        "isDegreeMode": { "type": "boolean" },
+        "defaultMode": { "type": "string", "enum": ["basic", "scientific", "statistics", "electrician", "unitConversion", "time", "currency"] },
+        "statsSummaryOrder": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "string", "enum": ["header", "dataValues", "computed"] }
+        },
+        "statsComputedOrder": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": { "type": "string", "enum": ["mean", "sum", "variance", "sd", "median", "min", "max", "mode", "cv", "wmean"] }
+        },
+        "currency": {
+          "type": "object",
+          "required": ["from", "to"],
+          "properties": {
+            "from": { "type": "string", "minLength": 1 },
+            "to": { "type": "string", "minLength": 1 }
+          }
+        },
+        "devMode": {
+          "type": "object",
+          "required": ["enabled", "autoDiagnostic", "diagnosticDurationMs"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "autoDiagnostic": { "type": "boolean" },
+            "diagnosticDurationMs": { "type": "integer", "minimum": 200, "maximum": 3000 },
+            "pinCode": { "type": ["string", "null"], "pattern": "^\\d{4}$" }
+          }
+        }
+      }
+    }
+  }
+}

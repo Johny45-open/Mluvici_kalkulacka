@@ -42,10 +42,7 @@ void main() {
       expect(computeThousandGapIndicesForDisplay('-1234567'), {1, 4});
     });
     test('1234567+8888888 -> 1 234 567+8 888 888', () {
-      expect(
-        formatDisplayWithSpaces('1234567+8888888'),
-        '1 234 567+8 888 888',
-      );
+      expect(formatDisplayWithSpaces('1234567+8888888'), '1 234 567+8 888 888');
     });
     test('1234567*8888888+1000000', () {
       expect(
@@ -111,8 +108,9 @@ void main() {
       return tester.state(find.byType(CalculatorScreen)) as dynamic;
     }
 
-    testWidgets('kurzor na začátku / uprostřed / konci zachová pozici',
-        (tester) async {
+    testWidgets('kurzor na začátku / uprostřed / konci zachová pozici', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -189,8 +187,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('mazání po vizuálně odděleném čísle nemění display',
-        (tester) async {
+    testWidgets('mazání po vizuálně odděleném čísle nemění display', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -223,8 +222,9 @@ void main() {
       expect(state.displayForTest, isNot(contains(' ')));
     });
 
-    testWidgets('Semantics stále používá skutečný výraz bez mezer',
-        (tester) async {
+    testWidgets('Semantics stále používá skutečný výraz bez mezer', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -251,7 +251,10 @@ void main() {
       // Check that underlying display has no spaces
       expect(state.displayForTest.contains(' '), isFalse);
       // And visual formatting would be "1 234 567+8 888 888" but semantics value is without those visual gaps
-      expect(formatDisplayWithSpaces(state.displayForTest), '1 234 567+8 888 888');
+      expect(
+        formatDisplayWithSpaces(state.displayForTest),
+        '1 234 567+8 888 888',
+      );
     });
 
     testWidgets('desetinná čísla – jen celá část', (tester) async {

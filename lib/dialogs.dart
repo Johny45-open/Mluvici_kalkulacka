@@ -1181,7 +1181,7 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
               }),
               const SizedBox(height: 12),
               Semantics(
-                  label: parent._s('Přidat novou měnu', 'Add new currency'),
+                label: parent._s('Přidat novou měnu', 'Add new currency'),
                 child: FilledButton.icon(
                   onPressed: () async {
                     final code = await parent.showAppDialog<String>(
@@ -1902,28 +1902,44 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
     super.initState();
     _selectedProfileId = widget.parent._activeProfileId;
   }
+
   void _openEditor() {
     if (_selectedProfileId == null) {
-      widget.parent.speak(widget.parent._s('Nejprve vyberte profil','Select a profile first'));
+      widget.parent.speak(
+        widget.parent._s('Nejprve vyberte profil', 'Select a profile first'),
+      );
       return;
     }
     if (!widget.parent._profilesLoaded) {
-      widget.parent.speak(widget.parent._s('Profily se ještě načítají, zkuste to znovu.','Profiles are still loading, please try again.'));
+      widget.parent.speak(
+        widget.parent._s(
+          'Profily se ještě načítají, zkuste to znovu.',
+          'Profiles are still loading, please try again.',
+        ),
+      );
       return;
     }
     final ok = widget.parent.startEditingProfile(_selectedProfileId!);
     if (!ok) return;
     final editingId = _selectedProfileId!;
-    final profileForName = widget.parent._profiles.firstWhere((p)=>p.id==editingId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
-    final routeName = 'Upravit profil ${widget.parent._displayProfileName(profileForName)}';
-    widget.parent.showAppDialog<void>(
-      context: context,
-      routeSettings: RouteSettings(name: routeName),
-      builder: (ctx) => _AccessibilityProfileEditorDialog(parent: widget.parent),
-    ).then((_) {
-      if (mounted) setState((){});
-    });
+    final profileForName = widget.parent._profiles.firstWhere(
+      (p) => p.id == editingId,
+      orElse: () => widget.parent._getActiveAccessibilityProfile(),
+    );
+    final routeName =
+        'Upravit profil ${widget.parent._displayProfileName(profileForName)}';
+    widget.parent
+        .showAppDialog<void>(
+          context: context,
+          routeSettings: RouteSettings(name: routeName),
+          builder: (ctx) =>
+              _AccessibilityProfileEditorDialog(parent: widget.parent),
+        )
+        .then((_) {
+          if (mounted) setState(() {});
+        });
   }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -1943,7 +1959,9 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                   header: true,
                   label: widget.parent._l10n.accessibilityProfileSection,
                   child: ExcludeSemantics(
-                    child: Text(widget.parent._l10n.accessibilityProfileSection),
+                    child: Text(
+                      widget.parent._l10n.accessibilityProfileSection,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1971,159 +1989,386 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 if (!widget.parent._profilesLoaded)
                   Semantics(
                     liveRegion: true,
-                    label: widget.parent._s('Profily se načítají', 'Profiles loading'),
+                    label: widget.parent._s(
+                      'Profily se načítají',
+                      'Profiles loading',
+                    ),
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                           SizedBox(width: 8),
-                          Text(widget.parent._s('Načítám profily…', 'Loading profiles…')),
+                          Text(
+                            widget.parent._s(
+                              'Načítám profily…',
+                              'Loading profiles…',
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   )
                 else
-                Semantics(
-                  label: widget.parent._s('Seznam profilů, vyberte profil k úpravě','Profile list, select profile to edit'),
-                  child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: widget.parent._effectiveProfiles.map((profile) {
-                    final isActive = profile.id == widget.parent._getActiveAccessibilityProfile().id;
-                    final isSelected = profile.id == _selectedProfileId;
-                    final displayName = widget.parent._displayProfileName(profile);
-                    final label = displayName + (isActive ? ', aktivní' : '') + (isSelected ? ', vybrán k úpravě' : '') + (profile.isBuiltIn ? ', vestavěný' : '');
-                    return Semantics(
-                      button: true,
-                      selected: isSelected,
-                      label: label,
-                      child: ElevatedButton(
-                        style: isSelected
-                            ? ElevatedButton.styleFrom(
-                                backgroundColor: Theme.of(context).colorScheme.secondary,
-                                foregroundColor: Theme.of(context).colorScheme.onSecondary,
-                                side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
-                              )
-                            : isActive
+                  Semantics(
+                    label: widget.parent._s(
+                      'Seznam profilů, vyberte profil k úpravě',
+                      'Profile list, select profile to edit',
+                    ),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: widget.parent._effectiveProfiles.map((profile) {
+                        final isActive =
+                            profile.id ==
+                            widget.parent._getActiveAccessibilityProfile().id;
+                        final isSelected = profile.id == _selectedProfileId;
+                        final displayName = widget.parent._displayProfileName(
+                          profile,
+                        );
+                        final label =
+                            displayName +
+                            (isActive ? ', aktivní' : '') +
+                            (isSelected ? ', vybrán k úpravě' : '') +
+                            (profile.isBuiltIn ? ', vestavěný' : '');
+                        return Semantics(
+                          button: true,
+                          selected: isSelected,
+                          label: label,
+                          child: ElevatedButton(
+                            style: isSelected
                                 ? ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.of(context).colorScheme.primary,
-                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.secondary,
+                                    foregroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.onSecondary,
+                                    side: BorderSide(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      width: 2,
+                                    ),
+                                  )
+                                : isActive
+                                ? ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    foregroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimary,
                                   )
                                 : null,
-                        onPressed: !widget.parent._profilesLoaded ? null : () {
-                          setState(() => _selectedProfileId = profile.id);
-                          widget.parent.speak(label);
-                        },
-                        child: Text(displayName),
-                      ),
-                    );
-                  }).toList(),
-                )),
+                            onPressed: !widget.parent._profilesLoaded
+                                ? null
+                                : () {
+                                    setState(
+                                      () => _selectedProfileId = profile.id,
+                                    );
+                                    widget.parent.speak(label);
+                                  },
+                            child: Text(displayName),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 // Management – operace nad vybraným profilem (výběr ≠ aktivace)
-                Builder(builder: (ctx) {
-                  final selId = _selectedProfileId;
-                  final selProfile = selId == null ? null : widget.parent._profiles.firstWhere((p)=>p.id==selId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
-                  final selIsBuiltIn = selProfile?.isBuiltIn ?? true;
-                  final selName = selProfile == null ? '' : widget.parent._displayProfileName(selProfile);
-                  final profilesReady = widget.parent._profilesLoaded;
-                  return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Semantics(
-                      button: true,
-                      enabled: selId != null && profilesReady,
-                      label: selId == null ? widget.parent._s('Upravit profil – nejprve vyberte profil','Edit profile – select a profile first') : widget.parent._s('Upravit profil $selName','Edit profile $selName'),
-                      child: FilledButton.icon(
-                        icon: const Icon(Icons.edit, size: 18),
-                        label: Text(widget.parent._s('Upravit','Edit')),
-                        onPressed: (selId == null || !profilesReady) ? null : _openEditor,
-                      ),
-                    ),
-                    Semantics(
-                      button: true,
-                      enabled: selId != null && profilesReady,
-                      label: selId == null ? widget.parent._s('Aktivovat profil – nejprve vyberte profil','Activate profile – select a profile first') : widget.parent._s('Aktivovat profil $selName','Activate profile $selName'),
-                      child: FilledButton.icon(
-                        icon: const Icon(Icons.check_circle, size: 18),
-                        label: Text(widget.parent._s('Aktivovat','Activate')),
-                        onPressed: (selId == null || !profilesReady) ? null : () {
-                          final p = widget.parent._profiles.firstWhere((e)=>e.id==selId, orElse: ()=> widget.parent._getActiveAccessibilityProfile());
-                          // Guard: ensure p.id == selId (exists in _profiles)
-                          if (p.id != selId) {
-                            widget.parent.speak(widget.parent._s('Profil neexistuje','Profile does not exist'));
-                            return;
-                          }
-                          widget.parent.applyAccessibilityProfile(p, announcement: widget.parent._l10n.profileChangedTo(selName));
-                          setState((){});
-                        },
-                      ),
-                    ),
-                    Semantics(
-                      button: true,
-                      enabled: profilesReady,
-                      label: widget.parent._s('Vytvořit nový profil', 'Create new profile'),
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.add, size: 18),
-                        label: Text(widget.parent._s('Nový profil', 'New profile')),
-                        onPressed: !profilesReady ? null : () {
-                          Navigator.pop(context);
-                          widget.parent._showCreateProfileDialog();
-                        },
-                      ),
-                    ),
-                    Semantics(
-                      button: true,
-                      enabled: selId != null && profilesReady,
-                      label: selId == null ? widget.parent._s('Obnovit výchozí nastavení profilu','Reset profile to defaults') : widget.parent._s('Obnovit profil $selName','Reset profile $selName'),
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.restart_alt, size: 18),
-                        label: Text(widget.parent._s('Obnovit výchozí', 'Reset')),
-                        onPressed: (selId == null || !profilesReady) ? null : () {
-                          widget.parent._confirmResetProfileForId(context, selId);
-                        },
-                      ),
-                    ),
-                    Semantics(
-                      button: true,
-                      enabled: selId != null && !selIsBuiltIn && profilesReady,
-                      label: selIsBuiltIn ? widget.parent._s('Přejmenovat profil $selName – nelze, vestavěný profil','Rename profile $selName – cannot, built-in profile') : widget.parent._s('Přejmenovat profil $selName','Rename profile $selName'),
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.edit, size: 18),
-                        label: Text(widget.parent._s('Přejmenovat', 'Rename')),
-                        onPressed: (selId == null || selIsBuiltIn || !profilesReady) ? null : () {
-                          Navigator.pop(context);
-                          widget.parent._showRenameProfileDialogForId(selId);
-                        },
-                      ),
-                    ),
-                    Semantics(
-                      button: true,
-                      enabled: selId != null && !selIsBuiltIn && profilesReady,
-                      label: selIsBuiltIn ? widget.parent._s('Smazat profil $selName – nelze, vestavěný profil','Delete profile $selName – cannot, built-in profile') : widget.parent._s('Smazat profil $selName','Delete profile $selName'),
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.delete, size: 18),
-                        label: Text(widget.parent._s('Smazat', 'Delete')),
-                        style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                        onPressed: (selId == null || selIsBuiltIn || !profilesReady) ? null : () {
-                          widget.parent._confirmDeleteProfileForId(context, selId, parentDialogContext: context);
-                        },
-                      ),
-                    ),
-                  ],
-                );}),
+                Builder(
+                  builder: (ctx) {
+                    final selId = _selectedProfileId;
+                    final selProfile = selId == null
+                        ? null
+                        : widget.parent._profiles.firstWhere(
+                            (p) => p.id == selId,
+                            orElse: () =>
+                                widget.parent._getActiveAccessibilityProfile(),
+                          );
+                    final selIsBuiltIn = selProfile?.isBuiltIn ?? true;
+                    final selName = selProfile == null
+                        ? ''
+                        : widget.parent._displayProfileName(selProfile);
+                    final profilesReady = widget.parent._profilesLoaded;
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Semantics(
+                          button: true,
+                          enabled: selId != null && profilesReady,
+                          label: selId == null
+                              ? widget.parent._s(
+                                  'Upravit profil – nejprve vyberte profil',
+                                  'Edit profile – select a profile first',
+                                )
+                              : widget.parent._s(
+                                  'Upravit profil $selName',
+                                  'Edit profile $selName',
+                                ),
+                          child: FilledButton.icon(
+                            icon: const Icon(Icons.edit, size: 18),
+                            label: Text(widget.parent._s('Upravit', 'Edit')),
+                            onPressed: (selId == null || !profilesReady)
+                                ? null
+                                : _openEditor,
+                          ),
+                        ),
+                        Semantics(
+                          button: true,
+                          enabled: selId != null && profilesReady,
+                          label: selId == null
+                              ? widget.parent._s(
+                                  'Aktivovat profil – nejprve vyberte profil',
+                                  'Activate profile – select a profile first',
+                                )
+                              : widget.parent._s(
+                                  'Aktivovat profil $selName',
+                                  'Activate profile $selName',
+                                ),
+                          child: FilledButton.icon(
+                            icon: const Icon(Icons.check_circle, size: 18),
+                            label: Text(
+                              widget.parent._s('Aktivovat', 'Activate'),
+                            ),
+                            onPressed: (selId == null || !profilesReady)
+                                ? null
+                                : () {
+                                    final p = widget.parent._profiles
+                                        .firstWhere(
+                                          (e) => e.id == selId,
+                                          orElse: () => widget.parent
+                                              ._getActiveAccessibilityProfile(),
+                                        );
+                                    // Guard: ensure p.id == selId (exists in _profiles)
+                                    if (p.id != selId) {
+                                      widget.parent.speak(
+                                        widget.parent._s(
+                                          'Profil neexistuje',
+                                          'Profile does not exist',
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    widget.parent.applyAccessibilityProfile(
+                                      p,
+                                      announcement: widget.parent._l10n
+                                          .profileChangedTo(selName),
+                                    );
+                                    setState(() {});
+                                  },
+                          ),
+                        ),
+                        Semantics(
+                          button: true,
+                          enabled: profilesReady,
+                          label: widget.parent._s(
+                            'Vytvořit nový profil',
+                            'Create new profile',
+                          ),
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.add, size: 18),
+                            label: Text(
+                              widget.parent._s('Nový profil', 'New profile'),
+                            ),
+                            onPressed: !profilesReady
+                                ? null
+                                : () {
+                                    Navigator.pop(context);
+                                    widget.parent._showCreateProfileDialog();
+                                  },
+                          ),
+                        ),
+                        Semantics(
+                          button: true,
+                          enabled: selId != null && profilesReady,
+                          label: selId == null
+                              ? widget.parent._s(
+                                  'Obnovit výchozí nastavení profilu',
+                                  'Reset profile to defaults',
+                                )
+                              : widget.parent._s(
+                                  'Obnovit profil $selName',
+                                  'Reset profile $selName',
+                                ),
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.restart_alt, size: 18),
+                            label: Text(
+                              widget.parent._s('Obnovit výchozí', 'Reset'),
+                            ),
+                            onPressed: (selId == null || !profilesReady)
+                                ? null
+                                : () {
+                                    widget.parent._confirmResetProfileForId(
+                                      context,
+                                      selId,
+                                    );
+                                  },
+                          ),
+                        ),
+                        Semantics(
+                          button: true,
+                          enabled:
+                              selId != null && !selIsBuiltIn && profilesReady,
+                          label: selIsBuiltIn
+                              ? widget.parent._s(
+                                  'Přejmenovat profil $selName – nelze, vestavěný profil',
+                                  'Rename profile $selName – cannot, built-in profile',
+                                )
+                              : widget.parent._s(
+                                  'Přejmenovat profil $selName',
+                                  'Rename profile $selName',
+                                ),
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.edit, size: 18),
+                            label: Text(
+                              widget.parent._s('Přejmenovat', 'Rename'),
+                            ),
+                            onPressed:
+                                (selId == null ||
+                                    selIsBuiltIn ||
+                                    !profilesReady)
+                                ? null
+                                : () {
+                                    Navigator.pop(context);
+                                    widget.parent._showRenameProfileDialogForId(
+                                      selId,
+                                    );
+                                  },
+                          ),
+                        ),
+                        Semantics(
+                          button: true,
+                          enabled:
+                              selId != null && !selIsBuiltIn && profilesReady,
+                          label: selIsBuiltIn
+                              ? widget.parent._s(
+                                  'Smazat profil $selName – nelze, vestavěný profil',
+                                  'Delete profile $selName – cannot, built-in profile',
+                                )
+                              : widget.parent._s(
+                                  'Smazat profil $selName',
+                                  'Delete profile $selName',
+                                ),
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.delete, size: 18),
+                            label: Text(widget.parent._s('Smazat', 'Delete')),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            onPressed:
+                                (selId == null ||
+                                    selIsBuiltIn ||
+                                    !profilesReady)
+                                ? null
+                                : () {
+                                    widget.parent._confirmDeleteProfileForId(
+                                      context,
+                                      selId,
+                                      parentDialogContext: context,
+                                    );
+                                  },
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
-                        const Divider(),
+            const Divider(),
             Semantics(
-              label: widget.parent._s('Nastavení profilu upravíte stiskem Upravit u vybraného profilu','Edit profile settings via Edit button for selected profile'),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical:8),
+              header: true,
+              label: widget.parent._l10n.dataManagementSection,
+              child: ExcludeSemantics(
                 child: Text(
-                  widget.parent._s('Nastavení profilu upravíte stiskem Upravit u vybraného profilu.','Edit profile settings via Edit button for selected profile.'),
+                  widget.parent._l10n.dataManagementSection,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Semantics(
+                  button: true,
+                  label: widget.parent._s(
+                    'Importovat konfiguraci (kontrakt)',
+                    'Import configuration (contract)',
+                  ),
+                  hint: widget.parent._s(
+                    'Vybere JSON soubor s konfigurací a importuje jej',
+                    'Pick a JSON configuration file and import it',
+                  ),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.file_download, size: 18),
+                    label: Text(
+                      widget.parent._s(
+                        'Importovat konfiguraci',
+                        'Import configuration',
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Future.delayed(const Duration(milliseconds: 200), () {
+                        if (widget.parent.mounted)
+                          widget.parent._importContract();
+                      });
+                    },
+                  ),
+                ),
+                Semantics(
+                  button: true,
+                  label: widget.parent._s(
+                    'Exportovat konfiguraci (kontrakt)',
+                    'Export configuration (contract)',
+                  ),
+                  hint: widget.parent._s(
+                    'Exportuje aktuální konfiguraci ke sdílení',
+                    'Exports current configuration for sharing',
+                  ),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.file_upload, size: 18),
+                    label: Text(
+                      widget.parent._s(
+                        'Exportovat konfiguraci',
+                        'Export configuration',
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Future.delayed(const Duration(milliseconds: 200), () {
+                        if (widget.parent.mounted)
+                          widget.parent._exportContract();
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Divider(),
+            Semantics(
+              label: widget.parent._s(
+                'Nastavení profilu upravíte stiskem Upravit u vybraného profilu',
+                'Edit profile settings via Edit button for selected profile',
+              ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  widget.parent._s(
+                    'Nastavení profilu upravíte stiskem Upravit u vybraného profilu.',
+                    'Edit profile settings via Edit button for selected profile.',
+                  ),
                   style: TextStyle(fontStyle: FontStyle.italic),
                   textAlign: TextAlign.center,
                 ),
@@ -2142,5 +2387,4 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       ],
     );
   }
-
 }

@@ -51,7 +51,10 @@ class GitHubReleaseInfo {
       return '';
     }
 
-    final lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    final lines = text
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .toList();
     return lines.take(5).join('\n');
   }
 
@@ -63,8 +66,12 @@ class GitHubReleaseInfo {
 
   static List<int> _parseVersion(String version) {
     // Odstranění prefixu 'v' a build metadat (+...)
-    final cleaned = version.trim().replaceAll(RegExp(r'^v'), '').split('+').first;
-    
+    final cleaned = version
+        .trim()
+        .replaceAll(RegExp(r'^v'), '')
+        .split('+')
+        .first;
+
     // Extrakce pouze číselných částí oddělených tečkou
     final parts = cleaned.split('.').where((part) => part.isNotEmpty).toList();
     if (parts.isEmpty) {
@@ -92,7 +99,8 @@ class GitHubReleaseInfo {
 
 class GitHubFetchResult {
   final List<GitHubReleaseInfo> releases;
-  final String? errorType; // null=success, otherwise offline/timeout/rateLimit/notFound/serverError/generic
+  final String?
+  errorType; // null=success, otherwise offline/timeout/rateLimit/notFound/serverError/generic
 
   const GitHubFetchResult({required this.releases, this.errorType});
 
@@ -100,7 +108,8 @@ class GitHubFetchResult {
 }
 
 class GitHubReleaseChecker {
-  GitHubReleaseChecker({http.Client? client}) : _client = client ?? http.Client();
+  GitHubReleaseChecker({http.Client? client})
+    : _client = client ?? http.Client();
 
   final http.Client _client;
 
@@ -117,7 +126,10 @@ class GitHubReleaseChecker {
     required String currentVersion,
   }) async {
     try {
-      final uri = Uri.https('api.github.com', '/repos/$owner/$repo/releases/latest');
+      final uri = Uri.https(
+        'api.github.com',
+        '/repos/$owner/$repo/releases/latest',
+      );
       final response = await _client
           .get(uri, headers: _headers())
           .timeout(const Duration(seconds: 10));
@@ -177,11 +189,10 @@ class GitHubReleaseChecker {
     int page = 1,
   }) async {
     try {
-      final uri = Uri.https(
-        'api.github.com',
-        '/repos/$owner/$repo/releases',
-        {'per_page': '$perPage', 'page': '$page'},
-      );
+      final uri = Uri.https('api.github.com', '/repos/$owner/$repo/releases', {
+        'per_page': '$perPage',
+        'page': '$page',
+      });
       final response = await _client
           .get(uri, headers: _headers())
           .timeout(const Duration(seconds: 10));

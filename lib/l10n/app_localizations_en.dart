@@ -39,7 +39,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirm => 'Confirm';
 
   @override
-  String get deleteConfirmation => 'Are you sure you want to clear the entire history?';
+  String get deleteConfirmation =>
+      'Are you sure you want to clear the entire history?';
 
   @override
   String get yesDelete => 'YES, CLEAR';
@@ -54,7 +55,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get understand => 'UNDERSTAND';
 
   @override
-  String get tutorialText => 'This calculator supports scientific calculations, statistics, electrical formulas, and unit conversions. \n\nKeyboard shortcuts:\nS - Sine (Shift+S for Arcsine)\nC - Cosine (Shift+C for Arccosine)\nT - Tangent (Shift+T for Arctangent)\nP - Pi\nQ - Square root\nEnter - Result\nCtrl+PageDown/PageUp - Switch between functions and numbers page in scientific mode';
+  String get tutorialText =>
+      'This calculator supports scientific calculations, statistics, electrical formulas, and unit conversions. \n\nKeyboard shortcuts:\nS - Sine (Shift+S for Arcsine)\nC - Cosine (Shift+C for Arccosine)\nT - Tangent (Shift+T for Arctangent)\nP - Pi\nQ - Square root\nEnter - Result\nCtrl+PageDown/PageUp - Switch between functions and numbers page in scientific mode';
 
   @override
   String get tutorialTabIntro => 'Intro';
@@ -84,31 +86,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tutorialTabStatsManagement => 'Sets & Reading';
 
   @override
-  String get tutorialIntro => 'Welcome to Talking Calculator.\n\nBasic controls:\n- On-screen buttons or keyboard.\n- With TalkBack/NVDA use gestures or Tab.\n- Each button announces its function.\n- Result after \'=\' / Enter is announced automatically.\n- History, Advanced functions and Accessibility in the top bar.\n\nGlobal shortcuts:\n- Enter: =  • Backspace: DEL  • Esc/Delete: C  • Ctrl+1 to Ctrl+7: switch mode  • Ctrl+, : accessibility  • Ctrl+Tab / Shift+Ctrl+Tab: next/previous mode\n\nStatistics help: See tabs Statistics and Sets & Reading for details. Quick help is also in Advanced functions via Statistics Help. Reading order of the summary is set directly in the STATS dialog with the Reading order button.';
+  String get tutorialIntro =>
+      'Welcome to Talking Calculator.\n\nBasic controls:\n- On-screen buttons or keyboard.\n- With TalkBack/NVDA use gestures or Tab.\n- Each button announces its function.\n- Result after \'=\' / Enter is announced automatically.\n- History, Advanced functions and Accessibility in the top bar.\n\nGlobal shortcuts:\n- Enter: =  • Backspace: DEL  • Esc/Delete: C  • Ctrl+1 to Ctrl+7: switch mode  • Ctrl+, : accessibility  • Ctrl+Tab / Shift+Ctrl+Tab: next/previous mode\n\nStatistics help: See tabs Statistics and Sets & Reading for details. Quick help is also in Advanced functions via Statistics Help. Reading order of the summary is set directly in the STATS dialog with the Reading order button.';
 
   @override
-  String get tutorialBasic => 'Basic mode – everyday calculations.\n\nButtons: C (clear), ( ) parentheses, / * - + operators, 0-9 . decimal point, … repeating decimal (tap toggles period, long press opens editor), % percent, DEL, =.\n\nTip: Enter repeating decimals as e.g. 0.1(6) and continue. Short press … moves period left, long press opens manual editor.';
+  String get tutorialBasic =>
+      'Basic mode – everyday calculations.\n\nButtons: C (clear), ( ) parentheses, / * - + operators, 0-9 . decimal point, … repeating decimal (tap toggles period, long press opens editor), % percent, DEL, =.\n\nTip: Enter repeating decimals as e.g. 0.1(6) and continue. Short press … moves period left, long press opens manual editor.';
 
   @override
-  String get tutorialScientific => 'Scientific mode – two pages.\n\nNumbers page: C ( ) / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL =.\nFunctions page (FUNCTIONS): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nToggle NUMBERS/FUNCTIONS at bottom, Ctrl+PageUp/PageDown. DEG/RAD switches degrees/radians. Memory STO/RCL/CLR + variables A-F,X,Y,M and Advanced functions (Trigonometry, Functions, Memory, Repeating, Display NORM/FIX/SCI/ENG).';
+  String get tutorialScientific =>
+      'Scientific mode – two pages.\n\nNumbers page: C ( ) / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL =.\nFunctions page (FUNCTIONS): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nToggle NUMBERS/FUNCTIONS at bottom, Ctrl+PageUp/PageDown. DEG/RAD switches degrees/radians. Memory STO/RCL/CLR + variables A-F,X,Y,M and Advanced functions (Trigonometry, Functions, Memory, Repeating, Display NORM/FIX/SCI/ENG).';
 
   @override
-  String get tutorialStatistics => 'Statistics mode – data sets.\n\nButtons: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: manage sets and folders – see Sets & Reading tab.\nM+ short: stores display numbers (separator ;) to active set. M+ long / Ctrl+M: enter repeat count. With ≥2 records a Review before saving dialog appears for confirmation.\nMC: clear set. MR: view/edit data (grouped values with occurrence counts, delete records).\nSTATS: summary for selected field – field switcher at top (if multiple fields), checkbox Read values in memory (hides/shows All values section and affects speech), table of computed statistics (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN) and Reading order button for customization.\nAdvanced: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/MIN/MAX + read last batch. Multiple fields: enter as e.g. 80;2 for WMEAN (value;weight). Field units can be set when creating/editing a set and appear in the summary.';
+  String get tutorialStatistics =>
+      'Statistics mode – data sets.\n\nButtons: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: manage sets and folders – see Sets & Reading tab.\nM+ short: stores display numbers (separator ;) to active set. M+ long / Ctrl+M: enter repeat count. With ≥2 records a Review before saving dialog appears for confirmation.\nMC: clear set. MR: view/edit data (grouped values with occurrence counts, delete records).\nSTATS: summary for selected field – field switcher at top (if multiple fields), checkbox Read values in memory (hides/shows All values section and affects speech), table of computed statistics (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN) and Reading order button for customization.\nAdvanced: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/MIN/MAX + read last batch. Multiple fields: enter as e.g. 80;2 for WMEAN (value;weight). Field units can be set when creating/editing a set and appear in the summary.';
 
   @override
-  String get tutorialElectrician => 'Electrical mode – Ohm\'s law & power.\n\nButtons: OHM_V (U) OHM_I (I) OHM_R (R) C ; 7 8 9 / 4 5 6 * 1 2 3 - 0 . DEL + ANS =.\nFirst choose what to calculate (OHM_V/I/R, highlighted), then enter two values separated by ; e.g. 12;4 and =.\nU = I×R, I = U/R, R = U/I. Result is announced with unit and prefix (milli/kilo/mega). Division by zero is announced.';
+  String get tutorialElectrician =>
+      'Electrical mode – Ohm\'s law & power.\n\nButtons: OHM_V (U) OHM_I (I) OHM_R (R) C ; 7 8 9 / 4 5 6 * 1 2 3 - 0 . DEL + ANS =.\nFirst choose what to calculate (OHM_V/I/R, highlighted), then enter two values separated by ; e.g. 12;4 and =.\nU = I×R, I = U/R, R = U/I. Result is announced with unit and prefix (milli/kilo/mega). Division by zero is announced.';
 
   @override
-  String get tutorialUnit => 'Unit conversion mode.\n\nCategories: Length, Mass, Area, Volume, Pressure, Time, Voltage, Current, Resistance, Power.\nIn Advanced functions pick category, From and To units (e.g. m → km), enter number and CONVERT. Result is announced and added to history (\"Converted from … to …\").\nKeyboard is numeric only (C 0-9 . DEL =).';
+  String get tutorialUnit =>
+      'Unit conversion mode.\n\nCategories: Length, Mass, Area, Volume, Pressure, Time, Voltage, Current, Resistance, Power.\nIn Advanced functions pick category, From and To units (e.g. m → km), enter number and CONVERT. Result is announced and added to history (\"Converted from … to …\").\nKeyboard is numeric only (C 0-9 . DEL =).';
 
   @override
-  String get tutorialTime => 'Time mode – HH:MM[:SS].\n\nButtons: C : DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 ; NOW =.\nFormat: 12:34 or 12:34:56. Operators + - add/subtract, ; = DIFF (absolute difference). NOW inserts current time. Advanced: TO_SEC (time→seconds), TO_HMS (seconds→time), DIFF. Example: 02:30 + 01:45 = 04:15:00.';
+  String get tutorialTime =>
+      'Time mode – HH:MM[:SS].\n\nButtons: C : DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 ; NOW =.\nFormat: 12:34 or 12:34:56. Operators + - add/subtract, ; = DIFF (absolute difference). NOW inserts current time. Advanced: TO_SEC (time→seconds), TO_HMS (seconds→time), DIFF. Example: 02:30 + 01:45 = 04:15:00.';
 
   @override
-  String get tutorialCurrency => 'Currency mode – rates relative to CZK.\n\nNumeric keyboard, pick From / To currency in Advanced functions, CONVERT. Buttons MANAGE RATES (edit/add/delete, CZK=1 fixed) and UPDATE RATES (online CNB, announces \"Updating…\" / \"Rates updated\" / offline error). Last update is shown. Result: \"Converted X EUR to Y USD. Result …\". Rates are persisted.';
+  String get tutorialCurrency =>
+      'Currency mode – rates relative to CZK.\n\nNumeric keyboard, pick From / To currency in Advanced functions, CONVERT. Buttons MANAGE RATES (edit/add/delete, CZK=1 fixed) and UPDATE RATES (online CNB, announces \"Updating…\" / \"Rates updated\" / offline error). Last update is shown. Result: \"Converted X EUR to Y USD. Result …\". Rates are persisted.';
 
   @override
-  String get tutorialStatsManagement => 'Managing statistics sets and reading order.\n\nSETS dialog:\n- Search by name, sort by Last used / Name / Count, filter All / No folder / specific folder, toggle Show archived.\n- Each set card has color (8) and icon (8), pinned/archived badge, value count and folder name.\n- ⋮ menu: Select, Rename, Edit fields (+units), Color & icon, Move to folder, Copy to folder, Duplicate, Pin/Unpin (pinned stay on top), Archive/Restore, Delete (with confirmation).\n- Buttons: Create new set and More (Quick create, Guided wizard, Voice creation) and Folders (New folder / Manage folders – rename/delete, folder color+icon; sets stay in No folder after deletion).\n- Creating a set: name, field count, field names and optional units (categories Length…Power). Units appear in the summary and are spoken.\n\nSTATS – Statistics summary:\n- Header with active set name and field switcher (tap cycles, announced via voice and screen reader).\n- Checkbox Read values in memory – off hides the All values in memory section and skips it in speech.\n- Sections All values in memory (sorted, with unit) and Computed statistics (table N + items in custom order).\n- Reading order button (reorder icon) opens the dedicated dialog. Previously in Accessibility settings, now directly in the summary.\n\nReading order dialog:\n- Top: Quick presets (Default / Values first / Stats first) – 1 Tab for whole group, arrows and Enter select preset and set all without arrows.\n- Middle: Reading order list – 3 items (Header / Values / Computed), 1 Tab for whole list, arrows change selection, Alt+Arrow Up/Down moves, Home/End to edges, Up/Down buttons work with mouse and as screen reader actions (Move up/down). Buttons Restore default and Play preview.\n- Bottom: List inside Computed statistics – 10 items MEAN, SUM, VAR, SD, MED, MIN, MAX, MODE, CV, WMEAN, same 1 Tab + arrows + Alt+Arrow, synced with table.\n- Changes are saved automatically and announced via voice and screen reader (including position X of Y).\n\nAccessibility: All important announcements (save, delete, order change) go via calculator voice and screen reader (liveRegion/announce) according to Screen reader mode.';
+  String get tutorialStatsManagement =>
+      'Managing statistics sets and reading order.\n\nSETS dialog:\n- Search by name, sort by Last used / Name / Count, filter All / No folder / specific folder, toggle Show archived.\n- Each set card has color (8) and icon (8), pinned/archived badge, value count and folder name.\n- ⋮ menu: Select, Rename, Edit fields (+units), Color & icon, Move to folder, Copy to folder, Duplicate, Pin/Unpin (pinned stay on top), Archive/Restore, Delete (with confirmation).\n- Buttons: Create new set and More (Quick create, Guided wizard, Voice creation) and Folders (New folder / Manage folders – rename/delete, folder color+icon; sets stay in No folder after deletion).\n- Creating a set: name, field count, field names and optional units (categories Length…Power). Units appear in the summary and are spoken.\n\nSTATS – Statistics summary:\n- Header with active set name and field switcher (tap cycles, announced via voice and screen reader).\n- Checkbox Read values in memory – off hides the All values in memory section and skips it in speech.\n- Sections All values in memory (sorted, with unit) and Computed statistics (table N + items in custom order).\n- Reading order button (reorder icon) opens the dedicated dialog. Previously in Accessibility settings, now directly in the summary.\n\nReading order dialog:\n- Top: Quick presets (Default / Values first / Stats first) – 1 Tab for whole group, arrows and Enter select preset and set all without arrows.\n- Middle: Reading order list – 3 items (Header / Values / Computed), 1 Tab for whole list, arrows change selection, Alt+Arrow Up/Down moves, Home/End to edges, Up/Down buttons work with mouse and as screen reader actions (Move up/down). Buttons Restore default and Play preview.\n- Bottom: List inside Computed statistics – 10 items MEAN, SUM, VAR, SD, MED, MIN, MAX, MODE, CV, WMEAN, same 1 Tab + arrows + Alt+Arrow, synced with table.\n- Changes are saved automatically and announced via voice and screen reader (including position X of Y).\n\nAccessibility: All important announcements (save, delete, order change) go via calculator voice and screen reader (liveRegion/announce) according to Screen reader mode.';
 
   @override
   String get accessibilitySettings => 'Accessibility Settings';
@@ -257,7 +268,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsRepeatTitle => 'Repeat count';
 
   @override
-  String get statsRepeatHint => 'Enter how many times the values should be added to statistics memory';
+  String get statsRepeatHint =>
+      'Enter how many times the values should be added to statistics memory';
 
   @override
   String get statsRepeatLabel => 'Insert count';
@@ -313,7 +325,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsMemoryEmpty => 'Statistics memory is empty.';
 
   @override
-  String get statsMemoryEmptyHint => 'Statistics memory is empty. Add data first using the M+ button.';
+  String get statsMemoryEmptyHint =>
+      'Statistics memory is empty. Add data first using the M+ button.';
 
   @override
   String get statsMemoryCleared => 'Statistics memory was cleared.';
@@ -362,7 +375,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String statsSetSelectedAnnouncement(String name, int count, String countForm) {
+  String statsSetSelectedAnnouncement(
+    String name,
+    int count,
+    String countForm,
+  ) {
     return 'Selected set $name, contains $count $countForm';
   }
 
@@ -383,7 +400,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsHelpButton => 'Help with controls';
 
   @override
-  String get statsHelpText => '=== STATISTICS HELP ===\n\nKEYBOARD BUTTONS:\n\nSETS – Manage statistics sets and folders. Create, rename, delete, switch, duplicate, pin, archive and move sets between folders. Includes search, sort (Last used/Name/Count), filter All/No folder/folder and Show archived toggle. More menu: Quick create, Guided wizard, Voice creation. Folders via Folders button (New folder / Manage folders – color and icon; sets remain in No folder after deletion).\n\nM+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set. With ≥2 records a Review before saving dialog appears.\n\nM+ (long press / Ctrl+M) – Add values and specify a repeat count for bulk insertion.\n\nMC – Clear all data in the active set.\n\nMR – Show all stored data in an editable list (grouped values with occurrence counts, delete records, Manage sets button).\n\nSTATS – Show the statistics summary: header with set name and field switcher, checkbox Read values in memory, section All values in memory (sorted, with unit) and Computed statistics (table N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN in custom order). Reading order button opens the reading settings. Field switcher cycles on tap and is announced via voice and screen reader.\n\n; (semicolon) – Separator for multiple values (e.g. 5;10;15 or 80;2 for two fields).\n\nADVANCED FUNCTIONS (available from the list button in the top bar):\n\nMEAN – Arithmetic mean of all values.\nSD – Standard deviation (measure of dispersion around the mean).\nVAR – Variance (average squared deviation from the mean).\nSUM – Sum of all values.\nMED – Median (middle value of sorted data).\nMODE – Mode (most frequent value).\nMIN – Minimum of all values.\nMAX – Maximum of all values.\nCV – Coefficient of variation (SD as percentage of the mean).\nWMEAN – Weighted mean (requires 2 fields: values and weights).\n\nREADING ORDER (Reading order button in STATS dialog):\nTop sets order of Summary header / Values in memory / Computed statistics (read top to bottom, Move up/down, Restore default). Bottom sets order inside Computed statistics (MEAN, SUM, VAR, SD, MED, MIN, MAX, MODE, CV, WMEAN) synced with the table. Changes are announced via voice and screen reader. Previously in Accessibility settings, now directly in the summary.\n\nFIELDS IN A SET:\n\nEach set can have multiple fields (e.g. \"Value\" and \"Weight\") with optional unit (categories Length…Power). When creating a set (SETS → Create new set or More → Quick/Guided/Voice) add fields with \"Add field\" and pick a unit. Units appear in the summary and spoken output. Switch fields in the STATS dialog or Advanced Functions. Each set has color (8) and icon (8), can be pinned (always on top) or archived.\n\nWEIGHTED MEAN (WMEAN):\n\nRequires a set with at least 2 fields. Field 0 = values, field 1 = weights. Steps: 1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\"). 2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2). 3) After entering all data, tap WMEAN in Advanced Functions. 4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).\n\nTIPS:\n- Create multiple sets for different data groups and organize them into folders.\n- Each set can have multiple fields with units (e.g. values, weights).\n- A new set is created automatically on first data entry.\n- Data, reading order and Read values setting are saved automatically.\n- All important announcements go via voice and screen reader according to Screen reader mode.';
+  String get statsHelpText =>
+      '=== STATISTICS HELP ===\n\nKEYBOARD BUTTONS:\n\nSETS – Manage statistics sets and folders. Create, rename, delete, switch, duplicate, pin, archive and move sets between folders. Includes search, sort (Last used/Name/Count), filter All/No folder/folder and Show archived toggle. More menu: Quick create, Guided wizard, Voice creation. Folders via Folders button (New folder / Manage folders – color and icon; sets remain in No folder after deletion).\n\nM+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set. With ≥2 records a Review before saving dialog appears.\n\nM+ (long press / Ctrl+M) – Add values and specify a repeat count for bulk insertion.\n\nMC – Clear all data in the active set.\n\nMR – Show all stored data in an editable list (grouped values with occurrence counts, delete records, Manage sets button).\n\nSTATS – Show the statistics summary: header with set name and field switcher, checkbox Read values in memory, section All values in memory (sorted, with unit) and Computed statistics (table N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN in custom order). Reading order button opens the reading settings. Field switcher cycles on tap and is announced via voice and screen reader.\n\n; (semicolon) – Separator for multiple values (e.g. 5;10;15 or 80;2 for two fields).\n\nADVANCED FUNCTIONS (available from the list button in the top bar):\n\nMEAN – Arithmetic mean of all values.\nSD – Standard deviation (measure of dispersion around the mean).\nVAR – Variance (average squared deviation from the mean).\nSUM – Sum of all values.\nMED – Median (middle value of sorted data).\nMODE – Mode (most frequent value).\nMIN – Minimum of all values.\nMAX – Maximum of all values.\nCV – Coefficient of variation (SD as percentage of the mean).\nWMEAN – Weighted mean (requires 2 fields: values and weights).\n\nREADING ORDER (Reading order button in STATS dialog):\nTop sets order of Summary header / Values in memory / Computed statistics (read top to bottom, Move up/down, Restore default). Bottom sets order inside Computed statistics (MEAN, SUM, VAR, SD, MED, MIN, MAX, MODE, CV, WMEAN) synced with the table. Changes are announced via voice and screen reader. Previously in Accessibility settings, now directly in the summary.\n\nFIELDS IN A SET:\n\nEach set can have multiple fields (e.g. \"Value\" and \"Weight\") with optional unit (categories Length…Power). When creating a set (SETS → Create new set or More → Quick/Guided/Voice) add fields with \"Add field\" and pick a unit. Units appear in the summary and spoken output. Switch fields in the STATS dialog or Advanced Functions. Each set has color (8) and icon (8), can be pinned (always on top) or archived.\n\nWEIGHTED MEAN (WMEAN):\n\nRequires a set with at least 2 fields. Field 0 = values, field 1 = weights. Steps: 1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\"). 2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2). 3) After entering all data, tap WMEAN in Advanced Functions. 4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).\n\nTIPS:\n- Create multiple sets for different data groups and organize them into folders.\n- Each set can have multiple fields with units (e.g. values, weights).\n- A new set is created automatically on first data entry.\n- Data, reading order and Read values setting are saved automatically.\n- All important announcements go via voice and screen reader according to Screen reader mode.';
 
   @override
   String get statsHelpKeyboardSection => 'Keyboard buttons';
@@ -401,37 +419,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsHelpTipsSection => 'Tips';
 
   @override
-  String get statsHelpKeyboardSets => 'SETS – Manage statistics sets and folders. Search, sort, filter, color/icon, pin/archive, move/copy/duplicate, folders and 3 creation methods (Quick, Guided, Voice).';
+  String get statsHelpKeyboardSets =>
+      'SETS – Manage statistics sets and folders. Search, sort, filter, color/icon, pin/archive, move/copy/duplicate, folders and 3 creation methods (Quick, Guided, Voice).';
 
   @override
-  String get statsHelpKeyboardMPlus => 'M+ (short) – Add values to active set. With ≥2 records shows Review before saving. Long press / Ctrl+M – enter repeat count for bulk insertion.';
+  String get statsHelpKeyboardMPlus =>
+      'M+ (short) – Add values to active set. With ≥2 records shows Review before saving. Long press / Ctrl+M – enter repeat count for bulk insertion.';
 
   @override
   String get statsHelpKeyboardMc => 'MC – Clear all data in the active set.';
 
   @override
-  String get statsHelpKeyboardMr => 'MR – Show all stored data in editable list (grouped values with occurrence counts, delete records, Manage sets).';
+  String get statsHelpKeyboardMr =>
+      'MR – Show all stored data in editable list (grouped values with occurrence counts, delete records, Manage sets).';
 
   @override
-  String get statsHelpKeyboardStats => 'STATS – Summary: header with field switcher, checkbox Read values in memory, All values and Computed statistics sections (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN) and Reading order button.';
+  String get statsHelpKeyboardStats =>
+      'STATS – Summary: header with field switcher, checkbox Read values in memory, All values and Computed statistics sections (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN) and Reading order button.';
 
   @override
-  String get statsHelpKeyboardSemicolon => '; (semicolon) – Separator for multiple values (e.g. 5;10;15).';
+  String get statsHelpKeyboardSemicolon =>
+      '; (semicolon) – Separator for multiple values (e.g. 5;10;15).';
 
   @override
   String get statsHelpAdvancedMean => 'MEAN – Arithmetic mean of all values.';
 
   @override
-  String get statsHelpAdvancedSd => 'SD – Standard deviation (measure of dispersion around the mean).';
+  String get statsHelpAdvancedSd =>
+      'SD – Standard deviation (measure of dispersion around the mean).';
 
   @override
-  String get statsHelpAdvancedVar => 'VAR – Variance (average squared deviation from the mean).';
+  String get statsHelpAdvancedVar =>
+      'VAR – Variance (average squared deviation from the mean).';
 
   @override
   String get statsHelpAdvancedSum => 'SUM – Sum of all values.';
 
   @override
-  String get statsHelpAdvancedMed => 'MED – Median (middle value of sorted data).';
+  String get statsHelpAdvancedMed =>
+      'MED – Median (middle value of sorted data).';
 
   @override
   String get statsHelpAdvancedMode => 'MODE – Mode (most frequent value).';
@@ -443,28 +469,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsHelpAdvancedMax => 'MAX – Maximum of all values.';
 
   @override
-  String get statsHelpAdvancedCv => 'CV – Coefficient of variation (SD as percentage of the mean).';
+  String get statsHelpAdvancedCv =>
+      'CV – Coefficient of variation (SD as percentage of the mean).';
 
   @override
-  String get statsHelpAdvancedWmean => 'WMEAN – Weighted mean (requires 2 fields: values and weights).';
+  String get statsHelpAdvancedWmean =>
+      'WMEAN – Weighted mean (requires 2 fields: values and weights).';
 
   @override
-  String get statsHelpFieldsDesc => 'Each set can have multiple fields (e.g. \"Value\" and \"Weight\") with optional unit (categories Length…Power). Color (8) and icon (8), pin (always on top) / archive. Add fields when creating a set with \"Add field\" and pick a unit. Switch fields in STATS or Advanced Functions.';
+  String get statsHelpFieldsDesc =>
+      'Each set can have multiple fields (e.g. \"Value\" and \"Weight\") with optional unit (categories Length…Power). Color (8) and icon (8), pin (always on top) / archive. Add fields when creating a set with \"Add field\" and pick a unit. Switch fields in STATS or Advanced Functions.';
 
   @override
-  String get statsHelpWeightedMeanDesc => 'Requires a set with at least 2 fields. Field 0 = values, field 1 = weights.\\n\\nSteps:\\n1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\").\\n2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2).\\n3) After entering all data, tap WMEAN in Advanced Functions.\\n4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).';
+  String get statsHelpWeightedMeanDesc =>
+      'Requires a set with at least 2 fields. Field 0 = values, field 1 = weights.\\n\\nSteps:\\n1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\").\\n2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2).\\n3) After entering all data, tap WMEAN in Advanced Functions.\\n4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).';
 
   @override
-  String get statsHelpTip1 => 'Create multiple sets and organize them into folders (color, icon, pin, archive).';
+  String get statsHelpTip1 =>
+      'Create multiple sets and organize them into folders (color, icon, pin, archive).';
 
   @override
-  String get statsHelpTip2 => 'Each set can have multiple fields with units (e.g. values, weights).';
+  String get statsHelpTip2 =>
+      'Each set can have multiple fields with units (e.g. values, weights).';
 
   @override
-  String get statsHelpTip3 => 'A new set is created automatically on first data entry.';
+  String get statsHelpTip3 =>
+      'A new set is created automatically on first data entry.';
 
   @override
-  String get statsHelpTip4 => 'Data, reading order and Read values setting are saved automatically. Announcements go via voice and screen reader.';
+  String get statsHelpTip4 =>
+      'Data, reading order and Read values setting are saved automatically. Announcements go via voice and screen reader.';
 
   @override
   String get statsWeightedMean => 'Weighted mean';
@@ -482,7 +516,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get restoreSuccess => 'Data restored';
 
   @override
-  String get restoreConfirm => 'Are you sure you want to restore all data from backup?';
+  String get restoreConfirm =>
+      'Are you sure you want to restore all data from backup?';
 
   @override
   String get numberInfo => 'Number Info';
@@ -566,13 +601,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timesTenTo => 'times ten to the';
 
   @override
-  String get expressionNotUnderstood => 'I don\'t understand the expression, please check the parentheses or signs';
+  String get expressionNotUnderstood =>
+      'I don\'t understand the expression, please check the parentheses or signs';
 
   @override
   String get cannotDivideByZero => 'Cannot divide by zero';
 
   @override
-  String get valueOutOfRange => 'Value is outside the valid range of the function';
+  String get valueOutOfRange =>
+      'Value is outside the valid range of the function';
 
   @override
   String resultIs(String value) {
@@ -604,7 +641,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get cannotStoreExpression => 'The expression cannot be calculated, nothing was saved to memory.';
+  String get cannotStoreExpression =>
+      'The expression cannot be calculated, nothing was saved to memory.';
 
   @override
   String recalledFromVariable(String name, String value) {
@@ -659,7 +697,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get screenReaderOff => 'Screen reader mode off';
 
   @override
-  String get angleFormatDms => 'Angle format set to degrees, minutes and seconds';
+  String get angleFormatDms =>
+      'Angle format set to degrees, minutes and seconds';
 
   @override
   String get angleFormatDecimal => 'Angle format set to decimal degrees';
@@ -745,10 +784,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get elecTwoValuesError => 'Enter two values separated by semicolons.';
 
   @override
-  String get elecFormatError => 'The values entered in electrical mode are not in a valid numeric format.';
+  String get elecFormatError =>
+      'The values entered in electrical mode are not in a valid numeric format.';
 
   @override
-  String get elecInvalidResult => 'The electrical calculation result is not a valid number.';
+  String get elecInvalidResult =>
+      'The electrical calculation result is not a valid number.';
 
   @override
   String get formatDms => 'Format set to degrees, minutes and seconds.';
@@ -763,7 +804,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirmationTitle => 'Confirmation';
 
   @override
-  String get yesConfirmHistory => 'Yes, confirm clearing the entire calculation history';
+  String get yesConfirmHistory =>
+      'Yes, confirm clearing the entire calculation history';
 
   @override
   String get noCancelHistory => 'No, cancel and keep the history';
@@ -826,7 +868,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get standardDisplayLabel => 'Standard display';
 
   @override
-  String get fixedDecimalLabel => 'Display with a fixed number of decimal places';
+  String get fixedDecimalLabel =>
+      'Display with a fixed number of decimal places';
 
   @override
   String get scientificNotationLabel => 'Scientific notation';
@@ -1017,13 +1060,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get currencyNoRates => 'No rates to display.';
 
   @override
-  String get currencyOfflineError => 'Failed to update rates. Check connection. Keeping last rates.';
+  String get currencyOfflineError =>
+      'Failed to update rates. Check connection. Keeping last rates.';
 
   @override
   String get currencyParseError => 'Failed to parse CNB rates.';
 
   @override
-  String currencyConverted(String value, String from, String to, String result, String toUnit, String rate) {
+  String currencyConverted(
+    String value,
+    String from,
+    String to,
+    String result,
+    String toUnit,
+    String rate,
+  ) {
     return 'Converted $value $from to $to. Result is $result $toUnit. Rate $rate';
   }
 
@@ -1089,7 +1140,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get timeHelp => 'Enter time as HH:MM or HH:MM:SS. Use + or - between times. DIFF gives absolute difference. NOW inserts current time.';
+  String get timeHelp =>
+      'Enter time as HH:MM or HH:MM:SS. Use + or - between times. DIFF gives absolute difference. NOW inserts current time.';
 
   @override
   String expressionResultIs(String expression, String result) {
@@ -1107,7 +1159,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get autoReadStatsSummaryHint => 'When on, opening STATS reads the full summary in the configured order plus the Tab hint';
+  String get autoReadStatsSummaryHint =>
+      'When on, opening STATS reads the full summary in the configured order plus the Tab hint';
 
   @override
   String statsNavigationHintState(String state) {
@@ -1115,7 +1168,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get statsNavigationHintHint => 'When on, opening the statistics summary also announces the Tab navigation hint';
+  String get statsNavigationHintHint =>
+      'When on, opening the statistics summary also announces the Tab navigation hint';
 
   @override
   String get welcome => 'Welcome';
@@ -1130,7 +1184,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileLowVision => 'Low vision';
 
   @override
-  String get selectAccessibilityLevel => 'Select the desired accessibility level. You can change this at any time in the settings.';
+  String get selectAccessibilityLevel =>
+      'Select the desired accessibility level. You can change this at any time in the settings.';
 
   @override
   String profileSetAndSaved(String profile) {

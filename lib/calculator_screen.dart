@@ -16,6 +16,10 @@ class CalculatorScreen extends StatefulWidget {
 
 class _CalculatorScreenState extends State<CalculatorScreen>
     with WidgetsBindingObserver {
+  static const int _kKeypadColumns = 4;
+  static const int _kKeypadReferenceRows = 7;
+  static const int _kKeypadCellCount = _kKeypadColumns * _kKeypadReferenceRows;
+
   late final String _currentAppVersion;
   static const MethodChannel _accessibilityChannel = MethodChannel(
     'com.example.mluvici_kalkulacka/accessibility',
@@ -134,15 +138,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final updated = update(current);
     // deep copy ochrana je v copyWith
     setState(() {
-      _profiles[idx] =
-          _profiles[idx].copyWith(settings: updated);
+      _profiles[idx] = _profiles[idx].copyWith(settings: updated);
     });
     _applySettingsToRuntime(updated, previous: current);
     _saveProfilesV2();
   }
 
   // Sjednocená aplikace runtime efektů (TTS, notifier, theme) – bez perzistence
-  void _applySettingsToRuntime(AccessibilitySettings updated, {AccessibilitySettings? previous}) {
+  void _applySettingsToRuntime(
+    AccessibilitySettings updated, {
+    AccessibilitySettings? previous,
+  }) {
     final prev = previous;
     _dialogFontScaleNotifier.value = updated.dialogFontScale;
     if (prev == null || updated.speechRate != prev.speechRate) {
@@ -160,7 +166,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         tts.setEngine(updated.ttsEngine!).catchError((e) {
           debugPrint('TTS setEngine Error: $e');
         });
-      } else if (!Platform.isWindows && updated.ttsEngine == null && prev != null && prev.ttsEngine != null) {
+      } else if (!Platform.isWindows &&
+          updated.ttsEngine == null &&
+          prev != null &&
+          prev.ttsEngine != null) {
         // reset na výchozí engine není podporován, ponechat
       }
     }
@@ -176,7 +185,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
     }
     if (updated.accessibilityType == AccessibilityType.visuallyImpaired) {
-      if (prev == null || prev.accessibilityType != AccessibilityType.visuallyImpaired) {
+      if (prev == null ||
+          prev.accessibilityType != AccessibilityType.visuallyImpaired) {
         widget.onThemeModeChanged(ThemeMode.dark);
       }
     }
@@ -187,13 +197,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool startEditingProfile(String id) {
     if (!_profilesLoaded) {
       debugPrint('startEditingProfile: profiles not loaded yet, id=$id');
-      _showAccessibleSnackBar(_s('Profily se ještě načítají, zkuste to znovu.', 'Profiles are still loading, please try again.'));
+      _showAccessibleSnackBar(
+        _s(
+          'Profily se ještě načítají, zkuste to znovu.',
+          'Profiles are still loading, please try again.',
+        ),
+      );
       return false;
     }
     final idx = _profiles.indexWhere((p) => p.id == id);
     if (idx == -1) {
       debugPrint('startEditingProfile: id not found: $id');
-      _showAccessibleSnackBar(_s('Profil $id neexistuje.', 'Profile $id does not exist.'));
+      _showAccessibleSnackBar(
+        _s('Profil $id neexistuje.', 'Profile $id does not exist.'),
+      );
       return false;
     }
     final src = _profiles[idx];
@@ -233,12 +250,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final idx = _profiles.indexWhere((p) => p.id == _editingProfileId);
     if (idx == -1) {
       debugPrint('saveEditingProfile: id not found: $_editingProfileId');
-      _showAccessibleSnackBar(_s('Uložení selhalo – profil neexistuje.', 'Save failed – profile does not exist.'));
+      _showAccessibleSnackBar(
+        _s(
+          'Uložení selhalo – profil neexistuje.',
+          'Save failed – profile does not exist.',
+        ),
+      );
       return false;
     }
     if (_profiles[idx].id != _editingProfileId) {
       debugPrint('saveEditingProfile: id mismatch');
-      _showAccessibleSnackBar(_s('Uložení selhalo – nesoulad profilu.', 'Save failed – profile mismatch.'));
+      _showAccessibleSnackBar(
+        _s(
+          'Uložení selhalo – nesoulad profilu.',
+          'Save failed – profile mismatch.',
+        ),
+      );
       return false;
     }
     final savedId = _editingProfileId!;
@@ -260,9 +287,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void discardEditingProfile() {
-    if (_editingProfileId == _activeProfileId && _editingPreviewSnapshot != null) {
-      _applySettingsToRuntime(_editingPreviewSnapshot!, previous: _editingDraft?.settings);
-      if (_editingPreviewThemeSnapshot != null && _editingPreviewThemeSnapshot != widget.themeMode) {
+    if (_editingProfileId == _activeProfileId &&
+        _editingPreviewSnapshot != null) {
+      _applySettingsToRuntime(
+        _editingPreviewSnapshot!,
+        previous: _editingDraft?.settings,
+      );
+      if (_editingPreviewThemeSnapshot != null &&
+          _editingPreviewThemeSnapshot != widget.themeMode) {
         widget.onThemeModeChanged(_editingPreviewThemeSnapshot!);
       }
       _dialogFontScaleNotifier.value = _editingPreviewSnapshot!.dialogFontScale;
@@ -280,7 +312,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (idx == -1) return;
     if (_profiles[idx].isBuiltIn) return;
     if (newName.trim().isEmpty) return;
-    setState(() => _profiles[idx] = _profiles[idx].copyWith(name: newName.trim()));
+    setState(
+      () => _profiles[idx] = _profiles[idx].copyWith(name: newName.trim()),
+    );
     await _saveProfilesV2();
     if (mounted) setState(() {});
   }
@@ -322,7 +356,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (id == _activeProfileId) {
       updateActiveAccessibilitySettings((_) => defaults.copyWith());
     } else {
-      setState(() => _profiles[idx] = _profiles[idx].copyWith(settings: defaults.copyWith()));
+      setState(
+        () => _profiles[idx] = _profiles[idx].copyWith(
+          settings: defaults.copyWith(),
+        ),
+      );
       await _saveProfilesV2();
       if (mounted) setState(() {});
     }
@@ -355,6 +393,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return 6.0;
     }
   }
+
   double get _overlineThickness =>
       activeAccessibilitySettings.overlineThickness;
   double get _overlineHeight => activeAccessibilitySettings.overlineHeight;
@@ -369,8 +408,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? get _ttsVoiceName => activeAccessibilitySettings.ttsVoiceName;
   int? get _inverseFormatPreference =>
       activeAccessibilitySettings.inverseFormatPreference;
-  bool get _useSixteenSegment =>
-      activeAccessibilitySettings.useSixteenSegment;
+  bool get _useSixteenSegment => activeAccessibilitySettings.useSixteenSegment;
   bool get _announceExpression =>
       activeAccessibilitySettings.announceExpression;
   bool get _readStatsMemoryValues =>
@@ -382,8 +420,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   DialogSize get _dialogSize => activeAccessibilitySettings.dialogSize;
   bool get ttsEnabled => activeAccessibilitySettings.ttsEnabled;
   // pro zpětnou kompatibilitu s testy / starým voláním setteru
-  set _keyboardFontScale(double v) =>
-      updateActiveAccessibilitySettings((s) => s.copyWith(fontSizeMultiplier: v));
+  set _keyboardFontScale(double v) => updateActiveAccessibilitySettings(
+    (s) => s.copyWith(fontSizeMultiplier: v),
+  );
 
   bool _accessibleNavigation = false;
   bool _scientificFunctionsPage = false;
@@ -1360,6 +1399,91 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
+  String? _czechExponentOrdinal(int absExp) {
+    switch (absExp) {
+      case 0:
+        return 'nultou';
+      case 1:
+        return 'první';
+      case 2:
+        return 'druhou';
+      case 3:
+        return 'třetí';
+      case 4:
+        return 'čtvrtou';
+      case 5:
+        return 'pátou';
+      case 6:
+        return 'šestou';
+      case 7:
+        return 'sedmou';
+      case 8:
+        return 'osmou';
+      case 9:
+        return 'devátou';
+      case 10:
+        return 'desátou';
+      case 11:
+        return 'jedenáctou';
+      case 12:
+        return 'dvanáctou';
+      case 13:
+        return 'třináctou';
+      case 14:
+        return 'čtrnáctou';
+      case 15:
+        return 'patnáctou';
+      case 16:
+        return 'šestnáctou';
+      case 17:
+        return 'sedmnáctou';
+      case 18:
+        return 'osmnáctou';
+      case 19:
+        return 'devatenáctou';
+      case 20:
+        return 'dvacátou';
+      case 30:
+        return 'třicátou';
+      default:
+        if (absExp > 20 && absExp < 30) {
+          // 21-29: dvacátou první etc. – fallback to kardinál + ordinál sufix approximation
+          return null;
+        }
+        return null;
+    }
+  }
+
+  String _speakExponentialPart(String mantissa, String sign, String expDigits) {
+    final l10n = _l10n;
+    final exp = int.tryParse(expDigits) ?? 0;
+    final isEnglishLocale = l10n.localeName.startsWith('en');
+    if (isEnglishLocale) {
+      return '$mantissa ${l10n.timesTenTo} ${sign == '-' ? '${l10n.minusWord} ' : ''}$exp';
+    }
+    final ordinal = _czechExponentOrdinal(exp.abs());
+    if (ordinal != null) {
+      final minusPart = sign == '-' ? '${l10n.minusWord} ' : '';
+      return '$mantissa ${l10n.timesTenTo} $minusPart$ordinal';
+    }
+    return '$mantissa ${l10n.timesTenTo} ${sign == '-' ? '${l10n.minusWord} ' : ''}$exp';
+  }
+
+  /// Centrální převod exponenciálního zápisu pro češtinu/angličtinu.
+  /// Používá strukturovaná data když jsou k dispozici, jinak parsuje display string.
+  String _speakForAutoExpValue(double value) {
+    final dec = _decomposeAutoExp(value);
+    if (dec != null) {
+      final mantissa = (dec.negative ? '-' : '') + dec.mantissa;
+      final sign = dec.exponent >= 0 ? '+' : '-';
+      final expDigits = dec.exponent.abs().toString().padLeft(1, '0');
+      // mantissa je bez desetinné čárky, ponecháme ","
+      final mantissaSpoken = mantissa.replaceAll('.', ',');
+      return _speakExponentialPart(mantissaSpoken, sign, expDigits);
+    }
+    return '';
+  }
+
   String _spokenForDisplay(String text) {
     String result = text.replaceAllMapped(
       RegExp(r'(\d+)(?:[.,](\d*))?\((\d+)\)'),
@@ -1371,6 +1495,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (nonRepeating.isEmpty) return '$intPart,$period $suffix';
         return '$intPart,$nonRepeating, $period $suffix';
       },
+    );
+    // Centrální exponenciální převod (mantisa E±exponent) – používá ordinál pro češtinu
+    result = result.replaceAllMapped(
+      RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"),
+      (m) => _speakExponentialPart(m.group(1)!, m.group(2)!, m.group(3)!),
     );
     return result.replaceAll('.', ',');
   }
@@ -1493,7 +1622,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final repeating = _tryFormatRepeating(value);
       if (repeating != null) return _spokenForDisplay(repeating);
     }
-    return _formatNumber(value).replaceAll('.', ',');
+    // Auto-exponenciální hodnoty: centrální speech přes strukturovaná data (ne jen parsování stringu)
+    final autoExp = _tryAutoExponential(value);
+    if (autoExp != null) {
+      final spoken = _speakForAutoExpValue(value);
+      if (spoken.isNotEmpty) return spoken;
+      return _spokenForDisplay(autoExp);
+    }
+    final raw = _formatNumber(value);
+    // Fallback: pokud format vrátil E-notaci (např. z sci), projde centrálním speech
+    if (raw.contains('E')) {
+      return _spokenForDisplay(raw);
+    }
+    return raw.replaceAll('.', ',');
   }
 
   String _getButtonName(String label) {
@@ -2380,7 +2521,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           if (voices != null && voices is List && voices.isNotEmpty) {
             final voiceList = voices.cast<Map<dynamic, dynamic>>();
             final hasDesiredLocale = voiceList.any(
-              (v) => (v['locale']?.toString().toLowerCase() ==
+              (v) =>
+                  (v['locale']?.toString().toLowerCase() ==
                       _lastTtsLocale!.toLowerCase()) ||
                   (v['name']?.toString().toLowerCase().contains('cs-cz') ??
                       false) ||
@@ -2395,7 +2537,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               Map<dynamic, dynamic>? fallback;
               try {
                 fallback = voiceList.firstWhere(
-                  (v) => v['locale']?.toString().toLowerCase().contains('cs') ?? false,
+                  (v) =>
+                      v['locale']?.toString().toLowerCase().contains('cs') ??
+                      false,
                 );
               } catch (_) {
                 fallback = null;
@@ -2407,7 +2551,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 'TTS: cs-CZ není dostupné, použit fallback $fbName ($fbLocale).',
               );
               // Fallback setLanguage pouze pokud původní selhalo a fallback je jiný.
-              if (!languageSetOk && fbLocale.toLowerCase() != _lastTtsLocale!.toLowerCase()) {
+              if (!languageSetOk &&
+                  fbLocale.toLowerCase() != _lastTtsLocale!.toLowerCase()) {
                 try {
                   await tts.setLanguage(fbLocale);
                 } catch (e) {
@@ -2455,9 +2600,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       //    announce-vs-speak nevycházela ze zastaralé hodnoty.
       //    (Samotná detekce v _isScreenReaderEnabled se nemění.)
       try {
-        await _refreshAccessibilityState().timeout(
-          const Duration(seconds: 2),
-        );
+        await _refreshAccessibilityState().timeout(const Duration(seconds: 2));
       } catch (_) {}
       // 5. Až po všem výše – právě jednou – sestavit a oznámit uvítání.
       if (_sayWelcome && !_welcomeAnnounced) {
@@ -2751,17 +2894,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   String _formatForSpeech(String text) {
     final l10n = _l10n;
+    // Sjednoceno s _spokenForDisplay – exponenciála řeší centrálně tam (ordinál pro češtinu).
     String processed = _spokenForDisplay(
       text,
     ).replaceAll('\u03C0', l10n.piSpoken);
-    processed = processed.replaceAllMapped(
-      RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"),
-      (m) {
-        int exp = int.parse(m[3]!);
-        return '${m[1]} ${l10n.timesTenTo} '
-            '${m[2] == '-' ? '${l10n.minusWord} ' : ''}$exp';
-      },
-    );
     return processed;
   }
 
@@ -3054,7 +3190,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // Musí obsahovat alespoň jednu číslici, nesmí končit '.' nebo '-' nebo '('
     if (!RegExp(r'\d').hasMatch(inner)) return false;
     final last = inner[inner.length - 1];
-    if (last == '.' || last == '-' || last == '(' || last == 'E' || last == 'e') {
+    if (last == '.' ||
+        last == '-' ||
+        last == '(' ||
+        last == 'E' ||
+        last == 'e') {
       return false;
     }
     // Pokud je těsně před kurzorem již ')', neuzavírat duplicitně
@@ -3111,7 +3251,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
     }
     // Vyčisti neplatné (prázdné) pending
-    _pendingNegOpens.removeWhere((p) => p < 0 || p >= display.length || display[p] != '(');
+    _pendingNegOpens.removeWhere(
+      (p) => p < 0 || p >= display.length || display[p] != '(',
+    );
   }
 
   void _handleNegativeButton() {
@@ -3126,7 +3268,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (_cursorPosition > last + 1) {
         final inner = display.substring(last + 2, _cursorPosition);
         if (inner.isEmpty) {
-          speak(_s('Dokončete zadávání záporného čísla', 'Finish entering negative number'));
+          speak(
+            _s(
+              'Dokončete zadávání záporného čísla',
+              'Finish entering negative number',
+            ),
+          );
           return;
         }
       }
@@ -3134,7 +3281,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // Guard: prázdné "(-)" – nedovolit další NEG pokud těsně před kurzorem je "(-"
     if (_cursorPosition >= 2 &&
         display.substring(_cursorPosition - 2, _cursorPosition) == '(-') {
-      speak(_s('Dokončete zadávání záporného čísla', 'Finish entering negative number'));
+      speak(
+        _s(
+          'Dokončete zadávání záporného čísla',
+          'Finish entering negative number',
+        ),
+      );
       return;
     }
     // Guard: za číslicí / ')' bez operátoru nevkládat "(-" (vyžaduje operátor)
@@ -3143,7 +3295,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // Spec chce bezpečné – povolíme jen na začátku, po operátoru nebo '('
     if (_cursorPosition > 0) {
       final prev = display[_cursorPosition - 1];
-      if (_isDigitChar(prev) || prev == ')' || prev == '.' ) {
+      if (_isDigitChar(prev) || prev == ')' || prev == '.') {
         // Vyžaduje operátor – auto-uzavři případné pending před operátorem a pak dovol?
         // Zde zablokujeme a poradíme
         // Ale pro "5^(-2)" je před "(-" znak '(' – to je OK
@@ -3155,7 +3307,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final insertPos = _cursorPosition;
     _insertAtCursor('(-');
     _pendingNegOpens.add(insertPos);
-    speak(_s('Záporné číslo, otevřena závorka', 'Negative number, parenthesis opened'));
+    speak(
+      _s(
+        'Záporné číslo, otevřena závorka',
+        'Negative number, parenthesis opened',
+      ),
+    );
   }
 
   void _syncPendingNegOnDelete(int deletedPos) {
@@ -3472,11 +3629,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           // Pokud je poslední "(-" prázdné, odstraň je (prevence "(-)" chyby)
           final pos = _pendingNegOpens.last;
           if (pos + 2 >= _cursorPosition ||
-              !RegExp(r'\d').hasMatch(display.substring(pos + 2, _cursorPosition))) {
+              !RegExp(
+                r'\d',
+              ).hasMatch(display.substring(pos + 2, _cursorPosition))) {
             setState(() {
               // odstraň prázdné "(-" – dvě znaky
-              if (pos + 1 < display.length && display.substring(pos, pos + 2) == '(-') {
-                display = display.substring(0, pos) + display.substring(pos + 2);
+              if (pos + 1 < display.length &&
+                  display.substring(pos, pos + 2) == '(-') {
+                display =
+                    display.substring(0, pos) + display.substring(pos + 2);
                 if (_cursorPosition > pos + 1) _cursorPosition -= 2;
                 if (_cursorPosition > pos) _cursorPosition = pos;
               }
@@ -3722,7 +3883,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     });
 
-    // 3. NAHRAZENÍ PROMĚNNÝCH
+    // 2b. OCHRANA E-NOTACE (validní tvary: mantisa E exponent)
+    // Validní: (\d+(?:\.\d+)?|\))E([+-]?\d+)
+    //  mantisa = číslo (10, 2.5) nebo ')'  ;  exponent = volitelně +/- + číslice
+    //  Příklady platné: 10E5, 10E+5, 10E-5, 2.5E3, 2.5E-3, (10)E5, (2.5)E3
+    //  Neplatné (zůstane proměnná E): E, E+2, 2*E, A+E
+    final expPlaceholders = <String, String>{};
+    int expIdx = 0;
+    processed = processed.replaceAllMapped(
+      RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"),
+      (m) {
+        final key = '__EXP_${expIdx}__';
+        expPlaceholders[key] = '${m[1]}*10^(${m[2]})';
+        expIdx++;
+        return key;
+      },
+    );
+
+    // 3. NAHRAZENÍ PROMĚNNÝCH (E uvnitř chráněné notace již není v textu)
     _memory.forEach((key, value) {
       processed = processed.replaceAll(
         RegExp('\\b$key\\b'),
@@ -3730,11 +3908,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     });
 
-    // 4. E-NOTACE
-    processed = processed.replaceAllMapped(
-      RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"),
-      (m) => '${m[1]}*10^(${m[2]})',
-    );
+    // 3b. EXPANZE E-NOTACE z placeholderů
+    expPlaceholders.forEach((k, v) {
+      processed = processed.replaceAll(k, v);
+    });
 
     // 5. ROBUSTNÍ IMPLICITNÍ NÁSOBENÍ
     processed = processed.replaceAllMapped(
@@ -3769,11 +3946,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     if (processed.isEmpty) return 0.0;
 
-    // E-NOTACE
-    processed = processed.replaceAllMapped(
-      RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"),
-      (m) => '${m[1]}*10^(${m[2]})',
-    );
+    // (E-notace již expandována z placeholderů – druhý průchod odstraněn)
 
     // N-TÁ ODMOCNINA: xⁿ√y -> root(x, y)
     processed = processed.replaceAllMapped(
@@ -3912,6 +4085,49 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  /// Automatická exponenciální prezentace (pouze DisplayFormat.standard).
+  /// Podmínky: celé číslo, |value| >= 1e9 (alespoň 10 cifer), po první nenulové číslici jen nuly.
+  /// Příklad: 1000000000 -> 1E+09, 10000000000 -> 1E+10. Nevztahuje se na 1230000000 apod.
+  /// Bezpečnost double: toStringAsFixed(0) není důkaz přesnosti – provádí se round-trip check
+  /// double.parse(absStr) == value; pokud nelze jednoznačně určit, vrací null.
+  String? _tryAutoExponential(double value) {
+    if (value.isNaN || value.isInfinite) return null;
+    if (_displayFormat != DisplayFormat.standard) return null;
+    if (value % 1 != 0) return null;
+    final absVal = value.abs();
+    if (absVal < 1e9) return null;
+    // Kandidát jako celé číslo bez vědecké notace
+    final absStr = absVal.toStringAsFixed(0);
+    if (absStr.contains('.') || absStr.contains('e') || absStr.contains('E')) {
+      return null;
+    }
+    if (absStr.length < 10) return null;
+    // Round-trip přesnost: pokud parse nevrátí původní double, je reprezentace nejednoznačná
+    final parsed = double.tryParse(absStr);
+    if (parsed == null || parsed != absVal) return null;
+    if (!RegExp(r'^[1-9]0+$').hasMatch(absStr)) return null;
+    final exponent = absStr.length - 1;
+    final mantissaDigit = absStr[0];
+    final sign = value < 0 ? '-' : '';
+    final expStr = exponent.toString().padLeft(2, '0');
+    return '$sign${mantissaDigit}E+$expStr';
+  }
+
+  /// Rozklad na mantisu + exponent pro centrální speech (strukturovaná data, ne parsování stringu).
+  ({String mantissa, int exponent, bool negative})? _decomposeAutoExp(
+    double value,
+  ) {
+    final expStr = _tryAutoExponential(value);
+    if (expStr == null) return null;
+    // expStr je tvar "[-]dE+NN"
+    final m = RegExp(r'^(-?)(\d)E\+(\d+)$').firstMatch(expStr);
+    if (m == null) return null;
+    final neg = m.group(1) == '-';
+    final mant = m.group(2)!;
+    final exp = int.parse(m.group(3)!);
+    return (mantissa: mant, exponent: exp, negative: neg);
+  }
+
   String _formatNumber(double value) {
     if (value.isNaN || value.isInfinite) {
       return value.toString();
@@ -3929,6 +4145,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             ((math.log(value.abs()) / math.ln10).floor() / 3).floor() * 3;
         return "${(value / math.pow(10, engExp)).toStringAsFixed(_precision)}E${engExp >= 0 ? '+' : ''}${engExp.toString().padLeft(2, '0')}";
       default:
+        final auto = _tryAutoExponential(value);
+        if (auto != null) return auto;
         return value.toString().contains('.')
             ? value
                   .toStringAsFixed(10)
@@ -3940,7 +4158,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   String _formatNumberSmart(double value) {
     if (_displayFormat == DisplayFormat.standard && _usePeriodicNotation) {
-      return _tryFormatRepeating(value) ?? _formatNumber(value);
+      final rep = _tryFormatRepeating(value);
+      if (rep != null) return rep;
+      final auto = _tryAutoExponential(value);
+      if (auto != null) return auto;
+    } else if (_displayFormat == DisplayFormat.standard) {
+      final auto = _tryAutoExponential(value);
+      if (auto != null) return auto;
     }
     return _formatNumber(value);
   }
@@ -4151,8 +4375,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (res.contains('°')) {
       return _buildDmsDisplay(res, fitScale: fitScale);
     }
-    if ((_displayFormat != DisplayFormat.standard) &&
-        res.toLowerCase() != 'error') {
+    // Auto-exponenciální prezentace ve standard režimu (obsahuje 'E') používá stejný vědecký displej
+    final isAutoExp =
+        res.contains('E') && RegExp(r'^-?\dE[+-]\d+$').hasMatch(res);
+    if (((_displayFormat != DisplayFormat.standard) &&
+            res.toLowerCase() != 'error') ||
+        isAutoExp) {
       return _buildScientificTripleDisplay(res, fitScale: fitScale);
     }
     return _buildStandardDisplay(res, fitScale: fitScale);
@@ -4638,21 +4866,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               final map = item is Map<String, dynamic>
                   ? item
                   : item is Map
-                      ? Map<String, dynamic>.from(item)
-                      : null;
+                  ? Map<String, dynamic>.from(item)
+                  : null;
               if (map == null) continue;
               final profile = AccessibilityProfile.fromJson(map);
               if (profile.id.isEmpty) continue;
               // ensure built-in flag for known ids
-              final isBuiltIn = profile.id == 'standard' ||
+              final isBuiltIn =
+                  profile.id == 'standard' ||
                   profile.id == 'blind' ||
                   profile.id == 'lowvision';
-              parsed.add(AccessibilityProfile(
-                id: profile.id,
-                name: profile.name,
-                isBuiltIn: isBuiltIn ? true : profile.isBuiltIn,
-                settings: profile.settings,
-              ));
+              parsed.add(
+                AccessibilityProfile(
+                  id: profile.id,
+                  name: profile.name,
+                  isBuiltIn: isBuiltIn ? true : profile.isBuiltIn,
+                  settings: profile.settings,
+                ),
+              );
             } catch (_) {
               continue;
             }
@@ -4753,7 +4984,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }) async {
     if (!_profiles.any((p) => p.id == profile.id)) {
       debugPrint('applyAccessibilityProfile: id not found: ${profile.id}');
-      _showAccessibleSnackBar(_s('Aktivace selhala – profil neexistuje.', 'Activation failed – profile does not exist.'));
+      _showAccessibleSnackBar(
+        _s(
+          'Aktivace selhala – profil neexistuje.',
+          'Activation failed – profile does not exist.',
+        ),
+      );
       return;
     }
     setState(() {
@@ -4805,7 +5041,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
         title: Semantics(header: true, child: Text(_l10n.previewSettings)),
-        content: Text('Profil: ${profile.name}\n\n' + _s('Použít profil?', 'Apply profile?')),
+        content: Text(
+          'Profil: ${profile.name}\n\n' +
+              _s('Použít profil?', 'Apply profile?'),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -4814,7 +5053,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
-              applyAccessibilityProfile(profile, announcement: _l10n.profileChangedTo(profile.name));
+              applyAccessibilityProfile(
+                profile,
+                announcement: _l10n.profileChangedTo(profile.name),
+              );
             },
             child: Text(_l10n.confirmAction),
           ),
@@ -4830,11 +5072,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Uložit profil'),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(_l10n.saveSettingsToProfile)),
-        content: Text(_s('Nastavení se nyní ukládá automaticky pro každý profil zvlášť.',
-            'Settings are now saved automatically per profile.')),
+        title: Semantics(
+          header: true,
+          child: Text(_l10n.saveSettingsToProfile),
+        ),
+        content: Text(
+          _s(
+            'Nastavení se nyní ukládá automaticky pro každý profil zvlášť.',
+            'Settings are now saved automatically per profile.',
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.close)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n.close),
+          ),
         ],
       ),
     );
@@ -4847,82 +5099,105 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Vytvořit profil'),
       builder: (ctx) {
-        return StatefulBuilder(builder: (sCtx, setLocal) {
-          return AlertDialog(
-            insetPadding: _dialogInsetPadding(),
-            title: Semantics(header: true, child: Text(_s('Nový profil', 'New profile'))),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Semantics(
-                    label: _s('Název nového profilu', 'New profile name'),
-                    child: TextField(
-                      controller: nameCtrl,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: _s('Název', 'Name'),
-                        border: const OutlineInputBorder(),
+        return StatefulBuilder(
+          builder: (sCtx, setLocal) {
+            return AlertDialog(
+              insetPadding: _dialogInsetPadding(),
+              title: Semantics(
+                header: true,
+                child: Text(_s('Nový profil', 'New profile')),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Semantics(
+                      label: _s('Název nového profilu', 'New profile name'),
+                      child: TextField(
+                        controller: nameCtrl,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: _s('Název', 'Name'),
+                          border: const OutlineInputBorder(),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Semantics(
-                    label: _s('Základní profil pro kopii', 'Base profile'),
-                    child: DropdownButtonFormField<String>(
-                      value: baseId,
-                      decoration: InputDecoration(labelText: _s('Vycházet z', 'Base on')),
-                      items: _effectiveProfiles
-                          .map((p) => DropdownMenuItem(
+                    const SizedBox(height: 12),
+                    Semantics(
+                      label: _s('Základní profil pro kopii', 'Base profile'),
+                      child: DropdownButtonFormField<String>(
+                        value: baseId,
+                        decoration: InputDecoration(
+                          labelText: _s('Vycházet z', 'Base on'),
+                        ),
+                        items: _effectiveProfiles
+                            .map(
+                              (p) => DropdownMenuItem(
                                 value: p.id,
                                 child: Text(_displayProfileName(p)),
-                              ))
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setLocal(() => baseId = v);
-                      },
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setLocal(() => baseId = v);
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_l10n.cancel)),
-              FilledButton(
-                onPressed: () {
-                  final name = nameCtrl.text.trim();
-                  if (name.isEmpty) {
-                    speak(_s('Zadejte název profilu', 'Enter profile name'));
-                    return;
-                  }
-                  if (_profiles.any((p) => p.name.toLowerCase() == name.toLowerCase())) {
-                    speak(_s('Profil s tímto názvem již existuje', 'Profile with this name already exists'));
-                    return;
-                  }
-                  final base = _profiles.firstWhere((p) => p.id == baseId,
-                      orElse: () => _getActiveAccessibilityProfile());
-                  final newProfile = AccessibilityProfile(
-                    id: 'custom_${DateTime.now().microsecondsSinceEpoch}_${name.hashCode.abs()}',
-                    name: name,
-                    isBuiltIn: false,
-                    settings: base.settings.copyWith(),
-                  );
-                  setState(() {
-                    _profiles.add(newProfile);
-                    _activeProfileId = newProfile.id;
-                  });
-                  _applyActiveProfileToState();
-                  _saveProfilesV2();
-                  Navigator.pop(ctx);
-                  speak(_s('Profil $name vytvořen', 'Profile $name created'));
-                  _showAccessibleSnackBar(_s('Profil $name vytvořen', 'Profile $name created'));
-                },
-                child: Text(_s('Vytvořit', 'Create')),
-              ),
-            ],
-          );
-        });
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(_l10n.cancel),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final name = nameCtrl.text.trim();
+                    if (name.isEmpty) {
+                      speak(_s('Zadejte název profilu', 'Enter profile name'));
+                      return;
+                    }
+                    if (_profiles.any(
+                      (p) => p.name.toLowerCase() == name.toLowerCase(),
+                    )) {
+                      speak(
+                        _s(
+                          'Profil s tímto názvem již existuje',
+                          'Profile with this name already exists',
+                        ),
+                      );
+                      return;
+                    }
+                    final base = _profiles.firstWhere(
+                      (p) => p.id == baseId,
+                      orElse: () => _getActiveAccessibilityProfile(),
+                    );
+                    final newProfile = AccessibilityProfile(
+                      id: 'custom_${DateTime.now().microsecondsSinceEpoch}_${name.hashCode.abs()}',
+                      name: name,
+                      isBuiltIn: false,
+                      settings: base.settings.copyWith(),
+                    );
+                    setState(() {
+                      _profiles.add(newProfile);
+                      _activeProfileId = newProfile.id;
+                    });
+                    _applyActiveProfileToState();
+                    _saveProfilesV2();
+                    Navigator.pop(ctx);
+                    speak(_s('Profil $name vytvořen', 'Profile $name created'));
+                    _showAccessibleSnackBar(
+                      _s('Profil $name vytvořen', 'Profile $name created'),
+                    );
+                  },
+                  child: Text(_s('Vytvořit', 'Create')),
+                ),
+              ],
+            );
+          },
+        );
       },
     );
   }
@@ -4949,30 +5224,58 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @Deprecated('Use _confirmDeleteProfileForId instead')
   void _confirmDeleteActiveProfile(BuildContext dialogContext) {
-    _confirmDeleteProfileForId(dialogContext, _activeProfileId, parentDialogContext: dialogContext);
+    _confirmDeleteProfileForId(
+      dialogContext,
+      _activeProfileId,
+      parentDialogContext: dialogContext,
+    );
   }
 
   // Nové: operace nad libovolným id (výběr ≠ aktivace)
   void _confirmResetProfileForId(BuildContext dialogContext, String id) {
-    final profile = _profiles.firstWhere((p)=> p.id==id, orElse: ()=> _getActiveAccessibilityProfile());
+    final profile = _profiles.firstWhere(
+      (p) => p.id == id,
+      orElse: () => _getActiveAccessibilityProfile(),
+    );
     final displayName = _displayProfileName(profile);
     showAppDialog<void>(
       context: context,
       routeSettings: const RouteSettings(name: 'Reset profilu'),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(_s('Obnovit výchozí', 'Reset'))),
-        content: Text(_s('Opravdu obnovit profil $displayName na výchozí hodnoty?', 'Reset profile $displayName to defaults?')),
+        title: Semantics(
+          header: true,
+          child: Text(_s('Obnovit výchozí', 'Reset')),
+        ),
+        content: Text(
+          _s(
+            'Opravdu obnovit profil $displayName na výchozí hodnoty?',
+            'Reset profile $displayName to defaults?',
+          ),
+        ),
         actions: [
-          TextButton(onPressed: ()=> Navigator.pop(ctx), child: Text(_l10n.cancel)),
-          FilledButton(onPressed: (){ Navigator.pop(ctx); resetProfile(id); if(mounted) setState((){}); }, child: Text(_s('Obnovit','Reset'))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              resetProfile(id);
+              if (mounted) setState(() {});
+            },
+            child: Text(_s('Obnovit', 'Reset')),
+          ),
         ],
       ),
     );
   }
 
   void _showRenameProfileDialogForId(String id) {
-    final profile = _profiles.firstWhere((p)=> p.id==id, orElse: ()=> _getActiveAccessibilityProfile());
+    final profile = _profiles.firstWhere(
+      (p) => p.id == id,
+      orElse: () => _getActiveAccessibilityProfile(),
+    );
     if (profile.isBuiltIn) return;
     final ctrl = TextEditingController(text: profile.name);
     showAppDialog<void>(
@@ -4980,18 +5283,55 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Přejmenovat profil'),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(_s('Přejmenovat profil', 'Rename profile'))),
-        content: Semantics(label: _s('Nový název profilu','New profile name'), child: TextField(controller: ctrl, autofocus: true, decoration: InputDecoration(labelText: _s('Název','Name'), border: const OutlineInputBorder()))),
+        title: Semantics(
+          header: true,
+          child: Text(_s('Přejmenovat profil', 'Rename profile')),
+        ),
+        content: Semantics(
+          label: _s('Nový název profilu', 'New profile name'),
+          child: TextField(
+            controller: ctrl,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: _s('Název', 'Name'),
+              border: const OutlineInputBorder(),
+            ),
+          ),
+        ),
         actions: [
-          TextButton(onPressed: ()=> Navigator.pop(ctx), child: Text(_l10n.cancel)),
-          FilledButton(onPressed: (){ final newName = ctrl.text.trim(); if(newName.isEmpty) return; renameProfile(id, newName); Navigator.pop(ctx); speak(_s('Profil přejmenován na $newName','Profile renamed to $newName')); }, child: Text(_l10n.confirmAction)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final newName = ctrl.text.trim();
+              if (newName.isEmpty) return;
+              renameProfile(id, newName);
+              Navigator.pop(ctx);
+              speak(
+                _s(
+                  'Profil přejmenován na $newName',
+                  'Profile renamed to $newName',
+                ),
+              );
+            },
+            child: Text(_l10n.confirmAction),
+          ),
         ],
       ),
     );
   }
 
-  void _confirmDeleteProfileForId(BuildContext dialogContext, String id, {required BuildContext parentDialogContext}) {
-    final profile = _profiles.firstWhere((p)=> p.id==id, orElse: ()=> _getActiveAccessibilityProfile());
+  void _confirmDeleteProfileForId(
+    BuildContext dialogContext,
+    String id, {
+    required BuildContext parentDialogContext,
+  }) {
+    final profile = _profiles.firstWhere(
+      (p) => p.id == id,
+      orElse: () => _getActiveAccessibilityProfile(),
+    );
     if (profile.isBuiltIn) return;
     final name = _displayProfileName(profile);
     showAppDialog<void>(
@@ -4999,11 +5339,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: const RouteSettings(name: 'Smazat profil'),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(_s('Smazat profil', 'Delete profile'))),
-        content: Text(_s('Opravdu smazat profil $name?', 'Really delete profile $name?')),
+        title: Semantics(
+          header: true,
+          child: Text(_s('Smazat profil', 'Delete profile')),
+        ),
+        content: Text(
+          _s('Opravdu smazat profil $name?', 'Really delete profile $name?'),
+        ),
         actions: [
-          TextButton(onPressed: ()=> Navigator.pop(ctx), child: Text(_l10n.cancel)),
-          FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: (){ Navigator.pop(ctx); Navigator.pop(parentDialogContext); _deleteProfile(id); }, child: Text(_s('Smazat','Delete'))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_l10n.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(parentDialogContext);
+              _deleteProfile(id);
+            },
+            child: Text(_s('Smazat', 'Delete')),
+          ),
         ],
       ),
     );
@@ -5200,7 +5556,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       if (files.isEmpty) return;
 
-      final content = utf8.decode(await files.single.readAsBytes());
+      final file = files.first;
+      String content;
+      if (file.path != null) {
+        content = await File(file.path!).readAsString();
+      } else {
+        final bytes = await file.readAsBytes();
+        content = utf8.decode(bytes);
+      }
 
       final data = jsonDecode(content) as Map<String, dynamic>;
       final prefs = await SharedPreferences.getInstance();
@@ -5233,6 +5596,181 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       debugPrint('Chyba při obnově dat: $e');
       speak(_l10n.restoreError, force: true);
     }
+  }
+
+  // --- Kontrakt v1: import/export (konfigurator) ---
+  Future<void> _exportContract() async {
+    try {
+      final contract = buildContractJson(
+        profiles: _profiles.isNotEmpty ? _profiles : _effectiveProfiles,
+        activeProfileId: _activeProfileId,
+        themeMode: widget.themeMode,
+        isDegreeMode: _isDegreeMode,
+        defaultMode: _defaultMode,
+        statsSummaryOrder: _statsSummaryOrder,
+        statsComputedOrder: _statsComputedOrder,
+        currencyFrom: _currencyFrom,
+        currencyTo: _currencyTo,
+        devEnabled: _devModeEnabled,
+        devAutoDiagnostic: _devAutoDiagnosticEnabled,
+        devDiagnosticDurationMs: _devDiagnosticDurationMs,
+        devPinCode: _devPinCode,
+      );
+      await _exportContractFile(contract);
+      final msg = _s('Konfigurace exportována', 'Configuration exported');
+      speak(msg, force: true);
+      if (mounted) {
+        _showAccessibleSnackBar(msg);
+        _announce(msg);
+      }
+    } catch (e) {
+      debugPrint('Export kontraktu chyba: $e');
+      final msg = _s(
+        'Chyba při exportu konfigurace',
+        'Error exporting configuration',
+      );
+      speak(msg, force: true);
+      if (mounted) _showAccessibleSnackBar(msg);
+    }
+  }
+
+  Future<void> _importContract() async {
+    try {
+      final raw = await _pickAndReadContractFile();
+      if (raw == null) return;
+      final vr = validateContract(raw);
+      if (!vr.ok) {
+        final msgs = vr.errors
+            .map((e) => '${e.path.isEmpty ? "root" : e.path}: ${e.message}')
+            .join('\n');
+        if (mounted) {
+          await showAppDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              insetPadding: _dialogInsetPadding(),
+              title: Semantics(
+                header: true,
+                child: Text(
+                  _s('Neplatná konfigurace', 'Invalid configuration'),
+                ),
+              ),
+              content: SingleChildScrollView(child: Text(msgs)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(_l10n.close),
+                ),
+              ],
+            ),
+          );
+        }
+        speak(
+          _s(
+            'Import selhal – neplatná konfigurace',
+            'Import failed – invalid configuration',
+          ),
+          force: true,
+        );
+        return;
+      }
+      if (vr.warnings.isNotEmpty && mounted) {
+        final warns = vr.warnings
+            .map((w) => '${w.path}: ${w.message}')
+            .join('\n');
+        final proceed = await showAppDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            insetPadding: _dialogInsetPadding(),
+            title: Semantics(
+              header: true,
+              child: Text(_s('Varování při importu', 'Import warning')),
+            ),
+            content: SingleChildScrollView(
+              child: Text(
+                _s(
+                  'Konfigurace obsahuje neznámá pole (budoucí verze), budou ignorována:\n\n$warns\n\nPokračovat?',
+                  'Configuration contains unknown keys (future version), they will be ignored:\n\n$warns\n\nContinue?',
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(_l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(_s('Importovat', 'Import')),
+              ),
+            ],
+          ),
+        );
+        if (proceed != true) return;
+      }
+      final parsed = parseContract(raw);
+      await _applyContract(parsed, raw);
+      final resolved =
+          parsed.profiles
+              .where((p) => p.id == parsed.activeProfileId)
+              .isNotEmpty
+          ? parsed.profiles.firstWhere((p) => p.id == parsed.activeProfileId)
+          : parsed.profiles.first;
+      final name = resolved.name;
+      final msg = _s(
+        'Konfigurace importována, aktivní profil $name',
+        'Configuration imported, active profile $name',
+      );
+      speak(msg, force: true);
+      if (mounted) {
+        _showAccessibleSnackBar(msg, announceMessage: msg);
+        _announce(msg);
+      }
+    } catch (e) {
+      debugPrint('Import kontraktu chyba: $e');
+      final msg = _s(
+        'Chyba při importu konfigurace',
+        'Error importing configuration',
+      );
+      speak(msg, force: true);
+      if (mounted) _showAccessibleSnackBar(msg);
+    }
+  }
+
+  Future<void> _applyContract(
+    ParsedContract parsed,
+    Map<String, dynamic> raw,
+  ) async {
+    setState(() {
+      _profiles = parsed.profiles;
+      _activeProfileId = parsed.activeProfileId;
+      _statsSummaryOrder = List<StatsSummarySection>.from(
+        parsed.statsSummaryOrder,
+      );
+      _statsComputedOrder = List<StatsComputedItem>.from(
+        parsed.statsComputedOrder,
+      );
+      _isDegreeMode = parsed.isDegreeMode;
+      _defaultMode = parsed.defaultMode;
+      _currencyFrom = parsed.currencyFrom;
+      _currencyTo = parsed.currencyTo;
+      _devModeEnabled = parsed.devEnabled;
+      _devAutoDiagnosticEnabled = parsed.devAutoDiagnostic;
+      _devDiagnosticDurationMs = parsed.devDiagnosticDurationMs;
+      _devPinCode = parsed.devPinCode;
+    });
+    widget.onThemeModeChanged(parsed.themeMode);
+    await _saveProfilesV2();
+    await _saveActiveProfileId();
+    _saveGlobalSettings();
+    // persist raw contract atomically for parity
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('config_contract_v1', jsonEncode(raw));
+    } catch (_) {}
+    _applySettingsToRuntime(_getActiveAccessibilityProfile().settings);
+    _dialogFontScaleNotifier.value =
+        activeAccessibilitySettings.dialogFontScale;
+    if (mounted) setState(() {});
   }
 
   void _showInitialAccessibilityDialog() {
@@ -5579,10 +6117,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     onTap: () {
                       if (_editingDraft != null && _editingProfileId != null) {
                         final prev = _editingDraft!.settings;
-                        updateEditingSettings((s) => s.copyWith(ttsEngine: engine));
-                        if (_editingProfileId == _activeProfileId && !Platform.isWindows) {
-                          tts.setEngine(engine).catchError((e){ debugPrint('TTS setEngine Error: $e'); });
+                        updateEditingSettings(
+                          (s) => s.copyWith(ttsEngine: engine),
+                        );
+                        if (_editingProfileId == _activeProfileId &&
+                            !Platform.isWindows) {
+                          tts.setEngine(engine).catchError((e) {
+                            debugPrint('TTS setEngine Error: $e');
+                          });
                         }
+                        speak(
+                          _s(
+                            'Engine $engine vybrán',
+                            'Engine $engine selected',
+                          ),
+                          force: true,
+                        );
                       } else {
                         updateActiveAccessibilitySettings(
                           (s) => s.copyWith(ttsEngine: engine),
@@ -5590,6 +6140,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         if (!Platform.isWindows) {
                           tts.setEngine(engine);
                         }
+                        speak(
+                          _s(
+                            'Engine $engine vybrán',
+                            'Engine $engine selected',
+                          ),
+                          force: true,
+                        );
                       }
                       Navigator.pop(context);
                     },
@@ -5692,7 +6249,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         routeSettings: const RouteSettings(name: 'Vybrat hlas'),
         builder: (context) => AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          title: Semantics(header: true, child: Text(_s('Vybrat hlas', 'Select voice'))),
+          title: Semantics(
+            header: true,
+            child: Text(_s('Vybrat hlas', 'Select voice')),
+          ),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
@@ -5710,17 +6270,39 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       title: Text(_s('Výchozí', 'Default')),
                       selected: isSelected,
                       onTap: () {
-                        if (_editingDraft != null && _editingProfileId != null) {
-                          updateEditingSettings((s) => s.copyWith(clearTtsVoice: true, clearTtsVoiceName: true));
+                        if (_editingDraft != null &&
+                            _editingProfileId != null) {
+                          updateEditingSettings(
+                            (s) => s.copyWith(
+                              clearTtsVoice: true,
+                              clearTtsVoiceName: true,
+                            ),
+                          );
                           if (_editingProfileId == _activeProfileId) {
                             tts.clearVoice();
                           }
+                          speak(
+                            _s(
+                              'Hlas nastaven na výchozí',
+                              'Voice set to default',
+                            ),
+                            force: true,
+                          );
                         } else {
                           updateActiveAccessibilitySettings(
                             (s) => s.copyWith(
-                                clearTtsVoice: true, clearTtsVoiceName: true),
+                              clearTtsVoice: true,
+                              clearTtsVoiceName: true,
+                            ),
                           );
                           tts.clearVoice();
+                          speak(
+                            _s(
+                              'Hlas nastaven na výchozí',
+                              'Voice set to default',
+                            ),
+                            force: true,
+                          );
                         }
                         Navigator.pop(context);
                       },
@@ -5758,16 +6340,33 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         'locale': voice['locale']?.toString() ?? '',
                       };
                       if (_editingDraft != null && _editingProfileId != null) {
-                        updateEditingSettings((s) => s.copyWith(ttsVoice: voiceMap, ttsVoiceName: name));
+                        updateEditingSettings(
+                          (s) => s.copyWith(
+                            ttsVoice: voiceMap,
+                            ttsVoiceName: name,
+                          ),
+                        );
                         if (_editingProfileId == _activeProfileId) {
-                          tts.setVoice(voiceMap).catchError((e){ debugPrint('TTS setVoice Error: $e'); });
+                          tts.setVoice(voiceMap).catchError((e) {
+                            debugPrint('TTS setVoice Error: $e');
+                          });
                         }
+                        speak(
+                          _s('Hlas $name vybrán', 'Voice $name selected'),
+                          force: true,
+                        );
                       } else {
                         updateActiveAccessibilitySettings(
                           (s) => s.copyWith(
-                              ttsVoice: voiceMap, ttsVoiceName: name),
+                            ttsVoice: voiceMap,
+                            ttsVoiceName: name,
+                          ),
                         );
                         tts.setVoice(voiceMap);
+                        speak(
+                          _s('Hlas $name vybrán', 'Voice $name selected'),
+                          force: true,
+                        );
                       }
                       Navigator.pop(context);
                     },
@@ -5872,44 +6471,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               _section(l10n.statsHelpKeyboardSection, [
-                    l10n.statsHelpKeyboardSets,
-                    l10n.statsHelpKeyboardMPlus,
-                    l10n.statsHelpKeyboardMc,
-                    l10n.statsHelpKeyboardMr,
-                    l10n.statsHelpKeyboardStats,
-                    l10n.statsHelpKeyboardSemicolon,
-                  ]),
-                  const Divider(),
-                  _section(l10n.statsHelpAdvancedSection, [
-                    l10n.statsHelpAdvancedMean,
-                    l10n.statsHelpAdvancedSd,
-                    l10n.statsHelpAdvancedVar,
-                    l10n.statsHelpAdvancedSum,
-                    l10n.statsHelpAdvancedMed,
-                    l10n.statsHelpAdvancedMode,
-                    l10n.statsHelpAdvancedMin,
-                    l10n.statsHelpAdvancedMax,
-                    l10n.statsHelpAdvancedCv,
-                    l10n.statsHelpAdvancedWmean,
-                  ]),
-                  const Divider(),
-                  _section(l10n.statsHelpFieldsSection, [
-                    l10n.statsHelpFieldsDesc,
-                  ]),
-                  const Divider(),
-                  _section(l10n.statsHelpWeightedMeanSection, [
-                    l10n.statsHelpWeightedMeanDesc,
-                  ]),
-                  const Divider(),
-                  _section(l10n.statsHelpTipsSection, [
-                    '• ${l10n.statsHelpTip1}',
-                    '• ${l10n.statsHelpTip2}',
-                    '• ${l10n.statsHelpTip3}',
-                    '• ${l10n.statsHelpTip4}',
-                  ]),
-                ],
-              ),
-            ),
+                l10n.statsHelpKeyboardSets,
+                l10n.statsHelpKeyboardMPlus,
+                l10n.statsHelpKeyboardMc,
+                l10n.statsHelpKeyboardMr,
+                l10n.statsHelpKeyboardStats,
+                l10n.statsHelpKeyboardSemicolon,
+              ]),
+              const Divider(),
+              _section(l10n.statsHelpAdvancedSection, [
+                l10n.statsHelpAdvancedMean,
+                l10n.statsHelpAdvancedSd,
+                l10n.statsHelpAdvancedVar,
+                l10n.statsHelpAdvancedSum,
+                l10n.statsHelpAdvancedMed,
+                l10n.statsHelpAdvancedMode,
+                l10n.statsHelpAdvancedMin,
+                l10n.statsHelpAdvancedMax,
+                l10n.statsHelpAdvancedCv,
+                l10n.statsHelpAdvancedWmean,
+              ]),
+              const Divider(),
+              _section(l10n.statsHelpFieldsSection, [l10n.statsHelpFieldsDesc]),
+              const Divider(),
+              _section(l10n.statsHelpWeightedMeanSection, [
+                l10n.statsHelpWeightedMeanDesc,
+              ]),
+              const Divider(),
+              _section(l10n.statsHelpTipsSection, [
+                '• ${l10n.statsHelpTip1}',
+                '• ${l10n.statsHelpTip2}',
+                '• ${l10n.statsHelpTip3}',
+                '• ${l10n.statsHelpTip4}',
+              ]),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -5980,8 +6577,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return CustomDotMatrixDisplay(
       text: _toBarNotation(txt),
       ledSize: 3.0 * _dotMatrixZoom * scale * fitScale,
-      ledSpacing:
-          1.15 * _dotMatrixZoom * scale * fitScale * inputSysFactor,
+      ledSpacing: 1.15 * _dotMatrixZoom * scale * fitScale * inputSysFactor,
       overlineThickness: _overlineThickness,
       overlineHeight: _overlineHeight,
       thousandGroupGap: gap,
@@ -6022,24 +6618,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final scale = _responsiveScale(context);
-    // Velikost písma: uživatelské _keyboardFontScale (70–250 %) × systémový
-    // textScaler (omezený, aby nerozbil layout) × mírný large-boost z
-    // _responsiveScale, aby na velkém displeji nerostla jen geometrie tlačítek,
-    // ale i písmo. Systémový scaler se započítá právě jednou ručně –
-    // vnitřní Text je dál izolován přes TextScaler.noScaling (viz níže),
-    // takže nedochází k dvojímu započtení. FittedBox(scaleDown) je pouze
-    // pojistka proti přetečení dlouhých popisků (SETS, RAD→°).
-    // Geometrie tlačítka (margin/padding/min. dotyková velikost) dál škáluje
-    // s `scale`, takže tlačítka zůstanou dost velká pro dotyk.
+    // Velikost písma – opraveno: geometrie škáluje 1.0→1.7, font musí
+    // škálovat stejným poměrem. Původní largeBoost 1.35 způsoboval
+    // divergenci (48→81.6 vs 20→27). Nově:
+    // - geometrie: margin/padding/minSize dál používá scale (beze změny)
+    // - font: 20 * _keyboardFontScale * sysFactor * scale  (bez 0.5 tlumení)
+    // - skutečný dostupný prostor tlačítka (LayoutBuilder) slouží jako
+    //   strop pro vertikální přetečení, šířku řeší FittedBox(scaleDown)
+    //   jako pojistka pro dlouhé popisky (ASIN, WMEAN, RAD→°).
+    //   Krátké popisky (1, +, C, DEL) tak využijí plný prostor (scale 1.0).
+    // Systémový scaler se započítá právě jednou ručně a vnitřní Text je
+    // izolován TextScaler.noScaling – nedochází k dvojímu započtení.
     final sysFactor = MediaQuery.textScalerOf(
       context,
     ).scale(1.0).clamp(1.0, 1.6);
-    final largeBoost = (1.0 + (scale - 1.0) * 0.5).clamp(1.0, 1.35);
-    final keyboardFontSize =
-        (20.0 * _keyboardFontScale * sysFactor * largeBoost).clamp(
-          14.0,
-          72.0,
-        );
+    final baseFontForScale = (20.0 * _keyboardFontScale * sysFactor * scale)
+        .clamp(14.0, 72.0);
 
     Widget buttonBody = Container(
       margin: EdgeInsets.all(3 * scale),
@@ -6054,42 +6648,57 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 6 * scale),
-      // FittedBox je zde pouze pojistka proti skutečnému přetečení
-      // (dlouhé popisky typu SETS, RAD→°). Při běžných hodnotách škály
-      // (krátké popisky 1, 2, +, C, DEL, =) se neuplatní a nastavená
-      // velikost písma je skutečně viditelná.
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.center,
-        child: ExcludeSemantics(
-          // Vizuální popisek je skrytý před odečítačem (ten čte vnější
-          // Semantics s descriptiveName). TextScaler.noScaling zde znamená,
-          // že systémové škálování se aplikuje právě jednou – ručně přes
-          // sysFactor ve výpočtu keyboardFontSize (viz výše).
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.noScaling),
-            child: Text(
-              label,
-              maxLines: 1,
-              softWrap: false,
-              style: TextStyle(
-                fontSize: keyboardFontSize,
-                fontWeight: FontWeight.bold,
-                color: color != null
-                    ? Colors.white
-                    : (isDark ? Colors.white : Colors.black),
+      // LayoutBuilder poskytuje skutečné constraints tlačítka po odečtení
+      // paddingu (dostupný prostor pro text). Ponechán jako architektonický
+      // bod pro budoucí jemné doladění podle dostupného prostoru; aktuálně
+      // font škáluje s geometryScale (1.0→1.7) a šířku/výšku hlídá
+      // FittedBox(scaleDown) jako pojistka pro dlouhé popisky (ASIN, WMEAN,
+      // RAD→°). Krátké popisky (1, +, C, DEL) tak využijí plný prostor.
+      child: LayoutBuilder(
+        builder: (innerContext, innerConstraints) {
+          final double keyboardFontSize = baseFontForScale;
+          // Pozn.: vertikální strop záměrně neaplikován – innerConstraints
+          // během flex layoutu může být dočasně malé a zbytečně by
+          // ořezával font (viz regrese 17px na desktopu). FittedBox
+          // zajistí, že přetečení v obou osách se škáluje jednotně.
+          return FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center,
+            child: ExcludeSemantics(
+              // Vizuální popisek je skrytý před odečítačem (ten čte vnější
+              // Semantics s descriptiveName). TextScaler.noScaling zde znamená,
+              // že systémové škálování se aplikuje právě jednou – ručně přes
+              // sysFactor ve výpočtu keyboardFontSize (viz výše).
+              child: MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.noScaling),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontSize: keyboardFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: color != null
+                        ? Colors.white
+                        : (isDark ? Colors.white : Colors.black),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
 
     Future<void> defaultTap() async {
       if (!['°→\'', '\'→°', 'DMS', '…'].contains(label)) {
-        if (!_isScreenReaderActive) speak(descriptiveName);
+        final suppressMplusCountAnnounce =
+            label == 'M+' && _currentMode == CalculatorMode.statistics;
+        if (!_isScreenReaderActive && !suppressMplusCountAnnounce) {
+          speak(descriptiveName);
+        }
       }
       await _handleButtonPressed(label);
     }
@@ -6220,11 +6829,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return;
       }
 
-      if (recordsToAdd.length > 1) {
-        _showStatsSaveReviewDialog(recordsToAdd);
+      final count = recordsToAdd.length;
+      final form = _getStatsCountForm(count);
+      String msg;
+      if (_isEnglish()) {
+        msg = count == 1
+            ? '1 $form ready to save to statistics set.'
+            : '$count $form ready to save to statistics set.';
       } else {
-        _addValuesToStats(recordsToAdd, 1);
+        if (count == 1) {
+          msg = 'Připravena 1 $form k uložení do statistické sady.';
+        } else if (count >= 2 && count <= 4) {
+          msg = 'Připraveny $count $form k uložení do statistické sady.';
+        } else {
+          msg = 'Připraveno $count $form k uložení do statistické sady.';
+        }
       }
+      speak(msg);
+      if (mounted) {
+        _showAccessibleSnackBar(msg);
+      }
+      _showRepeatDialog(recordsToAdd, suppressInitialAnnounce: true);
     } catch (e) {
       final msg = e is FormatException
           ? e.message
@@ -6894,12 +7519,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
       }
       // Pokud je pending NEG a lze bezpečně uzavřít, konzumuj ho místo duplicity
-      if (_pendingNegOpens.isNotEmpty && _canAutoClosePendingNeg(_pendingNegOpens.last)) {
+      if (_pendingNegOpens.isNotEmpty &&
+          _canAutoClosePendingNeg(_pendingNegOpens.last)) {
         _autoClosePendingNegIfNeeded(force: true);
         if (!silent) speak(_getButtonName(')'));
       } else {
         // Zabránit duplicitnímu "))" těsně za kurzorem
-        if (_cursorPosition < display.length && display[_cursorPosition] == ')') {
+        if (_cursorPosition < display.length &&
+            display[_cursorPosition] == ')') {
           setState(() => _cursorPosition++);
           if (!silent) speak(_getButtonName(')'));
         } else {
@@ -6910,7 +7537,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // Guard: pokud je otevřen NEG bez čísla, povolit jen číslice, '.' a případně další NEG již blokován
       if (_pendingNegOpens.isNotEmpty) {
         final p = _pendingNegOpens.last;
-        final insideEmpty = _cursorPosition <= p + 2 ||
+        final insideEmpty =
+            _cursorPosition <= p + 2 ||
             !RegExp(r'\d').hasMatch(display.substring(p + 2, _cursorPosition));
         if (insideEmpty) {
           // povolit jen číslice a '.' uvnitř prázdného NEG
@@ -6921,13 +7549,41 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
       }
       // Před operátory a funkcemi auto-uzavři NEG pokud je číslo dokončeno
-      const operators = ['+', '-', '*', '/', '^', '%', '(', ';', '!', 'x²', 'x³', 'EXP'];
+      const operators = [
+        '+',
+        '-',
+        '*',
+        '/',
+        '^',
+        '%',
+        '(',
+        ';',
+        '!',
+        'x²',
+        'x³',
+        'EXP',
+      ];
       if (operators.contains(label)) {
         _autoClosePendingNegIfNeeded();
       }
       // Také před vkládáním funkcí/proměnných auto-uzavři
       if (RegExp(r'^[A-Z]$').hasMatch(label) ||
-          ['SIN','COS','TAN','ASIN','ACOS','ATAN','√','∛','ABS','LOG','LN','ⁿ√','π','ANS'].contains(label)) {
+          [
+            'SIN',
+            'COS',
+            'TAN',
+            'ASIN',
+            'ACOS',
+            'ATAN',
+            '√',
+            '∛',
+            'ABS',
+            'LOG',
+            'LN',
+            'ⁿ√',
+            'π',
+            'ANS',
+          ].contains(label)) {
         _autoClosePendingNegIfNeeded();
       }
       append(label, silent: silent);
@@ -7209,19 +7865,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         break;
     }
 
-    // Varianta B: na malém displeji s velkým fontem přepnout na scrollovatelný Wrap (jako statistický režim v dialozích)
-    // Práh používá efektivní škálu písma (uživatel × systém × large-boost),
-    // aby se Wrap zapnul i při velkém systémovém písmu, ne jen při velkém _keyboardFontScale.
-    final shortest = MediaQuery.of(context).size.shortestSide;
-    final isSmall = shortest < 360;
-    final sysScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.6);
-    final boostScale = (1.0 + (_responsiveScale(context) - 1.0) * 0.5).clamp(
-      1.0,
-      1.35,
-    );
-    final needScroll =
-        isSmall && _keyboardFontScale * sysScale * boostScale > 1.6;
-
+    // Konzistentní velikost tlačítek napříč režimy:
+    // - 4 sloupce, fixní výška (54*scale) místo Expanded řádků (které dělily výšku podle počtu řádků)
+    // - při nedostatku výšky vertikální scroll místo zmenšování textu
+    // - zachovává _keyboardFontScale, TextScaler, _responsiveScale, Semantics a focus order
     Widget buttonFor(String b) {
       Color? color;
       if (['/', '*', '-', '+'].contains(b)) {
@@ -7243,7 +7890,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         b,
         color: color,
         semanticLabel: _getElectricianButtonSemanticLabel(b),
-        expanded: !needScroll,
+        expanded: false,
         onPressed: () async {
           if (b == 'M+' && _currentMode == CalculatorMode.statistics) {
             await _addSingleValueToStats();
@@ -7259,60 +7906,63 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     }
 
-    if (needScroll) {
-      // Scrollovatelný Wrap – velikost tlačítek jako ve Statistickém režimu (Wrap + LayoutBuilder v dialozích: 50*scale)
-      return LayoutBuilder(
-        builder: (ctx, constraints) {
-          final maxW = constraints.maxWidth.isFinite
-              ? constraints.maxWidth
-              : MediaQuery.of(ctx).size.width;
-          final scale = _responsiveScale(ctx);
-          // šířka 4 sloupce, výška jako v dialogu statistiky: 50*scale, min 48dp pro hmatatelnost
-          final btnW = (maxW - 6) / 4;
-          final btnH = (54 * scale).clamp(48.0 * scale, 80.0 * scale);
-          return Scrollbar(
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(2),
-                child: Wrap(
-                  spacing: 2,
-                  runSpacing: 2,
-                  children: btns.map((b) {
-                    return SizedBox(
-                      width: btnW,
-                      height: btnH,
-                      child: buttonFor(b),
-                    );
-                  }).toList(),
+    // Stabilní 7×4 rastr – 4 sloupce, 7 referenčních řádků, max 28 buněk.
+    // Mapování: index = row*4 + col. rowH je jednotná pro všechny režimy
+    // (závisí pouze na _responsiveScale, ne na btns.length). Žádný Wrap.
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final scale = _responsiveScale(ctx);
+        final double rowH = (54.0 * scale)
+            .clamp(48.0 * scale, 80.0 * scale)
+            .toDouble();
+        const double spacing = 2.0;
+        final double needH =
+            _kKeypadReferenceRows * rowH +
+            (_kKeypadReferenceRows - 1) * spacing +
+            4;
+        final bool needVScroll =
+            constraints.maxHeight.isFinite && needH > constraints.maxHeight;
+
+        final List<Widget> cells = List<Widget>.generate(
+          _kKeypadCellCount,
+          (i) => i < btns.length
+              ? SizedBox(height: rowH, child: buttonFor(btns[i]))
+              : SizedBox(
+                  height: rowH,
+                  child: const ExcludeFocus(
+                    child: ExcludeSemantics(child: SizedBox.shrink()),
+                  ),
                 ),
-              ),
+        );
+
+        final List<Widget> rows = <Widget>[];
+        for (int r = 0; r < _kKeypadReferenceRows; r++) {
+          rows.add(
+            Row(
+              key: ValueKey('keypad_row_$r'),
+              children: [
+                for (int c = 0; c < _kKeypadColumns; c++) ...[
+                  if (c > 0) const SizedBox(width: spacing),
+                  Expanded(child: cells[r * _kKeypadColumns + c]),
+                ],
+              ],
             ),
           );
-        },
-      );
-    }
+          if (r < _kKeypadReferenceRows - 1) {
+            rows.add(const SizedBox(height: spacing));
+          }
+        }
 
-    List<List<String>> rows = [];
-    for (var i = 0; i < btns.length; i += 4) {
-      rows.add(btns.sublist(i, i + 4 > btns.length ? btns.length : i + 4));
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: FocusTraversalGroup(
-        child: Column(
-          children: [
-            ...rows.map((row) {
-              return Expanded(
-                child: FocusTraversalGroup(
-                  child: Row(children: row.map((b) => buttonFor(b)).toList()),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
+        Widget grid = Column(
+          key: const ValueKey('keypad_grid'),
+          children: rows,
+        );
+        grid = Padding(padding: const EdgeInsets.all(2), child: grid);
+        if (needVScroll) {
+          return SingleChildScrollView(child: grid);
+        }
+        return grid;
+      },
     );
   }
 
@@ -7355,6 +8005,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Widget _buildModeSelector() {
     final scale = _responsiveScale(context);
+    final sysFactor = MediaQuery.textScalerOf(
+      context,
+    ).scale(1.0).clamp(1.0, 1.6);
+    // Chip label – geometrie 48*scale vs text: původně bez explicitního
+    // škálování (font fixní 14, škálován jen systémově). Nově explicitně
+    // škálujeme s geometrií, ale izolujeme systémový scaler aby nebyl
+    // započten dvakrát (noScaling + ruční sysFactor).
+    final chipFontSize = (14.0 * scale * sysFactor).clamp(12.0, 22.0);
     return Semantics(
       label: _s('Přepínač režimů', 'Mode selector'),
       container: true,
@@ -7375,7 +8033,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       '$label${isSelected ? _s(', vybráno', ', selected') : ''}',
                   selected: isSelected,
                   child: ChoiceChip(
-                    label: Text(label),
+                    label: MediaQuery(
+                      data: MediaQuery.of(
+                        context,
+                      ).copyWith(textScaler: TextScaler.noScaling),
+                      child: Text(
+                        label,
+                        style: TextStyle(fontSize: chipFontSize),
+                      ),
+                    ),
                     selected: isSelected,
                     onSelected: (s) {
                       if (s) {
@@ -7481,12 +8147,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (ctx) {
         return AlertDialog(
           insetPadding: _dialogInsetPadding(),
-          title: Semantics(header: true, child: Text(
-            _s(
-              'Upravit záznam ${recordIndex + 1}',
-              'Edit record ${recordIndex + 1}',
+          title: Semantics(
+            header: true,
+            child: Text(
+              _s(
+                'Upravit záznam ${recordIndex + 1}',
+                'Edit record ${recordIndex + 1}',
+              ),
             ),
-          )),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -9870,8 +10539,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @visibleForTesting
   AccessibilityType get displayAccessibilityTypeForTest =>
       _accessibilityType == AccessibilityType.none
-          ? AccessibilityType.visuallyImpaired
-          : _accessibilityType;
+      ? AccessibilityType.visuallyImpaired
+      : _accessibilityType;
 
   @visibleForTesting
   double get keyboardFontScaleForTest => _keyboardFontScale;
@@ -9899,12 +10568,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   void setKeyboardFontScaleForTest(double value) {
-    updateActiveAccessibilitySettings((s) => s.copyWith(fontSizeMultiplier: value));
+    updateActiveAccessibilitySettings(
+      (s) => s.copyWith(fontSizeMultiplier: value),
+    );
   }
 
   @visibleForTesting
   void switchProfileForTest(String id) {
-    final p = _profiles.firstWhere((e) => e.id == id, orElse: () => _getActiveAccessibilityProfile());
+    final p = _profiles.firstWhere(
+      (e) => e.id == id,
+      orElse: () => _getActiveAccessibilityProfile(),
+    );
     applyAccessibilityProfile(p);
   }
 
@@ -9915,8 +10589,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   void createProfileForTest(String name, String baseId) {
-    final base = _profiles.firstWhere((p) => p.id == baseId,
-        orElse: () => _getActiveAccessibilityProfile());
+    final base = _profiles.firstWhere(
+      (p) => p.id == baseId,
+      orElse: () => _getActiveAccessibilityProfile(),
+    );
     final newProfile = AccessibilityProfile(
       id: 'custom_${DateTime.now().microsecondsSinceEpoch}_${name.hashCode.abs()}',
       name: name,
@@ -9941,7 +10617,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String get activeProfileIdForTest => _activeProfileId;
 
   @visibleForTesting
-  AccessibilitySettings get activeSettingsForTest => activeAccessibilitySettings;
+  AccessibilitySettings get activeSettingsForTest =>
+      activeAccessibilitySettings;
 
   @visibleForTesting
   AccessibilityProfile? get editingDraftForTest => _editingDraft;
@@ -9950,7 +10627,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? get editingProfileIdForTest => _editingProfileId;
 
   @visibleForTesting
-  ValueNotifier<double> get dialogFontScaleNotifierForTest => _dialogFontScaleNotifier;
+  ValueNotifier<double> get dialogFontScaleNotifierForTest =>
+      _dialogFontScaleNotifier;
 
   @visibleForTesting
   ThemeMode get themeModeForTest => widget.themeMode;
@@ -9959,7 +10637,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool startEditingForTest(String id) => startEditingProfile(id);
 
   @visibleForTesting
-  void updateEditingForTest(AccessibilitySettings Function(AccessibilitySettings) upd) => updateEditingSettings(upd);
+  void updateEditingForTest(
+    AccessibilitySettings Function(AccessibilitySettings) upd,
+  ) => updateEditingSettings(upd);
 
   @visibleForTesting
   Future<bool> saveEditingForTest() => saveEditingProfile();
@@ -10032,7 +10712,72 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _handleButtonPressed(label);
 
   @visibleForTesting
+  double evaluateExpressionForTest(String expr) => _evaluateExpression(expr);
+
+  @visibleForTesting
+  String formatNumberForTest(double v) => _formatNumber(v);
+
+  @visibleForTesting
+  String formatNumberSmartForTest(double v) => _formatNumberSmart(v);
+
+  @visibleForTesting
+  String? tryAutoExponentialForTest(double v) => _tryAutoExponential(v);
+
+  @visibleForTesting
+  String spokenForDisplayForTest(String t) => _spokenForDisplay(t);
+
+  @visibleForTesting
+  String formatForSpeechForTest(String t) => _formatForSpeech(t);
+
+  @visibleForTesting
+  String formatSpokenNumberForTest(double v) => _formatSpokenNumber(v);
+
+  @visibleForTesting
+  void setMemoryForTest(String key, double value) {
+    setState(() => _memory[key] = value);
+  }
+
+  @visibleForTesting
+  void setDisplayFormatForTest(DisplayFormat f) {
+    setState(() => _displayFormat = f);
+  }
+
+  @visibleForTesting
+  void setPrecisionForTest(int p) {
+    setState(() => _precision = p);
+  }
+
+  @visibleForTesting
+  Future<void> addSingleValueToStatsForTest() => _addSingleValueToStats();
+
+  @visibleForTesting
+  String getStatsCountFormForTest(int count) => _getStatsCountForm(count);
+
+  @visibleForTesting
+  List<StatisticsRecord> get statsMemoryForTest =>
+      List.unmodifiable(_statsMemory);
+
+  @visibleForTesting
+  int get statsSetsCountForTest => _statsSets.length;
+
+  @visibleForTesting
+  String get currentStatsSetNameForTest =>
+      _statsSets.isEmpty ? '' : _statsSets[_currentStatsSetIndex].name;
+
+  @visibleForTesting
   BuildContext get contextForTest => context;
+
+  @visibleForTesting
+  void switchModeForTest(CalculatorMode mode) => _changeMode(mode);
+
+  @visibleForTesting
+  void toggleScientificPageForTest() => _toggleScientificFunctionsPage();
+
+  @visibleForTesting
+  bool get scientificFunctionsPageForTest => _scientificFunctionsPage;
+
+  @visibleForTesting
+  CalculatorMode get currentModeForTest => _currentMode;
 
   void _showDeleteStatsSetConfirmation(
     BuildContext context,
@@ -10360,35 +11105,35 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       const SizedBox(height: 8),
                       _buildInfoCard(
                         label: l10n.infoDms,
-                          value: dmsStr,
-                          spoken: '${l10n.infoDms}: $dmsSpoken',
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInfoCard(
-                          label: l10n.infoPercentage,
-                          value: percent,
-                          spoken: '${l10n.infoPercentage}: $percentSpoken',
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInfoCard(
-                          label: l10n.infoPrimeFactors,
-                          value: factorsStr.isNotEmpty ? factorsStr : naMsg,
-                          spoken: factorsSpoken.isNotEmpty
-                              ? '${l10n.infoPrimeFactors}: $factorsSpoken'
-                              : '${l10n.infoPrimeFactors}: $notIntMsg',
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInfoCard(
-                          label: l10n.infoDivisors,
-                          value: divisorsStr.isNotEmpty ? divisorsStr : naMsg,
-                          spoken: divisorsSpoken.isNotEmpty
-                              ? '${l10n.infoDivisors}: $divisorsSpoken'
-                              : '${l10n.infoDivisors}: $notIntMsg',
-                        ),
-                      ],
-                    ),
+                        value: dmsStr,
+                        spoken: '${l10n.infoDms}: $dmsSpoken',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoCard(
+                        label: l10n.infoPercentage,
+                        value: percent,
+                        spoken: '${l10n.infoPercentage}: $percentSpoken',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoCard(
+                        label: l10n.infoPrimeFactors,
+                        value: factorsStr.isNotEmpty ? factorsStr : naMsg,
+                        spoken: factorsSpoken.isNotEmpty
+                            ? '${l10n.infoPrimeFactors}: $factorsSpoken'
+                            : '${l10n.infoPrimeFactors}: $notIntMsg',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoCard(
+                        label: l10n.infoDivisors,
+                        value: divisorsStr.isNotEmpty ? divisorsStr : naMsg,
+                        spoken: divisorsSpoken.isNotEmpty
+                            ? '${l10n.infoDivisors}: $divisorsSpoken'
+                            : '${l10n.infoDivisors}: $notIntMsg',
+                      ),
+                    ],
                   ),
                 ),
+              ),
               actions: [
                 Semantics(
                   label: _s(
@@ -10867,9 +11612,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       builder: (ctx) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(
-          _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
-        )),
+        title: Semantics(
+          header: true,
+          child: Text(
+            _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
+          ),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -10939,7 +11687,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  void _showRepeatDialog(List<StatisticsRecord> records) {
+  void _showRepeatDialog(
+    List<StatisticsRecord> records, {
+    bool suppressInitialAnnounce = false,
+  }) {
     final l10n = _l10n;
     final setName = _statsSets[_currentStatsSetIndex].name;
     final editableRecords = records
@@ -11068,7 +11819,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_isScreenReaderActive) {
+      if (mounted && !_isScreenReaderActive && !suppressInitialAnnounce) {
         speak('$summary ${l10n.statsRepeatHint}');
       }
     });
@@ -11182,6 +11933,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     Navigator.pop(dialogContext);
                     Future.delayed(const Duration(milliseconds: 300), () {
                       if (mounted) _showStatsSummaryReadingOrderDialog();
+                    });
+                  },
+                ),
+                _buildMoreOptionTile(
+                  icon: Icons.file_download,
+                  label: _s(
+                    'Importovat konfiguraci (kontrakt)',
+                    'Import configuration (contract)',
+                  ),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) _importContract();
+                    });
+                  },
+                ),
+                _buildMoreOptionTile(
+                  icon: Icons.file_upload,
+                  label: _s(
+                    'Exportovat konfiguraci (kontrakt)',
+                    'Export configuration (contract)',
+                  ),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) _exportContract();
                     });
                   },
                 ),
@@ -11311,17 +12088,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               0.5,
                               5.0,
                             );
-                            updateActiveAccessibilitySettings((s) => s.copyWith(
-                                  dotMatrixZoom: newDot,
-                                  resultZoom: newRes,
-                                ));
+                            updateActiveAccessibilitySettings(
+                              (s) => s.copyWith(
+                                dotMatrixZoom: newDot,
+                                resultZoom: newRes,
+                              ),
+                            );
                           }
                         },
                         onDoubleTap: () {
-                          updateActiveAccessibilitySettings((s) => s.copyWith(
-                                dotMatrixZoom: 1.0,
-                                resultZoom: 1.0,
-                              ));
+                          updateActiveAccessibilitySettings(
+                            (s) =>
+                                s.copyWith(dotMatrixZoom: 1.0, resultZoom: 1.0),
+                          );
                         },
                         onTap: () => _mainFocusNode.requestFocus(),
                         child: Container(
@@ -11515,7 +12294,10 @@ class _ManualBlock {
 
 List<_ManualBlock> _parseManualText(String raw) {
   final blocks = <_ManualBlock>[];
-  String normalized = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n').trim();
+  String normalized = raw
+      .replaceAll('\r\n', '\n')
+      .replaceAll('\r', '\n')
+      .trim();
   if (normalized.isEmpty) return blocks;
   final sections = normalized.split(RegExp(r'\n\s*\n'));
   for (final section in sections) {
@@ -11557,7 +12339,8 @@ List<_ManualBlock> _parseManualText(String raw) {
         }
         if (line.isEmpty) continue;
         // lines that do not start with bullet but appear after bullets are continuation of previous bullet or separate paragraph
-        final isBulletLine = lines[i].trimLeft().startsWith('- ') ||
+        final isBulletLine =
+            lines[i].trimLeft().startsWith('- ') ||
             lines[i].trimLeft().startsWith('• ');
         if (!isBulletLine) {
           blocks.add(_ManualBlock(_ManualBlockType.paragraph, line));
@@ -11655,9 +12438,7 @@ class _TutorialTabContentState extends State<_TutorialTabContent> {
                           children: [
                             const Padding(
                               padding: EdgeInsets.only(right: 8, top: 1),
-                              child: ExcludeSemantics(
-                                child: Text('•'),
-                              ),
+                              child: ExcludeSemantics(child: Text('•')),
                             ),
                             Expanded(child: Text(block.text)),
                           ],
@@ -11723,7 +12504,8 @@ class _TutorialDialogState extends State<_TutorialDialog>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final primary = FocusManager.instance.primaryFocus;
-      final insideDialog = primary != null &&
+      final insideDialog =
+          primary != null &&
           primary.context != null &&
           primary.context!.findAncestorWidgetOfExactType<AlertDialog>() != null;
       if (!insideDialog) {
@@ -11733,7 +12515,8 @@ class _TutorialDialogState extends State<_TutorialDialog>
         Future.delayed(const Duration(milliseconds: 50), () {
           if (!mounted) return;
           final p2 = FocusManager.instance.primaryFocus;
-          final inside2 = p2 != null &&
+          final inside2 =
+              p2 != null &&
               p2.context != null &&
               p2.context!.findAncestorWidgetOfExactType<AlertDialog>() != null;
           if (!inside2) {
@@ -11777,9 +12560,7 @@ class _TutorialDialogState extends State<_TutorialDialog>
     final primary = FocusManager.instance.primaryFocus;
     if (primary == null || primary.context == null) return false;
     try {
-      return primary.context!
-              .findAncestorWidgetOfExactType<TabBar>() !=
-          null;
+      return primary.context!.findAncestorWidgetOfExactType<TabBar>() != null;
     } catch (_) {
       return false;
     }
@@ -11800,8 +12581,7 @@ class _TutorialDialogState extends State<_TutorialDialog>
     if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
         event.logicalKey == LogicalKeyboardKey.arrowLeft) {
       if (!isTabFocused) return KeyEventResult.ignored;
-      final delta =
-          event.logicalKey == LogicalKeyboardKey.arrowRight ? 1 : -1;
+      final delta = event.logicalKey == LogicalKeyboardKey.arrowRight ? 1 : -1;
       final next = _tabController.index + delta;
       if (next < 0 || next >= widget.tabs.length) {
         return KeyEventResult.ignored;
@@ -11891,81 +12671,82 @@ class _TutorialDialogState extends State<_TutorialDialog>
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: Semantics(
-                    container: true,
-                    explicitChildNodes: true,
-                    label: widget.parent._s(
-                      'Obsah karty ${widget.tabs[_tabController.index].label}',
-                      'Content of ${widget.tabs[_tabController.index].label} tab',
-                    ),
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        for (int idx = 0; idx < widget.tabs.length; idx++)
-                          _TutorialTabContent(
-                            text: widget.tabs[idx].text,
-                            isActive: idx == _tabController.index,
-                            scrollController: idx == _tabController.index
-                                ? _scrollController
-                                : null,
-                          ),
-                      ],
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: Semantics(
+                      container: true,
+                      explicitChildNodes: true,
+                      label: widget.parent._s(
+                        'Obsah karty ${widget.tabs[_tabController.index].label}',
+                        'Content of ${widget.tabs[_tabController.index].label} tab',
+                      ),
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          for (int idx = 0; idx < widget.tabs.length; idx++)
+                            _TutorialTabContent(
+                              text: widget.tabs[idx].text,
+                              isActive: idx == _tabController.index,
+                              scrollController: idx == _tabController.index
+                                  ? _scrollController
+                                  : null,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: _tabController.index > 0
-                          ? () => _tabController.animateTo(
-                              _tabController.index - 1,
-                            )
-                          : null,
-                      child: Semantics(
-                        button: true,
-                        enabled: _tabController.index > 0,
-                        label: widget.parent._s(
-                          'Předchozí karta',
-                          'Previous tab',
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            widget.parent._s('Předchozí', 'Previous'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: _tabController.index > 0
+                            ? () => _tabController.animateTo(
+                                _tabController.index - 1,
+                              )
+                            : null,
+                        child: Semantics(
+                          button: true,
+                          enabled: _tabController.index > 0,
+                          label: widget.parent._s(
+                            'Předchozí karta',
+                            'Previous tab',
+                          ),
+                          child: ExcludeSemantics(
+                            child: Text(
+                              widget.parent._s('Předchozí', 'Previous'),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const Spacer(),
-                    ExcludeSemantics(
-                      child: Text(
-                        '${_tabController.index + 1} / ${widget.tabs.length}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: _tabController.index < widget.tabs.length - 1
-                          ? () => _tabController.animateTo(
-                              _tabController.index + 1,
-                            )
-                          : null,
-                      child: Semantics(
-                        button: true,
-                        enabled: _tabController.index < widget.tabs.length - 1,
-                        label: widget.parent._s('Další karta', 'Next tab'),
-                        child: ExcludeSemantics(
-                          child: Text(widget.parent._s('Další', 'Next')),
+                      const Spacer(),
+                      ExcludeSemantics(
+                        child: Text(
+                          '${_tabController.index + 1} / ${widget.tabs.length}',
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const Spacer(),
+                      TextButton(
+                        onPressed: _tabController.index < widget.tabs.length - 1
+                            ? () => _tabController.animateTo(
+                                _tabController.index + 1,
+                              )
+                            : null,
+                        child: Semantics(
+                          button: true,
+                          enabled:
+                              _tabController.index < widget.tabs.length - 1,
+                          label: widget.parent._s('Další karta', 'Next tab'),
+                          child: ExcludeSemantics(
+                            child: Text(widget.parent._s('Další', 'Next')),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
           ),
         ),
         actions: [
