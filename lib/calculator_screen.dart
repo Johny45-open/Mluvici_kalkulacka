@@ -6384,7 +6384,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     Future<void> defaultTap() async {
       if (!['°→\'', '\'→°', 'DMS', '…'].contains(label)) {
-        if (!_isScreenReaderActive) speak(descriptiveName);
+        final suppressMplusCountAnnounce =
+            label == 'M+' && _currentMode == CalculatorMode.statistics;
+        if (!_isScreenReaderActive && !suppressMplusCountAnnounce) {
+          speak(descriptiveName);
+        }
       }
       await _handleButtonPressed(label);
     }
@@ -6515,11 +6519,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return;
       }
 
-      if (recordsToAdd.length > 1) {
-        _showStatsSaveReviewDialog(recordsToAdd);
+      final count = recordsToAdd.length;
+      final form = _getStatsCountForm(count);
+      String msg;
+      if (_isEnglish()) {
+        msg = count == 1
+            ? '1 $form ready to save to statistics set.'
+            : '$count $form ready to save to statistics set.';
       } else {
-        _addValuesToStats(recordsToAdd, 1);
+        if (count == 1) {
+          msg = 'Připravena 1 $form k uložení do statistické sady.';
+        } else if (count >= 2 && count <= 4) {
+          msg = 'Připraveny $count $form k uložení do statistické sady.';
+        } else {
+          msg = 'Připraveno $count $form k uložení do statistické sady.';
+        }
       }
+      speak(msg);
+      if (mounted) {
+        _showAccessibleSnackBar(msg);
+      }
+      _showRepeatDialog(recordsToAdd, suppressInitialAnnounce: true);
     } catch (e) {
       final msg = e is FormatException
           ? e.message
@@ -10351,6 +10371,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   @visibleForTesting
+  Future<void> addSingleValueToStatsForTest() => _addSingleValueToStats();
+
+  @visibleForTesting
+  String getStatsCountFormForTest(int count) => _getStatsCountForm(count);
+
+  @visibleForTesting
+  List<StatisticsRecord> get statsMemoryForTest =>
+      List.unmodifiable(_statsMemory);
+
+  @visibleForTesting
+  int get statsSetsCountForTest => _statsSets.length;
+
+  @visibleForTesting
+  String get currentStatsSetNameForTest =>
+      _statsSets.isEmpty ? '' : _statsSets[_currentStatsSetIndex].name;
+
+  @visibleForTesting
   BuildContext get contextForTest => context;
 
   void _showDeleteStatsSetConfirmation(
@@ -11258,7 +11295,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  void _showRepeatDialog(List<StatisticsRecord> records) {
+  void _showRepeatDialog(
+    List<StatisticsRecord> records, {
+    bool suppressInitialAnnounce = false,
+  }) {
     final l10n = _l10n;
     final setName = _statsSets[_currentStatsSetIndex].name;
     final editableRecords = records
@@ -11387,7 +11427,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_isScreenReaderActive) {
+      if (mounted && !_isScreenReaderActive && !suppressInitialAnnounce) {
         speak('$summary ${l10n.statsRepeatHint}');
       }
     });
