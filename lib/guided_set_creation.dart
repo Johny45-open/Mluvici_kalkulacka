@@ -511,10 +511,8 @@ extension on _CalculatorScreenState {
               ),
               content: FocusTraversalGroup(
                 policy: ReadingOrderTraversalPolicy(),
+                // Odsazení od klávesnice řeší DialogRoute/AlertDialog.
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).viewInsets.bottom,
-                  ),
                   child: content,
                 ),
               ),

@@ -9271,10 +9271,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return AlertDialog(
           insetPadding: _dialogInsetPadding(),
           title: Semantics(header: true, child: Text(l10n.statsSetsRename)),
+          // Odsazení od klávesnice řeší DialogRoute/AlertDialog.
+          // Vnitřní padding s viewInsets.bottom by se přičetl podruhé
+          // a vytlačil dialog nad horní hranu obrazovky.
           content: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            ),
             child: Semantics(
               label: l10n.statsSetNameLabel,
               child: TextField(
@@ -10452,10 +10452,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             header: true,
             child: Text(_s('Přejmenovat složku', 'Rename folder')),
           ),
+          // Odsazení od klávesnice řeší DialogRoute/AlertDialog (viz výše).
           content: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            ),
             child: TextField(
               controller: controller,
               autofocus: true,

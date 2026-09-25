@@ -1198,9 +1198,9 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                             child: Text(parent._l10n.currencyAddTitle),
                           ),
                           content: SingleChildScrollView(
-                            padding: EdgeInsets.only(
-                              bottom: MediaQuery.of(dCtx).viewInsets.bottom,
-                            ),
+                            // Bez vnějšího Padding(viewInsets): odsazení řeší
+                            // DialogRoute. Vnitřní SingleChildScrollView drží
+                            // TextField viditelný nad klávesnicí.
                             child: TextField(
                               controller: ctrl,
                               autofocus: true,
