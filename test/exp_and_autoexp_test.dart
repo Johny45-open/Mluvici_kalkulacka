@@ -87,6 +87,101 @@ void main() {
     });
   });
 
+  group('E-notace zaklad a desetina carka', () {
+    testWidgets('20E-6, 20E+6, 20E6, 2.5E-3, 2,5E-3', (tester) async {
+      final state = await pumpApp(tester);
+      state.setMemoryForTest('E', 0.0);
+      await tester.pump();
+      expect(state.evaluateExpressionForTest('20E-6'), closeTo(0.00002, 1e-9));
+      expect(state.evaluateExpressionForTest('20E+6'), closeTo(20000000, 1));
+      expect(state.evaluateExpressionForTest('20E6'), closeTo(20000000, 1));
+      expect(state.evaluateExpressionForTest('2.5E-3'), closeTo(0.0025, 1e-9));
+      expect(state.evaluateExpressionForTest('2,5E-3'), closeTo(0.0025, 1e-9));
+      expect(state.evaluateExpressionForTest('2.5E3'), closeTo(2500, 0.001));
+      expect(state.evaluateExpressionForTest('2,5E3'), closeTo(2500, 0.001));
+    });
+  });
+
+  group('E-notace kriticky bug precedence', () {
+    testWidgets('0,5/20E-6 a varianty s mezerami = 25000', (tester) async {
+      final state = await pumpApp(tester);
+      state.setMemoryForTest('E', 99.0);
+      await tester.pump();
+      expect(
+        state.evaluateExpressionForTest('0,5/20E-6'),
+        closeTo(25000, 0.01),
+      );
+      expect(
+        state.evaluateExpressionForTest('0.5/20E-6'),
+        closeTo(25000, 0.01),
+      );
+      expect(
+        state.evaluateExpressionForTest('0,5 / 20E -6'),
+        closeTo(25000, 0.01),
+      );
+      expect(
+        state.evaluateExpressionForTest('0,5 / 20 E - 6'),
+        closeTo(25000, 0.01),
+      );
+      expect(
+        state.evaluateExpressionForTest('0.5 / 20E-6'),
+        closeTo(25000, 0.01),
+      );
+      // ciste mezery uvnitr E
+      expect(state.evaluateExpressionForTest('20E -6'), closeTo(0.00002, 1e-9));
+      expect(state.evaluateExpressionForTest('20 E-6'), closeTo(0.00002, 1e-9));
+      expect(
+        state.evaluateExpressionForTest('20 E -6'),
+        closeTo(0.00002, 1e-9),
+      );
+      expect(
+        state.evaluateExpressionForTest('20 E - 6'),
+        closeTo(0.00002, 1e-9),
+      );
+    });
+
+    testWidgets('precedence 1/2E3, 2*3E2, 10+2E3, 10-2E3', (tester) async {
+      final state = await pumpApp(tester);
+      await tester.pump();
+      expect(state.evaluateExpressionForTest('1/2E3'), closeTo(0.0005, 1e-9));
+      expect(state.evaluateExpressionForTest('2*3E2'), closeTo(600, 0.001));
+      expect(state.evaluateExpressionForTest('10+2E3'), closeTo(2010, 0.001));
+      expect(state.evaluateExpressionForTest('10-2E3'), closeTo(-1990, 0.001));
+      expect(state.evaluateExpressionForTest('10*20E-3'), closeTo(0.2, 1e-9));
+      expect(state.evaluateExpressionForTest('10/20E-3'), closeTo(500, 0.001));
+    });
+
+    testWidgets('zavorky (20E-6), 2/(20E-6), 10*(20E-6)', (tester) async {
+      final state = await pumpApp(tester);
+      await tester.pump();
+      expect(
+        state.evaluateExpressionForTest('(20E-6)'),
+        closeTo(0.00002, 1e-9),
+      );
+      expect(
+        state.evaluateExpressionForTest('2/(20E-6)'),
+        closeTo(100000, 0.01),
+      );
+      expect(
+        state.evaluateExpressionForTest('10*(20E-6)'),
+        closeTo(0.0002, 1e-9),
+      );
+      expect(
+        state.evaluateExpressionForTest('10/(20E-6)'),
+        closeTo(500000, 0.1),
+      );
+      expect(
+        state.evaluateExpressionForTest('(2.5E-3)'),
+        closeTo(0.0025, 1e-9),
+      );
+      // kombinace
+      expect(
+        state.evaluateExpressionForTest('0.5/(20E-6)'),
+        closeTo(25000, 0.01),
+      );
+    });
+  });
+
   group('Auto exponencialni zapis', () {
     testWidgets('hranicni hodnoty', (tester) async {
       final state = await pumpApp(tester);

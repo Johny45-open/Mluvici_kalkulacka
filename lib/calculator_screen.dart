@@ -3894,7 +3894,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"),
       (m) {
         final key = '__EXP_${expIdx}__';
-        expPlaceholders[key] = '${m[1]}*10^(${m[2]})';
+        final mantisa = m[1]!;
+        final exp = m[2]!;
+        // Atomické závorky pro zachování precedence: 0.5/20E-6 -> 0.5/(20*10^(-6))
+        // Pro mantisu ')' (případ (10)E5) zachovat původní ')' a jen přidat *10^(exp)
+        if (mantisa == ')') {
+          expPlaceholders[key] = ')*10^($exp)';
+        } else {
+          expPlaceholders[key] = '($mantisa*10^($exp))';
+        }
         expIdx++;
         return key;
       },
