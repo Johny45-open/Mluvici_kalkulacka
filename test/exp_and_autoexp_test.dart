@@ -182,6 +182,129 @@ void main() {
     });
   });
 
+  group('E-notace zavorkovy exponent E(-6)', () {
+    testWidgets('zakladni tvary 20E(-6), 20E(+6), 20E(6), 2.5E(-3)', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      state.setMemoryForTest('E', 99.0);
+      await tester.pump();
+      expect(
+        state.evaluateExpressionForTest('20E(-6)'),
+        closeTo(0.00002, 1e-9),
+      );
+      expect(state.evaluateExpressionForTest('20E(+6)'), closeTo(20000000, 1));
+      expect(state.evaluateExpressionForTest('20E(6)'), closeTo(20000000, 1));
+      expect(
+        state.evaluateExpressionForTest('2.5E(-3)'),
+        closeTo(0.0025, 1e-9),
+      );
+      expect(
+        state.evaluateExpressionForTest('2,5E(-3)'),
+        closeTo(0.0025, 1e-9),
+      );
+    });
+
+    testWidgets('KRITICKE 0.5/20E(-6) = 25000 vcetne mezer a carky', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      state.setMemoryForTest('E', 99.0);
+      await tester.pump();
+      expect(
+        state.evaluateExpressionForTest('0.5/20E(-6)'),
+        closeTo(25000, 0.01),
+      );
+      expect(
+        state.evaluateExpressionForTest('0,5/20E(-6)'),
+        closeTo(25000, 0.01),
+      );
+      expect(
+        state.evaluateExpressionForTest('0.5 / 20E ( - 6 )'),
+        closeTo(25000, 0.01),
+      );
+      expect(
+        state.evaluateExpressionForTest('0,5 / 20 E ( - 6 )'),
+        closeTo(25000, 0.01),
+      );
+      // bez zavorek musi dat stejne:
+      expect(
+        state.evaluateExpressionForTest('0.5/20E-6'),
+        closeTo(25000, 0.01),
+      );
+    });
+
+    testWidgets('precedence se zavorkovym exponentem', (tester) async {
+      final state = await pumpApp(tester);
+      await tester.pump();
+      expect(state.evaluateExpressionForTest('1/2E(-3)'), closeTo(500, 1e-9));
+      expect(state.evaluateExpressionForTest('1/2E3'), closeTo(0.0005, 1e-9));
+      expect(
+        state.evaluateExpressionForTest('10/20E(-3)'),
+        closeTo(500, 0.001),
+      );
+      expect(state.evaluateExpressionForTest('10/20E-3'), closeTo(500, 0.001));
+      expect(state.evaluateExpressionForTest('10*20E(-3)'), closeTo(0.2, 1e-9));
+      expect(state.evaluateExpressionForTest('10*20E-3'), closeTo(0.2, 1e-9));
+    });
+
+    testWidgets('zavorky kolem E-tokenu (20E(-6))', (tester) async {
+      final state = await pumpApp(tester);
+      await tester.pump();
+      expect(
+        state.evaluateExpressionForTest('(20E(-6))'),
+        closeTo(0.00002, 1e-9),
+      );
+      expect(
+        state.evaluateExpressionForTest('2/(20E(-6))'),
+        closeTo(100000, 0.01),
+      );
+      expect(
+        state.evaluateExpressionForTest('10/(20E(-6))'),
+        closeTo(500000, 0.1),
+      );
+      expect(
+        state.evaluateExpressionForTest('10*(20E(-6))'),
+        closeTo(0.0002, 1e-9),
+      );
+    });
+
+    testWidgets('zavorkova mantisa vcetne E(-exp) a kombinaci s / a *', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await tester.pump();
+      expect(state.evaluateExpressionForTest('(10)E5'), closeTo(1000000, 0.01));
+      expect(state.evaluateExpressionForTest('(2.5)E3'), closeTo(2500, 0.001));
+      expect(
+        state.evaluateExpressionForTest('(10)E(-5)'),
+        closeTo(0.0001, 1e-9),
+      );
+      expect(
+        state.evaluateExpressionForTest('(2.5)E(-3)'),
+        closeTo(0.0025, 1e-9),
+      );
+      // atomicita: cely (10)E... je jeden operand
+      expect(
+        state.evaluateExpressionForTest('0.5/(10)E5'),
+        closeTo(0.0000005, 1e-12),
+      );
+      expect(
+        state.evaluateExpressionForTest('0.5/(10)E(-5)'),
+        closeTo(5000, 0.01),
+      );
+      expect(state.evaluateExpressionForTest('2*(10)E3'), closeTo(20000, 0.01));
+      expect(
+        state.evaluateExpressionForTest('10/(2.5)E3'),
+        closeTo(0.004, 1e-9),
+      );
+      expect(
+        state.evaluateExpressionForTest('10*(2.5)E(-3)'),
+        closeTo(0.025, 1e-9),
+      );
+    });
+  });
+
   group('Auto exponencialni zapis', () {
     testWidgets('hranicni hodnoty', (tester) async {
       final state = await pumpApp(tester);

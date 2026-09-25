@@ -4035,29 +4035,72 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
 
     // 2b. OCHRANA E-NOTACE (validní tvary: mantisa E exponent)
-    // Validní: (\d+(?:\.\d+)?|\))E([+-]?\d+)
-    //  mantisa = číslo (10, 2.5) nebo ')'  ;  exponent = volitelně +/- + číslice
-    //  Příklady platné: 10E5, 10E+5, 10E-5, 2.5E3, 2.5E-3, (10)E5, (2.5)E3
+    // Mantisa: číslo (10, 2.5) nebo vyvážená závorka ((10), (2.5), (1+2)).
+    // Exponent: [+-]?\d+ nebo \([+-]?\d+\) — E5, E+5, E-5, E(5), E(+5), E(-5).
+    //  Příklady platné: 10E5, 10E-5, 2.5E-3, 20E(-6), 2.5E(-3), (10)E5, (10)E(-5)
     //  Neplatné (zůstane proměnná E): E, E+2, 2*E, A+E
+    // Normalizace: oba zápisy exponentu → atomické (mantisa*10^(exp)),
+    //  např. 0.5/20E(-6) -> 0.5/(20*10^(-6)) = 25000.
     final expPlaceholders = <String, String>{};
     int expIdx = 0;
-    processed = processed.replaceAllMapped(
-      RegExp(r"(\d+(?:\.\d+)?|\))E([+-]?\d+)"),
-      (m) {
-        final key = '__EXP_${expIdx}__';
-        final mantisa = m[1]!;
-        final exp = m[2]!;
-        // Atomické závorky pro zachování precedence: 0.5/20E-6 -> 0.5/(20*10^(-6))
-        // Pro mantisu ')' (případ (10)E5) zachovat původní ')' a jen přidat *10^(exp)
-        if (mantisa == ')') {
-          expPlaceholders[key] = ')*10^($exp)';
-        } else {
-          expPlaceholders[key] = '($mantisa*10^($exp))';
+    final expSuffix = RegExp(r'E(?:([+-]?\d+)|\(([+-]?\d+)\))');
+    int searchFrom = 0;
+    while (searchFrom < processed.length) {
+      final sub = processed.substring(searchFrom);
+      final m = expSuffix.firstMatch(sub);
+      if (m == null) break;
+      final int eStart = searchFrom + m.start; // pozice 'E'
+      final int eEnd = searchFrom + m.end; // za exponentem
+      final String exp = m.group(1) ?? m.group(2)!;
+      // Najdi mantisu těsně před 'E'.
+      int tokenStart = -1;
+      String? mantisaText;
+      if (eStart > 0) {
+        final String prev = processed[eStart - 1];
+        if (RegExp(r'[0-9.]').hasMatch(prev)) {
+          int s = eStart - 1;
+          while (s > 0 && RegExp(r'[0-9.]').hasMatch(processed[s - 1])) {
+            s--;
+          }
+          final candidate = processed.substring(s, eStart);
+          if (RegExp(r'^\d+(?:\.\d+)?$').hasMatch(candidate)) {
+            tokenStart = s;
+            mantisaText = candidate;
+          }
+        } else if (prev == ')') {
+          // Zpětně najdi párovací '(' (izolovaný helper místo matchování samotného ')').
+          int depth = 0;
+          int openPos = -1;
+          for (int i = eStart - 1; i >= 0; i--) {
+            if (processed[i] == ')') {
+              depth++;
+            } else if (processed[i] == '(') {
+              depth--;
+              if (depth == 0) {
+                openPos = i;
+                break;
+              }
+            }
+          }
+          if (openPos >= 0) {
+            tokenStart = openPos;
+            mantisaText = processed.substring(openPos, eStart);
+          }
         }
-        expIdx++;
-        return key;
-      },
-    );
+      }
+      if (tokenStart < 0 || mantisaText == null) {
+        // Není E-notace (např. samotné E, A+E) — pokračuj za tímto 'E'.
+        searchFrom = eStart + 1;
+        continue;
+      }
+      final key = '__EXP_${expIdx}__';
+      // Atomický obal: celý E-token je jeden operand.
+      expPlaceholders[key] = '($mantisaText*10^($exp))';
+      expIdx++;
+      processed =
+          processed.substring(0, tokenStart) + key + processed.substring(eEnd);
+      searchFrom = tokenStart + key.length;
+    }
 
     // 3. NAHRAZENÍ PROMĚNNÝCH (E uvnitř chráněné notace již není v textu)
     _memory.forEach((key, value) {
