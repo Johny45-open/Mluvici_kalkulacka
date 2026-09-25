@@ -43,6 +43,31 @@ class _AccessibilityProfileEditorDialogState
     setState(() {});
   }
 
+  // Lidský název režimu vzhledu výsledkového displeje (použito pro label,
+  // oznámení i souhrn změn — jeden zdroj, žádné duplicity).
+  String _resultDisplayModeName(ResultDisplayMode m) {
+    switch (m) {
+      case ResultDisplayMode.segment:
+        return parent._s('Segmentový', 'Segment');
+      case ResultDisplayMode.text:
+        return parent._s('Matematický text', 'Math text');
+      case ResultDisplayMode.auto:
+        return parent._s('Automatický', 'Automatic');
+    }
+  }
+
+  void _setResultDisplayMode(ResultDisplayMode m) {
+    _onUpdate((v) => v.copyWith(resultDisplayMode: m));
+    parent.speak(
+      parent._s(
+        'Vzhled výsledku: ${_resultDisplayModeName(m)}',
+        'Result display: ${_resultDisplayModeName(m)}',
+      ),
+      force: true,
+    );
+    setState(() {});
+  }
+
   void _adjustDotMatrixZoom(double delta) {
     final nv = (editingSettings.dotMatrixZoom + delta).clamp(0.5, 5.0);
     _onUpdate((s) => s.copyWith(dotMatrixZoom: nv));
@@ -160,6 +185,14 @@ class _AccessibilityProfileEditorDialogState
       'Display type: ${draft.useSixteenSegment ? '16-segment' : '7-segment'}',
       draft.useSixteenSegment != orig.useSixteenSegment,
     );
+    if (draft.resultDisplayMode != orig.resultDisplayMode) {
+      out.add(
+        parent._s(
+          'Vzhled výsledku: ${_resultDisplayModeName(draft.resultDisplayMode)}',
+          'Result display: ${_resultDisplayModeName(draft.resultDisplayMode)}',
+        ),
+      );
+    }
     add(
       'Periodický zápis: ${draft.usePeriodicNotation ? 'Zapnuto' : 'Vypnuto'}',
       'Repeating notation: ${draft.usePeriodicNotation ? 'On' : 'Off'}',
@@ -487,6 +520,37 @@ class _AccessibilityProfileEditorDialogState
                           : parent._s('7-segmentový', '7-segment'),
                     ),
                   ),
+                ),
+              ),
+              const Divider(),
+              Semantics(
+                header: true,
+                child: Text(
+                  parent._s(
+                    'Vzhled výsledkového displeje',
+                    'Result display appearance',
+                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              Semantics(
+                label: parent._s(
+                  'Vzhled výsledkového displeje, aktuálně ${_resultDisplayModeName(s.resultDisplayMode)}',
+                  'Result display appearance, currently ${_resultDisplayModeName(s.resultDisplayMode)}',
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final m in ResultDisplayMode.values)
+                      RadioListTile<ResultDisplayMode>(
+                        title: Text(_resultDisplayModeName(m)),
+                        value: m,
+                        groupValue: s.resultDisplayMode,
+                        onChanged: (v) {
+                          if (v != null) _setResultDisplayMode(v);
+                        },
+                      ),
+                  ],
                 ),
               ),
               const Divider(),

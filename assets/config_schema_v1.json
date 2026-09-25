@@ -90,6 +90,7 @@
         "speechRate": { "type": "number", "minimum": 0.1, "maximum": 1.0 },
         "speechVolume": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
         "ttsEnabled": { "type": "boolean" },
+        "resultDisplayMode": { "type": "string", "enum": ["segment", "text", "auto"] },
         "ttsEngine": { "type": ["string", "null"] },
         "ttsVoice": {
           "anyOf": [

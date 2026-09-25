@@ -24,6 +24,13 @@ DialogSize _dialogSizeFromString(String s) {
   return DialogSize.compact;
 }
 
+// Neznámá/chybějící hodnota -> segment (bezpečný fallback na původní vzhled).
+String _resultDisplayModeToString(ResultDisplayMode v) => v.name;
+ResultDisplayMode _resultDisplayModeFromString(String? s) {
+  for (final v in ResultDisplayMode.values) if (v.name == s) return v;
+  return ResultDisplayMode.segment;
+}
+
 String _themeToString(ThemeMode m) => m == ThemeMode.light ? 'light' : 'dark';
 ThemeMode _themeFromString(String s) =>
     s == 'light' ? ThemeMode.light : ThemeMode.dark;
@@ -78,6 +85,7 @@ Map<String, dynamic> _settingsToContract(AccessibilitySettings s) => {
   'speechRate': s.speechRate,
   'speechVolume': s.speechVolume,
   'ttsEnabled': s.ttsEnabled,
+  'resultDisplayMode': _resultDisplayModeToString(s.resultDisplayMode),
   'ttsEngine': s.ttsEngine,
   'ttsVoice': s.ttsVoice == null
       ? null
@@ -112,6 +120,9 @@ AccessibilitySettings _settingsFromContract(Map<String, dynamic> m) =>
       speechRate: (m['speechRate'] as num).toDouble(),
       speechVolume: (m['speechVolume'] as num).toDouble(),
       ttsEnabled: m['ttsEnabled'] as bool,
+      resultDisplayMode: _resultDisplayModeFromString(
+        m['resultDisplayMode'] as String?,
+      ),
       ttsEngine: m['ttsEngine'] as String?,
       ttsVoice: m['ttsVoice'] == null
           ? null

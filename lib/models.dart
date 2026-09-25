@@ -42,6 +42,7 @@ class AccessibilitySettings {
   final double speechRate;
   final double speechVolume;
   final bool ttsEnabled;
+  final ResultDisplayMode resultDisplayMode;
   final String? ttsEngine;
   final Map<String, String>? ttsVoice;
   final String? ttsVoiceName;
@@ -68,6 +69,7 @@ class AccessibilitySettings {
     required this.speechRate,
     required this.speechVolume,
     required this.ttsEnabled,
+    required this.resultDisplayMode,
     this.ttsEngine,
     this.ttsVoice,
     this.ttsVoiceName,
@@ -96,6 +98,7 @@ class AccessibilitySettings {
       speechRate: 0.5,
       speechVolume: 1.0,
       ttsEnabled: true,
+      resultDisplayMode: ResultDisplayMode.segment,
       ttsEngine: null,
       ttsVoice: null,
       ttsVoiceName: null,
@@ -125,6 +128,7 @@ class AccessibilitySettings {
       speechRate: 0.5,
       speechVolume: 1.0,
       ttsEnabled: true,
+      resultDisplayMode: ResultDisplayMode.segment,
       ttsEngine: null,
       ttsVoice: null,
       ttsVoiceName: null,
@@ -154,6 +158,7 @@ class AccessibilitySettings {
       speechRate: 0.5,
       speechVolume: 1.0,
       ttsEnabled: true,
+      resultDisplayMode: ResultDisplayMode.segment,
       ttsEngine: null,
       ttsVoice: null,
       ttsVoiceName: null,
@@ -182,6 +187,7 @@ class AccessibilitySettings {
     double? speechRate,
     double? speechVolume,
     bool? ttsEnabled,
+    ResultDisplayMode? resultDisplayMode,
     String? ttsEngine,
     bool clearTtsEngine = false,
     Map<String, String>? ttsVoice,
@@ -214,6 +220,7 @@ class AccessibilitySettings {
       speechRate: speechRate ?? this.speechRate,
       speechVolume: speechVolume ?? this.speechVolume,
       ttsEnabled: ttsEnabled ?? this.ttsEnabled,
+      resultDisplayMode: resultDisplayMode ?? this.resultDisplayMode,
       ttsEngine: clearTtsEngine ? null : (ttsEngine ?? this.ttsEngine),
       ttsVoice: clearTtsVoice
           ? null
@@ -252,6 +259,7 @@ class AccessibilitySettings {
     'speechRate': speechRate,
     'speechVolume': speechVolume,
     'ttsEnabled': ttsEnabled,
+    'resultDisplayMode': resultDisplayMode.index,
     'ttsEngine': ttsEngine,
     'ttsVoice': ttsVoice,
     'ttsVoiceName': ttsVoiceName,
@@ -285,6 +293,14 @@ class AccessibilitySettings {
         return DialogSize.values[v];
       }
       return DialogSize.compact;
+    }
+
+    // Chybějící starší klíč nebo neznámá hodnota -> segment (původní vzhled).
+    ResultDisplayMode parseResultDisplayMode(dynamic v) {
+      if (v is int && v >= 0 && v < ResultDisplayMode.values.length) {
+        return ResultDisplayMode.values[v];
+      }
+      return ResultDisplayMode.segment;
     }
 
     Map<String, String>? parseVoice(dynamic v) {
@@ -323,6 +339,7 @@ class AccessibilitySettings {
       speechRate: (json['speechRate'] as num?)?.toDouble() ?? 0.5,
       speechVolume: (json['speechVolume'] as num?)?.toDouble() ?? 1.0,
       ttsEnabled: json['ttsEnabled'] as bool? ?? true,
+      resultDisplayMode: parseResultDisplayMode(json['resultDisplayMode']),
       ttsEngine: json['ttsEngine'] as String?,
       ttsVoice: parseVoice(json['ttsVoice']),
       ttsVoiceName: json['ttsVoiceName'] as String?,

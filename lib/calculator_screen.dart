@@ -42,6 +42,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String display = '';
   int _cursorPosition = 0;
   String _lastResult = '0.';
+  // Exaktní částečně odmocněný výsledek (např. √72 -> 6√2) jako vedlejší
+  // prezentační metadata. _lastResult zůstává VŽDY numerický string a je
+  // zdrojem pravdy pro výpočty, historii i ANS. _lastExactKey říká, ke
+  // kterému _lastResult exact patří — všechny ostatní výpočetní cesty mění
+  // _lastResult, takže zastaralý exact se klíčem automaticky zneplatní
+  // a není potřeba nulovat ho na desítkách míst.
+  CalcValue? _lastExact;
+  String _lastExactKey = '';
+  // Vrací text skutečně zobrazený na výsledkovém displeji: exaktní surd
+  // tvar, pokud patří k aktuálnímu _lastResult, jinak numerický _lastResult.
+  String get _displayedResultString {
+    final exact = _lastExact;
+    if (exact is SurdValue &&
+        _lastExactKey == _lastResult &&
+        _lastResult.isNotEmpty) {
+      return formatSurd(exact);
+    }
+    return _lastResult.isEmpty ? '0.' : _lastResult;
+  }
+
   // Stack pozic '(' vložených tlačítkem NEG (±) – pro auto-uzavření
   final List<int> _pendingNegOpens = [];
   CalculatorMode _currentMode = CalculatorMode.scientific;
@@ -409,6 +429,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   int? get _inverseFormatPreference =>
       activeAccessibilitySettings.inverseFormatPreference;
   bool get _useSixteenSegment => activeAccessibilitySettings.useSixteenSegment;
+  ResultDisplayMode get _resultDisplayMode =>
+      activeAccessibilitySettings.resultDisplayMode;
   bool get _announceExpression =>
       activeAccessibilitySettings.announceExpression;
   bool get _readStatsMemoryValues =>
@@ -1485,6 +1507,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   String _spokenForDisplay(String text) {
+    // Částečně odmocněné tvary ("6√2", "3∛2", "2⁴√3"): čtou se slovně,
+    // např. "šest odmocnina ze dvou". Musí být před periodickou/E logikou.
+    final surdSpeech = _trySpeakSurd(text);
+    if (surdSpeech != null) return surdSpeech;
     String result = text.replaceAllMapped(
       RegExp(r'(\d+)(?:[.,](\d*))?\((\d+)\)'),
       (m) {
@@ -1502,6 +1528,117 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       (m) => _speakExponentialPart(m.group(1)!, m.group(2)!, m.group(3)!),
     );
     return result.replaceAll('.', ',');
+  }
+
+  /// Vrátí slovní podobu částečně odmocněného tvaru ("6√2" ->
+  /// "šest odmocnina ze dvou"), nebo null když [text] není surd.
+  /// Používá existující [_s] lokalizační helper, žádný paralelní TTS systém.
+  String? _trySpeakSurd(String text) {
+    final t = text.replaceAll(' ', '');
+    final sqrt = RegExp(r'^(\d*)√(\d+)$').firstMatch(t);
+    if (sqrt != null) {
+      return _speakSurd(
+        coef: sqrt.group(1)!,
+        radicand: sqrt.group(2)!,
+        index: 2,
+      );
+    }
+    final cbrt = RegExp(r'^(\d*)∛(\d+)$').firstMatch(t);
+    if (cbrt != null) {
+      return _speakSurd(
+        coef: cbrt.group(1)!,
+        radicand: cbrt.group(2)!,
+        index: 3,
+      );
+    }
+    final nth = RegExp(r'^(\d*)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)√(\d+)$').firstMatch(t);
+    if (nth != null) {
+      return _speakSurd(
+        coef: nth.group(1)!,
+        radicand: nth.group(3)!,
+        index: _desuperscript(nth.group(2)!),
+      );
+    }
+    return null;
+  }
+
+  int _desuperscript(String s) {
+    const map = {
+      '⁰': '0',
+      '¹': '1',
+      '²': '2',
+      '³': '3',
+      '⁴': '4',
+      '⁵': '5',
+      '⁶': '6',
+      '⁷': '7',
+      '⁸': '8',
+      '⁹': '9',
+    };
+    return int.tryParse(s.split('').map((c) => map[c] ?? '').join()) ?? 0;
+  }
+
+  String _speakSurd({
+    required String coef,
+    required String radicand,
+    required int index,
+  }) {
+    final c = coef.isEmpty ? 1 : int.tryParse(coef) ?? 0;
+    final r = int.tryParse(radicand) ?? 0;
+    final coefWord = _czechCardinal(c);
+    final radWord = _czechGenitive(r);
+    final rootCs = index == 2
+        ? 'odmocnina'
+        : index == 3
+        ? 'třetí odmocnina'
+        : index == 4
+        ? 'čtvrtá odmocnina'
+        : '$index-tá odmocnina';
+    final rootEn = index == 2
+        ? 'square root'
+        : index == 3
+        ? 'cube root'
+        : index == 4
+        ? 'fourth root'
+        : '$index-th root';
+    final coefEn = c == 1 ? '' : '$c ';
+    final coefCs = c == 1 ? '' : '$coefWord ';
+    return _s('$coefCs$rootCs ze $radWord', '$coefEn$rootEn of $r');
+  }
+
+  // Malá čísla slovně (1-10 + 0), větší čísla číslicemi. Stačí pro
+  // reálné surd koeficienty/radikandy; nejde o obecný číslovkový systém.
+  String _czechCardinal(int n) {
+    const words = {
+      0: 'nula',
+      1: 'jedna',
+      2: 'dvě',
+      3: 'tři',
+      4: 'čtyři',
+      5: 'pět',
+      6: 'šest',
+      7: 'sedm',
+      8: 'osm',
+      9: 'devět',
+      10: 'deset',
+    };
+    return words[n] ?? '$n';
+  }
+
+  String _czechGenitive(int n) {
+    const words = {
+      1: 'jedné',
+      2: 'dvou',
+      3: 'tří',
+      4: 'čtyř',
+      5: 'pěti',
+      6: 'šesti',
+      7: 'sedmi',
+      8: 'osmi',
+      9: 'devíti',
+      10: 'deseti',
+    };
+    return words[n] ?? '$n';
   }
 
   String _expressionToSpeech(String expr) {
@@ -3764,7 +3901,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               : _formatNumber(result);
         }
 
-        if (resStr.contains('°')) {
+        // Částečné odmocňování: bezpečně detekuj jednoduchou odmocninu
+        // celého čísla (např. "√72" -> 6√2, "∛54" -> 3∛2, "4ⁿ√48" -> 2⁴√3).
+        // Numerický resStr, _lastNumericValue i historie zůstávají zdrojem
+        // pravdy; surd je pouze exaktní prezentační metadata platná pro
+        // tento resStr (klíč _lastExactKey). Záporné/desetinné vstupy,
+        // perfektní mocniny a prvočísla vrací null -> dnešní chování.
+        final surd = trySurdFromExpression(display);
+        if (surd != null) {
+          _lastExact = surd;
+          _lastExactKey = resStr;
+        }
+
+        if (surd != null) {
+          spoken = _l10n.resultIs(_spokenForDisplay(formatSurd(surd)));
+        } else if (resStr.contains('°')) {
           spoken = _l10n.resultIs(_formatDmsSpeech(resStr));
         } else {
           spoken = _l10n.resultIs(_spokenForDisplay(resStr));
@@ -4380,6 +4531,29 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Widget _buildMainResultDisplay({double fitScale = 1.0}) {
     String res = _lastResult.isEmpty ? '0.' : _lastResult;
+    // Nový režim vzhledu výsledku (default segment = původní chování).
+    // Error zůstává vždy na segmentovém rendereru (CHYBA/Err mapování).
+    if (res.toLowerCase() != 'error') {
+      final mode = _resultDisplayMode;
+      if (mode == ResultDisplayMode.text) {
+        return _buildMathTextDisplay(
+          _displayedResultString,
+          fitScale: fitScale,
+        );
+      }
+      if (mode == ResultDisplayMode.auto) {
+        final CalcValue value =
+            (_lastExact is SurdValue && _lastExactKey == _lastResult)
+            ? _lastExact!
+            : const NumericValue(0);
+        if (chooseDisplayRenderer(value, res) == CalcDisplayKind.mathText) {
+          return _buildMathTextDisplay(
+            _displayedResultString,
+            fitScale: fitScale,
+          );
+        }
+      }
+    }
     if (res.contains('°')) {
       return _buildDmsDisplay(res, fitScale: fitScale);
     }
@@ -4403,6 +4577,35 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       isSixteenSegment: _useSixteenSegment,
       overlineThickness: _overlineThickness,
       overlineHeight: _overlineHeight,
+    );
+  }
+
+  // Samostatný matematický textový renderer pro výsledky typu "6√2".
+  // Není pseudo-segmentový font: používá přibalený DejaVu Sans (konzistentní
+  // glyfy √ ∛ ⁿ ² ³ π na Windows i Androidu). Segmentový renderer tím není
+  // dotčen a zůstává plně obnovitelný přes ResultDisplayMode.segment.
+  // Bez vlastního Semantics (ExcludeSemantics): čtečka čte dál jedinou
+  // vnější Semantics value, nevzniká duplicitní čtení.
+  Widget _buildMathTextDisplay(String text, {double fitScale = 1.0}) {
+    final scale = _responsiveScale(context);
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ExcludeSemantics(
+        child: Text(
+          text,
+          maxLines: 1,
+          softWrap: false,
+          textAlign: TextAlign.end,
+          overflow: TextOverflow.visible,
+          style: TextStyle(
+            fontFamily: 'MathText',
+            fontFamilyFallback: const ['sans-serif'],
+            fontSize: 30 * _resultZoom * scale * fitScale,
+            fontWeight: FontWeight.w600,
+            color: Colors.redAccent,
+          ),
+        ),
+      ),
     );
   }
 
@@ -10716,6 +10919,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String get lastResultForTest => _lastResult;
 
   @visibleForTesting
+  String get displayedResultForTest => _displayedResultString;
+
+  @visibleForTesting
+  CalcValue? get lastExactForTest =>
+      (_lastExact is SurdValue && _lastExactKey == _lastResult)
+      ? _lastExact
+      : null;
+
+  @visibleForTesting
+  void setResultDisplayModeForTest(ResultDisplayMode m) {
+    updateActiveAccessibilitySettings((s) => s.copyWith(resultDisplayMode: m));
+  }
+
+  @visibleForTesting
   Future<void> handleButtonPressedForTest(String label) =>
       _handleButtonPressed(label);
 
@@ -12129,19 +12346,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             label: l10n.displayLabel,
                             hint: l10n.displayHint,
                             value:
-                                '${display.isEmpty ? (_hasResult ? _spokenForDisplay(_lastResult) : l10n.displayEmpty) : _expressionToSpeech(display)}',
+                                '${display.isEmpty ? (_hasResult ? _spokenForDisplay(_displayedResultString) : l10n.displayEmpty) : _expressionToSpeech(display)}',
                             onTap: () {
                               _mainFocusNode.requestFocus();
                               speak(
                                 display.isEmpty
                                     ? (_hasResult
-                                          ? _spokenForDisplay(_lastResult)
+                                          ? _spokenForDisplay(
+                                              _displayedResultString,
+                                            )
                                           : l10n.displayEmpty)
                                     : _expressionToSpeech(display),
                               );
                             },
                             // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
-                            // a vše se přečte z tohoto Semantics widgetu
+                            // a vše se přečte z tohoto Semantics widgetu. Textový matematický
+                            // renderer je navíc v ExcludeSemantics, takže displej zůstává
+                            // jeden logický prvek bez duplicitního čtení.
                             child: Column(
                               children: [
                                 Align(

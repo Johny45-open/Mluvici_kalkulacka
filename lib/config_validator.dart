@@ -50,6 +50,7 @@ const Set<String> _knownSettingsKeys = {
   'speechRate',
   'speechVolume',
   'ttsEnabled',
+  'resultDisplayMode',
   'ttsEngine',
   'ttsVoice',
   'ttsVoiceName',
@@ -468,6 +469,9 @@ void _validateSettings(
   checkEnum('screenReaderMode', {'auto', 'on', 'off'});
   checkEnum('thousandGroupGap', {'small', 'medium', 'large'});
   checkEnum('dialogSize', {'compact', 'wide', 'fullscreen'});
+  // Volitelný klíč (starší exporty ho nemají) — neznámá hodnota je chyba,
+  // chybějící klíč znamená segment (řeší _resultDisplayModeFromString).
+  checkEnum('resultDisplayMode', {'segment', 'text', 'auto'});
   if (s['inverseFormatPreference'] != null &&
       s['inverseFormatPreference'] != 'dms' &&
       s['inverseFormatPreference'] != 'decimal') {

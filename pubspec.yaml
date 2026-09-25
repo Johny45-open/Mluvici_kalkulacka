@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 12.6.0
+version: 12.7.0
 
 environment:
   sdk: ^3.12.0
@@ -72,6 +72,15 @@ flutter:
   generate: true
   assets:
     - assets/config_schema_v1.json
+    - assets/fonts/LICENSE_DejaVu.txt
+
+  fonts:
+    # Matematický textový renderer výsledků (6√2, ∛, ⁿ, ², ³, π).
+    # DejaVu Sans 2.37 (Bitstream Vera licence, viz LICENSE_DejaVu.txt):
+    # konzistentní glyfy na Windows i Androidu, ověřeno cmap kontrolou.
+    - family: MathText
+      fonts:
+        - asset: assets/fonts/DejaVuSans.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:
