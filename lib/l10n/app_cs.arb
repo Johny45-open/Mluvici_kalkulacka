@@ -857,5 +857,27 @@
         "type": "Object"
       }
     }
-  }
+  },
+  "fractionSwitchToFraction": "Přepnout na zlomek",
+  "fractionSwitchToDecimal": "Přepnout na desetinný výsledek",
+  "fractionAnnounced": "Zlomek {numerator} lomeno {denominator}.",
+  "@fractionAnnounced": {
+    "placeholders": {
+      "numerator": {
+        "type": "Object"
+      },
+      "denominator": {
+        "type": "Object"
+      }
+    }
+  },
+  "decimalResultAnnounced": "Desetinný výsledek {value}.",
+  "@decimalResultAnnounced": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "fractionUnavailable": "Zlomek není pro tento výsledek dostupný"
 }

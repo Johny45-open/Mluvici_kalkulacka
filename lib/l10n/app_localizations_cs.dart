@@ -1250,4 +1250,23 @@ class AppLocalizationsCs extends AppLocalizations {
   String thousandGapSet(Object label) {
     return 'Mezera mezi skupinami číslic: $label';
   }
+
+  @override
+  String get fractionSwitchToFraction => 'Přepnout na zlomek';
+
+  @override
+  String get fractionSwitchToDecimal => 'Přepnout na desetinný výsledek';
+
+  @override
+  String fractionAnnounced(Object numerator, Object denominator) {
+    return 'Zlomek $numerator lomeno $denominator.';
+  }
+
+  @override
+  String decimalResultAnnounced(String value) {
+    return 'Desetinný výsledek $value.';
+  }
+
+  @override
+  String get fractionUnavailable => 'Zlomek není pro tento výsledek dostupný';
 }

@@ -480,6 +480,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       speak(message);
     }
   }
+
   bool get _announceExpression =>
       activeAccessibilitySettings.announceExpression;
   bool get _readStatsMemoryValues =>
@@ -565,6 +566,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _usePeriodicNotation = true;
   int _precision = 2;
   double? _lastNumericValue;
+  // --- Prezentační zlomkový náhled (DEC <-> a/b) ---
+  // Čistě prezentační stav: _fractionResultView nikdy nepřepisuje _lastResult,
+  // _lastNumericValue, ANS, historii ani exact/surd metadata. Numerická hodnota
+  // zůstává autoritativním zdrojem pravdy. _fractionViewKey váže pohled ke
+  // konkrétnímu _lastResult, takže jakýkoliv nový výsledek pohled automaticky
+  // zneplatní (není potřeba nulovat na desítkách míst).
+  bool _fractionResultView = false;
+  String _fractionViewKey = '';
+  // Stavový příznak způsobilosti: true pouze pro běžný numerický výsledek
+  // (basic/scientific, standardní formát, bez DMS/jednotek/měny/času).
+  // Nikdy se neodvozuje parsováním textu _lastResult.
+  bool _lastResultIsPlainNumeric = false;
   ElectricianCalculation _selectedElectricianCalculation =
       ElectricianCalculation.resistance;
 
@@ -2290,6 +2303,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         display = '';
         _hasResult = true;
         _lastNumericValue = result;
+        // Měnový výsledek je speciální kontext: zlomek nevhodný.
+        _lastResultIsPlainNumeric = false;
+        _fractionResultView = false;
       });
       _addToHistory(
         '${value.toString()} $_currencyFrom → $_currencyTo',
@@ -3251,6 +3267,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _isRecallMode = false;
       _hasResult = false;
       _pendingNegOpens.clear();
+      _lastResultIsPlainNumeric = false;
+      _fractionResultView = false;
     });
     speak(_l10n.cleared);
   }
@@ -3843,6 +3861,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // výpočtu (trySurdFromExpression); ostatní větve nechají null
       // = autoritativní "žádný exaktní tvar".
       SurdValue? historyExact;
+      // Stavová způsobilost pro zlomkový náhled: true pouze pro běžný
+      // numerický výsledek (basic/scientific, standard, bez DMS). Nikdy
+      // se neodvozuje parsováním textu výsledku.
+      bool plainResult = false;
 
       if (_currentMode == CalculatorMode.statistics) {
         if (_statsMemory.isEmpty) {
@@ -3954,6 +3976,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ? (_tryFormatRepeating(result) ?? _formatNumber(result))
               : _formatNumber(result);
         }
+        plainResult =
+            (_currentMode == CalculatorMode.basic ||
+                _currentMode == CalculatorMode.scientific) &&
+            _displayFormat == DisplayFormat.standard &&
+            !resStr.contains('°') &&
+            result.isFinite;
 
         // Částečné odmocňování: bezpečně detekuj jednoduchou odmocninu
         // celého čísla (např. "√72" -> 6√2, "∛54" -> 3∛2, "4ⁿ√48" -> 2⁴√3).
@@ -3992,6 +4020,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         display = '';
         _cursorPosition = 0;
         _pendingNegOpens.clear();
+        // Nový výpočet začíná v normálním zobrazení; klíč pohledu se tím
+        // zneplatní i kdyby bool zůstal (viz _isFractionViewActive).
+        _lastResultIsPlainNumeric = plainResult;
+        _fractionResultView = false;
       });
 
       speak(spoken, force: true);
@@ -4023,6 +4055,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       setState(() {
         _lastResult = 'Error';
         _hasResult = true;
+        _lastResultIsPlainNumeric = false;
+        _fractionResultView = false;
         // Nech pending pro opravu, ale pokud byl prázdný, vyčisti
       });
       speak(msg, force: true);
@@ -4431,46 +4465,87 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return _formatNumber(value);
   }
 
+  // Tenká obálka nad sdílenou čistou vrstvou (fraction.dart) pro dialog
+  // „Info o čísle". Nový kód používá decimalToFraction/formatFraction přímo.
   String _decimalToFraction(double val) {
-    if (val.isNaN || val.isInfinite || val == 0) {
-      return _s('nedostupné', 'N/A');
+    final f = decimalToFraction(val);
+    if (f == null) return _s('nedostupné', 'N/A');
+    return formatFraction(f);
+  }
+
+  // Zlomkový řetězec aktuálního výsledku, nebo null když není způsobilý.
+  // Čistě odvozeno ze stavu (_lastNumericValue + _lastResultIsPlainNumeric),
+  // nikdy parsováním textu _lastResult.
+  String? get _fractionString {
+    final v = _lastNumericValue;
+    if (!_hasResult || v == null || !v.isFinite) return null;
+    if (!_lastResultIsPlainNumeric) return null;
+    if (_lastResult.toLowerCase() == 'error') return null;
+    final f = decimalToFraction(v);
+    if (f == null) return null;
+    return formatFraction(f);
+  }
+
+  // Aktivní zlomkový pohled: vyžaduje zapnutý toggle, shodný klíč výsledku
+  // a způsobilý zlomek. Nový výsledek (jiný _lastResult) pohled zneplatní.
+  bool get _isFractionViewActive =>
+      _fractionResultView &&
+      _fractionViewKey == _lastResult &&
+      _fractionString != null;
+
+  bool get _isFractionEligible => _fractionString != null;
+
+  // Mluvená podoba zlomku "3 lomeno 4" / "3 over 4".
+  String _spokenFraction(Fraction f) {
+    if (_isEnglish()) return '${f.numerator} over ${f.denominator}';
+    return '${f.numerator} lomeno ${f.denominator}';
+  }
+
+  // Řeč aktuálního výsledku pro Semantics.value a onTap: zlomek při
+  // aktivním pohledu, jinak dosavadní numerická podoba.
+  String _currentResultSpeech() {
+    if (_isFractionViewActive) {
+      final v = _lastNumericValue;
+      final f = v == null ? null : decimalToFraction(v);
+      if (f != null) return _spokenFraction(f);
+      final s = _fractionString;
+      if (s != null) return s.replaceAll('/', _s(' lomeno ', ' over '));
     }
-    bool negative = val < 0;
-    val = val.abs();
-    double intPart = val.floorToDouble();
-    double frac = val - intPart;
-    if (frac < 1e-10) {
-      return '${negative ? '-' : ''}${intPart.toInt()}/1';
+    return _spokenForDisplay(_displayedResultString);
+  }
+
+  // Prezentační přepínač DEC <-> a/b. Nemění _lastResult, _lastNumericValue,
+  // ANS, historii ani exact metadata. Oznámení jde přes say() (announce XOR
+  // TTS), nikdy duplicitně.
+  void toggleFractionResultView() {
+    final fracStr = _fractionString;
+    if (fracStr == null) {
+      say(_l10n.fractionUnavailable);
+      return;
     }
-    double hPrev = 1, hCurr = 0;
-    double kPrev = 0, kCurr = 1;
-    double remaining = frac;
-    const int maxIter = 10000;
-    int iter = 0;
-    while (iter < maxIter && kCurr <= 10000) {
-      double a = remaining.floorToDouble();
-      double hNext = a * hCurr + hPrev;
-      double kNext = a * kCurr + kPrev;
-      if (kNext > 10000) {
-        break;
+    final turningOn = !_isFractionViewActive;
+    setState(() {
+      _fractionResultView = turningOn;
+      _fractionViewKey = _lastResult;
+    });
+    if (turningOn) {
+      final v = _lastNumericValue;
+      final f = v == null ? null : decimalToFraction(v);
+      if (f != null) {
+        say(_l10n.fractionAnnounced(f.numerator, f.denominator));
+      } else {
+        say(
+          _s(
+            'Zlomek $fracStr.',
+            'Fraction $fracStr.',
+          ).replaceAll('/', _s(' lomeno ', ' over ')),
+        );
       }
-      hPrev = hCurr;
-      hCurr = hNext;
-      kPrev = kCurr;
-      kCurr = kNext;
-      double approx = (intPart * kCurr + hCurr) / kCurr;
-      if ((val - approx).abs() < 1e-10) {
-        break;
-      }
-      double diff = remaining - a;
-      if (diff < 1e-10) break;
-      remaining = 1.0 / diff;
-      iter++;
+    } else {
+      final v = _lastNumericValue;
+      final spoken = v == null ? fracStr : _formatSpokenNumber(v);
+      say(_l10n.decimalResultAnnounced(spoken));
     }
-    int num = (intPart * kCurr + hCurr).round();
-    int den = kCurr.round();
-    if (negative) num = -num;
-    return '$num/$den';
   }
 
   List<int> _primeFactors(int n) {
@@ -4552,6 +4627,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastResult = resStr;
         display = '';
         _hasResult = true;
+        // Převod jednotek je speciální prezentační kontext: zlomek nevhodný.
+        _lastResultIsPlainNumeric = false;
+        _fractionResultView = false;
       });
       speak(
         _l10n.unitConverted(
@@ -4633,6 +4711,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Widget _buildMainResultDisplay({double fitScale = 1.0}) {
+    // Zlomkový náhled má přednost před globálním ResultDisplayMode, ale NEMĚNÍ
+    // ho: vždy matematický text se zlomkem (3/4), návrat obnoví původní větev.
+    final fracStr = _fractionString;
+    if (_isFractionViewActive && fracStr != null) {
+      return _buildMathTextDisplay(fracStr, fitScale: fitScale);
+    }
     String res = _lastResult.isEmpty ? '0.' : _lastResult;
     // Nový režim vzhledu výsledku (default segment = původní chování).
     // Error zůstává vždy na segmentovém rendereru (CHYBA/Err mapování).
@@ -4752,6 +4836,44 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Widget _buildDmsDisplay(String text, {double fitScale = 1.0}) {
     // DMS už zobrazujeme na jednom řádku přímo pomocí CustomSegmentDisplay
     return _buildStandardDisplay(text, fitScale: fitScale);
+  }
+
+  // Prezentační přepínač DEC <-> a/b v horní ovládací oblasti výsledkového
+  // panelu (nikoli v 7×4 rastru klávesnice). Stabilní místo, plný význam
+  // v Semantics labelu (stav i akce bez použití barvy). Kompaktní výška,
+  // aby hlavička nezmenšovala displej na malých obrazovkách; šířka drží
+  // 48px cíl, výška splňuje WCAG 24px minimum. Nezpůsobilý výsledek:
+  // disabled + důvod, focus order se nemění.
+  Widget _buildFractionToggle(double s) {
+    final bool eligible = _isFractionEligible;
+    final bool active = _isFractionViewActive;
+    final String semanticLabel = eligible
+        ? (active
+              ? _l10n.fractionSwitchToDecimal
+              : _l10n.fractionSwitchToFraction)
+        : _l10n.fractionUnavailable;
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      enabled: eligible,
+      onTap: eligible ? toggleFractionResultView : null,
+      child: ExcludeSemantics(
+        child: TextButton(
+          key: const ValueKey('fraction_toggle'),
+          onPressed: eligible ? toggleFractionResultView : null,
+          style: TextButton.styleFrom(
+            minimumSize: const Size(48, 32),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            foregroundColor: Colors.redAccent,
+          ),
+          child: Text(
+            active ? 'DEC' : 'a/b',
+            style: TextStyle(fontSize: 13 * s, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+    );
   }
 
   void _changeMode(CalculatorMode mode) {
@@ -6991,6 +7113,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     FutureOr<void> Function()? onPressed,
     FutureOr<void> Function()? onLongPressed,
     bool expanded = true,
+    // Fit klávesnice: 1.0 = standardní geometrie; <1.0 = proporcionální
+    // zmenšení celého tlačítka (margin/padding/font) aby se 7 řádků vešlo
+    // bez scrollu. Aplikuje se PRÁVĚ JEDNOU přes gs = scale*fitScale.
+    double fitScale = 1.0,
   }) {
     String descriptiveName = semanticLabel ?? _getButtonName(label);
     if (label == 'M+' && _currentMode == CalculatorMode.statistics) {
@@ -7020,33 +7146,40 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // Velikost písma – opraveno: geometrie škáluje 1.0→1.7, font musí
     // škálovat stejným poměrem. Původní largeBoost 1.35 způsoboval
     // divergenci (48→81.6 vs 20→27). Nově:
-    // - geometrie: margin/padding/minSize dál používá scale (beze změny)
-    // - font: 20 * _keyboardFontScale * sysFactor * scale  (bez 0.5 tlumení)
+    // - geometrie: margin/padding/minSize dál používá gs = scale*fitScale
+    // - font: 20 * _keyboardFontScale * sysFactor * gs  (bez 0.5 tlumení)
+    // - fitScale se aplikuje PRÁVĚ JEDNOU (gs), nikdy zvlášť na rowH a
+    //   znovu na vnitřek tlačítka. Při fitScale<1 se navíc uvolní
+    //   minHeight/minWidth, aby vnitřek přesně vyplnil adaptivní rowH
+    //   a nevznikl overflow ani dvojí zmenšení.
     // - skutečný dostupný prostor tlačítka (LayoutBuilder) slouží jako
     //   strop pro vertikální přetečení, šířku řeší FittedBox(scaleDown)
     //   jako pojistka pro dlouhé popisky (ASIN, WMEAN, RAD→°).
     //   Krátké popisky (1, +, C, DEL) tak využijí plný prostor (scale 1.0).
     // Systémový scaler se započítá právě jednou ručně a vnitřní Text je
     // izolován TextScaler.noScaling – nedochází k dvojímu započtení.
+    final double fit = fitScale.clamp(0.2, 1.0);
+    final double gs = scale * fit;
     final sysFactor = MediaQuery.textScalerOf(
       context,
     ).scale(1.0).clamp(1.0, 1.6);
-    final baseFontForScale = (20.0 * _keyboardFontScale * sysFactor * scale)
-        .clamp(14.0, 72.0);
+    final baseFontForScale = (20.0 * _keyboardFontScale * sysFactor * gs).clamp(
+      14.0,
+      72.0,
+    );
 
     Widget buttonBody = Container(
-      margin: EdgeInsets.all(3 * scale),
-      constraints: BoxConstraints(
-        minHeight: 48.0 * scale,
-        minWidth: 48.0 * scale,
-      ),
+      margin: EdgeInsets.all(3 * gs),
+      constraints: fit < 1.0
+          ? const BoxConstraints()
+          : BoxConstraints(minHeight: 48.0 * scale, minWidth: 48.0 * scale),
       decoration: BoxDecoration(
         color: color ?? (isDark ? Colors.grey[800] : Colors.grey[300]),
         borderRadius: BorderRadius.zero,
         border: Border.all(color: Colors.black54, width: 0.5),
       ),
       alignment: Alignment.center,
-      padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 6 * scale),
+      padding: EdgeInsets.symmetric(horizontal: 4 * gs, vertical: 6 * gs),
       // LayoutBuilder poskytuje skutečné constraints tlačítka po odečtení
       // paddingu (dostupný prostor pro text). Ponechán jako architektonický
       // bod pro budoucí jemné doladění podle dostupného prostoru; aktuálně
@@ -7324,6 +7457,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           _hasResult = false;
         }
         _pendingNegOpens.clear();
+        // Pokračování v práci s výsledkem (ANS) používá numerickou hodnotu;
+        // zlomkový pohled se konzistentně vypíná.
+        _fractionResultView = false;
       });
       if (alreadyHandled) return;
     }
@@ -7522,11 +7658,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               _lastNumericValue = wmean;
             });
             speak(spoken, force: true);
-            _addToHistory(
-              'STATS($label)',
-              resStr,
-              numericValue: wmean,
-            );
+            _addToHistory('STATS($label)', resStr, numericValue: wmean);
             return;
           }
 
@@ -7658,11 +7790,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = numericResult;
           });
           speak(spoken, force: true);
-          _addToHistory(
-            'STATS($label)',
-            resStr,
-            numericValue: numericResult,
-          );
+          _addToHistory('STATS($label)', resStr, numericValue: numericResult);
         } catch (e) {
           speak(
             _s('Chyba statistického výpočtu.', 'Statistics calculation error.'),
@@ -8048,11 +8176,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastNumericValue = percent;
       });
       speak(spoken, force: true);
-      _addToHistory(
-        'PCT($originalDisplay)',
-        resStr,
-        numericValue: percent,
-      );
+      _addToHistory('PCT($originalDisplay)', resStr, numericValue: percent);
     } catch (e) {
       speak(
         _s(
@@ -8277,10 +8401,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
 
     // Konzistentní velikost tlačítek napříč režimy:
-    // - 4 sloupce, fixní výška (54*scale) místo Expanded řádků (které dělily výšku podle počtu řádků)
-    // - při nedostatku výšky vertikální scroll místo zmenšování textu
+    // - 4 sloupce, 7 referenčních řádků, jednotná výška řádku pro všechny režimy
+    // - řádky rovnoměrně využijí skutečně dostupnou výšku: pokud se standardní
+    //   výška nevejde, všechny řádky se proporcionálně zmenší stejně (fitScale)
+    // - NIKDY vertikální SingleChildScrollView v hlavní klávesnici
     // - zachovává _keyboardFontScale, TextScaler, _responsiveScale, Semantics a focus order
-    Widget buttonFor(String b) {
+    Widget buttonFor(String b, double fitScale) {
       Color? color;
       if (['/', '*', '-', '+'].contains(b)) {
         color = Colors.blue;
@@ -8302,6 +8428,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         color: color,
         semanticLabel: _getElectricianButtonSemanticLabel(b),
         expanded: false,
+        fitScale: fitScale,
         onPressed: () async {
           if (b == 'M+' && _currentMode == CalculatorMode.statistics) {
             await _addSingleValueToStats();
@@ -8319,25 +8446,38 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     // Stabilní 7×4 rastr – 4 sloupce, 7 referenčních řádků, max 28 buněk.
     // Mapování: index = row*4 + col. rowH je jednotná pro všechny režimy
-    // (závisí pouze na _responsiveScale, ne na btns.length). Žádný Wrap.
+    // (závisí pouze na _responsiveScale a společném fitScale, ne na
+    // btns.length). Žádný Wrap, žádný vertikální scroll.
     return LayoutBuilder(
       builder: (ctx, constraints) {
         final scale = _responsiveScale(ctx);
-        final double rowH = (54.0 * scale)
+        final double standardRowH = (54.0 * scale)
             .clamp(48.0 * scale, 80.0 * scale)
             .toDouble();
         const double spacing = 2.0;
-        final double needH =
-            _kKeypadReferenceRows * rowH +
-            (_kKeypadReferenceRows - 1) * spacing +
-            4;
-        final bool needVScroll =
-            constraints.maxHeight.isFinite && needH > constraints.maxHeight;
+        const double pad = 4.0;
+        // Fit: pokud je místa dost, standardní výška (strop, tlačítka nejsou
+        // nekonečně vysoká); pokud je místa málo, všechny řádky se zmenší
+        // stejně: rowH = (dostupné - mezery - padding) / 7. Podlaha 0.3
+        // chrání před degenerací do neviditelna.
+        double fitScale = 1.0;
+        double rowH = standardRowH;
+        if (constraints.maxHeight.isFinite && constraints.maxHeight > 0) {
+          final double fitted =
+              (constraints.maxHeight -
+                  pad -
+                  (_kKeypadReferenceRows - 1) * spacing) /
+              _kKeypadReferenceRows;
+          if (fitted < standardRowH) {
+            rowH = fitted.clamp(standardRowH * 0.3, standardRowH);
+            fitScale = (rowH / standardRowH).clamp(0.3, 1.0);
+          }
+        }
 
         final List<Widget> cells = List<Widget>.generate(
           _kKeypadCellCount,
           (i) => i < btns.length
-              ? SizedBox(height: rowH, child: buttonFor(btns[i]))
+              ? SizedBox(height: rowH, child: buttonFor(btns[i], fitScale))
               : SizedBox(
                   height: rowH,
                   child: const ExcludeFocus(
@@ -8366,13 +8506,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
         Widget grid = Column(
           key: const ValueKey('keypad_grid'),
+          mainAxisSize: MainAxisSize.min,
           children: rows,
         );
-        grid = Padding(padding: const EdgeInsets.all(2), child: grid);
-        if (needVScroll) {
-          return SingleChildScrollView(child: grid);
-        }
-        return grid;
+        // Nikdy vertikální scroll: řádky se proporcionálně zmenší (fitScale).
+        return Padding(padding: const EdgeInsets.all(2), child: grid);
       },
     );
   }
@@ -10936,6 +11074,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   @visibleForTesting
+  void showAdvancedDialogForTest() {
+    _showAdvancedFunctionsDialog();
+  }
+
+  @visibleForTesting
   void showTutorialDialogForTest() {
     _showTutorialDialog();
   }
@@ -11124,6 +11267,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       (_lastExact is SurdValue && _lastExactKey == _lastResult)
       ? _lastExact
       : null;
+
+  @visibleForTesting
+  void toggleFractionForTest() => toggleFractionResultView();
+
+  @visibleForTesting
+  bool get fractionViewForTest => _isFractionViewActive;
+
+  @visibleForTesting
+  bool get fractionEligibleForTest => _isFractionEligible;
+
+  @visibleForTesting
+  String? get fractionStringForTest => _fractionString;
+
+  @visibleForTesting
+  String currentResultSpeechForTest() => _currentResultSpeech();
+
+  @visibleForTesting
+  double? get lastNumericForTest => _lastNumericValue;
+
+  @visibleForTesting
+  void clearForTest() => clear();
 
   @visibleForTesting
   void setResultDisplayModeForTest(ResultDisplayMode m) {
@@ -12568,15 +12732,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             label: l10n.displayLabel,
                             hint: l10n.displayHint,
                             value:
-                                '${display.isEmpty ? (_hasResult ? _spokenForDisplay(_displayedResultString) : l10n.displayEmpty) : _expressionToSpeech(display)}',
+                                '${display.isEmpty ? (_hasResult ? _currentResultSpeech() : l10n.displayEmpty) : _expressionToSpeech(display)}',
                             onTap: () {
                               _mainFocusNode.requestFocus();
                               speak(
                                 display.isEmpty
                                     ? (_hasResult
-                                          ? _spokenForDisplay(
-                                              _displayedResultString,
-                                            )
+                                          ? _currentResultSpeech()
                                           : l10n.displayEmpty)
                                     : _expressionToSpeech(display),
                               );
@@ -12585,122 +12747,147 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             // a vše se přečte z tohoto Semantics widgetu. Textový matematický
                             // renderer je navíc v ExcludeSemantics, takže displej zůstává
                             // jeden logický prvek bez duplicitního čtení.
-                            child: Column(
+                            // Hlavicka zustava geometricky stejna jako pred zmenou
+                            // (Align + mezera + Expanded). Prepinac zlomku je
+                            // v prekryvne vrstve (Stack/Positioned) nad pravym
+                            // hornim rohem: nezabira zadnou vysku layoutu,
+                            // takze ani na malych displejich nezmensuje
+                            // displej ani nevytvari overflow. Popisek zustava
+                            // jednoradkovy jako driv.
+                            child: Stack(
                               children: [
-                                Align(
-                                  alignment: Alignment.topLeft,
-                                  child: Text(
-                                    _getModeName(_currentMode).toUpperCase(),
-                                    style: TextStyle(
-                                      color: Colors.redAccent,
-                                      fontSize: 12 * s,
-                                      fontWeight: FontWeight.bold,
+                                Column(
+                                  children: [
+                                    Align(
+                                      alignment: Alignment.topLeft,
+                                      child: Text(
+                                        _getModeName(
+                                          _currentMode,
+                                        ).toUpperCase(),
+                                        maxLines: 1,
+                                        softWrap: false,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Colors.redAccent,
+                                          fontSize: 12 * s,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    SizedBox(height: 4 * s),
+                                    Expanded(
+                                      child: LayoutBuilder(
+                                        builder: (context, displayConstraints) {
+                                          // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
+                                          // Konstanty musí odpovídat _buildDotMatrixDisplay
+                                          // (rozestup 1.15 × systémový faktor) a rezervě
+                                          // pro periodickou čáru v CustomSegmentDisplay.
+                                          final fitSysFactor =
+                                              MediaQuery.textScalerOf(
+                                                context,
+                                              ).scale(1.0).clamp(1.0, 1.5);
+                                          final dotLedSize =
+                                              3.0 * _dotMatrixZoom * s;
+                                          final dotSpacing =
+                                              1.15 *
+                                              _dotMatrixZoom *
+                                              s *
+                                              fitSysFactor;
+                                          final dotH =
+                                              dotLedSize * 8 + dotSpacing * 7;
+                                          final segSize = 16 * _resultZoom * s;
+                                          var segH = segSize * 1.8;
+                                          if (_toBarNotation(
+                                            _lastResult.isEmpty
+                                                ? '0.'
+                                                : _lastResult,
+                                          ).contains('\u0305')) {
+                                            final segThick = segSize * 0.15;
+                                            segH +=
+                                                segThick * 2.0 +
+                                                6.0 +
+                                                segThick *
+                                                    0.75 *
+                                                    _overlineThickness /
+                                                    2 +
+                                                2.0;
+                                          }
+                                          final gapH = 12 * s;
+                                          final neededH = dotH + segH + gapH;
+                                          final availableH =
+                                              displayConstraints.maxHeight;
+                                          double fitScale = 1.0;
+                                          if (availableH > 0 &&
+                                              neededH > availableH) {
+                                            fitScale = (availableH / neededH)
+                                                .clamp(0.35, 1.0);
+                                          }
+                                          final needsFallbackScroll =
+                                              fitScale <= 0.36;
+
+                                          Widget content = Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment: _alignInputLeft
+                                                ? CrossAxisAlignment.start
+                                                : CrossAxisAlignment.center,
+                                            children: [
+                                              Align(
+                                                alignment: _alignInputLeft
+                                                    ? Alignment.centerLeft
+                                                    : Alignment.center,
+                                                child: SingleChildScrollView(
+                                                  controller:
+                                                      _scrollControllerH,
+                                                  scrollDirection:
+                                                      Axis.horizontal,
+                                                  child: _buildDotMatrixDisplay(
+                                                    fitScale: fitScale,
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                height: 12 * s * fitScale,
+                                              ),
+                                              Align(
+                                                alignment: Alignment.center,
+                                                child: SingleChildScrollView(
+                                                  controller:
+                                                      _scrollControllerResultH,
+                                                  scrollDirection:
+                                                      Axis.horizontal,
+                                                  child:
+                                                      _buildMainResultDisplay(
+                                                        fitScale: fitScale,
+                                                      ),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+
+                                          if (needsFallbackScroll) {
+                                            // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
+                                            return Scrollbar(
+                                              controller: _scrollControllerV,
+                                              thumbVisibility: true,
+                                              child: SingleChildScrollView(
+                                                controller: _scrollControllerV,
+                                                scrollDirection: Axis.vertical,
+                                                child: content,
+                                              ),
+                                            );
+                                          }
+                                          // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
+                                          return Center(child: content);
+                                        },
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(height: 4 * s),
-                                Expanded(
-                                  child: LayoutBuilder(
-                                    builder: (context, displayConstraints) {
-                                      // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
-                                      // Konstanty musí odpovídat _buildDotMatrixDisplay
-                                      // (rozestup 1.15 × systémový faktor) a rezervě
-                                      // pro periodickou čáru v CustomSegmentDisplay.
-                                      final fitSysFactor =
-                                          MediaQuery.textScalerOf(
-                                            context,
-                                          ).scale(1.0).clamp(1.0, 1.5);
-                                      final dotLedSize =
-                                          3.0 * _dotMatrixZoom * s;
-                                      final dotSpacing =
-                                          1.15 *
-                                          _dotMatrixZoom *
-                                          s *
-                                          fitSysFactor;
-                                      final dotH =
-                                          dotLedSize * 8 + dotSpacing * 7;
-                                      final segSize = 16 * _resultZoom * s;
-                                      var segH = segSize * 1.8;
-                                      if (_toBarNotation(
-                                        _lastResult.isEmpty
-                                            ? '0.'
-                                            : _lastResult,
-                                      ).contains('\u0305')) {
-                                        final segThick = segSize * 0.15;
-                                        segH +=
-                                            segThick * 2.0 +
-                                            6.0 +
-                                            segThick *
-                                                0.75 *
-                                                _overlineThickness /
-                                                2 +
-                                            2.0;
-                                      }
-                                      final gapH = 12 * s;
-                                      final neededH = dotH + segH + gapH;
-                                      final availableH =
-                                          displayConstraints.maxHeight;
-                                      double fitScale = 1.0;
-                                      if (availableH > 0 &&
-                                          neededH > availableH) {
-                                        fitScale = (availableH / neededH).clamp(
-                                          0.35,
-                                          1.0,
-                                        );
-                                      }
-                                      final needsFallbackScroll =
-                                          fitScale <= 0.36;
-
-                                      Widget content = Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment: _alignInputLeft
-                                            ? CrossAxisAlignment.start
-                                            : CrossAxisAlignment.center,
-                                        children: [
-                                          Align(
-                                            alignment: _alignInputLeft
-                                                ? Alignment.centerLeft
-                                                : Alignment.center,
-                                            child: SingleChildScrollView(
-                                              controller: _scrollControllerH,
-                                              scrollDirection: Axis.horizontal,
-                                              child: _buildDotMatrixDisplay(
-                                                fitScale: fitScale,
-                                              ),
-                                            ),
-                                          ),
-                                          SizedBox(height: 12 * s * fitScale),
-                                          Align(
-                                            alignment: Alignment.center,
-                                            child: SingleChildScrollView(
-                                              controller:
-                                                  _scrollControllerResultH,
-                                              scrollDirection: Axis.horizontal,
-                                              child: _buildMainResultDisplay(
-                                                fitScale: fitScale,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-
-                                      if (needsFallbackScroll) {
-                                        // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
-                                        return Scrollbar(
-                                          controller: _scrollControllerV,
-                                          thumbVisibility: true,
-                                          child: SingleChildScrollView(
-                                            controller: _scrollControllerV,
-                                            scrollDirection: Axis.vertical,
-                                            child: content,
-                                          ),
-                                        );
-                                      }
-                                      // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
-                                      return Center(child: content);
-                                    },
-                                  ),
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: _buildFractionToggle(s),
                                 ),
                               ],
                             ),

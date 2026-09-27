@@ -21,6 +21,7 @@ import 'currency_service.dart';
 import 'thousand_grouping.dart';
 import 'config_validator.dart';
 import 'surd.dart';
+import 'fraction.dart';
 
 part 'models.dart';
 part 'calculator_screen.dart';

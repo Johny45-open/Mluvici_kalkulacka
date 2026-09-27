@@ -106,6 +106,27 @@ void main() {
     );
   }
 
+  double responsiveScaleFor(Size size) =>
+      (size.shortestSide / 360.0).clamp(1.0, 1.7);
+
+  double standardRowHFor(Size size) {
+    final scale = responsiveScaleFor(size);
+    return (54.0 * scale).clamp(48.0 * scale, 80.0 * scale).toDouble();
+  }
+
+  double keypadRowH(WidgetTester tester) =>
+      tester.getSize(find.byKey(const ValueKey('keypad_row_0'))).height;
+
+  /// Ocekavany font kratkeho popisku pri jednoduchem (nikoli dvojim)
+  /// zapocteni fitScale: 20 * scale * (rowH / standard).
+  /// V testech je textScale 1.0 a fontScale 1.0, takze sysFactor odpadá.
+  double expectedFittedFont(WidgetTester tester, Size size) {
+    final scale = responsiveScaleFor(size);
+    final standard = standardRowHFor(size);
+    final rowH = keypadRowH(tester);
+    return 20.0 * scale * (rowH / standard);
+  }
+
   group('Responsive button scaling', () {
     testWidgets('A - baseline renders without overflow', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
@@ -125,63 +146,69 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('B - larger viewport larger font and larger button', (
+    testWidgets('B - fitted viewport keeps single geometry scale', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
       mockChannels();
-      await pumpApp(tester, size: const Size(412, 860), textScale: 1.0);
+      const phoneSize = Size(412, 860);
+      await pumpApp(tester, size: phoneSize, textScale: 1.0);
       final baseFont = keyboardFontSize(tester, '7');
-      final baseSize = tester.getSize(find.byType(CalculatorScreen));
+      // Na telefonu je mista dost (fit 1): plne meritko.
+      expect(baseFont, closeTo(20.0 * responsiveScaleFor(phoneSize), 1.0));
 
-      await pumpApp(tester, size: const Size(600, 900), textScale: 1.0);
+      // Vetsi, ale nizky viewport: klavesnice se vejde pres fitScale
+      // misto scrollu; font se zmensi PRAVE JEDNOU s geometrii.
+      const largeSize = Size(600, 900);
+      await pumpApp(tester, size: largeSize, textScale: 1.0);
       final largeFont = keyboardFontSize(tester, '7');
       expect(
         largeFont,
-        greaterThan(baseFont),
-        reason: 'font on larger viewport must be larger',
+        closeTo(expectedFittedFont(tester, largeSize), 1.0),
+        reason: 'font must follow single gs=scale*fit, no double shrink',
       );
-
-      // button container also larger – check via Container constraints indirectly
-      // Compare font ratio approximates scale growth
-      expect(largeFont / baseFont, greaterThan(1.05));
+      // Radky porad dostatecne velke, zadny kolaps.
+      expect(keypadRowH(tester), greaterThan(standardRowHFor(phoneSize) * 0.5));
+      // Zadny vertikalni scroll v hlavni klavesnici.
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('keypad_grid')),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsNothing,
+      );
 
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('C - desktop large viewport short labels not scaled down', (
+    testWidgets('C - desktop fitted viewport, short labels not scaled down', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
       mockChannels();
-      await pumpApp(tester, size: const Size(412, 860), textScale: 1.0);
-      final phoneFont = keyboardFontSize(tester, '7');
-
-      await pumpApp(tester, size: const Size(1280, 800), textScale: 1.0);
+      const desktopSize = Size(1280, 800);
+      await pumpApp(tester, size: desktopSize, textScale: 1.0);
       final desktopFont = keyboardFontSize(tester, '7');
 
+      // Fitted font presne podle jednoducheho meritka (pozadavek: zadne
+      // dvoji zmenseni). Desktop shortest 800 -> scale 1.7.
       expect(
         desktopFont,
-        greaterThan(phoneFont),
-        reason: 'desktop font must be larger than phone',
+        closeTo(expectedFittedFont(tester, desktopSize), 1.5),
       );
-      // Desktop shortest 800 -> scale 1.7 -> font ~34, phone ~22-23
-      expect(desktopFont, greaterThan(28.0));
+      expect(desktopFont, greaterThanOrEqualTo(14.0));
       expect(desktopFont, lessThanOrEqualTo(72.0));
 
       // Verify FittedBox does not shrink short labels: scale factor 1.0
       // FittedBox with scaleDown will only shrink if overflow; short label should not overflow.
-      // Check that Text width * scale is within button width.
-      // Instead verify no overflow exception and font is as expected (not clamped down to ~20)
-      // Also verify button visually contains text: get RenderBox of Text and its ancestor
       final fittedBoxes = tester.widgetList<FittedBox>(find.byType(FittedBox));
       expect(fittedBoxes, isNotEmpty);
-      // For short labels, FittedBox should not need to scale; we infer by font size not being reduced.
-      expect(desktopFont, greaterThan(phoneFont * 1.2));
+      // Kratke popisky stejne: FittedBox je neredukuje.
+      expect(keyboardFontSize(tester, 'C'), closeTo(desktopFont, 0.01));
 
       // No overflow
       expect(tester.takeException(), isNull);
@@ -247,7 +274,8 @@ void main() {
         'modeQuestionAsked': true,
       });
       mockChannels();
-      await pumpApp(tester, size: const Size(1280, 800), textScale: 1.0);
+      const desktopSize = Size(1280, 800);
+      await pumpApp(tester, size: desktopSize, textScale: 1.0);
       // Switch to scientific functions page via tapping FUNKCE toggle
       final toggleFinder = find.text('FUNKCE').evaluate().isNotEmpty
           ? find.text('FUNKCE')
@@ -279,10 +307,14 @@ void main() {
         );
       }
 
-      // Verify baseline still large
-      expect(baselineFont, greaterThan(25.0));
+      // Baseline odpovida jednoduchemu fitted meritku (zadne dvoji krácení).
+      expect(
+        baselineFont,
+        closeTo(expectedFittedFont(tester, desktopSize), 1.5),
+      );
+      expect(baselineFont, greaterThanOrEqualTo(14.0));
 
-      // Also verify short numeric still large after switching back
+      // Also verify short numeric still fits after switching back
       final backToggle = find.text('ČÍSLA').evaluate().isNotEmpty
           ? find.text('ČÍSLA')
           : find.text('NUMBERS');
@@ -290,7 +322,7 @@ void main() {
         await tester.tap(backToggle.first);
         await tester.pumpAndSettle();
         final short2 = keyboardFontSize(tester, '7');
-        expect(short2, greaterThan(25.0));
+        expect(short2, closeTo(baselineFont, 1.0));
       }
 
       // Also test on small viewport long labels don't overflow

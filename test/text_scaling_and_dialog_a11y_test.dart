@@ -200,15 +200,35 @@ void main() {
       await pumpApp(tester, size: const Size(1280, 800));
       final desktop = keyboardFontSize(tester, '7');
 
-      // Po opravě: font = 20 * scale (bez 0.5 tlumení).
-      // 412px: scale 412/360=1.144 → ≈22.88; desktop 800→1.7 →34.0.
-      // Test ověřuje chování, ne interní konstantu – povolena tolerance.
+      // Po oprave fitScale: font = 20 * scale * (rowH / standard), kde
+      // rowH se pri nedostatku vysky zmensi misto vertikalniho scrollu.
+      // 412px: scale 412/360=1.144, fit 1 → ≈22.88.
+      // Desktop 1280x800: scale 1.7, radky fitted (800px na vysku pro
+      // 7 radku pri standardu 91.8 nestaci) → mensi nez plnych 34,
+      // ale presne podle jednoducheho meritka, bez pretekani a scrollu.
       expect(phone, greaterThan(20.0));
       expect(phone, lessThan(26.0));
-      expect(desktop, greaterThan(phone));
-      expect(desktop, greaterThan(30.0));
-      // Poměr musí odpovídat scale poměru ~1.48, ne starému 1.26 (27/21.4)
-      expect(desktop / phone, greaterThan(1.35));
+      final desktopScale = (800 / 360.0).clamp(1.0, 1.7);
+      final desktopStandard = (54.0 * desktopScale).clamp(
+        48.0 * desktopScale,
+        80.0 * desktopScale,
+      );
+      final desktopRowH = tester
+          .getSize(find.byKey(const ValueKey('keypad_row_0')))
+          .height;
+      expect(
+        desktop,
+        closeTo(20.0 * desktopScale * (desktopRowH / desktopStandard), 1.5),
+      );
+      expect(desktop, greaterThanOrEqualTo(14.0));
+      // Zadny vertikalni scroll v hlavni klavesnici.
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('keypad_grid')),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
     });
   });

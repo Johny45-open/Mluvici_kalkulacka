@@ -1255,4 +1255,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String thousandGapSet(Object label) {
     return 'Digit grouping gap: $label';
   }
+
+  @override
+  String get fractionSwitchToFraction => 'Switch to fraction';
+
+  @override
+  String get fractionSwitchToDecimal => 'Switch to decimal result';
+
+  @override
+  String fractionAnnounced(Object numerator, Object denominator) {
+    return 'Fraction $numerator over $denominator.';
+  }
+
+  @override
+  String decimalResultAnnounced(String value) {
+    return 'Decimal result $value.';
+  }
+
+  @override
+  String get fractionUnavailable => 'Fraction not available for this result';
 }

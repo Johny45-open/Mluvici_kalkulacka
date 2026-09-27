@@ -550,7 +550,7 @@ void main() {
           reason: 'b $b missing at large scale',
         );
       }
-      // Large scale alone must not force scroll – verify via ancestor check (spec point 5)
+      // Velke pismo samo o sobe nesmi vynutit scroll – radky se zmensi.
       expect(
         find.ancestor(
           of: keypadGrid(),
@@ -561,38 +561,31 @@ void main() {
       );
       expect(tester.takeException(), isNull);
 
-      // Scroll test – kdyz se 7 radku skutecne nevejde, SingleChildScrollView je ancestor
-      // Simulujeme malou výšku, ale dostatečnou aby nevznikl outer overflow (412x560)
+      // Mala vyska: radky se proporcionalne zmensi, scroll nevznika,
+      // 4 sloupce a 7 radku zustava.
       tester.view.physicalSize = const Size(412, 560);
       await tester.pumpAndSettle();
-      // Must keep 4 columns and no Wrap even when scrolled
       expect(
         find.descendant(of: keypadGrid(), matching: find.byType(Wrap)),
         findsNothing,
       );
       for (int r = 0; r < 7; r++) expect(keypadRow(r), findsOneWidget);
-      final hasScroll = find
-          .ancestor(
-            of: keypadGrid(),
-            matching: find.byType(SingleChildScrollView),
-          )
-          .evaluate()
-          .isNotEmpty;
-      // When height insufficient, must be scrollable; when sufficient, must not
-      // At 560 height, needH (~394) vs maxH (~380) => scroll expected, but allow either if layout fits
-      if (hasScroll) {
-        expect(
-          find.ancestor(
-            of: keypadGrid(),
-            matching: find.byType(SingleChildScrollView),
-          ),
-          findsOneWidget,
-        );
-      } else {
-        // If not scrolled, at least no overflow and no Wrap
-        expect(tester.takeException(), isNull);
-        return;
-      }
+      expect(
+        find.ancestor(
+          of: keypadGrid(),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsNothing,
+        reason: 'small height must fit via fitScale, no vertical scroll',
+      );
+      expect(
+        find.descendant(
+          of: keypadGrid(),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsNothing,
+        reason: 'no scroll inside keypad grid',
+      );
       expect(tester.takeException(), isNull);
     });
 

@@ -2246,6 +2246,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Digit grouping gap: {label}'**
   String thousandGapSet(Object label);
+
+  /// No description provided for @fractionSwitchToFraction.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to fraction'**
+  String get fractionSwitchToFraction;
+
+  /// No description provided for @fractionSwitchToDecimal.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to decimal result'**
+  String get fractionSwitchToDecimal;
+
+  /// No description provided for @fractionAnnounced.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraction {numerator} over {denominator}.'**
+  String fractionAnnounced(Object numerator, Object denominator);
+
+  /// No description provided for @decimalResultAnnounced.
+  ///
+  /// In en, this message translates to:
+  /// **'Decimal result {value}.'**
+  String decimalResultAnnounced(String value);
+
+  /// No description provided for @fractionUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraction not available for this result'**
+  String get fractionUnavailable;
 }
 
 class _AppLocalizationsDelegate

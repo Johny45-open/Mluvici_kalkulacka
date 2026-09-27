@@ -1,5 +1,50 @@
 part of 'main.dart';
 
+// Jeden společný picker vzhledu výsledkového displeje pro obě cesty:
+// A) Pokročilé funkce → Vzhled výsledkového displeje,
+// B) Nastavení přístupnosti → Vzhled výsledkového displeje.
+// Obě cesty používají stejný _globalResultDisplayMode, stejný setter
+// i persistenci. Profily zůstávají beze změny (žádné pole resultDisplayMode
+// v AccessibilityProfile, editor ho nenačítá ani neukládá).
+class _ResultDisplayModePicker extends StatelessWidget {
+  final _CalculatorScreenState parent;
+  final VoidCallback? onChanged;
+
+  const _ResultDisplayModePicker({required this.parent, this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: parent._s(
+        'Vzhled výsledkového displeje, globální nastavení nezávislé na profilu',
+        'Result display appearance, global setting independent of profile',
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final m in ResultDisplayMode.values)
+            RadioListTile<ResultDisplayMode>(
+              title: Text(parent._resultDisplayModeName(m)),
+              value: m,
+              groupValue: parent._globalResultDisplayMode,
+              onChanged: (v) {
+                if (v == null) return;
+                parent.setGlobalResultDisplayMode(v);
+                parent.say(
+                  parent._s(
+                    'Vzhled výsledku: ${parent._resultDisplayModeName(v)}',
+                    'Result display: ${parent._resultDisplayModeName(v)}',
+                  ),
+                );
+                onChanged?.call();
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AdvancedFunctionsDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
   const _AdvancedFunctionsDialog({required this.parent});
@@ -945,33 +990,9 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
       _CollapsibleSection(
         title: parent._s('Vzhled výsledkového displeje', 'Result display'),
         children: [
-          Semantics(
-            label: parent._s(
-              'Vzhled výsledkového displeje, globální nastavení nezávislé na profilu',
-              'Result display appearance, global setting independent of profile',
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final m in ResultDisplayMode.values)
-                  RadioListTile<ResultDisplayMode>(
-                    title: Text(parent._resultDisplayModeName(m)),
-                    value: m,
-                    groupValue: parent._globalResultDisplayMode,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      parent.setGlobalResultDisplayMode(v);
-                      parent.say(
-                        parent._s(
-                          'Vzhled výsledku: ${parent._resultDisplayModeName(v)}',
-                          'Result display: ${parent._resultDisplayModeName(v)}',
-                        ),
-                      );
-                      setState(() {});
-                    },
-                  ),
-              ],
-            ),
+          _ResultDisplayModePicker(
+            parent: parent,
+            onChanged: () => setState(() {}),
           ),
           const Divider(),
           Semantics(
@@ -2354,6 +2375,22 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                       ],
                     );
                   },
+                ),
+              ],
+            ),
+            const Divider(),
+            // Druhá cesta ke stejnému globálnímu nastavení (první je
+            // v Pokročilých funkcích). Stejný widget, stejný source of truth,
+            // profily se nemění.
+            _CollapsibleSection(
+              title: widget.parent._s(
+                'Vzhled výsledkového displeje',
+                'Result display',
+              ),
+              children: [
+                _ResultDisplayModePicker(
+                  parent: widget.parent,
+                  onChanged: () => setState(() {}),
                 ),
               ],
             ),

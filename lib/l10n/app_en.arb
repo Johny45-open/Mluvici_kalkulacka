@@ -785,5 +785,27 @@
         "type": "Object"
       }
     }
-  }
+  },
+  "fractionSwitchToFraction": "Switch to fraction",
+  "fractionSwitchToDecimal": "Switch to decimal result",
+  "fractionAnnounced": "Fraction {numerator} over {denominator}.",
+  "@fractionAnnounced": {
+    "placeholders": {
+      "numerator": {
+        "type": "Object"
+      },
+      "denominator": {
+        "type": "Object"
+      }
+    }
+  },
+  "decimalResultAnnounced": "Decimal result {value}.",
+  "@decimalResultAnnounced": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "fractionUnavailable": "Fraction not available for this result"
 }
