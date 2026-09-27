@@ -43,31 +43,6 @@ class _AccessibilityProfileEditorDialogState
     setState(() {});
   }
 
-  // Lidský název režimu vzhledu výsledkového displeje (použito pro label,
-  // oznámení i souhrn změn — jeden zdroj, žádné duplicity).
-  String _resultDisplayModeName(ResultDisplayMode m) {
-    switch (m) {
-      case ResultDisplayMode.segment:
-        return parent._s('Segmentový', 'Segment');
-      case ResultDisplayMode.text:
-        return parent._s('Matematický text', 'Math text');
-      case ResultDisplayMode.auto:
-        return parent._s('Automatický', 'Automatic');
-    }
-  }
-
-  void _setResultDisplayMode(ResultDisplayMode m) {
-    _onUpdate((v) => v.copyWith(resultDisplayMode: m));
-    parent.speak(
-      parent._s(
-        'Vzhled výsledku: ${_resultDisplayModeName(m)}',
-        'Result display: ${_resultDisplayModeName(m)}',
-      ),
-      force: true,
-    );
-    setState(() {});
-  }
-
   void _adjustDotMatrixZoom(double delta) {
     final nv = (editingSettings.dotMatrixZoom + delta).clamp(0.5, 5.0);
     _onUpdate((s) => s.copyWith(dotMatrixZoom: nv));
@@ -185,14 +160,7 @@ class _AccessibilityProfileEditorDialogState
       'Display type: ${draft.useSixteenSegment ? '16-segment' : '7-segment'}',
       draft.useSixteenSegment != orig.useSixteenSegment,
     );
-    if (draft.resultDisplayMode != orig.resultDisplayMode) {
-      out.add(
-        parent._s(
-          'Vzhled výsledku: ${_resultDisplayModeName(draft.resultDisplayMode)}',
-          'Result display: ${_resultDisplayModeName(draft.resultDisplayMode)}',
-        ),
-      );
-    }
+    // ResultDisplayMode je globální (mimo profil) — do souhrnu nepatří.
     add(
       'Periodický zápis: ${draft.usePeriodicNotation ? 'Zapnuto' : 'Vypnuto'}',
       'Repeating notation: ${draft.usePeriodicNotation ? 'On' : 'Off'}',
@@ -339,14 +307,17 @@ class _AccessibilityProfileEditorDialogState
       'Potvrdit uložení profilu $editingName. Změny: $summary',
       'Confirm saving profile $editingName. Changes: $summary',
     );
+    // Jediný konzistentní mechanismus oznámení: say() (čtečka ->
+    // announce, jinak TTS). Žádný paralelní speak+announce+liveRegion
+    // se stejným textem; obsah dialogu nemá liveRegion, aby TalkBack
+    // při focusu na "Uložit" nečetl celý souhrn znovu.
     final confirmed = await parent.showAppDialog<bool>(
       context: context,
       barrierDismissible: false,
       routeSettings: RouteSettings(name: 'Potvrdit uložení $editingName'),
       builder: (ctx) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          parent.speak(spoken, force: true);
-          parent._announce(spoken, ctx);
+          if (ctx.mounted) parent.say(spoken, ctx);
         });
         return AlertDialog(
           insetPadding: parent._dialogInsetPadding(),
@@ -355,43 +326,39 @@ class _AccessibilityProfileEditorDialogState
             child: Text(parent._s('Potvrdit uložení', 'Confirm save')),
           ),
           content: SingleChildScrollView(
-            child: Semantics(
-              liveRegion: true,
-              label: spoken,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  parent._s('Profil: $editingName', 'Profile: $editingName'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                if (isNoChange)
                   Text(
-                    parent._s('Profil: $editingName', 'Profile: $editingName'),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  if (isNoChange)
-                    Text(
-                      changes.first,
-                      style: const TextStyle(fontStyle: FontStyle.italic),
-                    )
-                  else
-                    ...changes.map(
-                      (c) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('• '),
-                            Expanded(child: Text(c)),
-                          ],
-                        ),
+                    changes.first,
+                    style: const TextStyle(fontStyle: FontStyle.italic),
+                  )
+                else
+                  ...changes.map(
+                    (c) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('• '),
+                          Expanded(child: Text(c)),
+                        ],
                       ),
                     ),
-                  const SizedBox(height: 12),
-                  Text(
-                    parent._s('Uložit změny?', 'Save changes?'),
-                    style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
-                ],
-              ),
+                const SizedBox(height: 12),
+                Text(
+                  parent._s('Uložit změny?', 'Save changes?'),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ],
             ),
           ),
           actions: [
@@ -410,11 +377,23 @@ class _AccessibilityProfileEditorDialogState
     );
     if (confirmed != true) return;
     final ok = await parent.saveEditingProfile();
-    if (!ok) return;
+    if (!ok) {
+      // Tichý fail odstraněn: jasná chyba, draft zůstává k opravě.
+      final fail = parent._s(
+        'Uložení selhalo',
+        'Save failed',
+      );
+      parent.say(fail);
+      return;
+    }
+    // Draft je po saveEditingProfile() vyčištěn (null); discard po save
+    // je no-op. Zavři editor a teprve po usazení focusu jednorázově
+    // potvrď — nikdy znovu celý souhrn.
     if (mounted) Navigator.pop(context);
-    parent.speak(
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+    parent.say(
       parent._s('Profil $editingName uložen', 'Profile $editingName saved'),
-      force: true,
     );
   }
 
@@ -523,37 +502,8 @@ class _AccessibilityProfileEditorDialogState
                 ),
               ),
               const Divider(),
-              Semantics(
-                header: true,
-                child: Text(
-                  parent._s(
-                    'Vzhled výsledkového displeje',
-                    'Result display appearance',
-                  ),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              Semantics(
-                label: parent._s(
-                  'Vzhled výsledkového displeje, aktuálně ${_resultDisplayModeName(s.resultDisplayMode)}',
-                  'Result display appearance, currently ${_resultDisplayModeName(s.resultDisplayMode)}',
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final m in ResultDisplayMode.values)
-                      RadioListTile<ResultDisplayMode>(
-                        title: Text(_resultDisplayModeName(m)),
-                        value: m,
-                        groupValue: s.resultDisplayMode,
-                        onChanged: (v) {
-                          if (v != null) _setResultDisplayMode(v);
-                        },
-                      ),
-                  ],
-                ),
-              ),
-              const Divider(),
+              // Vzhled výsledkového displeje je globální nastavení
+              // (mimo profily) — editor ho nemění ani neuvádí.
               Semantics(
                 label: parent._s(
                   'Přepnutí periodického zápisu výsledků',

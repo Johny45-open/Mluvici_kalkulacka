@@ -60,6 +60,8 @@ const Set<String> _knownGlobalKeys = {
   'themeMode',
   'isDegreeMode',
   'defaultMode',
+  'resultDisplayMode',
+  'historyExactFormat',
   'statsSummaryOrder',
   'statsComputedOrder',
   'currency',
@@ -638,6 +640,27 @@ void _validateGlobalSettings(Map<String, dynamic> gs, ValidationResult res) {
       ValidationIssue(
         path: 'globalSettings.defaultMode',
         message: 'defaultMode neplatny enum',
+        code: 'enum',
+      ),
+    );
+  }
+  // Volitelné pro staré exporty (fallback řeší parseContract).
+  final grdm = gs['resultDisplayMode'];
+  if (grdm != null && !{'segment', 'text', 'auto'}.contains(grdm)) {
+    res.errors.add(
+      ValidationIssue(
+        path: 'globalSettings.resultDisplayMode',
+        message: 'resultDisplayMode musi byt jedno z segment, text, auto',
+        code: 'enum',
+      ),
+    );
+  }
+  final hef = gs['historyExactFormat'];
+  if (hef != null && !{'numeric', 'exact'}.contains(hef)) {
+    res.errors.add(
+      ValidationIssue(
+        path: 'globalSettings.historyExactFormat',
+        message: 'historyExactFormat musi byt jedno z numeric, exact',
         code: 'enum',
       ),
     );

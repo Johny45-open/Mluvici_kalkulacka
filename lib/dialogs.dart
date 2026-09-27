@@ -943,6 +943,80 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
 
     sections.add(
       _CollapsibleSection(
+        title: parent._s('Vzhled výsledkového displeje', 'Result display'),
+        children: [
+          Semantics(
+            label: parent._s(
+              'Vzhled výsledkového displeje, globální nastavení nezávislé na profilu',
+              'Result display appearance, global setting independent of profile',
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final m in ResultDisplayMode.values)
+                  RadioListTile<ResultDisplayMode>(
+                    title: Text(parent._resultDisplayModeName(m)),
+                    value: m,
+                    groupValue: parent._globalResultDisplayMode,
+                    onChanged: (v) {
+                      if (v == null) return;
+                      parent.setGlobalResultDisplayMode(v);
+                      parent.say(
+                        parent._s(
+                          'Vzhled výsledku: ${parent._resultDisplayModeName(v)}',
+                          'Result display: ${parent._resultDisplayModeName(v)}',
+                        ),
+                      );
+                      setState(() {});
+                    },
+                  ),
+              ],
+            ),
+          ),
+          const Divider(),
+          Semantics(
+            header: true,
+            child: Text(
+              parent._s(
+                'Formát exaktního výsledku v historii',
+                'History exact result format',
+              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Semantics(
+            label: parent._s(
+              'Formát exaktního výsledku v historii, globální nastavení',
+              'History exact result format, global setting',
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final f in HistoryExactFormat.values)
+                  RadioListTile<HistoryExactFormat>(
+                    title: Text(parent._historyExactFormatName(f)),
+                    value: f,
+                    groupValue: parent._historyExactFormat,
+                    onChanged: (v) {
+                      if (v == null) return;
+                      parent.setHistoryExactFormat(v);
+                      parent.say(
+                        parent._s(
+                          'Formát historie: ${parent._historyExactFormatName(v)}',
+                          'History format: ${parent._historyExactFormatName(v)}',
+                        ),
+                      );
+                      setState(() {});
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    sections.add(
+      _CollapsibleSection(
         title: parent._s('Zobrazení', 'Display'),
         children: [
           Padding(

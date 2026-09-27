@@ -31,6 +31,12 @@ ResultDisplayMode _resultDisplayModeFromString(String? s) {
   return ResultDisplayMode.segment;
 }
 
+String _historyExactFormatToString(HistoryExactFormat v) => v.name;
+HistoryExactFormat _historyExactFormatFromString(String? s) {
+  for (final v in HistoryExactFormat.values) if (v.name == s) return v;
+  return HistoryExactFormat.numeric;
+}
+
 String _themeToString(ThemeMode m) => m == ThemeMode.light ? 'light' : 'dark';
 ThemeMode _themeFromString(String s) =>
     s == 'light' ? ThemeMode.light : ThemeMode.dark;
@@ -85,7 +91,6 @@ Map<String, dynamic> _settingsToContract(AccessibilitySettings s) => {
   'speechRate': s.speechRate,
   'speechVolume': s.speechVolume,
   'ttsEnabled': s.ttsEnabled,
-  'resultDisplayMode': _resultDisplayModeToString(s.resultDisplayMode),
   'ttsEngine': s.ttsEngine,
   'ttsVoice': s.ttsVoice == null
       ? null
@@ -120,6 +125,8 @@ AccessibilitySettings _settingsFromContract(Map<String, dynamic> m) =>
       speechRate: (m['speechRate'] as num).toDouble(),
       speechVolume: (m['speechVolume'] as num).toDouble(),
       ttsEnabled: m['ttsEnabled'] as bool,
+      // Legacy per-profil klíč: čti pro migraci starých exportů,
+      // ale runtime ho ignoruje (globál je jediný zdroj pravdy).
       resultDisplayMode: _resultDisplayModeFromString(
         m['resultDisplayMode'] as String?,
       ),
@@ -151,6 +158,8 @@ Map<String, dynamic> buildContractJson({
   required bool devAutoDiagnostic,
   required int devDiagnosticDurationMs,
   required String? devPinCode,
+  required ResultDisplayMode resultDisplayMode,
+  required HistoryExactFormat historyExactFormat,
 }) {
   final now = DateTime.now().toUtc().toIso8601String().replaceAll(
     '+00:00',
@@ -176,6 +185,8 @@ Map<String, dynamic> buildContractJson({
       'themeMode': _themeToString(themeMode),
       'isDegreeMode': isDegreeMode,
       'defaultMode': _calcModeToString(defaultMode),
+      'resultDisplayMode': _resultDisplayModeToString(resultDisplayMode),
+      'historyExactFormat': _historyExactFormatToString(historyExactFormat),
       'statsSummaryOrder': statsSummaryOrder
           .map((e) => _statsSectionToString(e))
           .toList(),
@@ -198,6 +209,8 @@ class ParsedContract {
   final String activeProfileId;
   final ThemeMode themeMode;
   final bool isDegreeMode;
+  final ResultDisplayMode resultDisplayMode;
+  final HistoryExactFormat historyExactFormat;
   final CalculatorMode defaultMode;
   final List<StatsSummarySection> statsSummaryOrder;
   final List<StatsComputedItem> statsComputedOrder;
@@ -212,6 +225,8 @@ class ParsedContract {
     required this.activeProfileId,
     required this.themeMode,
     required this.isDegreeMode,
+    required this.resultDisplayMode,
+    required this.historyExactFormat,
     required this.defaultMode,
     required this.statsSummaryOrder,
     required this.statsComputedOrder,
@@ -240,11 +255,32 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
   final gs = Map<String, dynamic>.from(raw['globalSettings'] as Map);
   final cur = Map<String, dynamic>.from(gs['currency'] as Map);
   final dev = Map<String, dynamic>.from(gs['devMode'] as Map);
+  // Globál je jediný zdroj pravdy. Starý export globál nemá ->
+  // fallback z aktivního profilu (migrace bez ztráty nastavení).
+  ResultDisplayMode resolvedRdm = _resultDisplayModeFromString(
+    gs['resultDisplayMode'] as String?,
+  );
+  HistoryExactFormat resolvedHef = _historyExactFormatFromString(
+    gs['historyExactFormat'] as String?,
+  );
+  if (!gs.containsKey('resultDisplayMode')) {
+    final activeId = raw['activeProfileId'] as String?;
+    for (final p in profiles) {
+      if (p.id == activeId) {
+        if (p.settings.resultDisplayMode != ResultDisplayMode.segment) {
+          resolvedRdm = p.settings.resultDisplayMode;
+        }
+        break;
+      }
+    }
+  }
   return ParsedContract(
     profiles: profiles,
     activeProfileId: raw['activeProfileId'] as String,
     themeMode: _themeFromString(gs['themeMode'] as String),
     isDegreeMode: gs['isDegreeMode'] as bool,
+    resultDisplayMode: resolvedRdm,
+    historyExactFormat: resolvedHef,
     defaultMode: _calcModeFromString(gs['defaultMode'] as String),
     statsSummaryOrder: (gs['statsSummaryOrder'] as List)
         .map((e) => _statsSectionFromString(e as String))

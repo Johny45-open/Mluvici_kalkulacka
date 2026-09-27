@@ -108,6 +108,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   List<AccessibilityProfile> _profiles = [];
   bool _profilesLoaded = false;
 
+  // --- Globální nastavení vzhledu (nezávislé na profilu) ---
+  // Jediný runtime source of truth pro výsledkový displej i historii.
+  // Profily ho nikdy nečtou ani nezapisují (pouze jednorázová migrace).
+  ResultDisplayMode _globalResultDisplayMode = ResultDisplayMode.segment;
+  HistoryExactFormat _historyExactFormat = HistoryExactFormat.numeric;
+
   // --- Editing draft (oddělení aktivace × editace) ---
   String? _editingProfileId;
   AccessibilityProfile? _editingDraft;
@@ -429,8 +435,51 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   int? get _inverseFormatPreference =>
       activeAccessibilitySettings.inverseFormatPreference;
   bool get _useSixteenSegment => activeAccessibilitySettings.useSixteenSegment;
-  ResultDisplayMode get _resultDisplayMode =>
-      activeAccessibilitySettings.resultDisplayMode;
+  // Globál je jediný zdroj pravdy — profilová hodnota se ignoruje.
+  ResultDisplayMode get _resultDisplayMode => _globalResultDisplayMode;
+
+  void setGlobalResultDisplayMode(ResultDisplayMode m) {
+    if (_globalResultDisplayMode == m) return;
+    setState(() => _globalResultDisplayMode = m);
+    _saveGlobalSettings();
+  }
+
+  void setHistoryExactFormat(HistoryExactFormat f) {
+    if (_historyExactFormat == f) return;
+    setState(() => _historyExactFormat = f);
+    _saveGlobalSettings();
+  }
+
+  String _resultDisplayModeName(ResultDisplayMode m) {
+    switch (m) {
+      case ResultDisplayMode.segment:
+        return _s('Segmentový', 'Segment');
+      case ResultDisplayMode.text:
+        return _s('Matematický text', 'Math text');
+      case ResultDisplayMode.auto:
+        return _s('Automatický', 'Automatic');
+    }
+  }
+
+  String _historyExactFormatName(HistoryExactFormat f) {
+    switch (f) {
+      case HistoryExactFormat.numeric:
+        return _s('Číselně', 'Numeric');
+      case HistoryExactFormat.exact:
+        return _s('Exaktně (6√2)', 'Exact (6√2)');
+    }
+  }
+
+  /// Jednotné přístupné oznámení: čtečka -> announce, jinak vlastní TTS.
+  /// Nikdy obojí (prevence duplicit na TalkBacku). Windows jede přes speak.
+  void say(String message, [BuildContext? ctx]) {
+    if (message.isEmpty || !mounted) return;
+    if (_isScreenReaderActive) {
+      _announce(message, ctx);
+    } else {
+      speak(message);
+    }
+  }
   bool get _announceExpression =>
       activeAccessibilitySettings.announceExpression;
   bool get _readStatsMemoryValues =>
@@ -1122,7 +1171,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String _selectedUnitCategory = 'Délka';
   String _unitFrom = 'm';
   String _unitTo = 'km';
-  List<String> _history = [];
+  List<CalculationHistoryEntry> _history = [];
   bool _isStoreMode = false;
   bool _isRecallMode = false;
   bool _hasResult = false;
@@ -2245,6 +2294,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _addToHistory(
         '${value.toString()} $_currencyFrom → $_currencyTo',
         resStr,
+        numericValue: result,
       );
       speak(
         _l10n.currencyConverted(
@@ -3789,6 +3839,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
       String resStr = '0';
       String spoken = '';
+      // Exaktní metadata pro historii: vyplní pouze větev běžného
+      // výpočtu (trySurdFromExpression); ostatní větve nechají null
+      // = autoritativní "žádný exaktní tvar".
+      SurdValue? historyExact;
 
       if (_currentMode == CalculatorMode.statistics) {
         if (_statsMemory.isEmpty) {
@@ -3911,6 +3965,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (surd != null) {
           _lastExact = surd;
           _lastExactKey = resStr;
+          historyExact = surd;
         }
 
         if (surd != null) {
@@ -3940,7 +3995,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       });
 
       speak(spoken, force: true);
-      _addToHistory(currentExpression, resStr);
+      _addToHistory(
+        currentExpression,
+        resStr,
+        exact: historyExact,
+        numericValue: _lastNumericValue,
+      );
     } catch (e) {
       String msg = _l10n.expressionNotUnderstood;
       if (e is _ElectricianInputException) {
@@ -4918,6 +4978,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           if (map.containsKey('CZK')) _currencyRates = map;
         } catch (_) {}
       }
+      _globalResultDisplayMode = _resultDisplayModeFromString(
+        prefs.getString('resultDisplayMode'),
+      );
+      _historyExactFormat = _historyExactFormatFromString(
+        prefs.getString('historyExactFormat'),
+      );
       _currencyFrom = prefs.getString('currencyFrom') ?? 'CZK';
       _currencyTo = prefs.getString('currencyTo') ?? 'EUR';
       if (!_currencyRates.containsKey(_currencyFrom)) _currencyFrom = 'CZK';
@@ -4962,6 +5028,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _saveGlobalSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDegreeMode', _isDegreeMode);
+    await prefs.setString(
+      'resultDisplayMode',
+      _resultDisplayModeToString(_globalResultDisplayMode),
+    );
+    await prefs.setString(
+      'historyExactFormat',
+      _historyExactFormatToString(_historyExactFormat),
+    );
     await prefs.setInt('defaultMode', _defaultMode.index);
     await prefs.setBool('devModeEnabled', _devModeEnabled);
     await prefs.setBool('devAutoDiagnosticEnabled', _devAutoDiagnosticEnabled);
@@ -5211,6 +5285,36 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
     } catch (_) {}
     _profilesLoaded = true;
+    // Jednorázová bezpečná migrace ResultDisplayMode z profilů do globálu:
+    // pouze pokud globál ještě neexistuje; staré hodnoty v profilech
+    // globální stav nikdy nepřepisují. Opakovatelná, bez ztráty dat.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!prefs.containsKey('resultDisplayMode')) {
+        var seeded = ResultDisplayMode.segment;
+        for (final p in _profiles) {
+          if (p.id == _activeProfileId &&
+              p.settings.resultDisplayMode != ResultDisplayMode.segment) {
+            seeded = p.settings.resultDisplayMode;
+            break;
+          }
+        }
+        // Pokud aktivní profil nemá non-segment, hledej napříč profily.
+        if (seeded == ResultDisplayMode.segment) {
+          for (final p in _profiles) {
+            if (p.settings.resultDisplayMode != ResultDisplayMode.segment) {
+              seeded = p.settings.resultDisplayMode;
+              break;
+            }
+          }
+        }
+        _globalResultDisplayMode = seeded;
+        await prefs.setString(
+          'resultDisplayMode',
+          _resultDisplayModeToString(seeded),
+        );
+      }
+    } catch (_) {}
     _applyActiveProfileToState();
     if (mounted) setState(() {});
     // aplikovat TTS
@@ -5724,7 +5828,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _history = prefs.getStringList('history') ?? []);
+    final raw = prefs.getStringList('history') ?? [];
+    final parsed = parseHistoryStrings(raw);
+    if (mounted) {
+      setState(() => _history = parsed);
+    } else {
+      _history = parsed;
+    }
   }
 
   Future<void> _loadStatsData() async {
@@ -5765,16 +5875,47 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _saveHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('history', _history);
+    await prefs.setStringList(
+      'history',
+      _history.map((e) => e.toStorageString()).toList(),
+    );
   }
 
-  void _addToHistory(String exp, String res) {
+  void _addToHistory(
+    String exp,
+    String res, {
+    SurdValue? exact,
+    double? numericValue,
+  }) {
     setState(() {
-      // Používáme oddělovač |, který se v matematických výrazech nevyskytuje
-      _history.insert(0, '$exp|$res');
+      _history.insert(
+        0,
+        CalculationHistoryEntry.fromSurd(
+          exp,
+          res,
+          surd: exact,
+          numericValue: numericValue,
+        ),
+      );
       if (_history.length > 20) _history.removeLast();
     });
     _saveHistory();
+  }
+
+  /// Vizuální výsledek záznamu podle globální volby historie.
+  /// Nové záznamy používají autoritativní exact; trySurdFromExpression()
+  /// pouze jako fallback pro starou historii (isLegacyExactUnknown).
+  String _historyDisplayResult(CalculationHistoryEntry e) {
+    if (_historyExactFormat == HistoryExactFormat.numeric) {
+      return e.numericResult;
+    }
+    final ex = e.exact;
+    if (ex != null) return formatSurd(ex);
+    if (e.isLegacyExactUnknown) {
+      final fb = trySurdFromExpression(e.expression);
+      if (fb != null) return formatSurd(fb);
+    }
+    return e.numericResult;
   }
 
   Future<void> _exportBackup() async {
@@ -5860,6 +6001,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         activeProfileId: _activeProfileId,
         themeMode: widget.themeMode,
         isDegreeMode: _isDegreeMode,
+        resultDisplayMode: _globalResultDisplayMode,
+        historyExactFormat: _historyExactFormat,
         defaultMode: _defaultMode,
         statsSummaryOrder: _statsSummaryOrder,
         statsComputedOrder: _statsComputedOrder,
@@ -5997,6 +6140,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() {
       _profiles = parsed.profiles;
       _activeProfileId = parsed.activeProfileId;
+      _globalResultDisplayMode = parsed.resultDisplayMode;
+      _historyExactFormat = parsed.historyExactFormat;
       _statsSummaryOrder = List<StatsSummarySection>.from(
         parsed.statsSummaryOrder,
       );
@@ -7377,7 +7522,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               _lastNumericValue = wmean;
             });
             speak(spoken, force: true);
-            _addToHistory('STATS($label)', resStr);
+            _addToHistory(
+              'STATS($label)',
+              resStr,
+              numericValue: wmean,
+            );
             return;
           }
 
@@ -7509,7 +7658,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = numericResult;
           });
           speak(spoken, force: true);
-          _addToHistory('STATS($label)', resStr);
+          _addToHistory(
+            'STATS($label)',
+            resStr,
+            numericValue: numericResult,
+          );
         } catch (e) {
           speak(
             _s('Chyba statistického výpočtu.', 'Statistics calculation error.'),
@@ -7714,7 +7867,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 .replaceAll('.', ','),
             force: true,
           );
-          _addToHistory(display, secStr);
+          _addToHistory(display, secStr, numericValue: sec.toDouble());
         } catch (e) {
           speak(_l10n.timeInvalidFormat, force: true);
         }
@@ -7740,7 +7893,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = v;
           });
           speak(_l10n.timeToHmsResult(v.round().toString(), hms), force: true);
-          _addToHistory(src, hms);
+          _addToHistory(src, hms, numericValue: v);
         } catch (e) {
           speak(_l10n.timeInvalidFormat, force: true);
         }
@@ -7895,7 +8048,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastNumericValue = percent;
       });
       speak(spoken, force: true);
-      _addToHistory('PCT($originalDisplay)', resStr);
+      _addToHistory(
+        'PCT($originalDisplay)',
+        resStr,
+        numericValue: percent,
+      );
     } catch (e) {
       speak(
         _s(
@@ -10970,7 +11127,39 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   void setResultDisplayModeForTest(ResultDisplayMode m) {
-    updateActiveAccessibilitySettings((s) => s.copyWith(resultDisplayMode: m));
+    setGlobalResultDisplayMode(m);
+  }
+
+  @visibleForTesting
+  ResultDisplayMode get resultDisplayModeForTest => _globalResultDisplayMode;
+
+  @visibleForTesting
+  HistoryExactFormat get historyExactFormatForTest => _historyExactFormat;
+
+  @visibleForTesting
+  void setHistoryExactFormatForTest(HistoryExactFormat f) {
+    setState(() => _historyExactFormat = f);
+  }
+
+  @visibleForTesting
+  List<CalculationHistoryEntry> get historyForTest =>
+      List.unmodifiable(_history);
+
+  @visibleForTesting
+  void addHistoryEntryForTest(CalculationHistoryEntry e) {
+    setState(() => _history.insert(0, e));
+  }
+
+  @visibleForTesting
+  void showHistoryDialogForTest() => _showHistoryDialog();
+
+  @visibleForTesting
+  Future<void> openEditorDialogForTest() {
+    return showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'editor-test'),
+      builder: (ctx) => _AccessibilityProfileEditorDialog(parent: this),
+    );
   }
 
   @visibleForTesting
@@ -11478,24 +11667,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     shrinkWrap: true,
                     itemCount: _history.length,
                     itemBuilder: (context, index) {
-                      String item = _history[index];
-                      String expression = item;
-                      String result = "";
-
-                      if (item.contains('|')) {
-                        List<String> parts = item.split('|');
-                        expression = parts[0];
-                        result = parts[1];
-                      } else if (item.contains('=')) {
-                        // Zpětná kompatibilita pro starý formát "exp = res"
-                        int eqIdx = item.lastIndexOf('=');
-                        expression = item.substring(0, eqIdx).trim();
-                        result = item.substring(eqIdx + 1).trim();
-                      }
+                      final entry = _history[index];
+                      final expression = entry.expression;
+                      // Vizuální výsledek podle globální volby; vkládání
+                      // vždy používá numerickou pravdu (nikdy "6√2").
+                      final displayResult = _historyDisplayResult(entry);
+                      final insertResult = entry.numericResult.isNotEmpty
+                          ? entry.numericResult
+                          : expression;
 
                       String semanticDescription = _s(
-                        "Výpočet: ${_spokenForDisplay(expression)}, výsledek: ${_spokenForDisplay(result)}. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
-                        "Calculation: ${_spokenForDisplay(expression)}, result: ${_spokenForDisplay(result)}. Tap to insert the result, hold to insert the whole calculation.",
+                        "Výpočet: ${_spokenForDisplay(expression)}, výsledek: ${_spokenForDisplay(displayResult)}. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
+                        "Calculation: ${_spokenForDisplay(expression)}, result: ${_spokenForDisplay(displayResult)}. Tap to insert the result, hold to insert the whole calculation.",
                       );
 
                       return Semantics(
@@ -11509,9 +11692,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               overlineThickness: _overlineThickness,
                               overlineHeight: _overlineHeight,
                             ),
-                            subtitle: result.isNotEmpty
+                            subtitle: displayResult.isNotEmpty
                                 ? _PeriodicText(
-                                    result,
+                                    displayResult,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
@@ -11521,9 +11704,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                     overlineHeight: _overlineHeight,
                                   )
                                 : null,
-                            onTap: () => _insertFromHistory(
-                              result.isNotEmpty ? result : expression,
-                            ),
+                            onTap: () => _insertFromHistory(insertResult),
                             onLongPress: () => _insertFromHistory(expression),
                           ),
                         ),

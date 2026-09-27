@@ -238,6 +238,10 @@ class AccessibilitySettings {
     );
   }
 
+  // resultDisplayMode je GLOBÁLNÍ nastavení aplikace (viz
+  // _CalculatorScreenState._globalResultDisplayMode). Do profilu se již
+  // nezapisuje; fromJson ho dál čte pouze pro jednorázovou migraci
+  // starých profilů. Runtime ho nikdy nesmí číst z profilu.
   Map<String, dynamic> toJson() => {
     'accessibilityType': accessibilityType.index,
     'screenReaderMode': screenReaderMode.index,
@@ -259,7 +263,6 @@ class AccessibilitySettings {
     'speechRate': speechRate,
     'speechVolume': speechVolume,
     'ttsEnabled': ttsEnabled,
-    'resultDisplayMode': resultDisplayMode.index,
     'ttsEngine': ttsEngine,
     'ttsVoice': ttsVoice,
     'ttsVoiceName': ttsVoiceName,
@@ -403,6 +406,146 @@ class AccessibilityProfile {
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,
     );
   }
+}
+
+// Globální volba zobrazení částečně odmocněných výsledků v historii.
+// numeric = vždy číselně (původní chování), exact = exaktně (6√2) pokud existuje.
+enum HistoryExactFormat { numeric, exact }
+
+// Jeden záznam historie výpočtů. Ukládá VÝHRADNĚ strukturovaná data,
+// nikdy předformátovaný text — vizuální tvar vzniká až při renderu
+// voláním formatSurd(). numericResult je zdrojem pravdy pro ANS,
+// vkládání i další výpočty; exact* je nullable metadata.
+class CalculationHistoryEntry {
+  final String expression;
+  final String numericResult;
+  final double? resultDouble;
+  final int? exactCoef;
+  final int? exactRadicand;
+  final int? exactIndex;
+
+  const CalculationHistoryEntry({
+    required this.expression,
+    required this.numericResult,
+    this.resultDouble,
+    this.exactCoef,
+    this.exactRadicand,
+    this.exactIndex,
+  });
+
+  /// Exaktní tvar jako SurdValue, nebo null pokud neexistuje.
+  SurdValue? get exact {
+    final c = exactCoef;
+    final r = exactRadicand;
+    final i = exactIndex;
+    if (c == null || r == null || i == null) return null;
+    return SurdValue(coefficient: c, radicand: r, index: i);
+  }
+
+  /// Nový záznam je autoritativní (exact explicitně rozhodnut).
+  /// Starý záznam (legacy exp|res) má resultDouble null a exact null —
+  /// pouze pro něj se smí použít trySurdFromExpression() jako fallback.
+  bool get isLegacyExactUnknown => resultDouble == null && exact == null;
+
+  factory CalculationHistoryEntry.fromSurd(
+    String expression,
+    String numericResult, {
+    SurdValue? surd,
+    double? numericValue,
+  }) {
+    return CalculationHistoryEntry(
+      expression: expression,
+      numericResult: numericResult,
+      resultDouble: numericValue,
+      exactCoef: surd?.coefficient,
+      exactRadicand: surd?.radicand,
+      exactIndex: surd?.index,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'v': 1,
+    'exp': expression,
+    'res': numericResult,
+    if (resultDouble != null) 'dbl': resultDouble,
+    if (exactCoef != null) 'c': exactCoef,
+    if (exactRadicand != null) 'r': exactRadicand,
+    if (exactIndex != null) 'i': exactIndex,
+  };
+
+  factory CalculationHistoryEntry.fromJson(Map<String, dynamic> json) {
+    int? asInt(dynamic v) =>
+        v is int ? v : (v is num ? v.toInt() : int.tryParse('$v'));
+    double? asDouble(dynamic v) =>
+        v is double ? v : (v is num ? v.toDouble() : double.tryParse('$v'));
+    return CalculationHistoryEntry(
+      expression: json['exp'] as String? ?? '',
+      numericResult: json['res'] as String? ?? '',
+      resultDouble: asDouble(json['dbl']),
+      exactCoef: asInt(json['c']),
+      exactRadicand: asInt(json['r']),
+      exactIndex: asInt(json['i']),
+    );
+  }
+
+  /// Serializace do StringList 'history': nový JSON tvar, jinak legacy.
+  String toStorageString() {
+    // Záznam s metadaty (nebo číselnou hodnotou) -> JSON; čistý
+    // textový záznam bez metadat -> legacy exp|res pro čitelnost zálohy.
+    if (resultDouble != null || exact != null) {
+      return jsonEncode(toJson());
+    }
+    return '$expression|$numericResult';
+  }
+
+  /// Zpětně kompatibilní čtení: JSON, legacy exp|res, staré exp=res.
+  factory CalculationHistoryEntry.fromStorageString(String raw) {
+    final t = raw.trim();
+    if (t.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(t);
+        if (decoded is Map<String, dynamic>) {
+          return CalculationHistoryEntry.fromJson(decoded);
+        }
+        if (decoded is Map) {
+          return CalculationHistoryEntry.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
+        }
+      } catch (_) {
+        // pád na legacy parse níže
+      }
+    }
+    if (t.contains('|')) {
+      final idx = t.indexOf('|');
+      return CalculationHistoryEntry(
+        expression: t.substring(0, idx),
+        numericResult: t.substring(idx + 1),
+      );
+    }
+    if (t.contains('=')) {
+      final idx = t.lastIndexOf('=');
+      return CalculationHistoryEntry(
+        expression: t.substring(0, idx).trim(),
+        numericResult: t.substring(idx + 1).trim(),
+      );
+    }
+    return CalculationHistoryEntry(expression: t, numericResult: '');
+  }
+}
+
+/// Čisté parsování persistované historie (nový JSON i legacy
+/// exp|res / exp=res). Vadný záznam nesmí shodit celou historii.
+List<CalculationHistoryEntry> parseHistoryStrings(List<String> raw) {
+  final parsed = <CalculationHistoryEntry>[];
+  for (final s in raw) {
+    try {
+      parsed.add(CalculationHistoryEntry.fromStorageString(s));
+    } catch (_) {
+      continue;
+    }
+  }
+  return parsed;
 }
 
 enum DisplayFormat { standard, fix, sci, eng }

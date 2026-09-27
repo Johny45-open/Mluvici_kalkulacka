@@ -87,14 +87,16 @@ void main() {
       expect(b.resultDisplayMode, ResultDisplayMode.text);
     });
 
-    test('JSON roundtrip pro všechny režimy', () {
+    test('fromJson čte legacy klíč (migrace), toJson ho nezapisuje', () {
       for (final m in ResultDisplayMode.values) {
-        final orig = AccessibilitySettings.defaultsStandard().copyWith(
-          resultDisplayMode: m,
-        );
-        final restored = AccessibilitySettings.fromJson(orig.toJson());
+        final restored = AccessibilitySettings.fromJson({
+          'resultDisplayMode': m.index,
+        });
         expect(restored.resultDisplayMode, m);
       }
+      // Nově uložený profil klíč neobsahuje (globál je jediný zdroj).
+      final fresh = AccessibilitySettings.defaultsStandard().toJson();
+      expect(fresh.containsKey('resultDisplayMode'), isFalse);
     });
 
     test('starý profil bez klíče a neznámá hodnota -> segment', () {
@@ -117,14 +119,12 @@ void main() {
     });
   });
 
-  group('config contract – export/import nového klíče', () {
+  group('config contract – globální klíče', () {
     Map<String, dynamic> contractWith(ResultDisplayMode m) {
       final profile = AccessibilityProfile(
         id: 'standard',
         name: 'Standard',
-        settings: AccessibilitySettings.defaultsStandard().copyWith(
-          resultDisplayMode: m,
-        ),
+        settings: AccessibilitySettings.defaultsStandard(),
         isBuiltIn: true,
       );
       return buildContractJson(
@@ -141,40 +141,48 @@ void main() {
         devAutoDiagnostic: false,
         devDiagnosticDurationMs: 700,
         devPinCode: null,
+        resultDisplayMode: m,
+        historyExactFormat: HistoryExactFormat.numeric,
       );
     }
 
-    test('roundtrip zachová text/auto/segment', () {
+    test('roundtrip zachová text/auto/segment v globalSettings', () {
       for (final m in ResultDisplayMode.values) {
         final raw =
             jsonDecode(jsonEncode(contractWith(m))) as Map<String, dynamic>;
         final parsed = parseContract(raw);
-        expect(parsed.profiles.single.settings.resultDisplayMode, m);
+        expect(parsed.resultDisplayMode, m);
       }
+      // Per-profil klíč se již nezapisuje.
+      final raw = contractWith(ResultDisplayMode.text);
+      expect(
+        (raw['profiles'] as List).first['settings'].containsKey(
+          'resultDisplayMode',
+        ),
+        isFalse,
+      );
     });
 
     test('validace: známé hodnoty projdou, neznámá je chyba', () {
       final ok = validateContract(contractWith(ResultDisplayMode.auto));
       expect(ok.ok, isTrue);
       final bad = contractWith(ResultDisplayMode.auto);
-      (bad['profiles'] as List).first['settings']['resultDisplayMode'] =
-          'krychle';
+      (bad['globalSettings'] as Map)['resultDisplayMode'] = 'krychle';
       final res = validateContract(bad);
       expect(res.ok, isFalse);
       expect(res.errors.any((e) => e.code == 'enum'), isTrue);
     });
 
-    test('validace: chybějící klíč (starý export) projde', () {
+    test('validace: chybějící globální klíč (starý export) projde', () {
       final c = contractWith(ResultDisplayMode.segment);
-      (c['profiles'] as List).first['settings'].remove('resultDisplayMode');
+      (c['globalSettings'] as Map).remove('resultDisplayMode');
+      (c['globalSettings'] as Map).remove('historyExactFormat');
       expect(validateContract(c).ok, isTrue);
       final parsed = parseContract(
         jsonDecode(jsonEncode(c)) as Map<String, dynamic>,
       );
-      expect(
-        parsed.profiles.single.settings.resultDisplayMode,
-        ResultDisplayMode.segment,
-      );
+      expect(parsed.resultDisplayMode, ResultDisplayMode.segment);
+      expect(parsed.historyExactFormat, HistoryExactFormat.numeric);
     });
   });
 
@@ -184,7 +192,7 @@ void main() {
     ) async {
       final state = await pumpApp(tester);
       expect(
-        state.activeAccessibilitySettings.resultDisplayMode,
+        state.resultDisplayModeForTest,
         ResultDisplayMode.segment,
       );
       state.setDisplayForTest('√(72)', 5);
@@ -309,41 +317,63 @@ void main() {
     });
   });
 
-  group('profile editor – Save/Cancel nového nastavení', () {
-    testWidgets('Cancel vrátí původní segment', (tester) async {
+  group('globální ResultDisplayMode – nezávislost na profilu', () {
+    testWidgets('změna platí po přepnutí profilu i pro vlastní profil', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
-      expect(state.startEditingForTest('standard'), isTrue);
-      state.updateEditingForTest(
-        (AccessibilitySettings s) =>
-            s.copyWith(resultDisplayMode: ResultDisplayMode.text),
-      );
+      state.setResultDisplayModeForTest(ResultDisplayMode.text);
       await tester.pump();
-      state.discardEditingForTest();
+      state.switchProfileForTest('blind');
       await tester.pump();
-      expect(
-        state.activeAccessibilitySettings.resultDisplayMode,
-        ResultDisplayMode.segment,
-      );
+      expect(state.resultDisplayModeForTest, ResultDisplayMode.text);
+      state.createProfileForTest('Vlastní', 'standard');
+      await tester.pump();
+      state.switchProfileForTest(state.profilesForTest.last.id);
+      await tester.pump();
+      expect(state.resultDisplayModeForTest, ResultDisplayMode.text);
     });
 
-    testWidgets('Save uloží draft (text) do aktivního profilu', (tester) async {
+    testWidgets('změna je zachována po restartu (SharedPreferences)', (
+      tester,
+    ) async {
+      var state = await pumpApp(tester);
+      // Nejprve počkej na dokončení startup migrace (jinak by přepsala save).
+      final prefs = await SharedPreferences.getInstance();
+      for (var i = 0; i < 100 && !prefs.containsKey('resultDisplayMode'); i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(state.profilesLoadedForTest, isTrue);
+      state.setResultDisplayModeForTest(ResultDisplayMode.auto);
+      // _saveGlobalSettings je async: počkej na persistenci klíče.
+      for (var i = 0; i < 100 && prefs.getString('resultDisplayMode') != 'auto'; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(prefs.getString('resultDisplayMode'), 'auto');
+      // Restart: znovu build BEZ resetu mock prefs (setMockInitialValues
+      // se nevolá) — druhá instance musí načíst 'auto'.
+      await tester.pumpWidget(
+        ScientificCalculatorApp(locale: const Locale('cs')),
+      );
+      await tester.pumpAndSettle();
+      state = tester.state(find.byType(CalculatorScreen)) as dynamic;
+      expect(state.resultDisplayModeForTest, ResultDisplayMode.auto);
+    });
+
+    testWidgets('nově uložený profil neobsahuje resultDisplayMode', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       expect(state.startEditingForTest('standard'), isTrue);
       state.updateEditingForTest(
-        (AccessibilitySettings s) =>
-            s.copyWith(resultDisplayMode: ResultDisplayMode.text),
+        (AccessibilitySettings s) => s.copyWith(speechRate: 0.9),
       );
       await tester.pump();
       expect(await state.saveEditingForTest(), isTrue);
       await tester.pump();
-      expect(
-        state.activeAccessibilitySettings.resultDisplayMode,
-        ResultDisplayMode.text,
-      );
-      // Persistováno do accessibility_profiles_v2 (text = index 1).
       final prefs = await SharedPreferences.getInstance();
       final v2 = prefs.getString('accessibility_profiles_v2') ?? '';
-      expect(v2, contains('"resultDisplayMode":1'));
+      expect(v2, isNot(contains('resultDisplayMode')));
     });
   });
 
