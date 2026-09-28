@@ -2276,6 +2276,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fraction not available for this result'**
   String get fractionUnavailable;
+
+  /// No description provided for @fractionViewStateOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Result display: decimal. Off'**
+  String get fractionViewStateOff;
+
+  /// No description provided for @fractionViewStateOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Result display: fraction. On'**
+  String get fractionViewStateOn;
+
+  /// No description provided for @fractionVisualOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraction: off'**
+  String get fractionVisualOff;
+
+  /// No description provided for @fractionVisualOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraction: on'**
+  String get fractionVisualOn;
 }
 
 class _AppLocalizationsDelegate

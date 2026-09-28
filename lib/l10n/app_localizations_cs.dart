@@ -1269,4 +1269,17 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get fractionUnavailable => 'Zlomek není pro tento výsledek dostupný';
+
+  @override
+  String get fractionViewStateOff =>
+      'Zobrazení výsledku: desetinné číslo. Vypnuto';
+
+  @override
+  String get fractionViewStateOn => 'Zobrazení výsledku: zlomek. Zapnuto';
+
+  @override
+  String get fractionVisualOff => 'Zlomek: vypnuto';
+
+  @override
+  String get fractionVisualOn => 'Zlomek: zapnuto';
 }
