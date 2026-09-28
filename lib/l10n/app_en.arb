@@ -807,5 +807,9 @@
       }
     }
   },
-  "fractionUnavailable": "Fraction not available for this result"
+  "fractionUnavailable": "Fraction not available for this result",
+  "fractionViewStateOff": "Result display: decimal. Off",
+  "fractionViewStateOn": "Result display: fraction. On",
+  "fractionVisualOff": "Fraction: off",
+  "fractionVisualOn": "Fraction: on"
 }

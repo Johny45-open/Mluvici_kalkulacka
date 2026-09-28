@@ -1274,4 +1274,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fractionUnavailable => 'Fraction not available for this result';
+
+  @override
+  String get fractionViewStateOff => 'Result display: decimal. Off';
+
+  @override
+  String get fractionViewStateOn => 'Result display: fraction. On';
+
+  @override
+  String get fractionVisualOff => 'Fraction: off';
+
+  @override
+  String get fractionVisualOn => 'Fraction: on';
 }

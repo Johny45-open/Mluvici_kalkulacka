@@ -4838,38 +4838,78 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return _buildStandardDisplay(text, fitScale: fitScale);
   }
 
-  // Prezentační přepínač DEC <-> a/b v horní ovládací oblasti výsledkového
-  // panelu (nikoli v 7×4 rastru klávesnice). Stabilní místo, plný význam
-  // v Semantics labelu (stav i akce bez použití barvy). Kompaktní výška,
-  // aby hlavička nezmenšovala displej na malých obrazovkách; šířka drží
-  // 48px cíl, výška splňuje WCAG 24px minimum. Nezpůsobilý výsledek:
-  // disabled + důvod, focus order se nemění.
+  // Samostatný řádek ovládání zobrazení výsledku DEC <-> a/b v hlavním
+  // vertikálním layoutu (displej -> tento řádek -> přepínač režimů ->
+  // vědecká stránka -> klávesnice). Není součástí displeje, jeho Stacku
+  // ani keypad_grid. Kompaktní výška (pouze padding tohoto řádku), aby
+  // se nic nerozbilo na malých displejích / vysokém zoomu.
+  Widget _buildFractionViewToggleRow() {
+    final s = _responsiveScale(context);
+    // Nulový vnější svislý padding: výšku řádku určuje pouze kompaktní
+    // tlačítko (viz _buildFractionToggle). I tak zůstává řádek stabilní
+    // a nerozbije malé displeje ani vysoký zoom.
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8 * s),
+      child: Center(child: _buildFractionToggle(s)),
+    );
+  }
+
+  // Prezentační přepínač DEC <-> a/b jako běžné tlačítko hlavního layoutu
+  // (nikoli overlay displeje ani součást 7×4 rastru klávesnice). Stabilní
+  // místo, plný význam v Semantics labelu (stav i akce bez použití barvy)
+  // + toggled příznak. Vizuální stav je textový ("Zlomek: zapnuto/vypnuto"),
+  // tedy rozlišitelný i bez barvy. Nezpůsobilý výsledek: disabled + důvod,
+  // focus order se nemění. Po aktivaci se fokus nepřesouvá (žádný
+  // _mainFocusNode.requestFocus), zůstává na tlačítku.
   Widget _buildFractionToggle(double s) {
     final bool eligible = _isFractionEligible;
     final bool active = _isFractionViewActive;
+    final String statePart = active
+        ? _l10n.fractionViewStateOn
+        : _l10n.fractionViewStateOff;
     final String semanticLabel = eligible
         ? (active
-              ? _l10n.fractionSwitchToDecimal
-              : _l10n.fractionSwitchToFraction)
-        : _l10n.fractionUnavailable;
+              ? '$statePart. ${_l10n.fractionSwitchToDecimal}'
+              : '$statePart. ${_l10n.fractionSwitchToFraction}')
+        : '$statePart. ${_l10n.fractionUnavailable}';
+    // Stabilní kompaktní výška i při vysokém systémovém zoomu: stejný
+    // izolační vzor jako přepínač režimů (noScaling + ruční sysFactor
+    // s horním stropem, aby se scaler nezapočítal dvakrát). Tlačítko má
+    // vždy výšku danou minimumSize a neroztáhne layout na malém displeji.
+    final sysFactor = MediaQuery.textScalerOf(
+      context,
+    ).scale(1.0).clamp(1.0, 1.6);
+    final toggleFontSize = (13.0 * s * sysFactor).clamp(12.0, 16.0);
     return Semantics(
       label: semanticLabel,
       button: true,
       enabled: eligible,
+      toggled: active,
       onTap: eligible ? toggleFractionResultView : null,
       child: ExcludeSemantics(
         child: TextButton(
           key: const ValueKey('fraction_toggle'),
           onPressed: eligible ? toggleFractionResultView : null,
           style: TextButton.styleFrom(
-            minimumSize: const Size(48, 32),
+            minimumSize: const Size(48, 28),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
             foregroundColor: Colors.redAccent,
           ),
-          child: Text(
-            active ? 'DEC' : 'a/b',
-            style: TextStyle(fontSize: 13 * s, fontWeight: FontWeight.bold),
+          child: MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.noScaling),
+            child: Text(
+              active ? _l10n.fractionVisualOn : _l10n.fractionVisualOff,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: toggleFontSize,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ),
       ),
@@ -11281,6 +11321,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? get fractionStringForTest => _fractionString;
 
   @visibleForTesting
+  String get fractionViewKeyForTest => _fractionViewKey;
+
+  @visibleForTesting
   String currentResultSpeechForTest() => _currentResultSpeech();
 
   @visibleForTesting
@@ -12679,8 +12722,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 final double totalHeight = constraints.maxHeight;
 
                 // Rozdělení zbývajícího prostoru mezi displej a klávesnici
-                // Na malých displejích dáme klávesnici víc prostoru
-                final double displayFlex = (totalHeight < 600) ? 1.0 : 1.5;
+                // Na malých displejích dáme klávesnici víc prostoru.
+                // Display 1.2 (místo 1.5): kompenzace samostatného řádku
+                // DEC<->a/b pod displejem, aby klávesnice ve všech režimech
+                // zůstala na stropu standardRowH a řádky byly stejně vysoké.
+                // Displej má auto-fit (zmenší obsah), klávesnice strop ne.
+                final double displayFlex = (totalHeight < 600) ? 1.0 : 1.2;
                 final double keyboardFlex = 3.0;
                 final double s = _responsiveScale(context);
                 if (_alignInputLeft) _scheduleInputAutoscroll();
@@ -12747,37 +12794,34 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             // a vše se přečte z tohoto Semantics widgetu. Textový matematický
                             // renderer je navíc v ExcludeSemantics, takže displej zůstává
                             // jeden logický prvek bez duplicitního čtení.
-                            // Hlavicka zustava geometricky stejna jako pred zmenou
-                            // (Align + mezera + Expanded). Prepinac zlomku je
-                            // v prekryvne vrstve (Stack/Positioned) nad pravym
-                            // hornim rohem: nezabira zadnou vysku layoutu,
-                            // takze ani na malych displejich nezmensuje
-                            // displej ani nevytvari overflow. Popisek zustava
-                            // jednoradkovy jako driv.
-                            child: Stack(
+                            // Displej je samostatny prvek hlavniho layoutu.
+                            // Ovladani zlomku (DEC <-> a/b) je presunuto do
+                            // _buildFractionViewToggleRow() pod displejem:
+                            // bez Stack/Positioned overlaye, s normalnim
+                            // focus order pro TalkBack/NVDA/klavesnici.
+                            // Popisek zustava jednoradkovy jako driv.
+                            child: Column(
                               children: [
-                                Column(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.topLeft,
-                                      child: Text(
-                                        _getModeName(
-                                          _currentMode,
-                                        ).toUpperCase(),
-                                        maxLines: 1,
-                                        softWrap: false,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: Colors.redAccent,
-                                          fontSize: 12 * s,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                Align(
+                                  alignment: Alignment.topLeft,
+                                  child: Text(
+                                    _getModeName(
+                                      _currentMode,
+                                    ).toUpperCase(),
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.redAccent,
+                                      fontSize: 12 * s,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    SizedBox(height: 4 * s),
-                                    Expanded(
-                                      child: LayoutBuilder(
-                                        builder: (context, displayConstraints) {
+                                  ),
+                                ),
+                                SizedBox(height: 4 * s),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, displayConstraints) {
                                           // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
                                           // Konstanty musí odpovídat _buildDotMatrixDisplay
                                           // (rozestup 1.15 × systémový faktor) a rezervě
@@ -12881,20 +12925,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                           return Center(child: content);
                                         },
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: _buildFractionToggle(s),
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
+                    // Ovládání zobrazení výsledku DEC <-> a/b: samostatný
+                    // prvek hlavního layoutu mimo displej i mimo keypad.
+                    _buildFractionViewToggleRow(),
                     // Přepínač režimů
                     _buildModeSelector(),
                     if (_currentMode == CalculatorMode.scientific) ...[

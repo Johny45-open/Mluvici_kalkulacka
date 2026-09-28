@@ -374,4 +374,258 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group('Fraction toggle – samostatny row mimo displej', () {
+    Semantics toggleSemantics(WidgetTester tester) {
+      final toggle = find.byKey(const ValueKey('fraction_toggle'));
+      final semFinder = find.ancestor(
+        of: toggle,
+        matching: find.byWidgetPredicate((w) {
+          if (w is! Semantics) return false;
+          final label = w.properties.label ?? '';
+          return label.isNotEmpty;
+        }),
+      );
+      expect(semFinder, findsOneWidget);
+      return tester.widget<Semantics>(semFinder.first);
+    }
+
+    Finder displayFinder() {
+      return find.descendant(
+        of: find.byType(CalculatorScreen),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is Semantics &&
+              (w.properties.label == 'Displej' ||
+                  w.properties.label == 'Display'),
+        ),
+      );
+    }
+
+    testWidgets('A. 0,5 (1/2) -> 1/2 a zapnuti zobrazi zlomek', (tester) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '1/2');
+      expect(state.fractionStringForTest, '1/2');
+      expect(state.fractionViewForTest, isFalse);
+      state.toggleFractionForTest();
+      await tester.pumpAndSettle();
+      expect(state.fractionViewForTest, isTrue);
+      expect(find.text('1/2'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('B. OFF->ON nemeni vysledek/ANS/historii', (tester) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '1/2');
+      final beforeResult = state.lastResultForTest as String;
+      final beforeNumeric = state.lastNumericForTest as double;
+      final beforeHistoryLen = (state.historyForTest as List).length;
+      state.toggleFractionForTest();
+      await tester.pumpAndSettle();
+      expect(state.fractionViewForTest, isTrue);
+      expect(state.lastResultForTest, beforeResult);
+      expect(state.lastNumericForTest, beforeNumeric);
+      expect((state.historyForTest as List).length, beforeHistoryLen);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('C. ON->OFF vrati desetinne zobrazeni', (tester) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '1/2');
+      state.toggleFractionForTest();
+      await tester.pumpAndSettle();
+      expect(state.fractionViewForTest, isTrue);
+      state.toggleFractionForTest();
+      await tester.pumpAndSettle();
+      expect(state.fractionViewForTest, isFalse);
+      expect(find.text('1/2'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('D. novy vysledek invaliduje stary pohled (klic)', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '3/4');
+      state.toggleFractionForTest();
+      await tester.pumpAndSettle();
+      expect(state.fractionViewForTest, isTrue);
+      expect(
+        state.fractionViewKeyForTest as String,
+        state.lastResultForTest as String,
+      );
+      await calculate(tester, state, '1/2');
+      expect(state.fractionViewForTest, isFalse);
+      expect(state.fractionStringForTest, '1/2');
+      // Stary klic zustal u predchoziho vysledku -> pohled zneplatnen.
+      expect(
+        state.fractionViewKeyForTest as String,
+        isNot(state.lastResultForTest as String),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('E. casovy vysledek neni zpusobily + duvod v Semantics', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      state.switchModeForTest(CalculatorMode.time);
+      await tester.pumpAndSettle();
+      await calculate(tester, state, '12:30');
+      expect(state.fractionEligibleForTest, isFalse);
+      expect(state.fractionViewForTest, isFalse);
+      final toggle = find.byKey(const ValueKey('fraction_toggle'));
+      expect(toggle, findsOneWidget);
+      expect(tester.widget<TextButton>(toggle).onPressed, isNull);
+      state.toggleFractionForTest();
+      await tester.pumpAndSettle();
+      expect(state.fractionViewForTest, isFalse);
+      final label = (toggleSemantics(tester).properties.label ?? '')
+          .toLowerCase();
+      expect(
+        label.contains('dostupn') || label.contains('not available'),
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('F. Semantics ma explicitni stav + toggled, nejen akci', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '1/2');
+      final off = toggleSemantics(tester);
+      final offLabel = (off.properties.label ?? '').toLowerCase();
+      expect(offLabel.contains('desetinn') || offLabel.contains('decimal'), isTrue);
+      expect(offLabel.contains('vypnuto') || offLabel.contains('. off'), isTrue);
+      expect(off.properties.toggled, isFalse);
+      state.toggleFractionForTest();
+      await tester.pumpAndSettle();
+      final on = toggleSemantics(tester);
+      final onLabel = (on.properties.label ?? '').toLowerCase();
+      expect(onLabel.contains('zlomek') || onLabel.contains('fraction'), isTrue);
+      expect(onLabel.contains('zapnuto') || onLabel.contains('. on'), isTrue);
+      expect(on.properties.toggled, isTrue);
+      // Neni to pouze akcni label bez stavu.
+      expect(
+        onLabel == 'přepnout na zlomek' ||
+            onLabel == 'přepnout na desetinný výsledek' ||
+            onLabel == 'switch to fraction' ||
+            onLabel == 'switch to decimal result',
+        isFalse,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('G. vizualni stav je textovy, ne pouze barva', (tester) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '1/2');
+      final toggle = find.byKey(const ValueKey('fraction_toggle'));
+      String visual() {
+        return tester
+            .widget<Text>(
+              find.descendant(of: toggle, matching: find.byType(Text)).first,
+            )
+            .data!;
+      }
+
+      final offText = visual();
+      expect(offText.contains('vypnuto') || offText.contains('off'), isTrue);
+      state.toggleFractionForTest();
+      await tester.pumpAndSettle();
+      final onText = visual();
+      expect(onText.contains('zapnuto') || onText.contains(': on'), isTrue);
+      expect(onText, isNot(offText));
+      expect(onText, isNot(anyOf(['a/b', 'DEC'])));
+      expect(offText, isNot(anyOf(['a/b', 'DEC'])));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('H. toggle neni v keypad_grid, 7x4 zustava', (tester) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '1/2');
+      final toggle = find.byKey(const ValueKey('fraction_toggle'));
+      expect(toggle, findsOneWidget);
+      expect(find.descendant(of: keypadGrid(), matching: toggle), findsNothing);
+      for (var r = 0; r < 7; r++) {
+        expect(keypadRow(r), findsOneWidget);
+        final row = tester.widget<Row>(keypadRow(r));
+        expect(row.children.whereType<Expanded>().length, 4);
+      }
+      expect(state, isNotNull);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('I. toggle neni potomek displeje ani Stack/Positioned', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '1/2');
+      final toggle = find.byKey(const ValueKey('fraction_toggle'));
+      expect(toggle, findsOneWidget);
+      expect(displayFinder(), findsOneWidget);
+      expect(find.descendant(of: displayFinder(), matching: toggle), findsNothing);
+      // Retez predku az po CalculatorScreen nesmi obsahovat Stack/Positioned.
+      final chain = <String>[];
+      tester.element(toggle).visitAncestorElements((e) {
+        chain.add(e.widget.runtimeType.toString());
+        return e.widget is! CalculatorScreen;
+      });
+      expect(chain.any((t) => t == 'Stack' || t == 'Positioned'), isFalse);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('J. poradi display < toggle < mode selector < keypad', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '1/2');
+      final toggle = find.byKey(const ValueKey('fraction_toggle'));
+      expect(toggle, findsOneWidget);
+      final displayBottom = tester.getBottomLeft(displayFinder()).dy;
+      final toggleTop = tester.getTopLeft(toggle).dy;
+      final toggleBottom = tester.getBottomLeft(toggle).dy;
+      expect(toggleTop, greaterThanOrEqualTo(displayBottom - 1.0));
+      final modeSel = find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            (w.properties.label == 'Přepínač režimů' ||
+                w.properties.label == 'Mode selector'),
+      );
+      expect(modeSel, findsOneWidget);
+      expect(
+        tester.getTopLeft(modeSel).dy,
+        greaterThanOrEqualTo(toggleBottom - 1.0),
+      );
+      expect(
+        tester.getTopLeft(keypadGrid()).dy,
+        greaterThanOrEqualTo(toggleBottom - 1.0),
+      );
+      expect(state, isNotNull);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('K. toggle je focusovatelny a jde aktivovat klavesnici', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '1/2');
+      final toggle = find.byKey(const ValueKey('fraction_toggle'));
+      expect(toggle, findsOneWidget);
+      // Nejblizsi Focus vnitrniho Textu je interni fokus samotneho tlacitka.
+      final inner = find
+          .descendant(of: toggle, matching: find.byType(Text))
+          .first;
+      final FocusNode node = Focus.of(tester.element(inner));
+      node.requestFocus();
+      await tester.pumpAndSettle();
+      expect(node.hasFocus, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(state.fractionViewForTest, isTrue);
+      // Fokus po aktivaci zustal na toggle, neutekl do displeje.
+      expect(node.hasFocus, isTrue);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

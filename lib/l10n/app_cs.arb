@@ -879,5 +879,9 @@
       }
     }
   },
-  "fractionUnavailable": "Zlomek není pro tento výsledek dostupný"
+  "fractionUnavailable": "Zlomek není pro tento výsledek dostupný",
+  "fractionViewStateOff": "Zobrazení výsledku: desetinné číslo. Vypnuto",
+  "fractionViewStateOn": "Zobrazení výsledku: zlomek. Zapnuto",
+  "fractionVisualOff": "Zlomek: vypnuto",
+  "fractionVisualOn": "Zlomek: zapnuto"
 }
