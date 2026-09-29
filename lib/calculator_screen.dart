@@ -62,6 +62,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return _lastResult.isEmpty ? '0.' : _lastResult;
   }
 
+  // Aktivní reprezentace výsledku mimo zlomkový pohled podle skutečně
+  // zvoleného ResultDisplayMode. Jediná mode-aware pravda pro displej
+  // i hlas: text -> surd pokud validní, auto -> surd pokud validní,
+  // segment -> vždy numerika. Nemění _lastResult/_lastNumericValue/
+  // _lastExact/_lastExactKey, nic nepřepočítává, neřeší TTS ani focus.
+  // Fraction view má vyšší prioritu a řeší se v místě použití.
+  String _activeResultString() {
+    switch (_globalResultDisplayMode) {
+      case ResultDisplayMode.text:
+        return _displayedResultString;
+      case ResultDisplayMode.auto:
+        if (_lastExact is SurdValue && _lastExactKey == _lastResult) {
+          return _displayedResultString;
+        }
+        return _lastResult.isEmpty ? '0.' : _lastResult;
+      case ResultDisplayMode.segment:
+        return _lastResult.isEmpty ? '0.' : _lastResult;
+    }
+  }
+
   // Stack pozic '(' vložených tlačítkem NEG (±) – pro auto-uzavření
   final List<int> _pendingNegOpens = [];
   CalculatorMode _currentMode = CalculatorMode.scientific;
@@ -109,9 +129,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _profilesLoaded = false;
 
   // --- Globální nastavení vzhledu (nezávislé na profilu) ---
-  // Jediný runtime source of truth pro výsledkový displej i historii.
-  // Profily ho nikdy nečtou ani nezapisují (pouze jednorázová migrace).
+  // Jediný runtime source of truth pro výsledkový displej i historii
+  // je _globalResultDisplayMode. Profily ho nikdy nečtou ani nezapisují
+  // (pouze jednorázová migrace).
   ResultDisplayMode _globalResultDisplayMode = ResultDisplayMode.segment;
+  // Legacy persistovaný údaj (persistence/contract/UI zachováno pro zpětnou
+  // kompatibilitu). Není zdrojem pravdy pro aktivní renderer — aktivní
+  // vykreslování historie řídí výhradně _globalResultDisplayMode.
   HistoryExactFormat _historyExactFormat = HistoryExactFormat.numeric;
 
   // --- Editing draft (oddělení aktivace × editace) ---
@@ -4502,7 +4526,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   // Řeč aktuálního výsledku pro Semantics.value a onTap: zlomek při
-  // aktivním pohledu, jinak dosavadní numerická podoba.
+  // aktivním pohledu, jinak reprezentace podle skutečně zvoleného
+  // ResultDisplayMode (segment -> numerika, text/auto -> surd pokud validní).
   String _currentResultSpeech() {
     if (_isFractionViewActive) {
       final v = _lastNumericValue;
@@ -4511,7 +4536,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final s = _fractionString;
       if (s != null) return s.replaceAll('/', _s(' lomeno ', ' over '));
     }
-    return _spokenForDisplay(_displayedResultString);
+    return _spokenForDisplay(_activeResultString());
   }
 
   // Prezentační přepínač DEC <-> a/b. Nemění _lastResult, _lastNumericValue,
@@ -4542,9 +4567,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         );
       }
     } else {
-      final v = _lastNumericValue;
-      final spoken = v == null ? fracStr : _formatSpokenNumber(v);
-      say(_l10n.decimalResultAnnounced(spoken));
+      // Návrat ze zlomkového pohledu: oznámit reprezentaci, která je po
+      // vypnutí skutečně aktivní podle ResultDisplayMode (segment ->
+      // numerika, text/auto -> surd pokud validní). Neměnit _lastResult,
+      // _lastNumericValue, _lastExact ani _lastExactKey.
+      final active = _activeResultString();
+      say(_l10n.resultIs(_spokenForDisplay(active)));
     }
   }
 
@@ -4720,11 +4748,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String res = _lastResult.isEmpty ? '0.' : _lastResult;
     // Nový režim vzhledu výsledku (default segment = původní chování).
     // Error zůstává vždy na segmentovém rendereru (CHYBA/Err mapování).
+    // Aktivní reprezentaci určuje _activeResultString(); fraction view výše.
     if (res.toLowerCase() != 'error') {
       final mode = _resultDisplayMode;
       if (mode == ResultDisplayMode.text) {
         return _buildMathTextDisplay(
-          _displayedResultString,
+          _activeResultString(),
           fitScale: fitScale,
         );
       }
@@ -4735,7 +4764,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             : const NumericValue(0);
         if (chooseDisplayRenderer(value, res) == CalcDisplayKind.mathText) {
           return _buildMathTextDisplay(
-            _displayedResultString,
+            _activeResultString(),
             fitScale: fitScale,
           );
         }
@@ -6064,20 +6093,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _saveHistory();
   }
 
-  /// Vizuální výsledek záznamu podle globální volby historie.
-  /// Nové záznamy používají autoritativní exact; trySurdFromExpression()
+  /// Vizuální výsledek záznamu podle globálního ResultDisplayMode
+  /// (jediná autorita pro aktivní vykreslování historie).
+  /// Nové záznamy používají autoritativní e.exact; trySurdFromExpression()
   /// pouze jako fallback pro starou historii (isLegacyExactUnknown).
+  /// _historyExactFormat je legacy persistovaný údaj a aktivní renderer
+  /// ho nečte.
   String _historyDisplayResult(CalculationHistoryEntry e) {
-    if (_historyExactFormat == HistoryExactFormat.numeric) {
-      return e.numericResult;
+    switch (_globalResultDisplayMode) {
+      case ResultDisplayMode.segment:
+        return e.numericResult;
+      case ResultDisplayMode.text:
+      case ResultDisplayMode.auto:
+        final ex = e.exact;
+        if (ex != null) return formatSurd(ex);
+        if (e.isLegacyExactUnknown) {
+          final fb = trySurdFromExpression(e.expression);
+          if (fb != null) return formatSurd(fb);
+        }
+        return e.numericResult;
     }
-    final ex = e.exact;
-    if (ex != null) return formatSurd(ex);
-    if (e.isLegacyExactUnknown) {
-      final fb = trySurdFromExpression(e.expression);
-      if (fb != null) return formatSurd(fb);
-    }
-    return e.numericResult;
   }
 
   Future<void> _exportBackup() async {
@@ -11301,6 +11336,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   String get displayedResultForTest => _displayedResultString;
+
+  @visibleForTesting
+  String activeResultForTest() => _activeResultString();
 
   @visibleForTesting
   CalcValue? get lastExactForTest =>

@@ -110,7 +110,7 @@ void main() {
   });
 
   group('B) historie – exact vs numeric, legacy kompatibilita', () {
-    testWidgets('exact režim zobrazí 6√2, numeric režim číselně', (
+    testWidgets('text režim zobrazí 6√2, segment režim číselně', (
       tester,
     ) async {
       final state = await pumpApp(tester);
@@ -119,18 +119,21 @@ void main() {
       state.calculateForTest();
       await tester.pumpAndSettle();
 
-      state.setHistoryExactFormatForTest(HistoryExactFormat.exact);
+      // Aktivní renderer je ResultDisplayMode (HistoryExactFormat je legacy
+      // a renderer ho nečte).
+      state.setResultDisplayModeForTest(ResultDisplayMode.text);
       await tester.pump();
       state.showHistoryDialogForTest();
       await tester.pumpAndSettle();
-      expect(find.text('6√2'), findsOneWidget);
+      // Hlavní displej (text) i historie ukazují 6√2.
+      expect(find.text('6√2'), findsWidgets);
       final closeFinder = find.text('ZAVŘÍT').evaluate().isNotEmpty
           ? find.text('ZAVŘÍT')
           : find.text('CLOSE');
       await tester.tap(closeFinder.first);
       await tester.pumpAndSettle();
 
-      state.setHistoryExactFormatForTest(HistoryExactFormat.numeric);
+      state.setResultDisplayModeForTest(ResultDisplayMode.segment);
       await tester.pump();
       state.showHistoryDialogForTest();
       await tester.pumpAndSettle();
@@ -167,7 +170,7 @@ void main() {
       expect(history[0].numericResult, '8,485281');
       expect(history[0].exact, isNull);
 
-      state.setHistoryExactFormatForTest(HistoryExactFormat.exact);
+      state.setResultDisplayModeForTest(ResultDisplayMode.text);
       await tester.pump();
       state.showHistoryDialogForTest();
       await tester.pumpAndSettle();
@@ -184,7 +187,7 @@ void main() {
       final state = await pumpApp(tester);
       seedLegacyHistory(state);
       await tester.pump();
-      state.setHistoryExactFormatForTest(HistoryExactFormat.exact);
+      state.setResultDisplayModeForTest(ResultDisplayMode.text);
       await tester.pump();
       state.showHistoryDialogForTest();
       await tester.pumpAndSettle();
@@ -203,7 +206,7 @@ void main() {
       final state = await pumpApp(tester);
       seedLegacyHistory(state);
       await tester.pump();
-      state.setHistoryExactFormatForTest(HistoryExactFormat.exact);
+      state.setResultDisplayModeForTest(ResultDisplayMode.text);
       await tester.pump();
       state.showHistoryDialogForTest();
       await tester.pumpAndSettle();

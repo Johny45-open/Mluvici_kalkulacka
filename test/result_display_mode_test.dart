@@ -293,7 +293,7 @@ void main() {
       expect(dups, findsNothing);
     });
 
-    testWidgets('segment + surd: displej numerický, čtečka slovní', (
+    testWidgets('segment + surd: displej i čtečka numericky (sjednocený kontrakt)', (
       tester,
     ) async {
       final state = await pumpApp(tester);
@@ -303,11 +303,12 @@ void main() {
       await tester.pumpAndSettle();
       // Vzhled beze změny: žádný surd text na displeji.
       expect(find.text('6√2'), findsNothing);
-      // Hlas ale popisuje matematickou pravdu slovně (stejně jako TTS
-      // po rovná se), právě jednou.
+      // ZÁMĚRNÁ ZMĚNA kontraktu (surd hlasová oprava): hlas odpovídá
+      // skutečně aktivní reprezentaci, tedy v segmentu numerice —
+      // surd se hlasově nevnucuje. Surd-slovně čte jen text/auto.
       final outer = outerDisplaySemantics(tester);
       final val = outer.properties.value ?? '';
-      expect(val.contains('odmocnina') || val.contains('root'), isTrue);
+      expect(val.contains('odmocnina') || val.contains('root'), isFalse);
       final dups = find.byWidgetPredicate((w) {
         if (w is! Semantics || w == outer) return false;
         final v = w.properties.value ?? '';
