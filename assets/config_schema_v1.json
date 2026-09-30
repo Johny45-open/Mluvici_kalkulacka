@@ -116,6 +116,8 @@
         "themeMode": { "type": "string", "enum": ["light", "dark"] },
         "isDegreeMode": { "type": "boolean" },
         "defaultMode": { "type": "string", "enum": ["basic", "scientific", "statistics", "electrician", "unitConversion", "time", "currency"] },
+        "resultDisplayMode": { "type": "string", "enum": ["segment", "text", "auto"] },
+        "historyExactFormat": { "type": "string", "enum": ["numeric", "exact"] },
         "statsSummaryOrder": {
           "type": "array",
           "minItems": 3,

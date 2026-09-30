@@ -55,9 +55,7 @@ void main() {
   }
 
   group('Accessibility profiles v2', () {
-    testWidgets('A) fresh start offers Blind / Low vision choice', (
-      tester,
-    ) async {
+    testWidgets('A) fresh start offers Quick Setup presets', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
@@ -67,76 +65,83 @@ void main() {
       // v2 is auto-created on first load
       expect(prefs.containsKey('accessibility_profiles_v2'), isTrue);
       expect(prefs.getString('activeProfileId'), isNotNull);
-      state.showInitialAccessibilityDialogForTest();
+      state.showQuickSetupDialogForTest();
       await tester.pumpAndSettle();
-      expect(find.text('BLIND'), findsOneWidget);
-      expect(find.text('LOW VISION'), findsOneWidget);
+      expect(find.text('Quick calculator setup'), findsOneWidget);
+      expect(find.text('Blind'), findsWidgets);
+      expect(find.text('Low vision'), findsWidgets);
+      expect(find.text('Apply settings'), findsOneWidget);
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('B) choosing Blind saves v2 and announces', (tester) async {
+    testWidgets('B) Quick Setup blind preset saves into active profile', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
       });
       mockChannels();
       final state = await pumpApp(tester);
-      state.showInitialAccessibilityDialogForTest();
+      state.showQuickSetupDialogForTest();
       await tester.pumpAndSettle();
-      await tester.tap(find.text('BLIND'));
+      await tester.tap(find.text('Blind').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Apply settings'));
       await tester.pump(const Duration(milliseconds: 500));
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('activeProfileId'), 'blind');
+      final activeId = prefs.getString('activeProfileId');
+      expect(activeId, isNotNull);
       final v2 = prefs.getString('accessibility_profiles_v2');
       expect(v2, isNotNull);
       final decoded = jsonDecode(v2!) as List;
-      expect(decoded.any((e) => (e as Map)['id'] == 'blind'), isTrue);
+      final active =
+          (decoded.firstWhere(
+                    (e) => (e as Map)['id'] == activeId,
+                  )
+                  as Map)['settings']
+              as Map;
+      expect(active['accessibilityType'], AccessibilityType.blind.index);
       expect(state.ttsEnabled, isTrue);
-      expect(
-        find.byWidgetPredicate(
-          (w) =>
-              w is Text &&
-              (w.data ?? '').contains('Accessibility mode Blind has been set'),
-        ),
-        findsWidgets,
-      );
       await tester.pumpAndSettle();
     });
 
     testWidgets(
-      'C) restart keeps Blind; D) change to Low vision via dialog; E) restart keeps Low vision',
+      'C) restart keeps settings; D) change via Quick Setup; E) restart keeps',
       (tester) async {
         SharedPreferences.setMockInitialValues(<String, Object>{
           'modeQuestionAsked': true,
         });
         mockChannels();
         dynamic state = await pumpApp(tester);
-        state.showInitialAccessibilityDialogForTest();
+        state.showQuickSetupDialogForTest();
         await tester.pumpAndSettle();
-        await tester.tap(find.text('BLIND'));
+        await tester.tap(find.text('Blind').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Apply settings'));
         await tester.pumpAndSettle();
 
         // C restart
         await tester.pumpWidget(const ScientificCalculatorApp());
         await tester.pumpAndSettle();
         var prefs = await SharedPreferences.getInstance();
-        expect(prefs.getString('activeProfileId'), 'blind');
         state = tester.state(find.byType(CalculatorScreen)) as dynamic;
-        expect(state.displayAccessibilityTypeForTest, AccessibilityType.blind);
+        expect(
+          state.displayAccessibilityTypeForTest,
+          AccessibilityType.blind,
+        );
 
-        // D: změna v dialogu – nový UI: přímé tlačítka profilů bez preview
+        // D: změna přes Quick Setup na low-vision preset
         tester.view.physicalSize = const Size(800, 1280);
         await tester.pumpAndSettle();
-        state.showAccessibilityDialogForTest();
+        state.showQuickSetupDialogForTest();
         await tester.pumpAndSettle();
-        expect(find.text('Accessibility profile'), findsOneWidget);
-        // Najdi tlačítko Low vision uvnitř dialogu (English)
-        await tester.tap(find.text('Low vision'));
+        expect(find.text('Quick calculator setup'), findsOneWidget);
+        await tester.tap(find.text('Low vision').first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Activate'));
+        await tester.tap(find.text('Apply settings'));
         await tester.pumpAndSettle();
-        // Nyní již bez Preview – rovnou se aplikuje
         prefs = await SharedPreferences.getInstance();
-        expect(prefs.getString('activeProfileId'), 'lowvision');
+        state = tester.state(find.byType(CalculatorScreen)) as dynamic;
         // ověř per-profile hodnoty
         expect(state.keyboardFontScaleForTest, 1.75);
 
@@ -146,7 +151,7 @@ void main() {
         await tester.pumpWidget(const ScientificCalculatorApp());
         await tester.pumpAndSettle();
         prefs = await SharedPreferences.getInstance();
-        expect(prefs.getString('activeProfileId'), 'lowvision');
+        expect(prefs.getString('accessibility_profiles_v2'), isNotNull);
         state = tester.state(find.byType(CalculatorScreen)) as dynamic;
         expect(
           state.displayAccessibilityTypeForTest,

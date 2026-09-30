@@ -116,6 +116,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   final bool _sayWelcome = true;
   bool _welcomeAnnounced = false;
   final Completer<bool> _ttsReady = Completer<bool>();
+  // Dokončeno po načtení globálů + profilů (před stats/TTS). Startup draft
+  // smí číst runtime stav teprve po tomto markeru, nikdy dřív.
+  final Completer<void> _configLoaded = Completer<void>();
+  void _markConfigLoaded() {
+    if (!_configLoaded.isCompleted) _configLoaded.complete();
+  }
   Future<void> get _waitForTtsReady async {
     if (_ttsReady.isCompleted) return;
     try {
@@ -465,13 +471,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void setGlobalResultDisplayMode(ResultDisplayMode m) {
     if (_globalResultDisplayMode == m) return;
     setState(() => _globalResultDisplayMode = m);
-    _saveGlobalSettings();
+    unawaited(_saveGlobalSettings());
   }
 
   void setHistoryExactFormat(HistoryExactFormat f) {
     if (_historyExactFormat == f) return;
     setState(() => _historyExactFormat = f);
-    _saveGlobalSettings();
+    unawaited(_saveGlobalSettings());
   }
 
   String _resultDisplayModeName(ResultDisplayMode m) {
@@ -2423,6 +2429,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _refreshAccessibilityState();
     _initTts();
     _initAppVersion();
+    // Jednotný Quick Setup: plánování nezávislé na stats/TTS načítání,
+    // aby visící I/O nemohlo zablokovat onboarding. Draft se staví až po
+    // dokončení _configLoaded (globály + profily), viz _maybeShowQuickSetup.
+    final setupDelay = _sayWelcome
+        ? const Duration(milliseconds: 2200)
+        : const Duration(milliseconds: 1000);
+    // Timer (místo Future.delayed): lze zrušit v dispose, aby testy
+    // nekončily s pending timerem. _quickSetupShown navíc brání duplicitě.
+    _quickSetupTimer = Timer(setupDelay, () async {
+      if (mounted) await _maybeShowQuickSetup();
+    });
     _dialogFontScaleNotifier.value = _dialogFontScale;
     _readingOrderFocusNode.addListener(() {
       if (mounted) setState(() {});
@@ -2538,6 +2555,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _quickSetupTimer?.cancel();
     _devTapTimer?.cancel();
     _voiceCreationSession?.dispose();
     _mainFocusNode.dispose();
@@ -2708,6 +2726,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } catch (e) {
         debugPrint('Profiles preload Error: $e');
       }
+      // Konfigurace (globály + profily) je načtena – uvolni startup draft.
+      // Schválně PŘED stats/TTS, aby jejich visící I/O neblokovalo onboarding.
+      _markConfigLoaded();
       // 2. Data potřebná pro startupové oznámení – zejména statistické sady.
       //    Musí být načtena PŘED sestavením uvítací zprávy, jinak by
       //    _statsModeAnnouncement() vidělo prázdný seznam a sada/pole by
@@ -2858,22 +2879,230 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (!_ttsReady.isCompleted) {
         _ttsReady.complete(ttsReadySuccess);
       }
+      // Pojistka: startup draft nesmí čekat věčně, ani kdyby selhalo
+      // samotné načtení konfigurace.
+      _markConfigLoaded();
     }
-    final initialDialogDelay = _sayWelcome
-        ? const Duration(milliseconds: 2200)
-        : const Duration(milliseconds: 1000);
-    Future.delayed(initialDialogDelay, () async {
+  }
+
+  /// Jediný startup flow rychlého nastavení. Nahrazuje předchozí dva
+  /// nezávislé povinné dialogy (_showInitialAccessibilityDialog +
+  /// _showInitialModeDialog). Nezobrazí se nikdy dvakrát po sobě a pro
+  /// staré validní instalace se neptá vůbec (migrace markeru).
+  bool _quickSetupShown = false;
+  Timer? _quickSetupTimer;
+
+  Future<void> _maybeShowQuickSetup() async {
+    if (_quickSetupShown || !mounted) return;
+    _quickSetupShown = true;
+    // Draft se smí stavět teprve z načtené konfigurace (globály + profily),
+    // jinak by Apply přepsal skutečnou konfiguraci výchozími hodnotami.
+    try {
+      await _configLoaded.future.timeout(const Duration(seconds: 10));
+    } catch (_) {
+      return;
+    }
+    if (!mounted) return;
+    bool firstRun;
+    try {
       final prefs = await SharedPreferences.getInstance();
-      if (!prefs.containsKey('accessibility_profiles_v2') &&
-          !prefs.containsKey('activeProfileId')) {
-        _showInitialAccessibilityDialog();
+      firstRun = await isQuickSetupFirstRun(prefs);
+    } catch (_) {
+      return;
+    }
+    if (!firstRun || !mounted) return;
+    final draft = QuickSetupDraft.fromRuntime(
+      settings: _getActiveAccessibilityProfile().settings,
+      themeMode: widget.themeMode,
+      isDegreeMode: _isDegreeMode,
+      defaultMode: _defaultMode,
+      resultDisplayMode: _globalResultDisplayMode,
+    );
+    await showAppDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      routeSettings: const RouteSettings(name: 'Rychlé nastavení'),
+      builder: (dialogContext) => QuickSetupDialog(
+        initialDraft: draft,
+        availableVoices: _loadAvailableVoices(),
+        tr: _s,
+        isFirstRun: true,
+        announce: (msg) => say(msg, dialogContext),
+        onCancel: () => _cancelQuickSetup(dialogContext),
+        onApply: (next) => _applyQuickSetup(next, dialogContext),
+      ),
+    );
+  }
+
+  /// Ruční otevření rychlého nastavení z menu (nepovinné, zavíratelné).
+  void _openQuickSetupManually() {
+    final draft = QuickSetupDraft.fromRuntime(
+      settings: _getActiveAccessibilityProfile().settings,
+      themeMode: widget.themeMode,
+      isDegreeMode: _isDegreeMode,
+      defaultMode: _defaultMode,
+      resultDisplayMode: _globalResultDisplayMode,
+    );
+    showAppDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      routeSettings: const RouteSettings(name: 'Rychlé nastavení'),
+      builder: (dialogContext) => QuickSetupDialog(
+        initialDraft: draft,
+        availableVoices: _loadAvailableVoices(),
+        tr: _s,
+        isFirstRun: false,
+        announce: (msg) => say(msg, dialogContext),
+        onCancel: () => Navigator.of(dialogContext).pop(),
+        onApply: (next) => _applyQuickSetup(next, dialogContext),
+      ),
+    );
+  }
+
+  /// Normalizovaný seznam dostupných TTS hlasů. Nikdy nevyhodí.
+  Future<List<Map<String, String>>> _loadAvailableVoices() async {
+    try {
+      final raw = await tts.getVoices;
+      if (raw == null) return [];
+      final out = <Map<String, String>>[];
+      for (final v in raw) {
+        final norm = normalizeVoiceMap(
+          v is Map ? Map<String, dynamic>.from(v as Map) : v,
+        );
+        if (norm != null) out.add(norm);
       }
-      if (!prefs.containsKey('modeQuestionAsked')) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) _showInitialModeDialog();
-        });
+      return out;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Storno: NESMÍ změnit settings/profiles/globals/theme/contract.
+  /// Smí pouze uložit `quickSetupCompleted = true`.
+  Future<void> _cancelQuickSetup(BuildContext dialogContext) async {
+    Navigator.of(dialogContext).pop();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await markQuickSetupSeen(prefs);
+    } catch (_) {}
+  }
+
+  /// Apply: draft → validate → canonical snapshot → persist → teprve pak
+  /// runtime apply → completion marker. Při chybě persistu se runtime
+  /// NESMÍ změnit a marker se NESMÍ nastavit.
+  Future<void> _applyQuickSetup(
+    QuickSetupDraft draft,
+    BuildContext dialogContext,
+  ) async {
+    // Voice resolution proti skutečně dostupným hlasům zařízení.
+    QuickSetupDraft effective = draft;
+    try {
+      final available = await _loadAvailableVoices();
+      final requested = draft.settings.ttsVoice;
+      if (requested != null) {
+        final resolved = resolveVoice(requested, available);
+        if (resolved == null) {
+          effective = draft.copyWith(
+            settings: draft.settings.copyWith(
+              clearTtsVoice: true,
+              clearTtsVoiceName: true,
+            ),
+          );
+        } else if (resolved['name'] != requested['name'] ||
+            resolved['locale'] != requested['locale']) {
+          effective = draft.copyWith(
+            settings: draft.settings.copyWith(
+              ttsVoice: resolved,
+              ttsVoiceName: resolved['name'],
+            ),
+          );
+        }
       }
+    } catch (_) {}
+    // Canonical snapshot + validace.
+    late Map<String, dynamic> contract;
+    try {
+      contract = buildQuickSetupContract(
+        draft: effective,
+        profiles: _profiles,
+        activeProfileId: _activeProfileId,
+        statsSummaryOrder: _statsSummaryOrder,
+        statsComputedOrder: _statsComputedOrder,
+        currencyFrom: _currencyFrom,
+        currencyTo: _currencyTo,
+        devEnabled: _devModeEnabled,
+        devAutoDiagnostic: _devAutoDiagnosticEnabled,
+        devDiagnosticDurationMs: _devDiagnosticDurationMs,
+        devPinCode: _devPinCode,
+        historyExactFormat: _historyExactFormat,
+      );
+      final vr = validateQuickSetupContract(contract);
+      if (!vr.ok) throw StateError('Neplatná konfigurace rychlého nastavení');
+    } catch (e) {
+      debugPrint('QuickSetup build/validate Error: $e');
+      if (mounted) {
+        _showAccessibleSnackBar(
+          _s(
+            'Rychlé nastavení se nepodařilo připravit',
+            'Quick setup could not be prepared',
+          ),
+        );
+      }
+      return;
+    }
+    // Persist PŘED jakoukoli změnou runtime.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await persistCanonicalContract(prefs, contract);
+    } catch (e) {
+      debugPrint('QuickSetup persist Error: $e');
+      if (mounted) {
+        _showAccessibleSnackBar(
+          _s(
+            'Nastavení se nepodařilo uložit, původní konfigurace zůstává',
+            'Settings could not be saved, previous configuration kept',
+          ),
+        );
+      }
+      return;
+    }
+    // Teprve po úspěšné persistenci: runtime apply.
+    final parsed = parseContract(contract);
+    if (!mounted) return;
+    setState(() {
+      _profiles = parsed.profiles;
+      _activeProfileId = parsed.activeProfileId;
+      _globalResultDisplayMode = parsed.resultDisplayMode;
+      _isDegreeMode = parsed.isDegreeMode;
+      _defaultMode = parsed.defaultMode;
+      _currentMode = parsed.defaultMode;
     });
+    widget.onThemeModeChanged(parsed.themeMode);
+    final activeSettings = _getActiveAccessibilityProfile().settings;
+    _applySettingsToRuntime(activeSettings);
+    // Hlas s fallbackem: selhání setVoice nesmí shodit apply.
+    try {
+      if (activeSettings.ttsVoice != null) {
+        await tts.setVoice(activeSettings.ttsVoice!);
+      } else {
+        await tts.clearVoice();
+      }
+    } catch (_) {
+      try {
+        await tts.clearVoice();
+      } catch (_) {}
+    }
+    _dialogFontScaleNotifier.value = activeSettings.dialogFontScale;
+    if (mounted) setState(() {});
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await markQuickSetupSeen(prefs);
+    } catch (_) {}
+    Navigator.of(dialogContext).pop();
+    say(
+      _s('Nastavení použito', 'Settings applied'),
+      dialogContext,
+    );
   }
 
   /// Startupové uvítání – doručí se právě jednou, až po prvním vykreslení.
@@ -2929,61 +3158,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         await tts.awaitSpeakCompletion(false);
       } catch (_) {}
     }
-  }
-
-  void _showInitialModeDialog() {
-    speak(
-      _s(
-        'Jaký režim nejčastěji používáte?',
-        'Which mode do you use most often?',
-      ),
-    );
-    showAppDialog<void>(
-      context: context,
-      routeSettings: const RouteSettings(name: 'Výběr režimu'),
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        insetPadding: _dialogInsetPadding(),
-        title: Semantics(
-          header: true,
-          child: Text(
-            _s(
-              'Jaký režim nejčastěji používáte?',
-              'Which mode do you use most often?',
-            ),
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: CalculatorMode.values.map((mode) {
-            final modeName = _getModeName(mode);
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Semantics(
-                label: '$modeName',
-                child: ElevatedButton(
-                  onPressed: () {
-                    _setDefaultMode(mode);
-                    setState(() => _currentMode = mode);
-                    SharedPreferences.getInstance().then((prefs) {
-                      prefs.setBool('modeQuestionAsked', true);
-                    });
-                    Navigator.of(dialogContext).pop();
-                    speak(
-                      _s(
-                        'Výchozí režim nastaven na $modeName',
-                        'Default mode set to $modeName',
-                      ),
-                    );
-                  },
-                  child: Text(modeName),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
   }
 
   String _getModeName(CalculatorMode mode) {
@@ -5216,7 +5390,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (mounted) _maybeRunDevAutodiagnostics();
   }
 
-  void _saveGlobalSettings() async {
+  Future<void> _saveGlobalSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDegreeMode', _isDegreeMode);
     await prefs.setString(
@@ -5255,8 +5429,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  // Drží alias pro staré volání – nyní ukládá jen globál (per-profile už řeší _saveProfilesV2)
-  void _saveSettings() => _saveGlobalSettings();
+  // Drží alias pro staré volání – nyní ukládá jen globál (per-profile už řeší _saveProfilesV2).
+  // Rychlé toggly mimo Apply: vědomě neblokují UI, Apply/commit cesty
+  // vždy awaitují _saveGlobalSettings()/persistCanonicalContract přímo.
+  void _saveSettings() {
+    unawaited(_saveGlobalSettings());
+  }
 
   /// Lokalizovaný zobrazovaný název profilu (built-in via l10n, custom via name)
   String _displayProfileName(AccessibilityProfile p) {
@@ -5337,22 +5515,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (defaults.isNotEmpty) return defaults;
     } catch (_) {}
     return [_fallbackStandardProfile()];
-  }
-
-  /// Bezpečné rozlišení profilu podle id pro úvodní dialog.
-  /// Nikdy nevyhodí (ani na prázdném `_profiles`).
-  AccessibilityProfile _profileByIdOrDefault(String id) {
-    for (final p in _profiles) {
-      if (p.id == id) return p;
-    }
-    try {
-      final defaults = _defaultAccessibilityProfiles();
-      for (final p in defaults) {
-        if (p.id == id) return p;
-      }
-      if (defaults.isNotEmpty) return defaults.first;
-    } catch (_) {}
-    return _fallbackStandardProfile();
   }
 
   Future<void> _saveProfilesV2() async {
@@ -6330,78 +6492,107 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  /// Aplikace importovaného kontraktu přes testovatelnou ConfigStore vrstvu.
+  /// Neznámý hlas nikdy nezpůsobí failure celého importu (fallback).
+  /// Při chybě persistu se runtime NESMÍ změnit (volající zobrazí chybu).
   Future<void> _applyContract(
     ParsedContract parsed,
     Map<String, dynamic> raw,
   ) async {
+    // Voice tolerance: vyřeš hlas aktivního profilu proti dostupným hlasům.
+    var profiles = parsed.profiles;
+    try {
+      final available = await _loadAvailableVoices();
+      final idx = profiles.indexWhere((p) => p.id == parsed.activeProfileId);
+      if (idx != -1) {
+        final requested = profiles[idx].settings.ttsVoice;
+        if (requested != null) {
+          final resolved = resolveVoice(requested, available);
+          if (resolved == null) {
+            profiles = profiles
+                .map(
+                  (p) => p.id == parsed.activeProfileId
+                      ? AccessibilityProfile(
+                          id: p.id,
+                          name: p.name,
+                          isBuiltIn: p.isBuiltIn,
+                          settings: p.settings.copyWith(
+                            clearTtsVoice: true,
+                            clearTtsVoiceName: true,
+                          ),
+                        )
+                      : p,
+                )
+                .toList();
+          } else if (resolved['name'] != requested['name'] ||
+              resolved['locale'] != requested['locale']) {
+            profiles = profiles
+                .map(
+                  (p) => p.id == parsed.activeProfileId
+                      ? AccessibilityProfile(
+                          id: p.id,
+                          name: p.name,
+                          isBuiltIn: p.isBuiltIn,
+                          settings: p.settings.copyWith(
+                            ttsVoice: resolved,
+                            ttsVoiceName: resolved['name'],
+                          ),
+                        )
+                      : p,
+                )
+                .toList();
+          }
+        }
+      }
+    } catch (_) {}
+    // Canonical snapshot z (případně hlasově upraveného) kontraktu.
+    final contract = buildContractJson(
+      profiles: profiles,
+      activeProfileId: parsed.activeProfileId,
+      themeMode: parsed.themeMode,
+      isDegreeMode: parsed.isDegreeMode,
+      defaultMode: parsed.defaultMode,
+      statsSummaryOrder: parsed.statsSummaryOrder,
+      statsComputedOrder: parsed.statsComputedOrder,
+      currencyFrom: parsed.currencyFrom,
+      currencyTo: parsed.currencyTo,
+      devEnabled: parsed.devEnabled,
+      devAutoDiagnostic: parsed.devAutoDiagnostic,
+      devDiagnosticDurationMs: parsed.devDiagnosticDurationMs,
+      devPinCode: parsed.devPinCode,
+      resultDisplayMode: parsed.resultDisplayMode,
+      historyExactFormat: parsed.historyExactFormat,
+    );
+    // Persist PŘED jakoukoli změnou runtime (safe commit workflow).
+    final prefs = await SharedPreferences.getInstance();
+    await persistCanonicalContract(prefs, contract);
+    // Teprve po úspěšné persistenci: runtime apply.
+    final applied = parseContract(contract);
     setState(() {
-      _profiles = parsed.profiles;
-      _activeProfileId = parsed.activeProfileId;
-      _globalResultDisplayMode = parsed.resultDisplayMode;
-      _historyExactFormat = parsed.historyExactFormat;
+      _profiles = applied.profiles;
+      _activeProfileId = applied.activeProfileId;
+      _globalResultDisplayMode = applied.resultDisplayMode;
+      _historyExactFormat = applied.historyExactFormat;
       _statsSummaryOrder = List<StatsSummarySection>.from(
-        parsed.statsSummaryOrder,
+        applied.statsSummaryOrder,
       );
       _statsComputedOrder = List<StatsComputedItem>.from(
-        parsed.statsComputedOrder,
+        applied.statsComputedOrder,
       );
-      _isDegreeMode = parsed.isDegreeMode;
-      _defaultMode = parsed.defaultMode;
-      _currencyFrom = parsed.currencyFrom;
-      _currencyTo = parsed.currencyTo;
-      _devModeEnabled = parsed.devEnabled;
-      _devAutoDiagnosticEnabled = parsed.devAutoDiagnostic;
-      _devDiagnosticDurationMs = parsed.devDiagnosticDurationMs;
-      _devPinCode = parsed.devPinCode;
+      _isDegreeMode = applied.isDegreeMode;
+      _defaultMode = applied.defaultMode;
+      _currencyFrom = applied.currencyFrom;
+      _currencyTo = applied.currencyTo;
+      _devModeEnabled = applied.devEnabled;
+      _devAutoDiagnosticEnabled = applied.devAutoDiagnostic;
+      _devDiagnosticDurationMs = applied.devDiagnosticDurationMs;
+      _devPinCode = applied.devPinCode;
     });
-    widget.onThemeModeChanged(parsed.themeMode);
-    await _saveProfilesV2();
-    await _saveActiveProfileId();
-    _saveGlobalSettings();
-    // persist raw contract atomically for parity
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('config_contract_v1', jsonEncode(raw));
-    } catch (_) {}
+    widget.onThemeModeChanged(applied.themeMode);
     _applySettingsToRuntime(_getActiveAccessibilityProfile().settings);
     _dialogFontScaleNotifier.value =
         activeAccessibilitySettings.dialogFontScale;
     if (mounted) setState(() {});
-  }
-
-  void _showInitialAccessibilityDialog() {
-    showAppDialog(
-      context: context,
-      routeSettings: const RouteSettings(name: 'Vítejte'),
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(_l10n.welcome)),
-        content: Text(_l10n.selectAccessibilityLevel),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              applyAccessibilityProfile(
-                _profileByIdOrDefault('blind'),
-                announcement: _l10n.profileSetAndSaved(_l10n.profileBlind),
-              );
-            },
-            child: Text(_l10n.profileBlind.toUpperCase()),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              applyAccessibilityProfile(
-                _profileByIdOrDefault('lowvision'),
-                announcement: _l10n.profileSetAndSaved(_l10n.profileLowVision),
-              );
-            },
-            child: Text(_l10n.profileLowVision.toUpperCase()),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showAccessibilityDialog() {
@@ -11160,7 +11351,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   void showInitialAccessibilityDialogForTest() {
-    _showInitialAccessibilityDialog();
+    // Starý uvítací dialog nahrazen jednotným Quick Setup.
+    _openQuickSetupManually();
+  }
+
+  @visibleForTesting
+  Future<void> showQuickSetupDialogForTest({bool isFirstRun = false}) async {
+    final draft = QuickSetupDraft.fromRuntime(
+      settings: _getActiveAccessibilityProfile().settings,
+      themeMode: widget.themeMode,
+      isDegreeMode: _isDegreeMode,
+      defaultMode: _defaultMode,
+      resultDisplayMode: _globalResultDisplayMode,
+    );
+    return showAppDialog<void>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Rychlé nastavení'),
+      builder: (dialogContext) => QuickSetupDialog(
+        initialDraft: draft,
+        availableVoices: Future.value(const <Map<String, String>>[]),
+        tr: _s,
+        isFirstRun: isFirstRun,
+        announce: (msg) => say(msg, dialogContext),
+        onCancel: () => Navigator.of(dialogContext).pop(),
+        onApply: (next) => _applyQuickSetup(next, dialogContext),
+      ),
+    );
   }
 
   @visibleForTesting
@@ -12625,6 +12841,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     Navigator.pop(dialogContext);
                     Future.delayed(const Duration(milliseconds: 300), () {
                       if (mounted) _showStatsSummaryReadingOrderDialog();
+                    });
+                  },
+                ),
+                _buildMoreOptionTile(
+                  icon: Icons.tune,
+                  label: _s(
+                    'Rychlé nastavení kalkulačky',
+                    'Quick calculator setup',
+                  ),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) _openQuickSetupManually();
                     });
                   },
                 ),

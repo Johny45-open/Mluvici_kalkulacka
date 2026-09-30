@@ -319,6 +319,10 @@ class _DevModeDialogState extends State<_DevModeDialog> {
                     final prefs = await SharedPreferences.getInstance();
                     await prefs.remove('modeQuestionAsked');
                     await prefs.remove('accessibilityType');
+                    await prefs.remove(kQuickSetupCompletedKey);
+                    await prefs.remove('accessibility_profiles_v2');
+                    await prefs.remove('activeProfileId');
+                    await prefs.remove('defaultMode');
                     if (parent.mounted) {
                       parent._showAccessibleSnackBar(
                         parent._s('Onboarding resetován', 'Onboarding reset'),

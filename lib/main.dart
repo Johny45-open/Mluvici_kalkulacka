@@ -37,6 +37,9 @@ part 'dialogs/reading_order_dialog.dart';
 part 'dialogs/accessibility_controls.dart';
 part 'dialogs/accessibility_editor_dialog.dart';
 part 'config_contract.dart';
+part 'quick_setup_draft.dart';
+part 'config_store.dart';
+part 'dialogs/quick_setup_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
