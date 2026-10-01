@@ -859,7 +859,6 @@
     }
   },
   "fractionSwitchToFraction": "Přepnout na zlomek",
-  "fractionSwitchToDecimal": "Přepnout na desetinný výsledek",
   "fractionAnnounced": "Zlomek {numerator} lomeno {denominator}.",
   "@fractionAnnounced": {
     "placeholders": {
@@ -880,8 +879,14 @@
     }
   },
   "fractionUnavailable": "Zlomek není pro tento výsledek dostupný",
-  "fractionViewStateOff": "Zobrazení výsledku: desetinné číslo. Vypnuto",
   "fractionViewStateOn": "Zobrazení výsledku: zlomek. Zapnuto",
   "fractionVisualOff": "Zlomek: vypnuto",
-  "fractionVisualOn": "Zlomek: zapnuto"
+  "fractionVisualOn": "Zlomek: zapnuto",
+  "fractionVisualUnavailable": "Zlomek: nedostupné",
+  "fractionBaseNumeric": "Výsledek se zobrazuje číselně",
+  "fractionBaseExact": "Výsledek se zobrazuje exaktně",
+  "fractionSwitchToBaseNumeric": "Přepnout na číselné zobrazení",
+  "fractionSwitchToBaseExact": "Přepnout na exaktní zobrazení",
+  "fractionViewStateOffNumeric": "Zlomek: vypnuto. Výsledek se zobrazuje číselně",
+  "fractionViewStateOffExact": "Zlomek: vypnuto. Výsledek se zobrazuje exaktně"
 }

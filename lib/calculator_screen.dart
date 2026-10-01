@@ -82,6 +82,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  // Čistě prezentační helper pro Semantics zlomkového přepínače: říká, zda
+  // je skutečným základním zobrazením (po vypnutí zlomku) exaktní surd tvar.
+  // Kopíruje podmínku _activeResultString()/_displayedResultString, nic
+  // nepřepočítává, nemění _lastResult/_lastExact/_lastExactKey. Záměrně
+  // vyžaduje platný SurdValue i v režimu text (např. 25 v text režimu je
+  // číselné zobrazení, ne exaktní).
+  bool get _fractionBaseIsExact {
+    final exact = _lastExact;
+    return (_globalResultDisplayMode == ResultDisplayMode.text ||
+            _globalResultDisplayMode == ResultDisplayMode.auto) &&
+        exact is SurdValue &&
+        _lastExactKey == _lastResult &&
+        _lastResult.isNotEmpty;
+  }
+
   // Stack pozic '(' vložených tlačítkem NEG (±) – pro auto-uzavření
   final List<int> _pendingNegOpens = [];
   CalculatorMode _currentMode = CalculatorMode.scientific;
@@ -122,6 +137,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _markConfigLoaded() {
     if (!_configLoaded.isCompleted) _configLoaded.complete();
   }
+
   Future<void> get _waitForTtsReady async {
     if (_ttsReady.isCompleted) return;
     try {
@@ -3099,10 +3115,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       await markQuickSetupSeen(prefs);
     } catch (_) {}
     Navigator.of(dialogContext).pop();
-    say(
-      _s('Nastavení použito', 'Settings applied'),
-      dialogContext,
-    );
+    say(_s('Nastavení použito', 'Settings applied'), dialogContext);
   }
 
   /// Startupové uvítání – doručí se právě jednou, až po prvním vykreslení.
@@ -4926,10 +4939,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (res.toLowerCase() != 'error') {
       final mode = _resultDisplayMode;
       if (mode == ResultDisplayMode.text) {
-        return _buildMathTextDisplay(
-          _activeResultString(),
-          fitScale: fitScale,
-        );
+        return _buildMathTextDisplay(_activeResultString(), fitScale: fitScale);
       }
       if (mode == ResultDisplayMode.auto) {
         final CalcValue value =
@@ -5060,21 +5070,36 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // Prezentační přepínač DEC <-> a/b jako běžné tlačítko hlavního layoutu
   // (nikoli overlay displeje ani součást 7×4 rastru klávesnice). Stabilní
   // místo, plný význam v Semantics labelu (stav i akce bez použití barvy)
-  // + toggled příznak. Vizuální stav je textový ("Zlomek: zapnuto/vypnuto"),
-  // tedy rozlišitelný i bez barvy. Nezpůsobilý výsledek: disabled + důvod,
-  // focus order se nemění. Po aktivaci se fokus nepřesouvá (žádný
-  // _mainFocusNode.requestFocus), zůstává na tlačítku.
+  // + toggled příznak. Vizuální stav je textový ("Zlomek: zapnuto/vypnuto/
+  // nedostupné"), tedy rozlišitelný i bez barvy. Nezpůsobilý výsledek:
+  // disabled + důvod, focus order se nemění. Po aktivaci se fokus
+  // nepřesouvá (žádný _mainFocusNode.requestFocus), zůstává na tlačítku.
   Widget _buildFractionToggle(double s) {
     final bool eligible = _isFractionEligible;
     final bool active = _isFractionViewActive;
-    final String statePart = active
-        ? _l10n.fractionViewStateOn
-        : _l10n.fractionViewStateOff;
-    final String semanticLabel = eligible
-        ? (active
-              ? '$statePart. ${_l10n.fractionSwitchToDecimal}'
-              : '$statePart. ${_l10n.fractionSwitchToFraction}')
-        : '$statePart. ${_l10n.fractionUnavailable}';
+    final bool baseExact = _fractionBaseIsExact;
+
+    String semanticLabel;
+    String visualText;
+    if (!eligible) {
+      visualText = _l10n.fractionVisualUnavailable;
+      semanticLabel = '$visualText. ${_l10n.fractionUnavailable}';
+    } else if (active) {
+      final String base = baseExact
+          ? _l10n.fractionBaseExact
+          : _l10n.fractionBaseNumeric;
+      final String back = baseExact
+          ? _l10n.fractionSwitchToBaseExact
+          : _l10n.fractionSwitchToBaseNumeric;
+      semanticLabel = '${_l10n.fractionViewStateOn}. $base. $back';
+      visualText = _l10n.fractionVisualOn;
+    } else {
+      final String state = baseExact
+          ? _l10n.fractionViewStateOffExact
+          : _l10n.fractionViewStateOffNumeric;
+      semanticLabel = '$state. ${_l10n.fractionSwitchToFraction}';
+      visualText = _l10n.fractionVisualOff;
+    }
     // Stabilní kompaktní výška i při vysokém systémovém zoomu: stejný
     // izolační vzor jako přepínač režimů (noScaling + ruční sysFactor
     // s horním stropem, aby se scaler nezapočítal dvakrát). Tlačítko má
@@ -5104,7 +5129,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               context,
             ).copyWith(textScaler: TextScaler.noScaling),
             child: Text(
-              active ? _l10n.fractionVisualOn : _l10n.fractionVisualOff,
+              visualText,
               maxLines: 1,
               softWrap: false,
               overflow: TextOverflow.ellipsis,
@@ -13072,9 +13097,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 Align(
                                   alignment: Alignment.topLeft,
                                   child: Text(
-                                    _getModeName(
-                                      _currentMode,
-                                    ).toUpperCase(),
+                                    _getModeName(_currentMode).toUpperCase(),
                                     maxLines: 1,
                                     softWrap: false,
                                     overflow: TextOverflow.ellipsis,
@@ -13089,116 +13112,112 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 Expanded(
                                   child: LayoutBuilder(
                                     builder: (context, displayConstraints) {
-                                          // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
-                                          // Konstanty musí odpovídat _buildDotMatrixDisplay
-                                          // (rozestup 1.15 × systémový faktor) a rezervě
-                                          // pro periodickou čáru v CustomSegmentDisplay.
-                                          final fitSysFactor =
-                                              MediaQuery.textScalerOf(
-                                                context,
-                                              ).scale(1.0).clamp(1.0, 1.5);
-                                          final dotLedSize =
-                                              3.0 * _dotMatrixZoom * s;
-                                          final dotSpacing =
-                                              1.15 *
-                                              _dotMatrixZoom *
-                                              s *
-                                              fitSysFactor;
-                                          final dotH =
-                                              dotLedSize * 8 + dotSpacing * 7;
-                                          final segSize = 16 * _resultZoom * s;
-                                          var segH = segSize * 1.8;
-                                          if (_toBarNotation(
-                                            _lastResult.isEmpty
-                                                ? '0.'
-                                                : _lastResult,
-                                          ).contains('\u0305')) {
-                                            final segThick = segSize * 0.15;
-                                            segH +=
-                                                segThick * 2.0 +
-                                                6.0 +
-                                                segThick *
-                                                    0.75 *
-                                                    _overlineThickness /
-                                                    2 +
-                                                2.0;
-                                          }
-                                          final gapH = 12 * s;
-                                          final neededH = dotH + segH + gapH;
-                                          final availableH =
-                                              displayConstraints.maxHeight;
-                                          double fitScale = 1.0;
-                                          if (availableH > 0 &&
-                                              neededH > availableH) {
-                                            fitScale = (availableH / neededH)
-                                                .clamp(0.35, 1.0);
-                                          }
-                                          final needsFallbackScroll =
-                                              fitScale <= 0.36;
+                                      // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
+                                      // Konstanty musí odpovídat _buildDotMatrixDisplay
+                                      // (rozestup 1.15 × systémový faktor) a rezervě
+                                      // pro periodickou čáru v CustomSegmentDisplay.
+                                      final fitSysFactor =
+                                          MediaQuery.textScalerOf(
+                                            context,
+                                          ).scale(1.0).clamp(1.0, 1.5);
+                                      final dotLedSize =
+                                          3.0 * _dotMatrixZoom * s;
+                                      final dotSpacing =
+                                          1.15 *
+                                          _dotMatrixZoom *
+                                          s *
+                                          fitSysFactor;
+                                      final dotH =
+                                          dotLedSize * 8 + dotSpacing * 7;
+                                      final segSize = 16 * _resultZoom * s;
+                                      var segH = segSize * 1.8;
+                                      if (_toBarNotation(
+                                        _lastResult.isEmpty
+                                            ? '0.'
+                                            : _lastResult,
+                                      ).contains('\u0305')) {
+                                        final segThick = segSize * 0.15;
+                                        segH +=
+                                            segThick * 2.0 +
+                                            6.0 +
+                                            segThick *
+                                                0.75 *
+                                                _overlineThickness /
+                                                2 +
+                                            2.0;
+                                      }
+                                      final gapH = 12 * s;
+                                      final neededH = dotH + segH + gapH;
+                                      final availableH =
+                                          displayConstraints.maxHeight;
+                                      double fitScale = 1.0;
+                                      if (availableH > 0 &&
+                                          neededH > availableH) {
+                                        fitScale = (availableH / neededH).clamp(
+                                          0.35,
+                                          1.0,
+                                        );
+                                      }
+                                      final needsFallbackScroll =
+                                          fitScale <= 0.36;
 
-                                          Widget content = Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            crossAxisAlignment: _alignInputLeft
-                                                ? CrossAxisAlignment.start
-                                                : CrossAxisAlignment.center,
-                                            children: [
-                                              Align(
-                                                alignment: _alignInputLeft
-                                                    ? Alignment.centerLeft
-                                                    : Alignment.center,
-                                                child: SingleChildScrollView(
-                                                  controller:
-                                                      _scrollControllerH,
-                                                  scrollDirection:
-                                                      Axis.horizontal,
-                                                  child: _buildDotMatrixDisplay(
-                                                    fitScale: fitScale,
-                                                  ),
-                                                ),
+                                      Widget content = Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment: _alignInputLeft
+                                            ? CrossAxisAlignment.start
+                                            : CrossAxisAlignment.center,
+                                        children: [
+                                          Align(
+                                            alignment: _alignInputLeft
+                                                ? Alignment.centerLeft
+                                                : Alignment.center,
+                                            child: SingleChildScrollView(
+                                              controller: _scrollControllerH,
+                                              scrollDirection: Axis.horizontal,
+                                              child: _buildDotMatrixDisplay(
+                                                fitScale: fitScale,
                                               ),
-                                              SizedBox(
-                                                height: 12 * s * fitScale,
+                                            ),
+                                          ),
+                                          SizedBox(height: 12 * s * fitScale),
+                                          Align(
+                                            alignment: Alignment.center,
+                                            child: SingleChildScrollView(
+                                              controller:
+                                                  _scrollControllerResultH,
+                                              scrollDirection: Axis.horizontal,
+                                              child: _buildMainResultDisplay(
+                                                fitScale: fitScale,
                                               ),
-                                              Align(
-                                                alignment: Alignment.center,
-                                                child: SingleChildScrollView(
-                                                  controller:
-                                                      _scrollControllerResultH,
-                                                  scrollDirection:
-                                                      Axis.horizontal,
-                                                  child:
-                                                      _buildMainResultDisplay(
-                                                        fitScale: fitScale,
-                                                      ),
-                                                ),
-                                              ),
-                                            ],
-                                          );
+                                            ),
+                                          ),
+                                        ],
+                                      );
 
-                                          if (needsFallbackScroll) {
-                                            // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
-                                            return Scrollbar(
-                                              controller: _scrollControllerV,
-                                              thumbVisibility: true,
-                                              child: SingleChildScrollView(
-                                                controller: _scrollControllerV,
-                                                scrollDirection: Axis.vertical,
-                                                child: content,
-                                              ),
-                                            );
-                                          }
-                                          // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
-                                          return Center(child: content);
-                                        },
-                                      ),
+                                      if (needsFallbackScroll) {
+                                        // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
+                                        return Scrollbar(
+                                          controller: _scrollControllerV,
+                                          thumbVisibility: true,
+                                          child: SingleChildScrollView(
+                                            controller: _scrollControllerV,
+                                            scrollDirection: Axis.vertical,
+                                            child: content,
+                                          ),
+                                        );
+                                      }
+                                      // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
+                                      return Center(child: content);
+                                    },
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
+                    ),
                     // Ovládání zobrazení výsledku DEC <-> a/b: samostatný
                     // prvek hlavního layoutu mimo displej i mimo keypad.
                     _buildFractionViewToggleRow(),

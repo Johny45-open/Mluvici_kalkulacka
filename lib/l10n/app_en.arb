@@ -787,7 +787,6 @@
     }
   },
   "fractionSwitchToFraction": "Switch to fraction",
-  "fractionSwitchToDecimal": "Switch to decimal result",
   "fractionAnnounced": "Fraction {numerator} over {denominator}.",
   "@fractionAnnounced": {
     "placeholders": {
@@ -808,8 +807,14 @@
     }
   },
   "fractionUnavailable": "Fraction not available for this result",
-  "fractionViewStateOff": "Result display: decimal. Off",
   "fractionViewStateOn": "Result display: fraction. On",
   "fractionVisualOff": "Fraction: off",
-  "fractionVisualOn": "Fraction: on"
+  "fractionVisualOn": "Fraction: on",
+  "fractionVisualUnavailable": "Fraction: unavailable",
+  "fractionBaseNumeric": "Result is shown numerically",
+  "fractionBaseExact": "Result is shown exactly",
+  "fractionSwitchToBaseNumeric": "Switch back to numeric display",
+  "fractionSwitchToBaseExact": "Switch back to exact display",
+  "fractionViewStateOffNumeric": "Fraction: off. Result is shown numerically",
+  "fractionViewStateOffExact": "Fraction: off. Result is shown exactly"
 }

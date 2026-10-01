@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mluvici_kalkulacka/main.dart';
+import 'package:mluvici_kalkulacka/surd.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -496,15 +497,35 @@ void main() {
       await calculate(tester, state, '1/2');
       final off = toggleSemantics(tester);
       final offLabel = (off.properties.label ?? '').toLowerCase();
-      expect(offLabel.contains('desetinn') || offLabel.contains('decimal'), isTrue);
-      expect(offLabel.contains('vypnuto') || offLabel.contains('. off'), isTrue);
+      // Segment + 1/2: zaklad je ciselny, nikdy „desetinne/decimal".
+      expect(
+        offLabel.contains('číselně') || offLabel.contains('numerically'),
+        isTrue,
+      );
+      expect(
+        offLabel.contains('desetinn') || offLabel.contains('decimal'),
+        isFalse,
+      );
+      expect(offLabel.contains('vypnuto') || offLabel.contains('off'), isTrue);
       expect(off.properties.toggled, isFalse);
       state.toggleFractionForTest();
       await tester.pumpAndSettle();
       final on = toggleSemantics(tester);
       final onLabel = (on.properties.label ?? '').toLowerCase();
-      expect(onLabel.contains('zlomek') || onLabel.contains('fraction'), isTrue);
+      expect(
+        onLabel.contains('zlomek') || onLabel.contains('fraction'),
+        isTrue,
+      );
       expect(onLabel.contains('zapnuto') || onLabel.contains('. on'), isTrue);
+      // Zapnuty pohled rika, kam se vratime (ciselne), ne „desetinne".
+      expect(
+        onLabel.contains('číselně') || onLabel.contains('numerically'),
+        isTrue,
+      );
+      expect(
+        onLabel.contains('desetinn') || onLabel.contains('decimal'),
+        isFalse,
+      );
       expect(on.properties.toggled, isTrue);
       // Neni to pouze akcni label bez stavu.
       expect(
@@ -564,7 +585,10 @@ void main() {
       final toggle = find.byKey(const ValueKey('fraction_toggle'));
       expect(toggle, findsOneWidget);
       expect(displayFinder(), findsOneWidget);
-      expect(find.descendant(of: displayFinder(), matching: toggle), findsNothing);
+      expect(
+        find.descendant(of: displayFinder(), matching: toggle),
+        findsNothing,
+      );
       // Retez predku az po CalculatorScreen nesmi obsahovat Stack/Positioned.
       final chain = <String>[];
       tester.element(toggle).visitAncestorElements((e) {
@@ -628,4 +652,219 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group(
+    'Fraction toggle – tri vizualni stavy + mode-aware Semantics (A-J)',
+    () {
+      Semantics toggleSemantics(WidgetTester tester) {
+        final toggle = find.byKey(const ValueKey('fraction_toggle'));
+        final semFinder = find.ancestor(
+          of: toggle,
+          matching: find.byWidgetPredicate((w) {
+            if (w is! Semantics) return false;
+            final label = w.properties.label ?? '';
+            return label.isNotEmpty;
+          }),
+        );
+        expect(semFinder, findsOneWidget);
+        return tester.widget<Semantics>(semFinder.first);
+      }
+
+      String visualText(WidgetTester tester) {
+        final toggle = find.byKey(const ValueKey('fraction_toggle'));
+        return tester
+            .widget<Text>(
+              find.descendant(of: toggle, matching: find.byType(Text)).first,
+            )
+            .data!;
+      }
+
+      String toggleLabel(WidgetTester tester) =>
+          (toggleSemantics(tester).properties.label ?? '').toLowerCase();
+
+      testWidgets('A. bez vysledku: nedostupne + disabled', (tester) async {
+        final state = await pumpApp(tester);
+        expect(state.fractionEligibleForTest, isFalse);
+        expect(state.fractionViewForTest, isFalse);
+        final toggle = find.byKey(const ValueKey('fraction_toggle'));
+        expect(toggle, findsOneWidget);
+        expect(tester.widget<TextButton>(toggle).onPressed, isNull);
+        final text = visualText(tester).toLowerCase();
+        expect(
+          text.contains('nedostupné') || text.contains('unavailable'),
+          isTrue,
+        );
+        final sem = toggleSemantics(tester);
+        expect(sem.properties.enabled, isFalse);
+        expect(sem.properties.toggled, isFalse);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('B. po 3/4: eligible + vypnuto + enabled', (tester) async {
+        final state = await pumpApp(tester);
+        await calculate(tester, state, '3/4');
+        expect(state.fractionEligibleForTest, isTrue);
+        expect(state.fractionViewForTest, isFalse);
+        final toggle = find.byKey(const ValueKey('fraction_toggle'));
+        expect(tester.widget<TextButton>(toggle).onPressed, isNotNull);
+        expect(toggleSemantics(tester).properties.enabled, isTrue);
+        final text = visualText(tester).toLowerCase();
+        expect(text.contains('vypnuto') || text.contains('off'), isTrue);
+        expect(
+          text.contains('nedostupné') || text.contains('unavailable'),
+          isFalse,
+        );
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('C. po aktivaci: zapnuto + stale enabled', (tester) async {
+        final state = await pumpApp(tester);
+        await calculate(tester, state, '3/4');
+        state.toggleFractionForTest();
+        await tester.pumpAndSettle();
+        expect(state.fractionEligibleForTest, isTrue);
+        expect(state.fractionViewForTest, isTrue);
+        final toggle = find.byKey(const ValueKey('fraction_toggle'));
+        expect(tester.widget<TextButton>(toggle).onPressed, isNotNull);
+        expect(toggleSemantics(tester).properties.enabled, isTrue);
+        expect(toggleSemantics(tester).properties.toggled, isTrue);
+        final text = visualText(tester).toLowerCase();
+        expect(text.contains('zapnuto') || text.contains(': on'), isTrue);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('D. novy vypocet pohled vypne', (tester) async {
+        final state = await pumpApp(tester);
+        await calculate(tester, state, '3/4');
+        state.toggleFractionForTest();
+        await tester.pumpAndSettle();
+        expect(state.fractionViewForTest, isTrue);
+        await calculate(tester, state, '1/2');
+        expect(state.fractionViewForTest, isFalse);
+        expect(state.fractionStringForTest, '1/2');
+        expect(state.fractionEligibleForTest, isTrue);
+        final text = visualText(tester).toLowerCase();
+        expect(text.contains('vypnuto') || text.contains('off'), isTrue);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('E. segment + 1/2: ciselne, nikdy decimal', (tester) async {
+        final state = await pumpApp(tester);
+        state.setResultDisplayModeForTest(ResultDisplayMode.segment);
+        await tester.pump();
+        await calculate(tester, state, '1/2');
+        expect(state.fractionViewForTest, isFalse);
+        final label = toggleLabel(tester);
+        expect(
+          label.contains('číselně') || label.contains('numerically'),
+          isTrue,
+        );
+        expect(
+          label.contains('desetinn') || label.contains('decimal'),
+          isFalse,
+        );
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('F. text + √72: 6√2 + exaktne', (tester) async {
+        final state = await pumpApp(tester);
+        state.setResultDisplayModeForTest(ResultDisplayMode.text);
+        await tester.pump();
+        state.setDisplayForTest('√(72)', 5);
+        await tester.pump();
+        state.calculateForTest();
+        await tester.pumpAndSettle();
+        expect(find.text('6√2'), findsOneWidget);
+        expect(state.fractionViewForTest, isFalse);
+        final label = toggleLabel(tester);
+        expect(label.contains('exaktně') || label.contains('exactly'), isTrue);
+        expect(
+          label.contains('desetinn') || label.contains('decimal'),
+          isFalse,
+        );
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('G. text + 25: ciselne, ne exaktne', (tester) async {
+        final state = await pumpApp(tester);
+        state.setResultDisplayModeForTest(ResultDisplayMode.text);
+        await tester.pump();
+        state.setDisplayForTest('25', 2);
+        await tester.pump();
+        state.calculateForTest();
+        await tester.pumpAndSettle();
+        final label = toggleLabel(tester);
+        expect(
+          label.contains('číselně') || label.contains('numerically'),
+          isTrue,
+        );
+        expect(label.contains('exaktně') || label.contains('exactly'), isFalse);
+        expect(
+          label.contains('desetinn') || label.contains('decimal'),
+          isFalse,
+        );
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('H. auto + √72: exaktne', (tester) async {
+        final state = await pumpApp(tester);
+        state.setResultDisplayModeForTest(ResultDisplayMode.auto);
+        await tester.pump();
+        state.setDisplayForTest('√(72)', 5);
+        await tester.pump();
+        state.calculateForTest();
+        await tester.pumpAndSettle();
+        expect(find.text('6√2'), findsOneWidget);
+        final label = toggleLabel(tester);
+        expect(label.contains('exaktně') || label.contains('exactly'), isTrue);
+        expect(
+          label.contains('desetinn') || label.contains('decimal'),
+          isFalse,
+        );
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('I. auto + 25: ciselne', (tester) async {
+        final state = await pumpApp(tester);
+        state.setResultDisplayModeForTest(ResultDisplayMode.auto);
+        await tester.pump();
+        state.setDisplayForTest('25', 2);
+        await tester.pump();
+        state.calculateForTest();
+        await tester.pumpAndSettle();
+        final label = toggleLabel(tester);
+        expect(
+          label.contains('číselně') || label.contains('numerically'),
+          isTrue,
+        );
+        expect(label.contains('exaktně') || label.contains('exactly'), isFalse);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('J. focus/layout zustava: mimo grid, bez presunu focusu', (
+        tester,
+      ) async {
+        final state = await pumpApp(tester);
+        await calculate(tester, state, '1/2');
+        final toggle = find.byKey(const ValueKey('fraction_toggle'));
+        expect(toggle, findsOneWidget);
+        expect(
+          find.descendant(of: keypadGrid(), matching: toggle),
+          findsNothing,
+        );
+        final inner = find
+            .descendant(of: toggle, matching: find.byType(Text))
+            .first;
+        final FocusNode node = Focus.of(tester.element(inner));
+        node.requestFocus();
+        await tester.pumpAndSettle();
+        expect(node.hasFocus, isTrue);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+        expect(state.fractionViewForTest, isTrue);
+        expect(node.hasFocus, isTrue);
+        expect(tester.takeException(), isNull);
+      });
+    },
+  );
 }
