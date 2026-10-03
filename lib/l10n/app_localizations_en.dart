@@ -1250,4 +1250,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fractionViewStateOffExact => 'Fraction: off. Result is shown exactly';
+
+  @override
+  String fractionAvailableAnnouncement(String fraction) {
+    return 'A fraction $fraction is available for this result.';
+  }
 }

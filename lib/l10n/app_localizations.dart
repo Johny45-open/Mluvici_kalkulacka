@@ -2320,6 +2320,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fraction: off. Result is shown exactly'**
   String get fractionViewStateOffExact;
+
+  /// No description provided for @fractionAvailableAnnouncement.
+  ///
+  /// In en, this message translates to:
+  /// **'A fraction {fraction} is available for this result.'**
+  String fractionAvailableAnnouncement(String fraction);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

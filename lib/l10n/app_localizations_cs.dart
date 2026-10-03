@@ -1250,4 +1250,9 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get fractionViewStateOffExact => 'Zlomek: vypnuto. Výsledek se zobrazuje exaktně';
+
+  @override
+  String fractionAvailableAnnouncement(String fraction) {
+    return 'Pro tento výsledek je dostupný zlomek $fraction.';
+  }
 }

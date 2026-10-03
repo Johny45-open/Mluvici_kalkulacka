@@ -830,5 +830,13 @@
   "fractionSwitchToBaseNumeric": "Switch back to numeric display",
   "fractionSwitchToBaseExact": "Switch back to exact display",
   "fractionViewStateOffNumeric": "Fraction: off. Result is shown numerically",
-  "fractionViewStateOffExact": "Fraction: off. Result is shown exactly"
+  "fractionViewStateOffExact": "Fraction: off. Result is shown exactly",
+  "fractionAvailableAnnouncement": "A fraction {fraction} is available for this result.",
+  "@fractionAvailableAnnouncement": {
+    "placeholders": {
+      "fraction": {
+        "type": "String"
+      }
+    }
+  }
 }

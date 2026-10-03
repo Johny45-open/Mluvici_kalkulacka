@@ -4237,6 +4237,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _fractionResultView = false;
       });
 
+      // Automatické oznámení dostupnosti zlomku: pouze součást existující
+      // výsledkové hlášky, žádné druhé speak()/say(). Stav je v tomto bodě
+      // již komitnutý (_lastResult, _lastNumericValue,
+      // _lastResultIsPlainNumeric, _hasResult), takže _fractionString je
+      // finální. Při screen readeru ON vrací helper null a speech zůstává
+      // beze změny.
+      final fractionSuffix = _fractionAvailabilitySuffix();
+      if (fractionSuffix != null && fractionSuffix.isNotEmpty) {
+        spoken = '$spoken $fractionSuffix';
+      }
+
       speak(spoken, force: true);
       _addToHistory(
         currentExpression,
@@ -4705,6 +4716,28 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _fractionString != null;
 
   bool get _isFractionEligible => _fractionString != null;
+
+  // Automatická věta o dostupnosti zlomku pro výsledkovou speech.
+  // Pure helper: pouze čte stav a rozhoduje, jakou doplňující větu (pokud
+  // vůbec nějakou) přidat ke stávající speech string. Nemění state,
+  // nepřepočítává matematiku (konkrétní zlomek bere z _fractionString jako
+  // zdroje pravdy), nevolá TTS, nemění focus ani UI. Surd výsledky se
+  // nevylučují: řídí se stejnou logikou jako fraction toggle.
+  // Vrací null = nic nepřidávat (screen reader ON nebo nerelevantní kontext).
+  String? _fractionAvailabilitySuffix() {
+    if (_isScreenReaderActive) return null;
+    if (_currentMode != CalculatorMode.basic &&
+        _currentMode != CalculatorMode.scientific) {
+      return null;
+    }
+    if (!_hasResult || !_lastResultIsPlainNumeric) return null;
+    final fracStr = _fractionString;
+    if (fracStr != null) {
+      final spokenFraction = fracStr.replaceAll('/', _s(' lomeno ', ' over '));
+      return _l10n.fractionAvailableAnnouncement(spokenFraction);
+    }
+    return _l10n.fractionUnavailable;
+  }
 
   // Mluvená podoba zlomku "3 lomeno 4" / "3 over 4".
   String _spokenFraction(Fraction f) {

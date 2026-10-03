@@ -902,5 +902,13 @@
   "fractionSwitchToBaseNumeric": "Přepnout na číselné zobrazení",
   "fractionSwitchToBaseExact": "Přepnout na exaktní zobrazení",
   "fractionViewStateOffNumeric": "Zlomek: vypnuto. Výsledek se zobrazuje číselně",
-  "fractionViewStateOffExact": "Zlomek: vypnuto. Výsledek se zobrazuje exaktně"
+  "fractionViewStateOffExact": "Zlomek: vypnuto. Výsledek se zobrazuje exaktně",
+  "fractionAvailableAnnouncement": "Pro tento výsledek je dostupný zlomek {fraction}.",
+  "@fractionAvailableAnnouncement": {
+    "placeholders": {
+      "fraction": {
+        "type": "String"
+      }
+    }
+  }
 }
