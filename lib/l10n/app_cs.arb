@@ -880,8 +880,22 @@
   },
   "fractionUnavailable": "Zlomek není pro tento výsledek dostupný",
   "fractionViewStateOn": "Zobrazení výsledku: zlomek. Zapnuto",
-  "fractionVisualOff": "Zlomek: vypnuto",
-  "fractionVisualOn": "Zlomek: zapnuto",
+  "fractionVisualOff": "Zlomek: {fraction} · vypnuto",
+  "@fractionVisualOff": {
+    "placeholders": {
+      "fraction": {
+        "type": "String"
+      }
+    }
+  },
+  "fractionVisualOn": "Zlomek: {fraction} · zapnuto",
+  "@fractionVisualOn": {
+    "placeholders": {
+      "fraction": {
+        "type": "String"
+      }
+    }
+  },
   "fractionVisualUnavailable": "Zlomek: nedostupné",
   "fractionBaseNumeric": "Výsledek se zobrazuje číselně",
   "fractionBaseExact": "Výsledek se zobrazuje exaktně",

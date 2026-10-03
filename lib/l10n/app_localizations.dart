@@ -2270,14 +2270,14 @@ abstract class AppLocalizations {
   /// No description provided for @fractionVisualOff.
   ///
   /// In en, this message translates to:
-  /// **'Fraction: off'**
-  String get fractionVisualOff;
+  /// **'Fraction: {fraction} · off'**
+  String fractionVisualOff(String fraction);
 
   /// No description provided for @fractionVisualOn.
   ///
   /// In en, this message translates to:
-  /// **'Fraction: on'**
-  String get fractionVisualOn;
+  /// **'Fraction: {fraction} · on'**
+  String fractionVisualOn(String fraction);
 
   /// No description provided for @fractionVisualUnavailable.
   ///

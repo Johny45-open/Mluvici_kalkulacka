@@ -1221,10 +1221,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String get fractionViewStateOn => 'Zobrazení výsledku: zlomek. Zapnuto';
 
   @override
-  String get fractionVisualOff => 'Zlomek: vypnuto';
+  String fractionVisualOff(String fraction) {
+    return 'Zlomek: $fraction · vypnuto';
+  }
 
   @override
-  String get fractionVisualOn => 'Zlomek: zapnuto';
+  String fractionVisualOn(String fraction) {
+    return 'Zlomek: $fraction · zapnuto';
+  }
 
   @override
   String get fractionVisualUnavailable => 'Zlomek: nedostupné';

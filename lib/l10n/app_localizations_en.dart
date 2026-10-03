@@ -1221,10 +1221,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fractionViewStateOn => 'Result display: fraction. On';
 
   @override
-  String get fractionVisualOff => 'Fraction: off';
+  String fractionVisualOff(String fraction) {
+    return 'Fraction: $fraction · off';
+  }
 
   @override
-  String get fractionVisualOn => 'Fraction: on';
+  String fractionVisualOn(String fraction) {
+    return 'Fraction: $fraction · on';
+  }
 
   @override
   String get fractionVisualUnavailable => 'Fraction: unavailable';

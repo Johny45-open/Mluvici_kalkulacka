@@ -808,8 +808,22 @@
   },
   "fractionUnavailable": "Fraction not available for this result",
   "fractionViewStateOn": "Result display: fraction. On",
-  "fractionVisualOff": "Fraction: off",
-  "fractionVisualOn": "Fraction: on",
+  "fractionVisualOff": "Fraction: {fraction} · off",
+  "@fractionVisualOff": {
+    "placeholders": {
+      "fraction": {
+        "type": "String"
+      }
+    }
+  },
+  "fractionVisualOn": "Fraction: {fraction} · on",
+  "@fractionVisualOn": {
+    "placeholders": {
+      "fraction": {
+        "type": "String"
+      }
+    }
+  },
   "fractionVisualUnavailable": "Fraction: unavailable",
   "fractionBaseNumeric": "Result is shown numerically",
   "fractionBaseExact": "Result is shown exactly",

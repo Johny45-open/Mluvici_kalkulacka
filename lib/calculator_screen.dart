@@ -5070,8 +5070,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // Prezentační přepínač DEC <-> a/b jako běžné tlačítko hlavního layoutu
   // (nikoli overlay displeje ani součást 7×4 rastru klávesnice). Stabilní
   // místo, plný význam v Semantics labelu (stav i akce bez použití barvy)
-  // + toggled příznak. Vizuální stav je textový ("Zlomek: zapnuto/vypnuto/
-  // nedostupné"), tedy rozlišitelný i bez barvy. Nezpůsobilý výsledek:
+  // + toggled příznak. Vizuální stav je textový ("Zlomek: {fraction} ·
+  // zapnuto/vypnuto/nedostupné"), tedy rozlišitelný i bez barvy. Nezpůsobilý výsledek:
   // disabled + důvod, focus order se nemění. Po aktivaci se fokus
   // nepřesouvá (žádný _mainFocusNode.requestFocus), zůstává na tlačítku.
   Widget _buildFractionToggle(double s) {
@@ -5085,20 +5085,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       visualText = _l10n.fractionVisualUnavailable;
       semanticLabel = '$visualText. ${_l10n.fractionUnavailable}';
     } else if (active) {
+      final String fracStr = _fractionString!;
+      visualText = _l10n.fractionVisualOn(fracStr);
       final String base = baseExact
           ? _l10n.fractionBaseExact
           : _l10n.fractionBaseNumeric;
       final String back = baseExact
           ? _l10n.fractionSwitchToBaseExact
           : _l10n.fractionSwitchToBaseNumeric;
-      semanticLabel = '${_l10n.fractionViewStateOn}. $base. $back';
-      visualText = _l10n.fractionVisualOn;
+      semanticLabel = '$visualText. $base. $back';
     } else {
-      final String state = baseExact
-          ? _l10n.fractionViewStateOffExact
-          : _l10n.fractionViewStateOffNumeric;
-      semanticLabel = '$state. ${_l10n.fractionSwitchToFraction}';
-      visualText = _l10n.fractionVisualOff;
+      final String fracStr = _fractionString!;
+      visualText = _l10n.fractionVisualOff(fracStr);
+      final String base = baseExact
+          ? _l10n.fractionBaseExact
+          : _l10n.fractionBaseNumeric;
+      semanticLabel = '$visualText. $base. ${_l10n.fractionSwitchToFraction}';
     }
     // Stabilní kompaktní výška i při vysokém systémovém zoomu: stejný
     // izolační vzor jako přepínač režimů (noScaling + ruční sysFactor
