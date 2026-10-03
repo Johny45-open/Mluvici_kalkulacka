@@ -169,20 +169,44 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('cela cisla: 5 -> 5/1, 0 -> 0/1', (tester) async {
+    testWidgets('cela cisla: 5 -> nedostupne, 0 -> nedostupne', (tester) async {
       final state = await pumpApp(tester);
       await calculate(tester, state, '10/2');
-      expect(state.fractionStringForTest, '5/1');
+      expect(state.lastNumericForTest, closeTo(5, 1e-9));
+      expect(state.fractionStringForTest, isNull);
+      expect(state.fractionEligibleForTest, isFalse);
       state.toggleFractionForTest();
       await tester.pumpAndSettle();
-      expect(find.text('5/1'), findsOneWidget);
-      state.toggleFractionForTest();
-      await tester.pumpAndSettle();
+      expect(state.fractionViewForTest, isFalse);
+      expect(find.text('5/1'), findsNothing);
+      expect(state.currentResultSpeechForTest().contains('lomeno 1'), isFalse);
+      expect(state.currentResultSpeechForTest().contains('over 1'), isFalse);
       await calculate(tester, state, '5-5');
-      expect(state.fractionStringForTest, '0/1');
+      expect(state.lastNumericForTest, closeTo(0, 1e-9));
+      expect(state.fractionStringForTest, isNull);
+      expect(state.fractionEligibleForTest, isFalse);
       state.toggleFractionForTest();
       await tester.pumpAndSettle();
-      expect(find.text('0/1'), findsOneWidget);
+      expect(state.fractionViewForTest, isFalse);
+      expect(find.text('0/1'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('cela cisla: -3 a 2 -> nedostupne, 1/2 zustava dostupna', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await calculate(tester, state, '0-3');
+      expect(state.fractionStringForTest, isNull);
+      expect(state.fractionEligibleForTest, isFalse);
+      expect(state.currentResultSpeechForTest().contains('lomeno 1'), isFalse);
+      expect(state.currentResultSpeechForTest().contains('over 1'), isFalse);
+      await calculate(tester, state, '1+1');
+      expect(state.fractionStringForTest, isNull);
+      expect(state.fractionEligibleForTest, isFalse);
+      await calculate(tester, state, '1/2');
+      expect(state.fractionStringForTest, '1/2');
+      expect(state.fractionEligibleForTest, isTrue);
       expect(tester.takeException(), isNull);
     });
 
@@ -802,11 +826,11 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('G. text + 25: ciselne, ne exaktne', (tester) async {
+      testWidgets('G. text + 0,75: ciselne, ne exaktne', (tester) async {
         final state = await pumpApp(tester);
         state.setResultDisplayModeForTest(ResultDisplayMode.text);
         await tester.pump();
-        state.setDisplayForTest('25', 2);
+        state.setDisplayForTest('0.75', 4);
         await tester.pump();
         state.calculateForTest();
         await tester.pumpAndSettle();
@@ -841,11 +865,11 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('I. auto + 25: ciselne', (tester) async {
+      testWidgets('I. auto + 0,75: ciselne', (tester) async {
         final state = await pumpApp(tester);
         state.setResultDisplayModeForTest(ResultDisplayMode.auto);
         await tester.pump();
-        state.setDisplayForTest('25', 2);
+        state.setDisplayForTest('0.75', 4);
         await tester.pump();
         state.calculateForTest();
         await tester.pumpAndSettle();
@@ -883,7 +907,7 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('K. hodnoty 0,75 -> 3/4, 10/2 -> 5/1, -0,75 -> -3/4', (
+      testWidgets('K. hodnoty 0,75 -> 3/4, 10/2 -> nedostupne, -0,75 -> -3/4', (
         tester,
       ) async {
         final state = await pumpApp(tester);
@@ -892,9 +916,14 @@ void main() {
         expect(visualText(tester), contains('3/4'));
         expect(toggleLabel(tester), contains('3/4'));
         await calculate(tester, state, '10/2');
-        expect(state.fractionStringForTest, '5/1');
-        expect(visualText(tester), contains('5/1'));
-        expect(toggleLabel(tester), contains('5/1'));
+        expect(state.fractionStringForTest, isNull);
+        expect(state.fractionEligibleForTest, isFalse);
+        final unavailableText = visualText(tester).toLowerCase();
+        expect(
+          unavailableText.contains('nedostupné') ||
+              unavailableText.contains('unavailable'),
+          isTrue,
+        );
         await calculate(tester, state, '0-3/4');
         expect(state.fractionStringForTest, '-3/4');
         expect(visualText(tester), contains('-3/4'));

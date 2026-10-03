@@ -49,6 +49,29 @@ void main() {
     });
   });
 
+  group('decimalToNonTrivialFraction', () {
+    test('cela cisla a nula -> null (neni dostupny zlomek)', () {
+      expect(decimalToNonTrivialFraction(0), isNull);
+      expect(decimalToNonTrivialFraction(-0.0), isNull);
+      expect(decimalToNonTrivialFraction(2), isNull);
+      expect(decimalToNonTrivialFraction(5), isNull);
+      expect(decimalToNonTrivialFraction(-3), isNull);
+    });
+
+    test('skutecne zlomky zustavaji dostupne', () {
+      expect(decimalToNonTrivialFraction(0.5), const Fraction(1, 2));
+      expect(decimalToNonTrivialFraction(1.5), const Fraction(3, 2));
+      expect(decimalToNonTrivialFraction(2.75), const Fraction(11, 4));
+      expect(decimalToNonTrivialFraction(1 / 3), const Fraction(1, 3));
+    });
+
+    test('NaN/Infinity -> null', () {
+      expect(decimalToNonTrivialFraction(double.nan), isNull);
+      expect(decimalToNonTrivialFraction(double.infinity), isNull);
+      expect(decimalToNonTrivialFraction(double.negativeInfinity), isNull);
+    });
+  });
+
   group('formatFraction', () {
     test('textovy zapis n/d', () {
       expect(formatFraction(const Fraction(3, 4)), '3/4');

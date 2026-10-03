@@ -4688,22 +4688,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   // Tenká obálka nad sdílenou čistou vrstvou (fraction.dart) pro dialog
-  // „Info o čísle". Nový kód používá decimalToFraction/formatFraction přímo.
+  // „Info o čísle". Pro uživatele je dostupný pouze netriviální zlomek
+  // (jmenovatel != 1); triviální n/1 hlásí jako nedostupné.
   String _decimalToFraction(double val) {
-    final f = decimalToFraction(val);
+    final f = decimalToNonTrivialFraction(val);
     if (f == null) return _s('nedostupné', 'N/A');
     return formatFraction(f);
   }
 
   // Zlomkový řetězec aktuálního výsledku, nebo null když není způsobilý.
   // Čistě odvozeno ze stavu (_lastNumericValue + _lastResultIsPlainNumeric),
-  // nikdy parsováním textu _lastResult.
+  // nikdy parsováním textu _lastResult. Zdrojem pravdy pro uživatelskou
+  // dostupnost je netriviální zlomek (jmenovatel != 1): celá čísla (n/1,
+  // včetně 0/1) vrací null.
   String? get _fractionString {
     final v = _lastNumericValue;
     if (!_hasResult || v == null || !v.isFinite) return null;
     if (!_lastResultIsPlainNumeric) return null;
     if (_lastResult.toLowerCase() == 'error') return null;
-    final f = decimalToFraction(v);
+    final f = decimalToNonTrivialFraction(v);
     if (f == null) return null;
     return formatFraction(f);
   }
@@ -4736,7 +4739,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final spokenFraction = fracStr.replaceAll('/', _s(' lomeno ', ' over '));
       return _l10n.fractionAvailableAnnouncement(spokenFraction);
     }
-    return _l10n.fractionUnavailable;
+    // Triviální zlomek (n/1) ani jiná nedostupnost se k výsledkové speech
+    // automaticky nepřidává: výsledek zůstává pouze běžnou hláškou.
+    return null;
   }
 
   // Mluvená podoba zlomku "3 lomeno 4" / "3 over 4".
@@ -4751,7 +4756,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String _currentResultSpeech() {
     if (_isFractionViewActive) {
       final v = _lastNumericValue;
-      final f = v == null ? null : decimalToFraction(v);
+      final f = v == null ? null : decimalToNonTrivialFraction(v);
       if (f != null) return _spokenFraction(f);
       final s = _fractionString;
       if (s != null) return s.replaceAll('/', _s(' lomeno ', ' over '));
@@ -4775,7 +4780,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
     if (turningOn) {
       final v = _lastNumericValue;
-      final f = v == null ? null : decimalToFraction(v);
+      final f = v == null ? null : decimalToNonTrivialFraction(v);
       if (f != null) {
         say(_l10n.fractionAnnounced(f.numerator, f.denominator));
       } else {

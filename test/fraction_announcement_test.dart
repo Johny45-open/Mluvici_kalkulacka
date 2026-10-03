@@ -370,5 +370,49 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('H1. SR OFF + cele cislo 2 -> bez vety o zlomku', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await setScreenReader(tester, state, false);
+      await calculate(tester, state, '1+1');
+      expect(state.fractionStringForTest, isNull);
+      expect(state.fractionEligibleForTest, isFalse);
+      final speeches = resultSpeeches('Výsledek je', 'The result is');
+      expect(speeches, hasLength(1), reason: 'TTS log: $ttsLog');
+      expect(speeches.single.contains('2/1'), isFalse);
+      expect(speeches.single.contains('lomeno 1'), isFalse);
+      expect(speeches.single.contains('over 1'), isFalse);
+      expect(speeches.single.contains('dostupný zlomek'), isFalse);
+      expect(speeches.single.contains('is available'), isFalse);
+      expect(speeches.single.contains('není dostupný'), isFalse);
+      expect(speeches.single.contains('not available'), isFalse);
+      // Toggle ve stavu nedostupnosti nic nezapne.
+      ttsLog.clear();
+      state.toggleFractionForTest();
+      await tester.pumpAndSettle();
+      expect(state.fractionViewForTest, isFalse);
+      expect(state.currentResultSpeechForTest().contains('lomeno 1'), isFalse);
+      expect(state.currentResultSpeechForTest().contains('over 1'), isFalse);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('H2. SR ON + cele cislo 2 -> bez vety o zlomku', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await setScreenReader(tester, state, true);
+      await calculate(tester, state, '1+1');
+      expect(state.fractionStringForTest, isNull);
+      expect(state.fractionEligibleForTest, isFalse);
+      final speeches = resultSpeeches('Výsledek je', 'The result is');
+      expect(speeches, hasLength(1), reason: 'TTS log: $ttsLog');
+      expect(speeches.single.contains('2/1'), isFalse);
+      expect(speeches.single.contains('lomeno'), isFalse);
+      expect(speeches.single.contains('dostupný'), isFalse);
+      expect(speeches.single.contains('is available'), isFalse);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

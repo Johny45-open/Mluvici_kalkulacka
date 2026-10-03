@@ -80,3 +80,15 @@ Fraction? decimalToFraction(double value) {
 // Textový zápis "n/d", např. 3/4, 11/4, -3/4, 5/1, 0/1.
 String formatFraction(Fraction fraction) =>
     '${fraction.numerator}/${fraction.denominator}';
+
+/// Vrátí pouze uživatelsky smysluplný, netriviální zlomek.
+/// Matematický převodník [decimalToFraction] zůstává beze změny.
+/// - null z [decimalToFraction] (NaN/Infinity) -> null,
+/// - zlomek se jmenovatelem 1 (n/1, včetně 0/1) -> null (není dostupný zlomek),
+/// - jinak vrátí [Fraction].
+Fraction? decimalToNonTrivialFraction(double value) {
+  final f = decimalToFraction(value);
+  if (f == null) return null;
+  if (f.denominator == 1) return null;
+  return f;
+}
