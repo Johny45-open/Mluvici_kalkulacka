@@ -157,6 +157,33 @@ void main() {
         reason: 'TextField musí zůstat nad klávesnicí',
       );
 
+      final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
+      expect(dialog.scrollable, isFalse);
+      expect(dialog.title, isA<Semantics>());
+      expect(dialog.content, isA<SingleChildScrollView>());
+
+      final titleRect = tester.getRect(find.byWidget(dialog.title!));
+      expect(titleRect.top, greaterThanOrEqualTo(-1));
+      expect(
+        titleRect.bottom,
+        lessThanOrEqualTo(screenHeight - keyboardHeight + 1),
+        reason: 'Název dialogu musí zůstat nad klávesnicí',
+      );
+
+      final actionRects = dialog.actions!
+          .map((action) => tester.getRect(find.byWidget(action)))
+          .toList();
+      expect(actionRects, hasLength(2));
+      expect(
+        actionRects.every(
+          (rect) =>
+              rect.top >= -1 &&
+              rect.bottom <= screenHeight - keyboardHeight + 1,
+        ),
+        isTrue,
+        reason: 'Obě akce musí zůstat dostupné nad klávesnicí',
+      );
+
       // Nechá proběhnout odložené inicializační časovače aplikace,
       // aby teardown nehlásil pending timers.
       await tester.pump(const Duration(seconds: 3));

@@ -9935,18 +9935,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: l10n.statsSetsRename),
       builder: (ctx) {
         return AlertDialog(
-          scrollable: true,
           insetPadding: _dialogInsetPadding(),
           title: Semantics(header: true, child: Text(l10n.statsSetsRename)),
           // Odsazení od klávesnice řeší DialogRoute/AlertDialog.
           // Vnitřní padding s viewInsets.bottom by se přičetl podruhé
           // a vytlačil dialog nad horní hranu obrazovky.
-          content: Semantics(
-            label: l10n.statsSetNameLabel,
-            child: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: InputDecoration(labelText: l10n.statsSetNameLabel),
+          content: SingleChildScrollView(
+            child: Semantics(
+              label: l10n.statsSetNameLabel,
+              child: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(labelText: l10n.statsSetNameLabel),
+              ),
             ),
           ),
           actions: [
