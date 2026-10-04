@@ -3897,16 +3897,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: RouteSettings(name: _s('Upravit periodu', 'Edit period')),
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         insetPadding: _dialogInsetPadding(),
         title: Semantics(
           header: true,
           child: Text(_s('Upravit periodu', 'Edit period')),
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
               Semantics(
                 label: _s('Celá část', 'Integer part'),
                 child: TextFormField(
@@ -3991,7 +3991,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
               ),
             ],
-          ),
         ),
         actions: [
           TextButton(
@@ -5878,50 +5877,49 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (sCtx, setLocal) {
             return AlertDialog(
+              scrollable: true,
               insetPadding: _dialogInsetPadding(),
               title: Semantics(
                 header: true,
                 child: Text(_s('Nový profil', 'New profile')),
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Semantics(
-                      label: _s('Název nového profilu', 'New profile name'),
-                      child: TextField(
-                        controller: nameCtrl,
-                        autofocus: true,
-                        decoration: InputDecoration(
-                          labelText: _s('Název', 'Name'),
-                          border: const OutlineInputBorder(),
-                        ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Semantics(
+                    label: _s('Název nového profilu', 'New profile name'),
+                    child: TextField(
+                      controller: nameCtrl,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: _s('Název', 'Name'),
+                        border: const OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Semantics(
-                      label: _s('Základní profil pro kopii', 'Base profile'),
-                      child: DropdownButtonFormField<String>(
-                        value: baseId,
-                        decoration: InputDecoration(
-                          labelText: _s('Vycházet z', 'Base on'),
-                        ),
-                        items: _effectiveProfiles
-                            .map(
-                              (p) => DropdownMenuItem(
-                                value: p.id,
-                                child: Text(_displayProfileName(p)),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) setLocal(() => baseId = v);
-                        },
+                  ),
+                  const SizedBox(height: 12),
+                  Semantics(
+                    label: _s('Základní profil pro kopii', 'Base profile'),
+                    child: DropdownButtonFormField<String>(
+                      value: baseId,
+                      decoration: InputDecoration(
+                        labelText: _s('Vycházet z', 'Base on'),
                       ),
+                      items: _effectiveProfiles
+                          .map(
+                            (p) => DropdownMenuItem(
+                              value: p.id,
+                              child: Text(_displayProfileName(p)),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setLocal(() => baseId = v);
+                      },
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
               actions: [
                 TextButton(
@@ -6058,6 +6056,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Přejmenovat profil'),
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         insetPadding: _dialogInsetPadding(),
         title: Semantics(
           header: true,
@@ -6230,8 +6229,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // useSafeArea ponecháno na defaultu (true): o odsazení od klávesnice
       // se stará DialogRoute/AlertDialog. Vnější Padding(viewInsets) by inset
       // aplikoval podruhé a vytlačil dialog mimo horní hranu obrazovky.
-      // Dialogy s TextField řeší klávesnici lokálně uvnitř contentu
-      // (SingleChildScrollView + bottom padding viewInsets.bottom).
+      // Editorové dialogy s TextField používají AlertDialog(scrollable: true).
       routeSettings: routeSettings,
       builder: (dialogContext) =>
           _wrapWithDialogFontScale(dialogContext, Builder(builder: builder)),
@@ -9026,6 +9024,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       builder: (ctx) {
         return AlertDialog(
+          scrollable: true,
           insetPadding: _dialogInsetPadding(),
           title: Semantics(
             header: true,
@@ -9036,33 +9035,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
             ),
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(fieldNames.length, (i) {
-                final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
-                final label = unitCode != null
-                    ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
-                    : fieldNames[i];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Semantics(
-                    label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
-                    child: TextField(
-                      controller: controllers[i],
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: label,
-                        isDense: true,
-                      ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(fieldNames.length, (i) {
+              final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
+              final label = unitCode != null
+                  ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
+                  : fieldNames[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Semantics(
+                  label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                  child: TextField(
+                    controller: controllers[i],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: label,
+                      isDense: true,
                     ),
                   ),
-                );
-              }),
-            ),
+                ),
+              );
+            }),
           ),
           actions: [
             TextButton(
@@ -9938,19 +9935,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: l10n.statsSetsRename),
       builder: (ctx) {
         return AlertDialog(
+          scrollable: true,
           insetPadding: _dialogInsetPadding(),
           title: Semantics(header: true, child: Text(l10n.statsSetsRename)),
           // Odsazení od klávesnice řeší DialogRoute/AlertDialog.
           // Vnitřní padding s viewInsets.bottom by se přičetl podruhé
           // a vytlačil dialog nad horní hranu obrazovky.
-          content: SingleChildScrollView(
-            child: Semantics(
-              label: l10n.statsSetNameLabel,
-              child: TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: InputDecoration(labelText: l10n.statsSetNameLabel),
-              ),
+          content: Semantics(
+            label: l10n.statsSetNameLabel,
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(labelText: l10n.statsSetNameLabel),
             ),
           ),
           actions: [
@@ -10125,6 +10121,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 handleCancel(dialogContext);
               },
               child: AlertDialog(
+                scrollable: true,
                 insetPadding: _dialogInsetPadding(),
                 title: Semantics(
                   header: true,
@@ -10132,11 +10129,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     _s('Pole sady', 'Fields of set') + ' "${set.name}"',
                   ),
                 ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                       ...List.generate(fieldNameControllers.length, (i) {
                         final isLast = fieldNameControllers.length == 1;
                         return Padding(
@@ -10270,7 +10266,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         },
                       ),
                     ],
-                  ),
                 ),
                 actions: [
                   TextButton(
@@ -10339,15 +10334,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
+              scrollable: true,
               insetPadding: _dialogInsetPadding(),
               title: Semantics(header: true, child: Text(l10n.statsSetsCreate)),
               content: FocusTraversalGroup(
                 policy: ReadingOrderTraversalPolicy(),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                       Semantics(
                         label: l10n.statsSetNameLabel,
                         child: TextField(
@@ -10459,7 +10454,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         },
                       ),
                     ],
-                  ),
                 ),
               ),
               actions: [
@@ -11006,49 +11000,48 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (ctx, setDlg) {
             return AlertDialog(
+              scrollable: true,
               insetPadding: _dialogInsetPadding(),
               title: Semantics(
                 header: true,
                 child: Text(_s('Nová složka', 'New folder')),
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: controller,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: _s('Název složky', 'Folder name'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: _s('Název složky', 'Folder name'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    children: List.generate(
+                      _statsPalette.length,
+                      (i) => ChoiceChip(
+                        label: Text('${i + 1}'),
+                        selected: draftColor == i,
+                        onSelected: (_) => setDlg(() => draftColor = i),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 6,
-                      children: List.generate(
-                        _statsPalette.length,
-                        (i) => ChoiceChip(
-                          label: Text('${i + 1}'),
-                          selected: draftColor == i,
-                          onSelected: (_) => setDlg(() => draftColor = i),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      children: _statsIconNames
-                          .map(
-                            (n) => ChoiceChip(
-                              label: Icon(_statsIconFor(n), size: 16),
-                              selected: draftIcon == n,
-                              onSelected: (_) => setDlg(() => draftIcon = n),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    children: _statsIconNames
+                        .map(
+                          (n) => ChoiceChip(
+                            label: Icon(_statsIconFor(n), size: 16),
+                            selected: draftIcon == n,
+                            onSelected: (_) => setDlg(() => draftIcon = n),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
               ),
               actions: [
                 TextButton(
@@ -11116,19 +11109,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       builder: (ctx) {
         return AlertDialog(
+          scrollable: true,
           insetPadding: _dialogInsetPadding(),
           title: Semantics(
             header: true,
             child: Text(_s('Přejmenovat složku', 'Rename folder')),
           ),
           // Odsazení od klávesnice řeší DialogRoute/AlertDialog (viz výše).
-          content: SingleChildScrollView(
-            child: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: _s('Název složky', 'Folder name'),
-              ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: _s('Název složky', 'Folder name'),
             ),
           ),
           actions: [
@@ -12584,6 +12576,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         name: _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
       ),
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         insetPadding: _dialogInsetPadding(),
         title: Semantics(
           header: true,
@@ -12591,33 +12584,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
           ),
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(fieldNames.length, (i) {
-              final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
-              final label = unitCode != null
-                  ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
-                  : fieldNames[i];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Semantics(
-                  label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
-                  child: TextField(
-                    controller: controllers[i],
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: label,
-                      isDense: true,
-                    ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(fieldNames.length, (i) {
+            final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
+            final label = unitCode != null
+                ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
+                : fieldNames[i];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Semantics(
+                label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                child: TextField(
+                  controller: controllers[i],
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: label,
+                    isDense: true,
                   ),
                 ),
-              );
-            }),
-          ),
+              ),
+            );
+          }),
         ),
         actions: [
           TextButton(
@@ -12678,21 +12669,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
+            scrollable: true,
             insetPadding: _dialogInsetPadding(),
             title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
             content: SizedBox(
               width: double.maxFinite,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.62,
-                ),
-                child: FocusTraversalGroup(
-                  policy: ReadingOrderTraversalPolicy(),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+              child: FocusTraversalGroup(
+                policy: ReadingOrderTraversalPolicy(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                         Text(
                           summary,
                           style: const TextStyle(
@@ -12764,11 +12751,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           ),
                         ),
                       ],
-                    ),
                   ),
                 ),
               ),
-            ),
             actions: [
               TextButton(
                 onPressed: () {

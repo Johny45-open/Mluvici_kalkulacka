@@ -1025,13 +1025,13 @@ class _DevPinDialogState extends State<_DevPinDialog> {
     }
 
     return AlertDialog(
+      scrollable: true,
       insetPadding: parent._dialogInsetPadding(),
       title: Semantics(header: true, child: Text(title)),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
             if (isChange) ...[
               Semantics(
                 label: parent._s('Starý PIN', 'Old PIN'),
@@ -1139,7 +1139,6 @@ class _DevPinDialogState extends State<_DevPinDialog> {
             ],
           ],
         ),
-      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),

@@ -1176,6 +1176,7 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
   Widget build(BuildContext context) {
     final sortedKeys = _rates.keys.toList()..sort();
     return AlertDialog(
+      scrollable: true,
       insetPadding: parent._dialogInsetPadding(),
       title: Semantics(
         header: true,
@@ -1183,10 +1184,9 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
       ),
       content: SizedBox(
         width: double.maxFinite,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
               if (sortedKeys.isEmpty) Text(parent._l10n.currencyNoRates),
               ...sortedKeys.map((code) {
                 final isCzk = code == 'CZK';
@@ -1284,28 +1284,23 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                       builder: (dCtx) {
                         final ctrl = TextEditingController();
                         // Bez vnějšího Padding(viewInsets): odsazení řeší
-                        // DialogRoute. Vnitřní SingleChildScrollView drží
-                        // TextField viditelný nad klávesnicí.
+                        // DialogRoute/AlertDialog(scrollable).
                         return AlertDialog(
+                          scrollable: true,
                           insetPadding: parent._dialogInsetPadding(),
                           title: Semantics(
                             header: true,
                             child: Text(parent._l10n.currencyAddTitle),
                           ),
-                          content: SingleChildScrollView(
-                            // Bez vnějšího Padding(viewInsets): odsazení řeší
-                            // DialogRoute. Vnitřní SingleChildScrollView drží
-                            // TextField viditelný nad klávesnicí.
-                            child: TextField(
-                              controller: ctrl,
-                              autofocus: true,
-                              textCapitalization: TextCapitalization.characters,
-                              decoration: InputDecoration(
-                                labelText: parent._l10n.currencyCodeLabel,
-                                border: const OutlineInputBorder(),
-                              ),
-                              maxLength: 3,
+                          content: TextField(
+                            controller: ctrl,
+                            autofocus: true,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: InputDecoration(
+                              labelText: parent._l10n.currencyCodeLabel,
+                              border: const OutlineInputBorder(),
                             ),
+                            maxLength: 3,
                           ),
                           actions: [
                             TextButton(
@@ -1358,7 +1353,6 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                 ),
               ),
             ],
-          ),
         ),
       ),
       actions: [
