@@ -5204,8 +5204,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() {
       _currentMode = mode;
       display = '';
+      _cursorPosition = 0;
       _scientificFunctionsPage = false;
       _scientificPageAnnouncement = null;
+      // Rozpracované STO/RCL nesmí přežít změnu režimu: cílová proměnná
+      // by se jinak vybrala v jiném kontextu, než kde byl záměr potvrzen.
+      // Zrušení je tiché – změna režimu má vlastní hlasové potvrzení
+      // a clear() flagy resetuje stejně.
+      _isStoreMode = false;
+      _isRecallMode = false;
     });
     _modeUsageCounts[mode.index]++;
     _totalModeSwitches++;
@@ -6295,14 +6302,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
-  void _saveStatsData() async {
-    // Paměťové proměnné se zapisují jako první, aby jejich persistence
-    // nezávisela na (potenciálně pomalém) ukládání statistických sad.
-    // Formát klíče 'memoryVariables' ani statistické ukládání se nemění.
+  /// Samostatný zápis paměťových proměnných (klíč 'memoryVariables').
+  /// Formát dat se nemění. Oddělení od ukládání statistických sad znamená,
+  /// že pomalé či visící file I/O statistiky nikdy neblokuje persistenci
+  /// paměti – _saveStatsData() ji volá vždy jako první.
+  Future<void> _saveMemoryVariables() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('memoryVariables', jsonEncode(_memory));
     } catch (_) {}
+  }
+
+  void _saveStatsData() async {
+    await _saveMemoryVariables();
     // Udržet updatedAt/lastUsedAt aktuální
     await StatsStorage.save(
       sets: _statsSets,
@@ -11743,6 +11755,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   Map<String, double> get memoryForTest => Map.unmodifiable(_memory);
+
+  @visibleForTesting
+  bool get isStoreModeForTest => _isStoreMode;
+
+  @visibleForTesting
+  bool get isRecallModeForTest => _isRecallMode;
 
   @visibleForTesting
   void showQuickMemoryDialogForTest() => _showQuickMemoryDialog();

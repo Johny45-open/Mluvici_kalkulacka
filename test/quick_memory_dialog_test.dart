@@ -302,7 +302,7 @@ void main() {
   });
 
   group('Rychla pamet ve vsech rezimech', () {
-    testWidgets('8. Dialog lze otevrit ze vsech hlavnich rezimu', (
+    testWidgets('Dialog lze otevrit ze vsech hlavnich rezimu', (
       tester,
     ) async {
       final state = await pumpApp(tester);
@@ -323,9 +323,37 @@ void main() {
         expect(find.byType(AlertDialog), findsNothing);
       }
     });
+
+    testWidgets('Zmena rezimu zrusi rozpracovane STO', (tester) async {
+      final state = await pumpApp(tester);
+      state.setDisplayForTest('42', 2);
+      await tester.pump();
+      await state.handleButtonPressedForTest('STO');
+      expect(state.isStoreModeForTest, isTrue);
+      state.switchModeForTest(CalculatorMode.basic);
+      await tester.pump();
+      expect(state.isStoreModeForTest, isFalse);
+      expect(state.isRecallModeForTest, isFalse);
+      // Tap proměnné nyní vloží písmeno do výrazu, nic neuloží.
+      await state.handleButtonPressedForTest('A');
+      await tester.pump();
+      expect(state.memoryForTest['A'], 0.0);
+      expect(state.displayForTest, contains('A'));
+    });
+
+    testWidgets('Zmena rezimu zrusi rozpracovane RCL', (tester) async {
+      final state = await pumpApp(tester);
+      await state.handleButtonPressedForTest('RCL');
+      expect(state.isRecallModeForTest, isTrue);
+      state.switchModeForTest(CalculatorMode.statistics);
+      await tester.pump();
+      expect(state.isStoreModeForTest, isFalse);
+      expect(state.isRecallModeForTest, isFalse);
+    });
   });
 
-  group('Legacy cesta zustava funkcni', () {    testWidgets('12. Advanced Functions → STO → A stale funguje', (
+  group('Legacy cesta zustava funkcni', () {
+    testWidgets('12. Advanced Functions → STO → A stale funguje', (
       tester,
     ) async {
       final state = await pumpApp(tester);
