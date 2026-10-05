@@ -3489,66 +3489,83 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (!silent) speak(_getButtonName(value));
   }
 
+  /// Společný entry point pro uložení aktuální hodnoty do proměnné.
+  /// Znovu používá jedinou business logiku: vyhodnocení [display],
+  /// fallback na [_lastResult], kontrolu finite hodnoty, zápis do [_memory],
+  /// persistenci přes [_saveStatsData] a hlasové potvrzení.
+  /// Vrací true při úspěchu, false při chybě (neplatný výraz / NaN / Infinity).
+  bool storeCurrentValueToMemory(String name) {
+    double val;
+    if (display.isNotEmpty) {
+      try {
+        val = _evaluateExpression(display);
+      } catch (_) {
+        val = double.nan;
+      }
+      if (!val.isFinite) {
+        setState(() => _isStoreMode = false);
+        speak(_l10n.cannotStoreExpression, force: true);
+        if (mounted) {
+          _showAccessibleSnackBar(_l10n.cannotStoreExpression);
+        }
+        return false;
+      }
+    } else {
+      try {
+        val = double.parse(_lastResult.replaceAll(',', '.'));
+      } catch (_) {
+        val = 0;
+      }
+    }
+    final String valStrVis = _formatNumberSmart(val).replaceAll('.', ',');
+    final String valStrSpoken = _formatSpokenNumber(val);
+    setState(() {
+      _memory[name] = val;
+      _isStoreMode = false;
+    });
+    _saveStatsData();
+    speak(_l10n.savedToVariable(name, valStrSpoken));
+    if (mounted) {
+      _showAccessibleSnackBar(
+        _l10n.savedToVariable(name, valStrVis),
+        visualContent: _PeriodicText(
+          _l10n.savedToVariable(name, valStrVis),
+          overlineThickness: _overlineThickness,
+          overlineHeight: _overlineHeight,
+        ),
+      );
+    }
+    return true;
+  }
+
+  /// Společný entry point pro vyvolání proměnné (RCL logika):
+  /// vloží číselnou hodnotu do výrazu přes [_insertAtCursor],
+  /// hlasově potvrdí, persistenci nemění.
+  void recallMemoryVariable(String name) {
+    String valStrVis = _formatNumberSmart(
+      _memory[name]!,
+    ).replaceAll('.', ',');
+    String valStrSpoken = _formatSpokenNumber(_memory[name]!);
+    append(_formatNumber(_memory[name]!), silent: true);
+    speak(_l10n.recalledFromVariable(name, valStrSpoken));
+    if (mounted) {
+      _showAccessibleSnackBar(
+        _l10n.recalledFromVariable(name, valStrVis),
+        visualContent: _PeriodicText(
+          _l10n.recalledFromVariable(name, valStrVis),
+          overlineThickness: _overlineThickness,
+          overlineHeight: _overlineHeight,
+        ),
+      );
+    }
+    _isRecallMode = false;
+  }
+
   void _handleMemoryVariable(String name) {
     if (_isStoreMode) {
-      double val;
-      if (display.isNotEmpty) {
-        try {
-          val = _evaluateExpression(display);
-        } catch (_) {
-          val = double.nan;
-        }
-        if (!val.isFinite) {
-          setState(() => _isStoreMode = false);
-          speak(_l10n.cannotStoreExpression, force: true);
-          if (mounted) {
-            _showAccessibleSnackBar(_l10n.cannotStoreExpression);
-          }
-          return;
-        }
-      } else {
-        try {
-          val = double.parse(_lastResult.replaceAll(',', '.'));
-        } catch (_) {
-          val = 0;
-        }
-      }
-      final String valStrVis = _formatNumberSmart(val).replaceAll('.', ',');
-      final String valStrSpoken = _formatSpokenNumber(val);
-      setState(() {
-        _memory[name] = val;
-        _isStoreMode = false;
-      });
-      _saveStatsData();
-      speak(_l10n.savedToVariable(name, valStrSpoken));
-      if (mounted) {
-        _showAccessibleSnackBar(
-          _l10n.savedToVariable(name, valStrVis),
-          visualContent: _PeriodicText(
-            _l10n.savedToVariable(name, valStrVis),
-            overlineThickness: _overlineThickness,
-            overlineHeight: _overlineHeight,
-          ),
-        );
-      }
+      storeCurrentValueToMemory(name);
     } else if (_isRecallMode) {
-      String valStrVis = _formatNumberSmart(
-        _memory[name]!,
-      ).replaceAll('.', ',');
-      String valStrSpoken = _formatSpokenNumber(_memory[name]!);
-      append(_formatNumber(_memory[name]!), silent: true);
-      speak(_l10n.recalledFromVariable(name, valStrSpoken));
-      if (mounted) {
-        _showAccessibleSnackBar(
-          _l10n.recalledFromVariable(name, valStrVis),
-          visualContent: _PeriodicText(
-            _l10n.recalledFromVariable(name, valStrVis),
-            overlineThickness: _overlineThickness,
-            overlineHeight: _overlineHeight,
-          ),
-        );
-      }
-      _isRecallMode = false;
+      recallMemoryVariable(name);
     } else {
       append(name, silent: true);
       speak(_l10n.variableName(name));
@@ -6279,14 +6296,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _saveStatsData() async {
+    // Paměťové proměnné se zapisují jako první, aby jejich persistence
+    // nezávisela na (potenciálně pomalém) ukládání statistických sad.
+    // Formát klíče 'memoryVariables' ani statistické ukládání se nemění.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('memoryVariables', jsonEncode(_memory));
+    } catch (_) {}
     // Udržet updatedAt/lastUsedAt aktuální
     await StatsStorage.save(
       sets: _statsSets,
       folders: _statsFolders,
       currentIndex: _currentStatsSetIndex,
     );
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('memoryVariables', jsonEncode(_memory));
   }
 
   void _saveHistory() async {
@@ -8941,6 +8963,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Pokročilé funkce'),
       builder: (context) => _AdvancedFunctionsDialog(parent: this),
+    );
+  }
+
+  void _showQuickMemoryDialog() {
+    showAppDialog(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Rychlá paměť'),
+      builder: (context) => _QuickMemoryDialog(parent: this),
     );
   }
 
@@ -11712,6 +11742,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   @visibleForTesting
+  Map<String, double> get memoryForTest => Map.unmodifiable(_memory);
+
+  @visibleForTesting
+  void showQuickMemoryDialogForTest() => _showQuickMemoryDialog();
+
+  @visibleForTesting
   void setDisplayFormatForTest(DisplayFormat f) {
     setState(() => _displayFormat = f);
   }
@@ -12968,6 +13004,36 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  /// Jednotná AppBar akce. Na velmi úzkých displejích (< 360 px) by se
+  /// 7 akcí v plné 48px šířce nevešlo (7 × 48 = 336 > 320) a AppBar by
+  /// přetekl. Kompaktní constraints (40 px) udrží všechny akce viditelné;
+  /// na běžných šířkách se nemění nic. Tooltip (zdroj Semantics labelu
+  /// pro TalkBack/NVDA) zůstává vždy zachován.
+  Widget _appBarAction({
+    required Widget icon,
+    required String? tooltip,
+    required VoidCallback? onPressed,
+  }) {
+    final narrow = MediaQuery.of(context).size.width < 360;
+    return IconButton(
+      icon: icon,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      padding: narrow ? const EdgeInsets.all(4) : null,
+      constraints: narrow
+          ? const BoxConstraints(minWidth: 40, minHeight: 40)
+          : null,
+      // Bez shrinkWrap by výchozí MaterialTapTargetSize.padded vnutil 48px
+      // touch target i při menších constraints (tato beta nemá přímý
+      // parametr tapTargetSize, proto přes style).
+      style: narrow
+          ? IconButton.styleFrom(
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            )
+          : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _updateTtsLanguage();
@@ -12981,7 +13047,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         appBar: AppBar(
           title: Text(l10n.appTitle),
           actions: [
-            IconButton(
+            _appBarAction(
               icon: Icon(
                 _voiceCreationSession?.listening == true
                     ? Icons.mic
@@ -12996,33 +13062,38 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
               onPressed: _startVoiceSetCreation,
             ),
-            IconButton(
+            _appBarAction(
               icon: const Icon(Icons.history),
               tooltip: l10n.history,
               onPressed: _showHistoryDialog,
             ),
-            IconButton(
+            _appBarAction(
               icon: const Icon(Icons.list),
               tooltip: l10n.advancedFunctions,
               onPressed: _showAdvancedFunctionsDialog,
             ),
-            IconButton(
+            _appBarAction(
+              icon: const Icon(Icons.memory),
+              tooltip: l10n.sectionMemory,
+              onPressed: _showQuickMemoryDialog,
+            ),
+            _appBarAction(
               icon: Icon(ttsEnabled ? Icons.volume_up : Icons.volume_off),
               tooltip: ttsEnabled ? l10n.muteVoice : l10n.unmuteVoice,
               onPressed: _toggleTts,
             ),
-            IconButton(
+            _appBarAction(
               icon: const Icon(Icons.settings),
               tooltip: l10n.accessibility,
               onPressed: _showAccessibilityDialog,
             ),
             if (_devModeEnabled)
-              IconButton(
+              _appBarAction(
                 icon: const Icon(Icons.bug_report, color: Colors.orange),
                 tooltip: _s('Vývojářský režim', 'Developer mode'),
                 onPressed: _showDevModeDialog,
               ),
-            IconButton(
+            _appBarAction(
               icon: const Icon(Icons.more_vert),
               tooltip: l10n.moreOptions,
               onPressed: _showMoreOptionsDialog,

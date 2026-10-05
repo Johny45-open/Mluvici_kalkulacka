@@ -1155,6 +1155,212 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
   }
 }
 
+/// Rychlý paměťový dialog: Paměť → A.
+///
+/// Hlavní cesta ukládá okamžitě bez mezikroku „Uložit": mřížka
+/// A,B,C,D,E,F,X,Y,M volá sdílený [parent.storeCurrentValueToMemory].
+/// Sekundární akce: vyvolání (stejný dialog, druhý krok přes
+/// [parent.recallMemoryVariable]), přehled hodnot přímo z [parent._memory]
+/// a vymazání přes existující [parent._showClearMemoryConfirmation].
+/// Klávesnice 4×7 ani Advanced Functions sekce se nemění.
+class _QuickMemoryDialog extends StatefulWidget {
+  final _CalculatorScreenState parent;
+  const _QuickMemoryDialog({required this.parent});
+
+  @override
+  State<_QuickMemoryDialog> createState() => _QuickMemoryDialogState();
+}
+
+class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
+  static const List<String> _variables = [
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'X',
+    'Y',
+    'M',
+  ];
+
+  bool _recallStep = false;
+  bool _showOverview = false;
+
+  Widget _variableGrid(
+    BuildContext ctx, {
+    required String Function(String) semanticLabelFor,
+    required void Function(String) onSelect,
+  }) {
+    final parent = widget.parent;
+    // Žádný LayoutBuilder: scrollable AlertDialog měří content intrinsicky
+    // (Wrap → dry layout), což _RenderLayoutBuilder nepodporuje a padá.
+    // Šířka se odvozuje z MediaQuery, výška je fixní × responsive scale.
+    final dialogWidth = MediaQuery.of(ctx).size.width.clamp(280.0, 420.0);
+    final cellWidth = (dialogWidth - 100) / 3;
+    final cellHeight = 50 * parent._responsiveScale(ctx);
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 4,
+      runSpacing: 4,
+      children: _variables.map((b) {
+        return SizedBox(
+          width: cellWidth,
+          height: cellHeight,
+          child: parent.buildButton(
+            b,
+            semanticLabel: semanticLabelFor(b),
+            onPressed: () => onSelect(b),
+            expanded: false,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _secondaryActions(BuildContext ctx) {
+    final parent = widget.parent;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.file_download, size: 18),
+          label: Text(parent._l10n.memoryRecallAction),
+          onPressed: () => setState(() {
+            _recallStep = true;
+            _showOverview = false;
+          }),
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.list_alt, size: 18),
+          label: Text(parent._l10n.memoryOverviewAction),
+          onPressed: () => setState(() {
+            _showOverview = true;
+            _recallStep = false;
+          }),
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.delete_forever, size: 18),
+          label: Text(parent._l10n.memoryClearAction),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () => parent._showClearMemoryConfirmation(),
+        ),
+      ],
+    );
+  }
+
+  Widget _overviewList() {
+    final parent = widget.parent;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          header: true,
+          child: Text(
+            parent._l10n.memoryOverviewTitle,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ..._variables.map((k) {
+          final raw = parent._memory[k] ?? 0;
+          final vis = parent._formatNumberSmart(raw).replaceAll('.', ',');
+          return Semantics(
+            label: '${parent._l10n.variableName(k)}: $vis',
+            excludeSemantics: true,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 32,
+                    child: Text(
+                      k,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Expanded(child: Text('= $vis')),
+                ],
+              ),
+            ),
+          );
+        }),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => setState(() => _showOverview = false),
+          child: Text(parent._s('ZPĚT', 'BACK')),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final parent = widget.parent;
+    final bool isRecall = _recallStep && !_showOverview;
+    // Stejná struktura jako _AdvancedFunctionsDialog: nescrollovatelný
+    // AlertDialog + ListView. Scrollable AlertDialog by měřil content
+    // intrinsicky a buildButton (uvnitř LayoutBuilder) na dry layout padá.
+    final List<Widget> content;
+    if (_showOverview) {
+      content = [_overviewList()];
+    } else if (isRecall) {
+      content = [
+        Semantics(header: true, child: Text(parent._l10n.quickMemoryRecallTitle)),
+        const SizedBox(height: 8),
+        _variableGrid(
+          context,
+          semanticLabelFor: (b) => parent._l10n.recallFromVariableButton(b),
+          onSelect: (b) {
+            parent.recallMemoryVariable(b);
+            Navigator.pop(context);
+          },
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => setState(() => _recallStep = false),
+          child: Text(parent._s('ZPĚT', 'BACK')),
+        ),
+      ];
+    } else {
+      content = [
+        Semantics(header: true, child: Text(parent._l10n.quickMemorySaveTo)),
+        const SizedBox(height: 8),
+        _variableGrid(
+          context,
+          semanticLabelFor: (b) => parent._l10n.saveToVariable(b),
+          onSelect: (b) {
+            parent.storeCurrentValueToMemory(b);
+            Navigator.pop(context);
+          },
+        ),
+        _secondaryActions(context),
+      ];
+    }
+    return AlertDialog(
+      insetPadding: parent._dialogInsetPadding(),
+      title: Semantics(header: true, child: Text(parent._l10n.sectionMemory)),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView(shrinkWrap: true, children: content),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(parent._s('ZAVŘÍT', 'CLOSE')),
+        ),
+      ],
+    );
+  }
+}
+
 class _CurrencyManagerDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
   const _CurrencyManagerDialog({required this.parent});

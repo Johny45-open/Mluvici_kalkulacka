@@ -626,6 +626,34 @@ class AppLocalizationsCs extends AppLocalizations {
   String get memoryCleared => 'Paměť smazána';
 
   @override
+  String get quickMemorySaveTo => 'Uložit aktuální hodnotu do:';
+
+  @override
+  String saveToVariable(String name) {
+    return 'Uložit do proměnné $name';
+  }
+
+  @override
+  String get quickMemoryRecallTitle => 'Vyvolat proměnnou:';
+
+  @override
+  String recallFromVariableButton(String name) {
+    return 'Vyvolat z proměnné $name';
+  }
+
+  @override
+  String get memoryRecallAction => 'Vyvolat proměnnou';
+
+  @override
+  String get memoryOverviewAction => 'Přehled proměnných';
+
+  @override
+  String get memoryClearAction => 'Vymazat paměť';
+
+  @override
+  String get memoryOverviewTitle => 'Přehled proměnných';
+
+  @override
   String insertedValue(String value) {
     return 'Vloženo $value';
   }

@@ -1241,6 +1241,54 @@ abstract class AppLocalizations {
   /// **'Memory cleared'**
   String get memoryCleared;
 
+  /// Heading in the quick memory dialog above the variable grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Save current value to:'**
+  String get quickMemorySaveTo;
+
+  /// No description provided for @saveToVariable.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to variable {name}'**
+  String saveToVariable(String name);
+
+  /// Heading in the quick memory dialog recall step.
+  ///
+  /// In en, this message translates to:
+  /// **'Recall variable:'**
+  String get quickMemoryRecallTitle;
+
+  /// No description provided for @recallFromVariableButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Recall from variable {name}'**
+  String recallFromVariableButton(String name);
+
+  /// No description provided for @memoryRecallAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Recall variable'**
+  String get memoryRecallAction;
+
+  /// No description provided for @memoryOverviewAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Show variables'**
+  String get memoryOverviewAction;
+
+  /// No description provided for @memoryClearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear memory'**
+  String get memoryClearAction;
+
+  /// No description provided for @memoryOverviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Variables overview'**
+  String get memoryOverviewTitle;
+
   /// No description provided for @insertedValue.
   ///
   /// In en, this message translates to:

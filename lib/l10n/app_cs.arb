@@ -374,6 +374,34 @@
   "selectMemory": "Vyberte paměť",
   "selectMemoryRecall": "Vyberte paměť pro vyvolání",
   "memoryCleared": "Paměť smazána",
+  "quickMemorySaveTo": "Uložit aktuální hodnotu do:",
+  "@quickMemorySaveTo": {
+    "description": "Nadpis v rychlém dialogu paměti nad mřížkou proměnných."
+  },
+  "saveToVariable": "Uložit do proměnné {name}",
+  "@saveToVariable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "quickMemoryRecallTitle": "Vyvolat proměnnou:",
+  "@quickMemoryRecallTitle": {
+    "description": "Nadpis kroku vyvolání v rychlém dialogu paměti."
+  },
+  "recallFromVariableButton": "Vyvolat z proměnné {name}",
+  "@recallFromVariableButton": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "memoryRecallAction": "Vyvolat proměnnou",
+  "memoryOverviewAction": "Přehled proměnných",
+  "memoryClearAction": "Vymazat paměť",
+  "memoryOverviewTitle": "Přehled proměnných",
   "insertedValue": "Vloženo {value}",
   "@insertedValue": {
     "placeholders": {

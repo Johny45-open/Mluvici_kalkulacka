@@ -302,6 +302,34 @@
   "selectMemory": "Select memory",
   "selectMemoryRecall": "Select a memory to recall",
   "memoryCleared": "Memory cleared",
+  "quickMemorySaveTo": "Save current value to:",
+  "@quickMemorySaveTo": {
+    "description": "Heading in the quick memory dialog above the variable grid."
+  },
+  "saveToVariable": "Save to variable {name}",
+  "@saveToVariable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "quickMemoryRecallTitle": "Recall variable:",
+  "@quickMemoryRecallTitle": {
+    "description": "Heading in the quick memory dialog recall step."
+  },
+  "recallFromVariableButton": "Recall from variable {name}",
+  "@recallFromVariableButton": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "memoryRecallAction": "Recall variable",
+  "memoryOverviewAction": "Show variables",
+  "memoryClearAction": "Clear memory",
+  "memoryOverviewTitle": "Variables overview",
   "insertedValue": "Inserted {value}",
   "@insertedValue": {
     "placeholders": {

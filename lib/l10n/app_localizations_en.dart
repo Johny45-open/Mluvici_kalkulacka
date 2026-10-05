@@ -626,6 +626,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memoryCleared => 'Memory cleared';
 
   @override
+  String get quickMemorySaveTo => 'Save current value to:';
+
+  @override
+  String saveToVariable(String name) {
+    return 'Save to variable $name';
+  }
+
+  @override
+  String get quickMemoryRecallTitle => 'Recall variable:';
+
+  @override
+  String recallFromVariableButton(String name) {
+    return 'Recall from variable $name';
+  }
+
+  @override
+  String get memoryRecallAction => 'Recall variable';
+
+  @override
+  String get memoryOverviewAction => 'Show variables';
+
+  @override
+  String get memoryClearAction => 'Clear memory';
+
+  @override
+  String get memoryOverviewTitle => 'Variables overview';
+
+  @override
   String insertedValue(String value) {
     return 'Inserted $value';
   }
