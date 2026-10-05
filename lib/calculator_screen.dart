@@ -5200,6 +5200,50 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  // Globální textový vstup do paměti: velké čitelné tlačítko „Paměť"
+  // v hlavní pracovní ploše (nikoli v AppBaru, nikoli v 4×7 rastru
+  // klávesnice). Sdílí fixní řádek s přepínačem režimů, takže nepřidává
+  // ŽÁDNÝ nový vertikální řádek a neubírá místo displeji ani klávesnici
+  // (geometrie 4×7 rastru a všech režimů zůstává beze změny).
+  // Volá existující [_showQuickMemoryDialog], jehož hlavní obsah je přímo
+  // mřížka A..M (Paměť → A bez mezikroku).
+  // A11y: vlastní Semantics label (mimo kontejner „Přepínač režimů"),
+  // focus order displej → fraction → Paměť → režimy → klávesnice.
+  // buildButton řeší dark mode, velké písmo (sysFactor clamp + noScaling
+  // + FittedBox) i TalkBack/NVDA bez duplicitních oznámení.
+  // Stojí PŘED scrollovatelnými chipy jako fixní prvek – chipe zůstává
+  // horizontálně scrollovatelný i na úzkých displejích.
+  Widget _buildMemoryAndModeRow() {
+    final scale = _responsiveScale(context);
+    return Row(
+      children: [
+        Container(
+          margin: EdgeInsets.only(
+            left: 4 * scale,
+            top: 4 * scale,
+            bottom: 4 * scale,
+          ),
+          child: SizedBox(
+            key: const ValueKey('memory_entry_button'),
+            height: 48 * scale,
+            width: 132 * scale,
+            child: buildButton(
+              _l10n.sectionMemory,
+              semanticLabel: _s(
+                'Paměť, otevře paměťové proměnné A až M',
+                'Memory, opens memory variables A to M',
+              ),
+              color: Colors.teal,
+              onPressed: _showQuickMemoryDialog,
+              expanded: false,
+            ),
+          ),
+        ),
+        Expanded(child: _buildModeSelector()),
+      ],
+    );
+  }
+
   void _changeMode(CalculatorMode mode) {
     setState(() {
       _currentMode = mode;
@@ -8176,13 +8220,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _showAccessibleSnackBar(_l10n.selectMemoryRecall);
       }
     } else if (label == 'CLR') {
+      final cleared = _nonZeroMemoryVariableNames();
       setState(() {
         _memory.updateAll((key, value) => 0);
       });
       _saveStatsData();
-      speak(_l10n.memoryCleared);
+      final clearedMsg = _memoryClearedMessage(cleared);
+      speak(clearedMsg);
       if (mounted) {
-        _showAccessibleSnackBar(_l10n.memoryCleared);
+        _showAccessibleSnackBar(clearedMsg);
       }
     } else if (_memory.containsKey(label)) {
       _handleMemoryVariable(label);
@@ -8983,7 +9029,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Rychlá paměť'),
       builder: (context) => _QuickMemoryDialog(parent: this),
-    );
+    ).then((_) => _returnFocusToKeyboard());
   }
 
   void _insertFromHistory(String value) {
@@ -12348,6 +12394,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     speak(question);
   }
 
+  /// Názvy nenulových paměťových proměnných v kanonickém pořadí
+  /// A,B,C,D,E,F,X,Y,M. Zjišťuje se PŘED vynulováním (confirmation flow).
+  /// Žádný nový datový model, pouze odvození z existujícího `_memory`.
+  List<String> _nonZeroMemoryVariableNames() {
+    const order = ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'];
+    return [for (final k in order) if ((_memory[k] ?? 0) != 0) k];
+  }
+
+  /// Lokalizovaný seznam „A, C a M" / „A, C and M".
+  String _formatVariableNameList(List<String> names) {
+    if (names.length == 1) return names.first;
+    final joinWord = _s(' a ', ' and ');
+    if (names.length == 2) return '${names[0]}$joinWord${names[1]}';
+    return '${names.sublist(0, names.length - 1).join(', ')}$joinWord${names.last}';
+  }
+
+  /// Potvrzení po smazání: které proměnné byly smazány.
+  /// Prázdný seznam → existující obecná hláška (chování pro prázdnou paměť).
+  String _memoryClearedMessage(List<String> clearedNames) {
+    if (clearedNames.isEmpty) return _l10n.memoryCleared;
+    return _l10n.memoryClearedWithVariables(
+      _formatVariableNameList(clearedNames),
+    );
+  }
+
   void _showClearMemoryConfirmation({BuildContext? dialogContext}) {
     final hasData = _memory.values.any((v) => v != 0);
     if (!hasData) {
@@ -12378,13 +12449,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         actions: [
           TextButton(
             onPressed: () {
+              // Seznam smazaných proměnných zjistit PŘED vynulováním.
+              final cleared = _nonZeroMemoryVariableNames();
               setState(() {
                 _memory.updateAll((key, value) => 0);
               });
               _saveStatsData();
-              speak(_l10n.memoryCleared);
+              final clearedMsg = _memoryClearedMessage(cleared);
+              speak(clearedMsg);
               if (mounted) {
-                _showAccessibleSnackBar(_l10n.memoryCleared);
+                _showAccessibleSnackBar(clearedMsg);
               }
               Navigator.pop(ctx);
               // Zavřít i rodičovský dialog Pokročilé funkce pokud byl předán
@@ -13091,11 +13165,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               onPressed: _showAdvancedFunctionsDialog,
             ),
             _appBarAction(
-              icon: const Icon(Icons.memory),
-              tooltip: l10n.sectionMemory,
-              onPressed: _showQuickMemoryDialog,
-            ),
-            _appBarAction(
               icon: Icon(ttsEnabled ? Icons.volume_up : Icons.volume_off),
               tooltip: ttsEnabled ? l10n.muteVoice : l10n.unmuteVoice,
               onPressed: _toggleTts,
@@ -13336,8 +13405,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     // Ovládání zobrazení výsledku DEC <-> a/b: samostatný
                     // prvek hlavního layoutu mimo displej i mimo keypad.
                     _buildFractionViewToggleRow(),
-                    // Přepínač režimů
-                    _buildModeSelector(),
+                    // Globální textový vstup „Paměť" sdílí řádek s přepínačem
+                    // režimů: fixní tlačítko před scrollovatelnými chipy.
+                    // Mimo 4×7 rastr klávesnice (focus order klávesnice se
+                    // nemění), bez nového vertikálního řádku.
+                    _buildMemoryAndModeRow(),
                     if (_currentMode == CalculatorMode.scientific) ...[
                       _buildScientificPageToggle(),
                       Semantics(

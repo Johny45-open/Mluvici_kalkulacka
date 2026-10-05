@@ -6,11 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mluvici_kalkulacka/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Testy rychlé paměti: AppBar akce „Paměť" (Icons.memory),
-/// dialog Paměť → A, reuse business logiky STO/RCL,
-/// persistence `memoryVariables`, přehled a legacy Advanced cesta.
-Finder memoryAppBarButton() =>
-    find.widgetWithIcon(IconButton, Icons.memory);
+/// Testy rychlého přístupu k paměti: velké textové tlačítko „Paměť"
+/// v hlavní pracovní ploše (nikoli AppBar), dialog Paměť → A,
+/// reuse business logiky STO/RCL, persistence `memoryVariables`,
+/// přehled, mazání s výčtem proměnných a legacy Advanced cesta.
+Finder memoryEntryButton() =>
+    find.byKey(const ValueKey('memory_entry_button'));
 
 /// Najde [Text] s libovolným z daných řetězců (cs/en varianta).
 Finder textAny(List<String> options) => find.byWidgetPredicate(
@@ -93,8 +94,8 @@ void main() {
   }
 
   Future<void> openQuickMemory(WidgetTester tester) async {
-    expect(memoryAppBarButton(), findsOneWidget);
-    await tester.tap(memoryAppBarButton());
+    expect(memoryEntryButton(), findsOneWidget);
+    await tester.tap(memoryEntryButton());
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
   }
@@ -104,26 +105,29 @@ void main() {
     matching: find.text(value),
   );
 
-  group('Quick memory AppBar entry point', () {
-    testWidgets('1. AppBar akce Pamet existuje', (tester) async {
+  group('Quick memory body entry point (not AppBar)', () {
+    testWidgets('1. Velke textove tlacitko Pamet existuje v body', (tester) async {
       await pumpApp(tester);
-      expect(memoryAppBarButton(), findsOneWidget);
+      expect(memoryEntryButton(), findsOneWidget);
+      expect(textAny(['Paměť', 'Memory']), findsWidgets);
     });
 
-    testWidgets('2. AppBar akce ma spravnou accessibility label', (
+    testWidgets('1b. Pamet NENI v AppBaru', (tester) async {
+      await pumpApp(tester);
+      expect(
+        find.widgetWithIcon(IconButton, Icons.memory),
+        findsNothing,
+      );
+    });
+
+    testWidgets('2. Tlacitko ma spravny accessibility label', (
       tester,
     ) async {
       await pumpApp(tester);
-      final btn = tester.widget<IconButton>(memoryAppBarButton());
-      // Tooltip je zdroj accessibility labelu pro IconButton (TalkBack/NVDA).
-      expect(btn.tooltip, anyOf(['Paměť', 'Memory']));
+      expect(memoryEntryButton(), findsOneWidget);
       expect(
-        find.byWidgetPredicate(
-          (w) =>
-              w is IconButton &&
-              (w.tooltip == 'Paměť' || w.tooltip == 'Memory') &&
-              w.icon is Icon &&
-              (w.icon as Icon).icon == Icons.memory,
+        find.bySemanticsLabel(
+          RegExp('Paměť, otevře paměťové proměnné|Memory, opens memory variables'),
         ),
         findsOneWidget,
       );
@@ -150,6 +154,20 @@ void main() {
           reason: 'proměnná $v chybí v rychlém dialogu',
         );
       }
+    });
+
+    testWidgets('4b. Hlavni klavesnice zustava 4x7 rastr', (tester) async {
+      await pumpApp(tester);
+      // Tlačítko Paměť je mimo keypad_grid, rastr má 7 řádků.
+      expect(find.byKey(const ValueKey('keypad_grid')), findsOneWidget);
+      for (var r = 0; r < 7; r++) {
+        expect(
+          find.byKey(ValueKey('keypad_row_$r')),
+          findsOneWidget,
+          reason: 'řádek klávesnice $r chybí',
+        );
+      }
+      expect(memoryEntryButton(), findsOneWidget);
     });
 
     testWidgets('13. Novy dialog nerusi focus order hlavni klavesnice', (
@@ -181,7 +199,7 @@ void main() {
       state.setDisplayForTest('12*20+5', 7);
       await tester.pump();
       // Cesta rychlého dialogu: Paměť → B.
-      await tester.tap(memoryAppBarButton());
+      await tester.tap(memoryEntryButton());
       await tester.pumpAndSettle();
       await tester.tap(dialogText('B'));
       await tester.pumpAndSettle();
@@ -301,6 +319,56 @@ void main() {
     });
   });
 
+  group('Mazani s vypisem konkretnich promennych', () {
+    testWidgets('Smazani A, C, M oznami ktere promenne byly smazany', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      state.setMemoryForTest('A', 10.0);
+      state.setMemoryForTest('C', 30.0);
+      state.setMemoryForTest('M', 50.0);
+      await tester.pump();
+      await openQuickMemory(tester);
+      await tester.tap(textAny(['Vymazat paměť', 'Clear memory']));
+      await tester.pumpAndSettle();
+      // Potvrzovací dialog existujícího flow.
+      expect(find.byType(AlertDialog), findsWidgets);
+      await tester.tap(textAny(['ANO, SMAZAT', 'YES, CLEAR']));
+      await tester.pumpAndSettle();
+      expect(state.memoryForTest['A'], 0.0);
+      expect(state.memoryForTest['C'], 0.0);
+      expect(state.memoryForTest['M'], 0.0);
+      // SnackBar s výčtem smazaných proměnných.
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Text &&
+              w.data != null &&
+              w.data!.contains('A') &&
+              w.data!.contains('C') &&
+              w.data!.contains('M'),
+        ),
+        findsWidgets,
+      );
+    });
+
+    testWidgets('Prazdna pamet zachova stavajici chovani', (tester) async {
+      final state = await pumpApp(tester);
+      for (final v in memoryVars) {
+        state.setMemoryForTest(v, 0.0);
+      }
+      await tester.pump();
+      await openQuickMemory(tester);
+      await tester.tap(textAny(['Vymazat paměť', 'Clear memory']));
+      await tester.pumpAndSettle();
+      // Žádný potvrzovací dialog, jen hláška o prázdné paměti.
+      expect(
+        textAny(['Paměť je již prázdná.', 'Memory is already empty.']),
+        findsOneWidget,
+      );
+    });
+  });
+
   group('Rychla pamet ve vsech rezimech', () {
     testWidgets('Dialog lze otevrit ze vsech hlavnich rezimu', (
       tester,
@@ -310,11 +378,11 @@ void main() {
         state.switchModeForTest(mode);
         await tester.pumpAndSettle();
         expect(
-          memoryAppBarButton(),
+          memoryEntryButton(),
           findsOneWidget,
-          reason: 'Paměť chybí v AppBaru režimu $mode',
+          reason: 'Paměť chybí v body režimu $mode',
         );
-        await tester.tap(memoryAppBarButton());
+        await tester.tap(memoryEntryButton());
         await tester.pumpAndSettle();
         expect(find.byType(AlertDialog), findsOneWidget);
         expect(dialogText('A'), findsOneWidget);
@@ -364,7 +432,13 @@ void main() {
       await tester.tap(advancedBtn);
       await tester.pumpAndSettle();
       // Memory sekce je defaultně sbalená (_CollapsibleSection) – rozbalit.
-      await tester.tap(textAny(['Paměť', 'Memory']));
+      // Scope na dialog: body tlačítko „Paměť" je stále ve stromu za dialogem.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: textAny(['Paměť', 'Memory']),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('STO'), findsOneWidget);
       await tester.tap(find.text('STO'));

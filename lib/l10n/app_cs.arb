@@ -374,6 +374,14 @@
   "selectMemory": "Vyberte paměť",
   "selectMemoryRecall": "Vyberte paměť pro vyvolání",
   "memoryCleared": "Paměť smazána",
+  "memoryClearedWithVariables": "Paměť byla smazána. Smazány byly proměnné {list}.",
+  "@memoryClearedWithVariables": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
   "quickMemorySaveTo": "Uložit aktuální hodnotu do:",
   "@quickMemorySaveTo": {
     "description": "Nadpis v rychlém dialogu paměti nad mřížkou proměnných."

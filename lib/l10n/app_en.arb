@@ -302,6 +302,14 @@
   "selectMemory": "Select memory",
   "selectMemoryRecall": "Select a memory to recall",
   "memoryCleared": "Memory cleared",
+  "memoryClearedWithVariables": "Memory cleared. Cleared variables {list}.",
+  "@memoryClearedWithVariables": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
   "quickMemorySaveTo": "Save current value to:",
   "@quickMemorySaveTo": {
     "description": "Heading in the quick memory dialog above the variable grid."

@@ -626,6 +626,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memoryCleared => 'Memory cleared';
 
   @override
+  String memoryClearedWithVariables(String list) {
+    return 'Memory cleared. Cleared variables $list.';
+  }
+
+  @override
   String get quickMemorySaveTo => 'Save current value to:';
 
   @override

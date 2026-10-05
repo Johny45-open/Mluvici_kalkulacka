@@ -1241,6 +1241,12 @@ abstract class AppLocalizations {
   /// **'Memory cleared'**
   String get memoryCleared;
 
+  /// No description provided for @memoryClearedWithVariables.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory cleared. Cleared variables {list}.'**
+  String memoryClearedWithVariables(String list);
+
   /// Heading in the quick memory dialog above the variable grid.
   ///
   /// In en, this message translates to:
