@@ -14,6 +14,113 @@ class CalculatorScreen extends StatefulWidget {
   State<CalculatorScreen> createState() => _CalculatorScreenState();
 }
 
+/// Keyboard-aware obálka pro všechny dialogy otevírané přes
+/// `showAppDialog` (viz `_CalculatorScreenState.showAppDialog`).
+///
+/// Řeší UX problém „vystřelení dialogu k hornímu okraji" při otevření
+/// softwarové klávesnice. Root cause je v samotném frameworku:
+/// `Dialog.build` počítá `effectivePadding = viewInsets + insetPadding`
+/// a centurje dialog (`Align(center)`) do zbytku obrazovky nad klávesnicí.
+/// Když je vnitřní obsah vysoký (titulek + několik `TextField` + akce,
+/// zvětšené systémovým i dialogovým měřítkem písma),
+/// `AlertDialog(scrollable: true)` schová titulek do stejného vnitřního
+/// `SingleChildScrollView` jako obsah – `ensureVisible` focusovaného pole
+/// pak vytlačí titulek z viewportu a uživatel vidí hlavně tlačítka.
+///
+/// Tato obálka proto (a pouze když je klávesnice skutečně otevřená,
+/// tj. `MediaQuery.viewInsets.bottom > 0`):
+///
+/// * omezí výšku dialogu na skutečně dostupnou oblast nad klávesnicí
+///   (`size.height - viewInsets.bottom - viewPadding - insetPadding`),
+///   takže dialog nemůže přetéct přes horní okraj obrazovky;
+/// * převede `AlertDialog(scrollable: true)` na variantu s fixním titulkem
+///   a scrollovatelným pouze obsahem – scrolluje se jen potřebný obsah,
+///   titulek a akce zůstávají viditelné, focusované pole si dohled
+///   zajistí standardní `ensureVisible` vnitřního scrollu;
+/// * nemění nic jiného: barvy, sémantiku, focus order ani návrat focusu
+///   (ten řeší `_FocusRestoreObserver`), tmavý režim ani škálování písma.
+///
+/// Bez otevřené klávesnice vrací výsledek [builder] beze změny – dialogy,
+/// které klávesnici nepotřebují, se chovají přesně jako dřív (nulové riziko
+/// regrese jejich vzhledu). Nejedná se o kosmetickou změnu `insetPadding`
+/// ani o vypnutí keyboard insets: `viewInsets` se naopak čtou z kontextu
+/// dialogu a aktivně používají pro výpočet dostupné výšky.
+class _AppDialogKeyboardShell extends StatelessWidget {
+  final WidgetBuilder builder;
+
+  const _AppDialogKeyboardShell({required this.builder});
+
+  /// Dostupná výška dialogu nad klávesnicí v logických pixelech.
+  static double availableHeightFor(BuildContext context, double insetVertical) {
+    final mq = MediaQuery.of(context);
+    final h =
+        mq.size.height -
+        mq.viewInsets.bottom -
+        mq.viewPadding.top -
+        mq.viewPadding.bottom -
+        insetVertical;
+    // Pojistka proti degenerovaným hodnotám (extrémně malá obrazovka
+    // + vysoká klávesnice): dialog musí zůstat použitelný.
+    return h.clamp(160.0, mq.size.height);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    // Stejné jako dosavadní `Builder(builder: builder)` – obsah dialogu
+    // se staví až v kontextu shellu (pod font-scale MediaQuery).
+    final Widget dialog = builder(context);
+    if (keyboard <= 0) return dialog;
+
+    Widget current = dialog;
+    if (current is AlertDialog && current.scrollable) {
+      // Fixní titulek + scrollovatelný obsah místo společného scrollu.
+      // Všechny vlastnosti se předávají 1:1, mění se pouze `scrollable`.
+      current = AlertDialog(
+        icon: current.icon,
+        iconPadding: current.iconPadding,
+        iconColor: current.iconColor,
+        title: current.title,
+        titlePadding: current.titlePadding,
+        titleTextStyle: current.titleTextStyle,
+        content: current.content,
+        contentPadding: current.contentPadding,
+        contentTextStyle: current.contentTextStyle,
+        actions: current.actions,
+        actionsPadding: current.actionsPadding,
+        actionsAlignment: current.actionsAlignment,
+        actionsOverflowAlignment: current.actionsOverflowAlignment,
+        actionsOverflowDirection: current.actionsOverflowDirection,
+        actionsOverflowButtonSpacing: current.actionsOverflowButtonSpacing,
+        buttonPadding: current.buttonPadding,
+        backgroundColor: current.backgroundColor,
+        elevation: current.elevation,
+        shadowColor: current.shadowColor,
+        surfaceTintColor: current.surfaceTintColor,
+        semanticLabel: current.semanticLabel,
+        insetPadding: current.insetPadding,
+        clipBehavior: current.clipBehavior,
+        shape: current.shape,
+        alignment: current.alignment,
+        constraints: current.constraints,
+        scrollable: false,
+      );
+    }
+
+    final EdgeInsets? inset = current is AlertDialog
+        ? current.insetPadding
+        : null;
+    // Fallback 16.0 odpovídá keyboard-open větvi `_dialogInsetPadding`
+    // (vertical 8 nahoře + 8 dole) pro dialogy bez explicitního insetu.
+    final insetVertical = inset?.vertical ?? 16.0;
+    final maxH = availableHeightFor(context, insetVertical);
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: current,
+    );
+  }
+}
+
 class _CalculatorScreenState extends State<CalculatorScreen>
     with WidgetsBindingObserver {
   static const int _kKeypadColumns = 4;
@@ -6297,10 +6404,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // useSafeArea ponecháno na defaultu (true): o odsazení od klávesnice
       // se stará DialogRoute/AlertDialog. Vnější Padding(viewInsets) by inset
       // aplikoval podruhé a vytlačil dialog mimo horní hranu obrazovky.
-      // Editorové dialogy s TextField používají AlertDialog(scrollable: true).
+      // Stabilitu při otevřené klávesnici (omezení výšky na dostupnou oblast
+      // nad klávesnicí + fixní titulek u editorových AlertDialogů) zajišťuje
+      // [_AppDialogKeyboardShell] níže; bez klávesnice je průchozí.
       routeSettings: routeSettings,
-      builder: (dialogContext) =>
-          _wrapWithDialogFontScale(dialogContext, Builder(builder: builder)),
+      builder: (dialogContext) => _wrapWithDialogFontScale(
+        dialogContext,
+        _AppDialogKeyboardShell(builder: builder),
+      ),
     );
   }
 
