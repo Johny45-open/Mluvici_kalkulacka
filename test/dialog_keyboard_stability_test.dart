@@ -6,12 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Stabilita dialogů při otevřené softwarové klávesnici.
 ///
-/// Ověřuje opravu v `_AppDialogKeyboardShell` (viz `showAppDialog`
-/// v `lib/calculator_screen.dart`):
-/// dialog se nemá „vystřelit" k hornímu okraji, dostupná výška se přizpůsobí
-/// prostoru nad klávesnicí, scrolluje se pouze obsah, focusovaný TextField
-/// a spodní tlačítka zůstávají nad klávesnicí a po zavření klávesnice se
-/// dialog vrátí do normálního stavu.
+/// Ověřuje architekturu „jediný vlastník keyboard insetu = frameworkový
+/// Dialog" (viz `showAppDialog` v `lib/calculator_screen.dart`):
+/// aplikační kód `viewInsets.bottom` znovu neodečítá, dialog se nemá
+/// „vystřelit" k hornímu okraji, titulek zůstává fixní nad scrollovatelným
+/// obsahem, focusovaný TextField a spodní tlačítka zůstávají nad klávesnicí
+/// a po zavření klávesnice se dialog vrátí do normálního stavu.
 ///
 /// Klávesnice se simuluje přes `tester.view.viewInsets` (stejně jako
 /// v `dialog_keyboard_and_stats_focus_test.dart`), fokus pole přes
@@ -65,7 +65,8 @@ void main() {
   }
 
   /// Otevře přes centrální showAppDialog zkušební editorový dialog
-  /// (záměrně `scrollable: true`, stejně jako reálné editorové dialogy).
+  /// ve struktuře předepsané pro všechny reálné editorové dialogy:
+  /// fixní titulek + scrollovatelný pouze obsah (`scrollable: false`).
   void openProbeDialog(
     dynamic state,
     BuildContext ctx, {
@@ -75,13 +76,14 @@ void main() {
     state.showAppDialog<void>(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        scrollable: true,
+        scrollable: false,
         insetPadding: const EdgeInsets.symmetric(
           horizontal: 40,
           vertical: 24,
         ),
         title: Semantics(header: true, child: Text(title)),
-        content: Column(
+        content: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             for (var i = 0; i < fieldCount; i++)
@@ -93,6 +95,7 @@ void main() {
                 ),
               ),
           ],
+          ),
         ),
         actions: [
           TextButton(
@@ -174,9 +177,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsOneWidget);
-      // Bez klávesnice je shell průchozí: scrollable zůstává true.
+      // Žádný globální workaround: dialog zůstává přesně tak, jak byl
+      // autorem napsán (fixní titulek, scrollovatelný obsah).
       final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
-      expect(dialog.scrollable, isTrue);
+      expect(dialog.scrollable, isFalse);
+      expect(dialog.content, isA<SingleChildScrollView>());
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.byKey(const ValueKey('probe_cancel')));
@@ -205,7 +210,8 @@ void main() {
       await tester.showKeyboard(find.byKey(const ValueKey('probe_field_0')));
       await tester.pumpAndSettle();
 
-      // Shell při otevřené klávesnici převádí na fixní titulek.
+      // Žádná globální konverze scrollable: struktura dialogu je daná
+      // jeho autorem, framework sám řeší keyboard inset právě jednou.
       final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
       expect(dialog.scrollable, isFalse);
       expectStableAboveKeyboard(
@@ -307,8 +313,8 @@ void main() {
         fieldKey: const ValueKey('probe_field_2'),
         titleText: 'Probe dialog',
       );
-      // Kritická regrese scrollable:true: titulek byl ve společném scrollu
-      // a ensureVisible ho vytlačilo z viewportu. Po opravě je fixní.
+      // Titulek je fixní (není součástí scroll viewportu obsahu),
+      // takže ensureVisible fokusovaného pole ho nevytlačí z viewportu.
       final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
       final titleRect = tester.getRect(find.byWidget(dialog.title!));
       expect(
@@ -420,13 +426,14 @@ void main() {
       tester.testTextInput.hide();
       await tester.pumpAndSettle();
 
-      // Shell je opět průchozí: původní scrollable:true se vrátí,
-      // dialog je celý viditelný a zavíratelný.
+      // Dialog zůstává ve své autorské struktuře (žádný globální
+      // workaround, který by se musel vracet), je celý viditelný
+      // a zavíratelný.
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(
         tester.widget<AlertDialog>(find.byType(AlertDialog)).scrollable,
-        isTrue,
-        reason: 'Po zavření klávesnice se dialog vrací do původního stavu',
+        isFalse,
+        reason: 'Struktura dialogu se zavřením klávesnice nemění',
       );
       final titleRect = tester.getRect(find.text('Probe dialog'));
       expect(titleRect.top, greaterThanOrEqualTo(-1));

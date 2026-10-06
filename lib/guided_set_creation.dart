@@ -502,7 +502,7 @@ extension on _CalculatorScreenState {
 
             final canNext = step != 2; // fields step has own next
             return AlertDialog(
-              scrollable: true,
+              scrollable: false,
               insetPadding: _dialogInsetPadding(),
               title: Semantics(
                 header: true,
@@ -512,8 +512,7 @@ extension on _CalculatorScreenState {
               ),
               content: FocusTraversalGroup(
                 policy: ReadingOrderTraversalPolicy(),
-                // Odsazení od klávesnice řeší DialogRoute/AlertDialog.
-                child: content,
+                child: SingleChildScrollView(child: content),
               ),
               actions: [
                 TextButton(

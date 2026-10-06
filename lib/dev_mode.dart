@@ -1025,10 +1025,11 @@ class _DevPinDialogState extends State<_DevPinDialog> {
     }
 
     return AlertDialog(
-      scrollable: true,
+      scrollable: false,
       insetPadding: parent._dialogInsetPadding(),
       title: Semantics(header: true, child: Text(title)),
-      content: Column(
+      content: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1139,6 +1140,7 @@ class _DevPinDialogState extends State<_DevPinDialog> {
             ],
           ],
         ),
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),

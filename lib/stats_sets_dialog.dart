@@ -250,7 +250,9 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
   EdgeInsets _setsInsetPadding(BuildContext context) {
     final mq = MediaQuery.of(context);
     final w = mq.size.width;
-    final vertical = mq.viewInsets.bottom > 0 ? 8.0 : 16.0;
+    // Stabilní vertikální odsazení: klávesnici řeší výhradně
+    // frameworkový Dialog, insetPadding se kvůli ní nemění.
+    const vertical = 16.0;
     double horizontal;
     if (w < 360) {
       horizontal = 8.0;
@@ -724,14 +726,17 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
     final titlePadding = narrowScreen
         ? const EdgeInsets.fromLTRB(16, 16, 16, 0)
         : null;
-    // Viditelná výška po odečtu klávesnice. Obsah musí nechat rezervu na
-    // titulek + akce dialogu + vertikální insets, jinak by AlertDialog
-    // přetekl vertikálně (na malém displeji se to projeví i bez klávesnice).
-    final visibleH = mq.size.height - mq.viewInsets.bottom;
-    final insetsV = keyboardOpen ? 16.0 : (screenW < 700 ? 32.0 : 48.0);
-    final double contentMaxH = (visibleH - insetsV - 185).clamp(
+    // Horní mez výšky obsahu: odvozena z PLNÉ výšky obrazovky, nikdy
+    // se neodečítá viewInsets.bottom (vlastníkem keyboard insetu je
+    // výhradně frameworkový Dialog, který dialogu shora omezí prostor
+    // a náš ConstrainedBox se do něj vejde). Rezerva 185 kryje titulek
+    // + akce dialogu, aby AlertDialog nepřetekl ani na malém displeji
+    // bez klávesnice. Vnitřní Expanded/Flexible se při otevřené
+    // klávesnici smrskne do zbylého prostoru a seznam se posouvá.
+    final insetsV = screenW < 700 ? 32.0 : 48.0;
+    final double contentMaxH = (mq.size.height - insetsV - 185).clamp(
       180.0,
-      visibleH * 0.72,
+      mq.size.height * 0.72,
     );
 
     return AlertDialog(

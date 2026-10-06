@@ -1382,7 +1382,7 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
   Widget build(BuildContext context) {
     final sortedKeys = _rates.keys.toList()..sort();
     return AlertDialog(
-      scrollable: true,
+      scrollable: false,
       insetPadding: parent._dialogInsetPadding(),
       title: Semantics(
         header: true,
@@ -1390,7 +1390,8 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
       ),
       content: SizedBox(
         width: double.maxFinite,
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
               if (sortedKeys.isEmpty) Text(parent._l10n.currencyNoRates),
@@ -1489,16 +1490,15 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                       context: context,
                       builder: (dCtx) {
                         final ctrl = TextEditingController();
-                        // Bez vnějšího Padding(viewInsets): odsazení řeší
-                        // DialogRoute/AlertDialog(scrollable).
                         return AlertDialog(
-                          scrollable: true,
+                          scrollable: false,
                           insetPadding: parent._dialogInsetPadding(),
                           title: Semantics(
                             header: true,
                             child: Text(parent._l10n.currencyAddTitle),
                           ),
-                          content: TextField(
+                          content: SingleChildScrollView(
+                            child: TextField(
                             controller: ctrl,
                             autofocus: true,
                             textCapitalization: TextCapitalization.characters,
@@ -1507,6 +1507,7 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                               border: const OutlineInputBorder(),
                             ),
                             maxLength: 3,
+                            ),
                           ),
                           actions: [
                             TextButton(
@@ -1559,6 +1560,7 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                 ),
               ),
             ],
+          ),
         ),
       ),
       actions: [

@@ -14,113 +14,6 @@ class CalculatorScreen extends StatefulWidget {
   State<CalculatorScreen> createState() => _CalculatorScreenState();
 }
 
-/// Keyboard-aware obálka pro všechny dialogy otevírané přes
-/// `showAppDialog` (viz `_CalculatorScreenState.showAppDialog`).
-///
-/// Řeší UX problém „vystřelení dialogu k hornímu okraji" při otevření
-/// softwarové klávesnice. Root cause je v samotném frameworku:
-/// `Dialog.build` počítá `effectivePadding = viewInsets + insetPadding`
-/// a centurje dialog (`Align(center)`) do zbytku obrazovky nad klávesnicí.
-/// Když je vnitřní obsah vysoký (titulek + několik `TextField` + akce,
-/// zvětšené systémovým i dialogovým měřítkem písma),
-/// `AlertDialog(scrollable: true)` schová titulek do stejného vnitřního
-/// `SingleChildScrollView` jako obsah – `ensureVisible` focusovaného pole
-/// pak vytlačí titulek z viewportu a uživatel vidí hlavně tlačítka.
-///
-/// Tato obálka proto (a pouze když je klávesnice skutečně otevřená,
-/// tj. `MediaQuery.viewInsets.bottom > 0`):
-///
-/// * omezí výšku dialogu na skutečně dostupnou oblast nad klávesnicí
-///   (`size.height - viewInsets.bottom - viewPadding - insetPadding`),
-///   takže dialog nemůže přetéct přes horní okraj obrazovky;
-/// * převede `AlertDialog(scrollable: true)` na variantu s fixním titulkem
-///   a scrollovatelným pouze obsahem – scrolluje se jen potřebný obsah,
-///   titulek a akce zůstávají viditelné, focusované pole si dohled
-///   zajistí standardní `ensureVisible` vnitřního scrollu;
-/// * nemění nic jiného: barvy, sémantiku, focus order ani návrat focusu
-///   (ten řeší `_FocusRestoreObserver`), tmavý režim ani škálování písma.
-///
-/// Bez otevřené klávesnice vrací výsledek [builder] beze změny – dialogy,
-/// které klávesnici nepotřebují, se chovají přesně jako dřív (nulové riziko
-/// regrese jejich vzhledu). Nejedná se o kosmetickou změnu `insetPadding`
-/// ani o vypnutí keyboard insets: `viewInsets` se naopak čtou z kontextu
-/// dialogu a aktivně používají pro výpočet dostupné výšky.
-class _AppDialogKeyboardShell extends StatelessWidget {
-  final WidgetBuilder builder;
-
-  const _AppDialogKeyboardShell({required this.builder});
-
-  /// Dostupná výška dialogu nad klávesnicí v logických pixelech.
-  static double availableHeightFor(BuildContext context, double insetVertical) {
-    final mq = MediaQuery.of(context);
-    final h =
-        mq.size.height -
-        mq.viewInsets.bottom -
-        mq.viewPadding.top -
-        mq.viewPadding.bottom -
-        insetVertical;
-    // Pojistka proti degenerovaným hodnotám (extrémně malá obrazovka
-    // + vysoká klávesnice): dialog musí zůstat použitelný.
-    return h.clamp(160.0, mq.size.height);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    // Stejné jako dosavadní `Builder(builder: builder)` – obsah dialogu
-    // se staví až v kontextu shellu (pod font-scale MediaQuery).
-    final Widget dialog = builder(context);
-    if (keyboard <= 0) return dialog;
-
-    Widget current = dialog;
-    if (current is AlertDialog && current.scrollable) {
-      // Fixní titulek + scrollovatelný obsah místo společného scrollu.
-      // Všechny vlastnosti se předávají 1:1, mění se pouze `scrollable`.
-      current = AlertDialog(
-        icon: current.icon,
-        iconPadding: current.iconPadding,
-        iconColor: current.iconColor,
-        title: current.title,
-        titlePadding: current.titlePadding,
-        titleTextStyle: current.titleTextStyle,
-        content: current.content,
-        contentPadding: current.contentPadding,
-        contentTextStyle: current.contentTextStyle,
-        actions: current.actions,
-        actionsPadding: current.actionsPadding,
-        actionsAlignment: current.actionsAlignment,
-        actionsOverflowAlignment: current.actionsOverflowAlignment,
-        actionsOverflowDirection: current.actionsOverflowDirection,
-        actionsOverflowButtonSpacing: current.actionsOverflowButtonSpacing,
-        buttonPadding: current.buttonPadding,
-        backgroundColor: current.backgroundColor,
-        elevation: current.elevation,
-        shadowColor: current.shadowColor,
-        surfaceTintColor: current.surfaceTintColor,
-        semanticLabel: current.semanticLabel,
-        insetPadding: current.insetPadding,
-        clipBehavior: current.clipBehavior,
-        shape: current.shape,
-        alignment: current.alignment,
-        constraints: current.constraints,
-        scrollable: false,
-      );
-    }
-
-    final EdgeInsets? inset = current is AlertDialog
-        ? current.insetPadding
-        : null;
-    // Fallback 16.0 odpovídá keyboard-open větvi `_dialogInsetPadding`
-    // (vertical 8 nahoře + 8 dole) pro dialogy bez explicitního insetu.
-    final insetVertical = inset?.vertical ?? 16.0;
-    final maxH = availableHeightFor(context, insetVertical);
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxH),
-      child: current,
-    );
-  }
-}
-
 class _CalculatorScreenState extends State<CalculatorScreen>
     with WidgetsBindingObserver {
   static const int _kKeypadColumns = 4;
@@ -4021,13 +3914,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: RouteSettings(name: _s('Upravit periodu', 'Edit period')),
       builder: (ctx) => AlertDialog(
-        scrollable: true,
+        scrollable: false,
         insetPadding: _dialogInsetPadding(),
         title: Semantics(
           header: true,
           child: Text(_s('Upravit periodu', 'Edit period')),
         ),
-        content: Column(
+        content: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -4115,6 +4009,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
               ),
             ],
+          ),
         ),
         actions: [
           TextButton(
@@ -6052,13 +5947,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (sCtx, setLocal) {
             return AlertDialog(
-              scrollable: true,
+              scrollable: false,
               insetPadding: _dialogInsetPadding(),
               title: Semantics(
                 header: true,
                 child: Text(_s('Nový profil', 'New profile')),
               ),
-              content: Column(
+              content: SingleChildScrollView(
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -6095,6 +5991,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ),
                   ),
                 ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -6231,13 +6128,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context: context,
       routeSettings: const RouteSettings(name: 'Přejmenovat profil'),
       builder: (ctx) => AlertDialog(
-        scrollable: true,
+        scrollable: false,
         insetPadding: _dialogInsetPadding(),
         title: Semantics(
           header: true,
           child: Text(_s('Přejmenovat profil', 'Rename profile')),
         ),
-        content: Semantics(
+        content: SingleChildScrollView(
+          child: Semantics(
           label: _s('Nový název profilu', 'New profile name'),
           child: TextField(
             controller: ctrl,
@@ -6246,6 +6144,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               labelText: _s('Název', 'Name'),
               border: const OutlineInputBorder(),
             ),
+          ),
           ),
         ),
         actions: [
@@ -6384,7 +6283,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           child: dialog,
         );
         if (_dialogSize == DialogSize.fullscreen) {
-          return Dialog.fullscreen(child: scaled);
+          // Záměrně BEZ Dialog.fullscreen: vnořený Dialog v Dialogu by
+          // zdvojil surface i viewInsets handling a TalkBack by ohlásil
+          // dva dialogy. Jediným vlastníkem keyboard insetu zůstává
+          // vnitřní AlertDialog; fullscreen význam (vyplnit obrazovku)
+          // zajišťuje tight layout bez dalšího Dialogu.
+          return SizedBox.expand(child: scaled);
         }
         return scaled;
       },
@@ -6402,16 +6306,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       barrierDismissible: barrierDismissible,
       requestFocus: true,
       // useSafeArea ponecháno na defaultu (true): o odsazení od klávesnice
-      // se stará DialogRoute/AlertDialog. Vnější Padding(viewInsets) by inset
-      // aplikoval podruhé a vytlačil dialog mimo horní hranu obrazovky.
-      // Stabilitu při otevřené klávesnici (omezení výšky na dostupnou oblast
-      // nad klávesnicí + fixní titulek u editorových AlertDialogů) zajišťuje
-      // [_AppDialogKeyboardShell] níže; bez klávesnice je průchozí.
+      // se stará výhradně frameworkový Dialog/AlertDialog
+      // (viewInsets + insetPadding). Aplikační kód viewInsets nikdy
+      // znovu neodečítá, aby nedošlo k dvojímu zmenšení dialogu
+      // a jeho „vystřelení" k hornímu okraji.
       routeSettings: routeSettings,
-      builder: (dialogContext) => _wrapWithDialogFontScale(
-        dialogContext,
-        _AppDialogKeyboardShell(builder: builder),
-      ),
+      builder: (dialogContext) =>
+          _wrapWithDialogFontScale(dialogContext, builder(dialogContext)),
     );
   }
 
@@ -9223,7 +9124,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       builder: (ctx) {
         return AlertDialog(
-          scrollable: true,
+          scrollable: false,
           insetPadding: _dialogInsetPadding(),
           title: Semantics(
             header: true,
@@ -9234,7 +9135,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
             ),
           ),
-          content: Column(
+          content: SingleChildScrollView(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: List.generate(fieldNames.length, (i) {
               final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
@@ -9259,6 +9161,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
               );
             }),
+            ),
           ),
           actions: [
             TextButton(
@@ -10321,7 +10224,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 handleCancel(dialogContext);
               },
               child: AlertDialog(
-                scrollable: true,
+                scrollable: false,
                 insetPadding: _dialogInsetPadding(),
                 title: Semantics(
                   header: true,
@@ -10329,7 +10232,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     _s('Pole sady', 'Fields of set') + ' "${set.name}"',
                   ),
                 ),
-                content: Column(
+                content: SingleChildScrollView(
+                  child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -10466,6 +10370,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         },
                       ),
                     ],
+                  ),
                 ),
                 actions: [
                   TextButton(
@@ -10534,12 +10439,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              scrollable: true,
+              scrollable: false,
               insetPadding: _dialogInsetPadding(),
               title: Semantics(header: true, child: Text(l10n.statsSetsCreate)),
               content: FocusTraversalGroup(
                 policy: ReadingOrderTraversalPolicy(),
-                child: Column(
+                child: SingleChildScrollView(
+                  child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -10654,6 +10560,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         },
                       ),
                     ],
+                  ),
                 ),
               ),
               actions: [
@@ -11200,13 +11107,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return StatefulBuilder(
           builder: (ctx, setDlg) {
             return AlertDialog(
-              scrollable: true,
+              scrollable: false,
               insetPadding: _dialogInsetPadding(),
               title: Semantics(
                 header: true,
                 child: Text(_s('Nová složka', 'New folder')),
               ),
-              content: Column(
+              content: SingleChildScrollView(
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
@@ -11242,6 +11150,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         .toList(),
                   ),
                 ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -11309,18 +11218,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       builder: (ctx) {
         return AlertDialog(
-          scrollable: true,
+          scrollable: false,
           insetPadding: _dialogInsetPadding(),
           title: Semantics(
             header: true,
             child: Text(_s('Přejmenovat složku', 'Rename folder')),
           ),
-          // Odsazení od klávesnice řeší DialogRoute/AlertDialog (viz výše).
-          content: TextField(
+          content: SingleChildScrollView(
+            child: TextField(
             controller: controller,
             autofocus: true,
             decoration: InputDecoration(
               labelText: _s('Název složky', 'Folder name'),
+            ),
             ),
           ),
           actions: [
@@ -12111,11 +12021,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return int.tryParse(norm);
   }
 
+  /// Šířkové chování dialogů podle uživatelské volby DialogSize.
+  /// Záměrně BEZ jakéhokoliv odečtu `viewInsets.bottom`: jediným vlastníkem
+  /// keyboard insetu je frameworkový Dialog. Výškový limit je odvozen
+  /// z plné výšky obrazovky a slouží pouze jako bounded height pro vnitřní
+  /// scroll (ListView/SingleChildScrollView), nikoliv jako simulace klávesnice.
   Widget _applyDialogSize(Widget child) {
     final mq = MediaQuery.of(context);
-    final bottomInset = mq.viewInsets.bottom;
-    // Dostupná výška po odečtu klávesnice - zabrání posunu dialogu nad horní hranu
-    final h = mq.size.height - bottomInset;
+    final h = mq.size.height;
     switch (_dialogSize) {
       case DialogSize.compact:
         return SizedBox(
@@ -12138,10 +12051,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  /// Stabilní vizuální odsazení dialogu. Klávesnici řeší výhradně
+  /// frameworkový Dialog (viewInsets + insetPadding), proto zde není
+  /// žádná keyboard-specific větev.
   EdgeInsets _dialogInsetPadding() {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    // Když je klávesnice otevřená, zmenšit vertikální padding aby dialog nepřetekl
-    final vertical = bottomInset > 0 ? 8.0 : 24.0;
+    const vertical = 24.0;
     switch (_dialogSize) {
       case DialogSize.compact:
         return EdgeInsets.symmetric(horizontal: 40, vertical: vertical);
@@ -12816,7 +12730,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         name: _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
       ),
       builder: (ctx) => AlertDialog(
-        scrollable: true,
+        scrollable: false,
         insetPadding: _dialogInsetPadding(),
         title: Semantics(
           header: true,
@@ -12824,7 +12738,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _s('Upravit hodnotu ${index + 1}', 'Edit value ${index + 1}'),
           ),
         ),
-        content: Column(
+        content: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(fieldNames.length, (i) {
             final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
@@ -12849,6 +12764,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
             );
           }),
+          ),
         ),
         actions: [
           TextButton(
@@ -12909,14 +12825,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            scrollable: true,
+            scrollable: false,
             insetPadding: _dialogInsetPadding(),
             title: Semantics(header: true, child: Text(l10n.statsRepeatTitle)),
             content: SizedBox(
               width: double.maxFinite,
               child: FocusTraversalGroup(
                 policy: ReadingOrderTraversalPolicy(),
-                child: Column(
+                child: SingleChildScrollView(
+                  child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -12991,6 +12908,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           ),
                         ),
                       ],
+                    ),
                   ),
                 ),
               ),
