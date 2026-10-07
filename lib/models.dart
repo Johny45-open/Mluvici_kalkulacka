@@ -554,6 +554,26 @@ enum ElectricianCalculation { voltage, current, resistance }
 
 enum ScreenReaderMode { auto, on, off }
 
+/// Kategorie aplikačního accessibility oznámení (R-architektura).
+/// Jedna významná uživatelská akce → jedno oznámení právě jedním kanálem.
+enum SpeechCategory {
+  /// Změna editované hodnoty (číslice, operátor) – při aktivní čtečce
+  /// oznamuje změna displeje (liveRegion), bez vlastního TTS.
+  valueChange,
+
+  /// Potvrzení akce (výsledek, uložení, převod) – vždy právě jedna hláška.
+  actionConfirm,
+
+  /// Chyba – musí projít i při aktivní čtečce (jejím kanálem, ne TTS).
+  error,
+
+  /// Navigační změna (režim, vědecká stránka, dialog).
+  navigation,
+
+  /// Změna nastavení (hlasitost, zoom, profil, pořadí).
+  settings,
+}
+
 enum DialogSize { compact, wide, fullscreen }
 
 enum StatsSummarySection { header, dataValues, computed }

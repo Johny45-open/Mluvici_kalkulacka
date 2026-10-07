@@ -5,8 +5,9 @@ import 'package:mluvici_kalkulacka/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Automatické hlasové oznámení dostupnosti zlomku ve výsledkové speech.
-// Jedna výsledková hláška: věta je součástí existujícího
-// speak(spoken, force: true) v calculateResult(), žádné druhé speak()/say().
+// Jedna výsledková hláška jednotným kanálem (announceEvent v calculateResult()).
+// SR OFF -> vlastní TTS (ttsLog). SR ON -> Semantics kanál
+// (lastAnnouncementForTest), žádné paralelní vlastní TTS (R2/R4).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -141,16 +142,22 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('C. SR ON + 3/4 -> nová věta se nepřidá', (tester) async {
+    testWidgets('C. SR ON + 3/4 -> výsledek Semantics kanálem, bez TTS', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await setScreenReader(tester, state, true);
       await calculate(tester, state, '3/4');
       expect(state.fractionStringForTest, '3/4');
+      // R2/R4: při aktivní čtečce žádné vlastní TTS (ani force) ...
       final speeches = resultSpeeches('Výsledek je', 'The result is');
-      expect(speeches, hasLength(1), reason: 'TTS log: $ttsLog');
-      expect(speeches.single.contains('lomeno'), isFalse);
-      expect(speeches.single.contains('dostupný'), isFalse);
-      expect(speeches.single.contains('is available'), isFalse);
+      expect(speeches, isEmpty, reason: 'TTS log: $ttsLog');
+      // ... výsledek jde jednotným Semantics kanálem, právě jednou.
+      final announced = state.lastAnnouncementForTest as String;
+      expect(announced, contains('Výsledek je'));
+      expect(announced.contains('lomeno'), isFalse);
+      expect(announced.contains('dostupný'), isFalse);
+      expect(announced.contains('is available'), isFalse);
       // Toggle Semantics dál obsahuje konkrétní zlomek.
       final toggle = find.byKey(const ValueKey('fraction_toggle'));
       expect(toggle, findsOneWidget);
@@ -398,7 +405,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('H2. SR ON + cele cislo 2 -> bez vety o zlomku', (
+    testWidgets('H2. SR ON + cele cislo 2 -> výsledek Semantics kanálem', (
       tester,
     ) async {
       final state = await pumpApp(tester);
@@ -406,12 +413,16 @@ void main() {
       await calculate(tester, state, '1+1');
       expect(state.fractionStringForTest, isNull);
       expect(state.fractionEligibleForTest, isFalse);
+      // R2/R4: při aktivní čtečce žádné vlastní TTS ...
       final speeches = resultSpeeches('Výsledek je', 'The result is');
-      expect(speeches, hasLength(1), reason: 'TTS log: $ttsLog');
-      expect(speeches.single.contains('2/1'), isFalse);
-      expect(speeches.single.contains('lomeno'), isFalse);
-      expect(speeches.single.contains('dostupný'), isFalse);
-      expect(speeches.single.contains('is available'), isFalse);
+      expect(speeches, isEmpty, reason: 'TTS log: $ttsLog');
+      // ... výsledek jde jednotným Semantics kanálem, bez věty o zlomku.
+      final announced = state.lastAnnouncementForTest as String;
+      expect(announced, contains('Výsledek je'));
+      expect(announced.contains('2/1'), isFalse);
+      expect(announced.contains('lomeno'), isFalse);
+      expect(announced.contains('dostupný'), isFalse);
+      expect(announced.contains('is available'), isFalse);
       expect(tester.takeException(), isNull);
     });
   });

@@ -536,7 +536,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get voiceOff => 'Hlas vypnut';
 
   @override
-  String get cleared => 'Vymazat';
+  String get cleared => 'Vymazáno';
 
   @override
   String get deleted => 'Smazáno';

@@ -88,11 +88,14 @@ extension on _CalculatorScreenState {
           text = '';
       }
       if (text.isNotEmpty) {
-        if (_isScreenReaderActive) {
-          _announce(text);
-        } else {
-          speak(text, force: true);
-        }
+        // R-architektura: jedna navigační hláška jednotným kanálem.
+        unawaited(
+          announceEvent(
+            text,
+            category: SpeechCategory.navigation,
+            interruptCurrentSpeech: true,
+          ),
+        );
       }
     }
 
@@ -734,7 +737,7 @@ extension on _CalculatorScreenState {
     // při aktivní čtečce (NVDA/TalkBack) se dialog přečte přirozeně
     // ze stromu přístupnosti (název → text → tlačítka).
     Future.delayed(const Duration(milliseconds: 600), () {
-      if (!_isScreenReaderActive) speakStep(0);
+      if (_isScreenReaderActive != true) speakStep(0);
     });
   }
 }

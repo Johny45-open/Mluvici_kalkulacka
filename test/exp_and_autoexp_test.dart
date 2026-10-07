@@ -356,12 +356,29 @@ void main() {
   group('Hlas exponenciala', () {
     testWidgets('ceska ordinalni podoba', (tester) async {
       final state = await pumpApp(tester);
-      expect(state.formatForSpeechForTest('1E+09'), contains('devátou'));
-      expect(state.formatForSpeechForTest('1E+10'), contains('desátou'));
-      expect(state.formatForSpeechForTest('1E+11'), contains('jedenáctou'));
-      expect(state.formatForSpeechForTest('1E-09'), contains('mínus'));
-      expect(state.formatForSpeechForTest('1E-09'), contains('devátou'));
+      // R6: exponent patří číselnému formatteru (tečková i čárková mantisa).
+      expect(state.numberToSpeechForTest('1E+09'), contains('devátou'));
+      expect(state.numberToSpeechForTest('1E+10'), contains('desátou'));
+      expect(state.numberToSpeechForTest('1E+11'), contains('jedenáctou'));
+      expect(state.numberToSpeechForTest('1E-09'), contains('mínus'));
+      expect(state.numberToSpeechForTest('1E-09'), contains('devátou'));
+      expect(state.numberToSpeechForTest('1.5E+03'), contains('třetí'));
+      expect(state.numberToSpeechForTest('1,5E+03'), contains('třetí'));
+      expect(state.numberToSpeechForTest('1.5E-03'), contains('mínus'));
       expect(state.spokenForDisplayForTest('1E+09'), contains('devátou'));
+      // R6: větný formatter nesmí měnit interpunkci ani exponenty.
+      expect(
+        state.sentenceToSpeechForTest('Enter a number first.'),
+        equals('Enter a number first.'),
+      );
+      expect(
+        state.sentenceToSpeechForTest('Nejprve zadejte číslo.'),
+        equals('Nejprve zadejte číslo.'),
+      );
+      expect(
+        state.formatForSpeechForTest('Enter a number first.'),
+        equals('Enter a number first.'),
+      );
     });
 
     testWidgets('formatSpokenNumber pro auto-exp', (tester) async {

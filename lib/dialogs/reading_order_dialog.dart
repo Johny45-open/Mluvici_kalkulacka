@@ -46,12 +46,7 @@ class _StatsSummaryReadingOrderDialogState
       widget.parent._moveStatsSummarySectionByOffset(index, offset);
       _sectionSelectedIdx = newIndex;
     });
-    widget.parent._announce(
-      widget.parent._s(
-        'Pozice ${newIndex + 1} z $len',
-        'Position ${newIndex + 1} of $len',
-      ),
-    );
+    // R9: pozice je již součástí hlášky přesunu (žádný druhý event).
   }
 
   void _moveItem(int index, int offset) {
@@ -62,12 +57,7 @@ class _StatsSummaryReadingOrderDialogState
       widget.parent._moveStatsComputedItemByOffset(index, offset);
       _itemSelectedIdx = newIndex;
     });
-    widget.parent._announce(
-      widget.parent._s(
-        'Pozice ${newIndex + 1} z $len',
-        'Position ${newIndex + 1} of $len',
-      ),
-    );
+    // R9: pozice je již součástí hlášky přesunu (žádný druhý event).
   }
 
   KeyEventResult _handlePresetKey(FocusNode node, KeyEvent event) {
@@ -75,15 +65,22 @@ class _StatsSummaryReadingOrderDialogState
     final presets = StatsOrderPreset.values
         .where((pr) => pr != StatsOrderPreset.custom)
         .toList();
+    // R9: preset + pozice v jedné hlášce (vnitřní announce presetu potlačen).
     if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
         event.logicalKey == LogicalKeyboardKey.arrowDown) {
       setState(() {
         _presetSelectedIdx = (_presetSelectedIdx + 1) % presets.length;
-        widget.parent.applyStatsOrderPreset(presets[_presetSelectedIdx]);
+        widget.parent.applyStatsOrderPreset(
+          presets[_presetSelectedIdx],
+          announce: false,
+        );
       });
       final label = widget.parent._presetLabel(presets[_presetSelectedIdx]);
-      widget.parent._announce(
-        '$label, ${_presetSelectedIdx + 1} z ${presets.length}',
+      unawaited(
+        widget.parent.announceEvent(
+          '$label, ${_presetSelectedIdx + 1} z ${presets.length}',
+          category: SpeechCategory.settings,
+        ),
       );
       return KeyEventResult.handled;
     }
@@ -92,31 +89,43 @@ class _StatsSummaryReadingOrderDialogState
       setState(() {
         _presetSelectedIdx =
             (_presetSelectedIdx - 1 + presets.length) % presets.length;
-        widget.parent.applyStatsOrderPreset(presets[_presetSelectedIdx]);
+        widget.parent.applyStatsOrderPreset(
+          presets[_presetSelectedIdx],
+          announce: false,
+        );
       });
       final label = widget.parent._presetLabel(presets[_presetSelectedIdx]);
-      widget.parent._announce(
-        '$label, ${_presetSelectedIdx + 1} z ${presets.length}',
+      unawaited(
+        widget.parent.announceEvent(
+          '$label, ${_presetSelectedIdx + 1} z ${presets.length}',
+          category: SpeechCategory.settings,
+        ),
       );
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.home) {
       setState(() {
         _presetSelectedIdx = 0;
-        widget.parent.applyStatsOrderPreset(presets[0]);
+        widget.parent.applyStatsOrderPreset(presets[0], announce: false);
       });
-      widget.parent._announce(
-        '${widget.parent._presetLabel(presets[0])}, 1 z ${presets.length}',
+      unawaited(
+        widget.parent.announceEvent(
+          '${widget.parent._presetLabel(presets[0])}, 1 z ${presets.length}',
+          category: SpeechCategory.settings,
+        ),
       );
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.end) {
       setState(() {
         _presetSelectedIdx = presets.length - 1;
-        widget.parent.applyStatsOrderPreset(presets.last);
+        widget.parent.applyStatsOrderPreset(presets.last, announce: false);
       });
-      widget.parent._announce(
-        '${widget.parent._presetLabel(presets.last)}, ${presets.length} z ${presets.length}',
+      unawaited(
+        widget.parent.announceEvent(
+          '${widget.parent._presetLabel(presets.last)}, ${presets.length} z ${presets.length}',
+          category: SpeechCategory.settings,
+        ),
       );
       return KeyEventResult.handled;
     }
@@ -671,15 +680,27 @@ class _StatsSummaryReadingOrderDialogState
                               'Žádná data k náhledu',
                               'No data for preview',
                             );
-                            p.speak(msg, force: true);
-                            p._announce(msg);
+                            // R9: jedna hláška (dříve speak(force) + announce).
+                            unawaited(
+                              p.announceEvent(
+                                msg,
+                                category: SpeechCategory.actionConfirm,
+                                interruptCurrentSpeech: true,
+                              ),
+                            );
                             return;
                           }
                           final preview = p._getOrderedSpokenSummary(
                             p._selectedFieldIndex,
                           );
-                          p.speak(preview, force: true);
-                          p._announce(preview);
+                          // R9: jedna hláška (dříve speak(force) + announce).
+                          unawaited(
+                            p.announceEvent(
+                              preview,
+                              category: SpeechCategory.actionConfirm,
+                              interruptCurrentSpeech: true,
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.volume_up, size: 16),
                         label: Text(p._s('Přehrát náhled', 'Play preview')),
@@ -907,15 +928,27 @@ class _StatsSummaryReadingOrderDialogState
                               'Žádná data k náhledu',
                               'No data for preview',
                             );
-                            p.speak(msg, force: true);
-                            p._announce(msg);
+                            // R9: jedna hláška (dříve speak(force) + announce).
+                            unawaited(
+                              p.announceEvent(
+                                msg,
+                                category: SpeechCategory.actionConfirm,
+                                interruptCurrentSpeech: true,
+                              ),
+                            );
                             return;
                           }
                           final preview = p._getOrderedSpokenSummary(
                             p._selectedFieldIndex,
                           );
-                          p.speak(preview, force: true);
-                          p._announce(preview);
+                          // R9: jedna hláška (dříve speak(force) + announce).
+                          unawaited(
+                            p.announceEvent(
+                              preview,
+                              category: SpeechCategory.actionConfirm,
+                              interruptCurrentSpeech: true,
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.volume_up, size: 16),
                         label: Text(p._s('Náhled položek', 'Items preview')),

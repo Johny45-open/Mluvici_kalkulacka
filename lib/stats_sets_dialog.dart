@@ -184,8 +184,15 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
         set.records.length,
         countForm,
       );
-      widget.parent.speak(msg, force: true);
-      widget.parent._announce(msg);
+      // R-architektura: jedna hláška jednotným kanálem
+      // (dříve speak(force) + announce = duplicita).
+      unawaited(
+        widget.parent.announceEvent(
+          msg,
+          category: SpeechCategory.actionConfirm,
+          interruptCurrentSpeech: true,
+        ),
+      );
       Navigator.pop(context);
       return KeyEventResult.handled;
     }
@@ -375,13 +382,18 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
     final l10n = parent._l10n;
     parent.setState(() => parent._currentStatsSetIndex = realIndex);
     parent._saveStatsData();
-    parent.speak(
-      l10n.statsSetSelectedAnnouncement(
-        set.name,
-        set.records.length,
-        parent._getStatsCountForm(set.records.length),
+    // R-architektura: jedna hláška jednotným kanálem (tap i klávesnice
+    // oznamují stejně; dříve zde force-bypass přes SR).
+    unawaited(
+      parent.announceEvent(
+        l10n.statsSetSelectedAnnouncement(
+          set.name,
+          set.records.length,
+          parent._getStatsCountForm(set.records.length),
+        ),
+        category: SpeechCategory.actionConfirm,
+        interruptCurrentSpeech: true,
       ),
-      force: true,
     );
     Navigator.pop(context);
   }

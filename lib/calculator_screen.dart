@@ -516,15 +516,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  /// Jednotné přístupné oznámení: čtečka -> announce, jinak vlastní TTS.
-  /// Nikdy obojí (prevence duplicit na TalkBacku). Windows jede přes speak.
+  /// Jednotné přístupné oznámení: čtečka -> Semantics kanál, jinak vlastní TTS.
+  /// Nikdy obojí (prevence duplicit na TalkBacku/NVDA).
+  /// Tenká obálka nad [announceEvent] pro zpětnou kompatibilitu.
   void say(String message, [BuildContext? ctx]) {
     if (message.isEmpty || !mounted) return;
-    if (_isScreenReaderActive) {
-      _announce(message, ctx);
-    } else {
-      speak(message);
-    }
+    unawaited(
+      announceEvent(message, category: SpeechCategory.actionConfirm),
+    );
   }
 
   bool get _announceExpression =>
@@ -542,7 +541,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     (s) => s.copyWith(fontSizeMultiplier: v),
   );
 
-  bool _accessibleNavigation = false;
+  /// Detekce čtečky (R5): null = UNKNOWN (ještě neproběhla detekce).
+  /// Při UNKNOWN se vlastní TTS nespouští, aby nemohlo dojít k double-speech.
+  bool? _accessibleNavigation;
+  int _srRefreshSeq = 0;
+  bool? _lastMqAccessibleNavigation;
+
+  /// Dedikovaný oznamovací liveRegion (primární kanál při aktivní čtečce
+  /// na Androidu; fallback na Windows). Změna hodnoty = jedno oznámení.
+  String _lastAnnouncement = '';
+
+  /// Poslední publikované oznámení bez ohledu na kanál (i pro testy).
+  String _lastPublishedAnnouncement = '';
+
   bool _scientificFunctionsPage = false;
   String? _scientificPageAnnouncement;
 
@@ -1607,19 +1618,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final mantissa = (dec.negative ? '-' : '') + dec.mantissa;
       final sign = dec.exponent >= 0 ? '+' : '-';
       final expDigits = dec.exponent.abs().toString().padLeft(1, '0');
-      // mantissa je bez desetinné čárky, ponecháme ","
-      final mantissaSpoken = mantissa.replaceAll('.', ',');
+      // R6: desetinný oddělovač mantisy podle jazyka.
+      final mantissaSpoken = _localizeDecimalSeparator(mantissa);
       return _speakExponentialPart(mantissaSpoken, sign, expDigits);
     }
     return '';
   }
 
-  String _spokenForDisplay(String text) {
+  /// Číselný formatter: číslo / matematický zápis → slova pro řeč (R6).
+  /// Jediné místo, kde se smí převádět desetinné oddělovače, periodický
+  /// zápis a exponent. Idempotentní – opakovaný průchod výstup nemění.
+  String _numberToSpeech(String text) {
     // Částečně odmocněné tvary ("6√2", "3∛2", "2⁴√3"): čtou se slovně,
-    // např. "šest odmocnina ze dvou". Musí být před periodickou/E logikou.
+    // např. "šest odmocnina ze dvou". Nejdřív celý řetězec ...
     final surdSpeech = _trySpeakSurd(text);
     if (surdSpeech != null) return surdSpeech;
-    String result = text.replaceAllMapped(
+    // ... pak i surd vložený do delšího zápisu ("2+6√2", "Výsledek je 6√2").
+    // Znaky √/∛ se v běžných větách nevyskytují, takže je to bezpečné.
+    String result = _speakSurdsInSentence(text);
+    result = result.replaceAllMapped(
       RegExp(r'(\d+)(?:[.,](\d*))?\((\d+)\)'),
       (m) {
         final intPart = m.group(1)!;
@@ -1630,12 +1647,61 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return '$intPart,$nonRepeating, $period $suffix';
       },
     );
-    // Centrální exponenciální převod (mantisa E±exponent) – používá ordinál pro češtinu
+    // Centrální exponenciální převod (mantisa E±exponent) – používá ordinál
+    // pro češtinu. Mantisa s tečkou i čárkou ("1.5E+03" i "1,5E+03").
     result = result.replaceAllMapped(
-      RegExp(r"(\d+(?:,\d+)?)E([+-])(\d+)"),
-      (m) => _speakExponentialPart(m.group(1)!, m.group(2)!, m.group(3)!),
+      RegExp(r"(\d+(?:[.,]\d+)?)E([+-])(\d+)"),
+      (m) {
+        final mantissa = _localizeDecimalSeparator(m.group(1)!);
+        return _speakExponentialPart(mantissa, m.group(2)!, m.group(3)!);
+      },
     );
-    return result.replaceAll('.', ',');
+    return _localizeDecimalSeparator(result);
+  }
+
+  /// Původní název zachován pro zpětnou kompatibilitu (volající, testy).
+  String _spokenForDisplay(String text) => _numberToSpeech(text);
+
+  /// Větný formatter: běžná věta → řeč (R6).
+  /// NESMÍ měnit tečky/čárky/exponenty – pouze symboly, které TTS neumí (π).
+  String _sentenceToSpeech(String text) {
+    return text.replaceAll('\u03C0', _l10n.piSpoken);
+  }
+
+  /// Desetinný oddělovač pouze v číselném kontextu (číslice-oddělovač-číslice)
+  /// a podle jazyka: CZ čárka, EN tečka. Větná interpunkce se nikdy nemění.
+  String _localizeDecimalSeparator(String text) {
+    if (_isEnglish()) {
+      return text.replaceAllMapped(
+        RegExp(r'(\d),(\d)'),
+        (m) => '${m.group(1)}.${m.group(2)}',
+      );
+    }
+    return text.replaceAllMapped(
+      RegExp(r'(\d)\.(\d)'),
+      (m) => '${m.group(1)},${m.group(2)}',
+    );
+  }
+
+  /// Surd vložený do delšího textu ("2+6√2" → "2+ šest odmocnina ze dvou").
+  /// Pořadí: nejdřív n-tá odmocnina (obsahuje √), pak ∛, pak √.
+  String _speakSurdsInSentence(String text) {
+    var result = text.replaceAllMapped(
+      RegExp(r'(\d*)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)√(\d+)'),
+      (m) =>
+          ' ${_speakSurd(coef: m.group(1)!, radicand: m.group(3)!, index: _desuperscript(m.group(2)!))} ',
+    );
+    result = result.replaceAllMapped(
+      RegExp(r'(\d*)∛(\d+)'),
+      (m) =>
+          ' ${_speakSurd(coef: m.group(1)!, radicand: m.group(2)!, index: 3)} ',
+    );
+    result = result.replaceAllMapped(
+      RegExp(r'(\d*)√(\d+)'),
+      (m) =>
+          ' ${_speakSurd(coef: m.group(1)!, radicand: m.group(2)!, index: 2)} ',
+    );
+    return result;
   }
 
   /// Vrátí slovní podobu částečně odmocněného tvaru ("6√2" ->
@@ -1879,7 +1945,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (raw.contains('E')) {
       return _spokenForDisplay(raw);
     }
-    return raw.replaceAll('.', ',');
+    // R6: desetinný oddělovač podle jazyka, pouze v číselném kontextu.
+    return _localizeDecimalSeparator(raw);
   }
 
   String _getButtonName(String label) {
@@ -2358,20 +2425,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         resStr,
         numericValue: result,
       );
-      speak(
-        _l10n.currencyConverted(
-          spokenValue,
-          fromSpeech,
-          toSpeech,
-          spokenResult,
-          toSpeech,
-          rateStr,
+      // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
+      unawaited(
+        announceEvent(
+          _l10n.currencyConverted(
+            spokenValue,
+            fromSpeech,
+            toSpeech,
+            spokenResult,
+            toSpeech,
+            rateStr,
+          ),
+          category: SpeechCategory.actionConfirm,
+          isNumeric: true,
+          interruptCurrentSpeech: true,
         ),
-        force: true,
       );
     } catch (_) {
-      speak(_l10n.conversionError, force: true);
-      _showAccessibleSnackBar(_l10n.conversionError);
+      // R9: jedna chybová hláška (dříve speak(force) + announce SnackBaru).
+      unawaited(
+        announceEvent(
+          _l10n.conversionError,
+          category: SpeechCategory.error,
+          interruptCurrentSpeech: true,
+        ),
+      );
+      _showAccessibleSnackBar(_l10n.conversionError, announce: false);
     }
   }
 
@@ -2404,12 +2483,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       });
       await _saveCurrencyRates();
       if (!silent) {
-        speak(_l10n.currencyUpdated, force: true);
+        // R9: oznamuje pouze SnackBar (dříve speak(force) + announce).
         _showAccessibleSnackBar(_l10n.currencyUpdated);
       }
     } else {
       if (!silent) {
-        speak(_l10n.currencyOfflineError, force: true);
+        // R9: oznamuje pouze SnackBar (dříve speak(force) + announce).
         _showAccessibleSnackBar(_l10n.currencyOfflineError);
       }
     }
@@ -2599,6 +2678,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @override
   void didChangeAccessibilityFeatures() {
     _refreshAccessibilityState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Sekundární signál pro R5: změna accessibleNavigation se projeví
+    // přes rebuild i tam, kde engine nevyvolá didChangeAccessibilityFeatures.
+    bool mq = false;
+    try {
+      mq = MediaQuery.accessibleNavigationOf(context);
+    } catch (_) {
+      mq = false;
+    }
+    if (_lastMqAccessibleNavigation != mq) {
+      _lastMqAccessibleNavigation = mq;
+      _refreshAccessibilityState();
+    }
   }
 
   @override
@@ -3144,8 +3240,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // 3. Zjistit stav screen readeru.
     // _refreshAccessibilityState již proběhl v _initTts, ale pro jistotu
     // re-check pokud ještě není rozhodnuto (neblokuje dlouho).
-    // 4. Pokud je aktivní screen reader → SemanticsService.announce
-    if (_isScreenReaderActive) {
+    // 4. Pokud je aktivní screen reader → Semantics kanál.
+    // UNKNOWN se chová jako aktivní (žádné vlastní TTS → žádný double-speech).
+    if (_isScreenReaderActive != false) {
       _announce(welcome);
       _welcomeAnnounced = true;
       return;
@@ -3231,15 +3328,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Future<void> _refreshAccessibilityState() async {
+    // R5: sekvenční token – starší výsledek nesmí přepsat novější stav.
+    final seq = ++_srRefreshSeq;
     final enabled = await _isScreenReaderEnabled();
-    if (mounted) {
-      setState(() {
-        _accessibleNavigation = enabled;
-      });
-    }
+    if (!mounted || seq != _srRefreshSeq) return;
+    setState(() {
+      _accessibleNavigation = enabled;
+    });
   }
 
-  bool get _isScreenReaderActive {
+  /// Stav detekce čtečky (R5): true = aktivní, false = neaktivní,
+  /// null = UNKNOWN (detekce ještě nedoběhla, režim auto).
+  /// Při UNKNOWN se vlastní TTS nespouští – prevence double-speech.
+  bool? get _isScreenReaderActive {
     switch (_screenReaderMode) {
       case ScreenReaderMode.on:
         return true;
@@ -3250,13 +3351,102 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  /// Centrální accessibility mechanismus (R-architektura):
+  /// jedna událost → jedno oznámení právě jedním kanálem.
+  /// - [isNumeric]: true = číslo/matematický zápis (číselný formatter),
+  ///   false = běžná věta (větný formatter, interpunkce se nemění).
+  /// - [interruptCurrentSpeech]: zda přerušit právě mluvené vlastní TTS.
+  ///   NIKDY neobchází ochranu aktivní čtečky (na rozdíl od starého force).
+  Future<void> announceEvent(
+    String message, {
+    required SpeechCategory category,
+    bool isNumeric = false,
+    bool interruptCurrentSpeech = false,
+  }) async {
+    if (message.isEmpty || !mounted) return;
+    // R6: číselná zpráva projde číselným formatterem a pak větným
+    // (ten doplní jen π → slovo); věta projde pouze větným.
+    final formatted = isNumeric
+        ? _sentenceToSpeech(_numberToSpeech(message))
+        : _sentenceToSpeech(message);
+    if (_isScreenReaderActive == true) {
+      // Při aktivní čtečce změnu editované hodnoty oznamuje displej
+      // (liveRegion) – žádný další explicitní event (R1: žádná duplicita).
+      if (category == SpeechCategory.valueChange) return;
+      _publishSemanticsAnnouncement(formatted);
+      return;
+    }
+    // UNKNOWN (auto + nedoběhlá detekce): vlastní TTS by mohlo způsobit
+    // double-speech souběžně s čtečkou – raději mlčet (R5).
+    if (_isScreenReaderActive == null &&
+        _screenReaderMode == ScreenReaderMode.auto) {
+      return;
+    }
+    await _speakTts(formatted, interrupt: interruptCurrentSpeech);
+  }
+
+  /// Vlastní TTS – jediná cesta k tts.speak mimo testy.
+  Future<int?> _speakTts(String formatted, {bool interrupt = false}) async {
+    if (!ttsEnabled || !mounted) return null;
+    try {
+      if (interrupt) await tts.stop();
+      final result = await tts.speak(formatted);
+      return result;
+    } catch (e) {
+      debugPrint('TTS Error: $e');
+      return 0;
+    }
+  }
+
+  /// Publikace oznámení Semantics kanálem (při aktivní čtečce).
+  /// Android: primárně dedikovaný liveRegion (doporučení Flutteru místo
+  /// deprecated announcement eventů). Windows: přednostně
+  /// SemanticsService.sendAnnouncement, fallback liveRegion.
+  /// Nikdy současně s vlastním TTS stejné události.
+  void _publishSemanticsAnnouncement(String formatted) {
+    if (formatted.isEmpty || !mounted) return;
+    _lastPublishedAnnouncement = formatted;
+    if (!Platform.isWindows) {
+      setState(() {
+        _lastAnnouncement = formatted;
+      });
+      return;
+    }
+    bool delivered = false;
+    try {
+      final view = View.of(context);
+      TextDirection dir = TextDirection.ltr;
+      try {
+        dir = Directionality.of(context);
+      } catch (_) {
+        dir = TextDirection.ltr;
+      }
+      // ignore: deprecated_member_use_from_same_package
+      unawaited(SemanticsService.sendAnnouncement(view, formatted, dir));
+      delivered = true;
+    } catch (_) {
+      delivered = false;
+    }
+    if (!delivered && mounted) {
+      setState(() {
+        _lastAnnouncement = formatted;
+      });
+    }
+  }
+
   Future<int?> speak(String text, {bool force = false}) async {
-    // Pokud je aktivní čtečka, vypneme vlastní TTS kalkulačky,
-    // pokud není vynuceno (např. systémové hlášení výsledku).
+    // R4/R7: force znamená pouze "přeruš aktuální vlastní TTS"
+    // (interrupt). NIKDY neobchází ochranu aktivní čtečky.
+    // Vstup prochází větným formatterem – čísla musí být předformátována
+    // volajícím (R6), aby se větám neměnila interpunkce.
     if (text.isEmpty ||
         !ttsEnabled ||
         !mounted ||
-        (_isScreenReaderActive && !force)) {
+        _isScreenReaderActive == true) {
+      return null;
+    }
+    if (_isScreenReaderActive == null &&
+        _screenReaderMode == ScreenReaderMode.auto) {
       return null;
     }
     // QUEUE_FLUSH zajistí, že nová mluva okamžitě přeruší tu aktuální.
@@ -3272,14 +3462,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _announce(String message, [BuildContext? ctx]) {
     if (message.isEmpty || !mounted) return;
-    final c = ctx ?? context;
-    TextDirection dir = TextDirection.ltr;
-    try {
-      dir = Directionality.of(c);
-    } catch (_) {
-      dir = TextDirection.ltr;
-    }
-    SemanticsService.announce(message, dir);
+    // R-architektura: jednotný kanál přes announceEvent.
+    // (ctx se ignoruje – směr se čte z vlastního contextu.)
+    unawaited(
+      announceEvent(message, category: SpeechCategory.actionConfirm),
+    );
   }
 
   void _showAccessibleSnackBar(
@@ -3288,6 +3475,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     Duration duration = const Duration(seconds: 4),
     BuildContext? scaffoldContext,
     String? announceMessage,
+    // R9: false = pouze vizuál, oznámení už proběhlo jinde (žádná duplicita).
+    bool announce = true,
   }) {
     if (!mounted || message.isEmpty) return;
     final c = scaffoldContext ?? context;
@@ -3300,19 +3489,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         dismissDirection: DismissDirection.horizontal,
       ),
     );
+    // Oznámení jde jednotným kanálem (při SR liveRegion/sendAnnouncement,
+    // jinak TTS) – nikdy současně s paralelním speak() stejné zprávy.
+    if (!announce) return;
     final toAnnounce = announceMessage ?? message;
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _announce(toAnnounce, c),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        announceEvent(toAnnounce, category: SpeechCategory.actionConfirm),
+      );
+    });
   }
 
   String _formatForSpeech(String text) {
-    final l10n = _l10n;
-    // Sjednoceno s _spokenForDisplay – exponenciála řeší centrálně tam (ordinál pro češtinu).
-    String processed = _spokenForDisplay(
-      text,
-    ).replaceAll('\u03C0', l10n.piSpoken);
-    return processed;
+    // R6: TTS vstupem prochází pouze větný formatter. Čísla musí být
+    // předformátována volajícím (_numberToSpeech/_formatSpokenNumber/...),
+    // aby se větám neměnila interpunkce a exponenty.
+    return _sentenceToSpeech(text);
   }
 
   String _formatDmsSpeech(String dmsStr) {
@@ -3322,11 +3515,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           .replaceAll("'", ' minutes and ')
           .replaceAll('"', ' seconds');
     }
-    return dmsStr
-        .replaceAll('°', ' stupňů, ')
-        .replaceAll("'", ' minut a ')
-        .replaceAll('"', ' sekund')
-        .replaceAll('.', ',');
+    // R6: desetinný oddělovač podle jazyka, pouze v číselném kontextu.
+    return _localizeDecimalSeparator(
+      dmsStr
+          .replaceAll('°', ' stupňů, ')
+          .replaceAll("'", ' minut a ')
+          .replaceAll('"', ' sekund'),
+    );
   }
 
   void _handleKeyboardInput(KeyEvent event) {
@@ -3338,7 +3533,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // Když je aktivní screen reader (NVDA, JAWS, TalkBack),
       // jednoznakové klávesy (S, C, T, A, P, atd.) se předávají čtečce.
       // Zpracovávají se pouze Ctrl+ kombinace, čísla, operátory a navigační klávesy.
-      if (_isScreenReaderActive && char != null && !isControl) {
+      if (_isScreenReaderActive == true && char != null && !isControl) {
         if (char == '±') {
           _handleNegativeButton();
           return;
@@ -3504,9 +3699,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
       if (!val.isFinite) {
         setState(() => _isStoreMode = false);
-        speak(_l10n.cannotStoreExpression, force: true);
+        // R9: jedna chybová hláška (dříve speak(force) + announce SnackBaru).
+        unawaited(
+          announceEvent(
+            _l10n.cannotStoreExpression,
+            category: SpeechCategory.error,
+            interruptCurrentSpeech: true,
+          ),
+        );
         if (mounted) {
-          _showAccessibleSnackBar(_l10n.cannotStoreExpression);
+          _showAccessibleSnackBar(
+            _l10n.cannotStoreExpression,
+            announce: false,
+          );
         }
         return false;
       }
@@ -3524,7 +3729,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _isStoreMode = false;
     });
     _saveStatsData();
-    speak(_l10n.savedToVariable(name, valStrSpoken));
+    // R9: jedno potvrzení (dříve speak + announce SnackBaru).
+    unawaited(
+      announceEvent(
+        _l10n.savedToVariable(name, valStrSpoken),
+        category: SpeechCategory.actionConfirm,
+      ),
+    );
     if (mounted) {
       _showAccessibleSnackBar(
         _l10n.savedToVariable(name, valStrVis),
@@ -3533,6 +3744,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           overlineThickness: _overlineThickness,
           overlineHeight: _overlineHeight,
         ),
+        announce: false,
       );
     }
     return true;
@@ -3547,7 +3759,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     ).replaceAll('.', ',');
     String valStrSpoken = _formatSpokenNumber(_memory[name]!);
     append(_formatNumber(_memory[name]!), silent: true);
-    speak(_l10n.recalledFromVariable(name, valStrSpoken));
+    // R9: jedno potvrzení (dříve speak + announce SnackBaru).
+    unawaited(
+      announceEvent(
+        _l10n.recalledFromVariable(name, valStrSpoken),
+        category: SpeechCategory.actionConfirm,
+      ),
+    );
     if (mounted) {
       _showAccessibleSnackBar(
         _l10n.recalledFromVariable(name, valStrVis),
@@ -3556,6 +3774,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           overlineThickness: _overlineThickness,
           overlineHeight: _overlineHeight,
         ),
+        announce: false,
       );
     }
     _isRecallMode = false;
@@ -4114,6 +4333,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'Průměr z paměti je ${_formatSpokenNumber(mean)}, směrodatná odchylka je ${_formatSpokenNumber(sd)}',
           'Mean from memory is ${_formatSpokenNumber(mean)}, standard deviation is ${_formatSpokenNumber(sd)}',
         );
+        // R10: synchronizace stavu – ANS po statistickém výpočtu je průměr.
+        // (Matematika se nemění, pouze se ukládá již vypočtená hodnota.)
+        _lastNumericValue = mean;
       } else if (_currentMode == CalculatorMode.electrician) {
         final result = _calculateElectricianResult(display);
         if (!result.isFinite) {
@@ -4191,6 +4413,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
 
         double result = _evaluateExpression(display);
+        // Dělení nulou (5/0 → Infinity, 0/0 → NaN) a přetečení nejsou
+        // platný výsledek, ale chyba – hlasem „Nulou nelze dělit".
+        // (math_expressions nevyhazuje, vrací non-finite double.)
+        if (!result.isFinite) {
+          throw _MathDomainException(_l10n.cannotDivideByZero);
+        }
         _lastNumericValue = result;
 
         bool userWantsDms = (_inverseFormatPreference == 0 && _isDegreeMode);
@@ -4266,7 +4494,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         spoken = '$spoken $fractionSuffix';
       }
 
-      speak(spoken, force: true);
+      // R2/R4: jediná výsledková hláška jednotným kanálem.
+      // Při aktivní čtečce oznamuje změna displeje (liveRegion) –
+      // žádné paralelní vlastní TTS přes čtečku.
+      unawaited(
+        announceEvent(
+          spoken,
+          category: SpeechCategory.actionConfirm,
+          interruptCurrentSpeech: true,
+        ),
+      );
       _addToHistory(
         currentExpression,
         resStr,
@@ -4299,7 +4536,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _fractionResultView = false;
         // Nech pending pro opravu, ale pokud byl prázdný, vyčisti
       });
-      speak(msg, force: true);
+      // R4: chyba jednou, jejím kanálem (při SR liveRegion, jinak TTS).
+      unawaited(
+        announceEvent(
+          msg,
+          category: SpeechCategory.error,
+          interruptCurrentSpeech: true,
+        ),
+      );
     }
   }
 
@@ -4746,7 +4990,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // nevylučují: řídí se stejnou logikou jako fraction toggle.
   // Vrací null = nic nepřidávat (screen reader ON nebo nerelevantní kontext).
   String? _fractionAvailabilitySuffix() {
-    if (_isScreenReaderActive) return null;
+    // UNKNOWN (=ne false) → bez doplňkové věty, výsledek oznamuje displej.
+    if (_isScreenReaderActive != false) return null;
     if (_currentMode != CalculatorMode.basic &&
         _currentMode != CalculatorMode.scientific) {
       return null;
@@ -4779,7 +5024,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final s = _fractionString;
       if (s != null) return s.replaceAll('/', _s(' lomeno ', ' over '));
     }
-    return _spokenForDisplay(_activeResultString());
+    final active = _activeResultString();
+    // R7: chybový stav číst lokalizovaně ("Chyba"/"Error"),
+    // ne anglickým interním 'Error' v českém jazyce.
+    if (active == 'Error') return _s('Chyba', 'Error');
+    return _spokenForDisplay(active);
   }
 
   // Prezentační přepínač DEC <-> a/b. Nemění _lastResult, _lastNumericValue,
@@ -4901,18 +5150,37 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         // Převod jednotek je speciální prezentační kontext: zlomek nevhodný.
         _lastResultIsPlainNumeric = false;
         _fractionResultView = false;
+        // R10: synchronizace stavu – ANS a historie jako u měny.
+        // (Matematika se nemění, pouze se ukládá již vypočtená hodnota.)
+        _lastNumericValue = result;
       });
-      speak(
-        _l10n.unitConverted(
-          _getUnitSpeech(_unitFrom, context: 'z'),
-          _getUnitSpeech(_unitTo, context: 'na'),
-          resStr,
-          _getUnitSpeech(_unitTo, value: result),
+      _addToHistory(
+        '${value.toString()} $_unitFrom → $_unitTo',
+        resStr,
+        numericValue: result,
+      );
+      // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
+      unawaited(
+        announceEvent(
+          _l10n.unitConverted(
+            _getUnitSpeech(_unitFrom, context: 'z'),
+            _getUnitSpeech(_unitTo, context: 'na'),
+            resStr,
+            _getUnitSpeech(_unitTo, value: result),
+          ),
+          category: SpeechCategory.actionConfirm,
+          isNumeric: true,
+          interruptCurrentSpeech: true,
         ),
-        force: true,
       );
     } catch (e) {
-      speak(_l10n.conversionError, force: true);
+      unawaited(
+        announceEvent(
+          _l10n.conversionError,
+          category: SpeechCategory.error,
+          interruptCurrentSpeech: true,
+        ),
+      );
     }
   }
 
@@ -5266,7 +5534,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _maybeSuggestFavoriteMode();
     String speech = _l10n.switchedToMode(_getModeSpeechName(mode));
     speech += _statsModeAnnouncement();
-    speak(speech);
+    // R7: jedna navigační hláška jednotným kanálem. Při aktivní čtečce
+    // se dříve neoznámilo nic (speak mlčel a liveRegion se nezměnil).
+    unawaited(
+      announceEvent(
+        speech,
+        category: SpeechCategory.navigation,
+        interruptCurrentSpeech: true,
+      ),
+    );
   }
 
   String _statsModeAnnouncement() {
@@ -5873,8 +6149,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     await _saveActiveProfileId();
     if (announcement != null && announcement.isNotEmpty && mounted) {
+      // R9: oznamuje pouze SnackBar jednotným kanálem
+      // (dříve speak(force) + announce = duplicita při SR).
       _showAccessibleSnackBar(announcement);
-      speak(announcement, force: true);
     }
     if (mounted) setState(() {});
   }
@@ -6380,11 +6657,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _saveHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      'history',
-      _history.map((e) => e.toStorageString()).toList(),
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        'history',
+        _history.map((e) => e.toStorageString()).toList(),
+      );
+    } catch (_) {
+      // Non-finite výsledek (Infinity/NaN, např. 5/0) nelze serializovat
+      // do JSON – paměťová historie zůstává beze změny, přeskočí se pouze
+      // persist. Matematika, formát ani obsah historie se nemění.
+      debugPrint('_saveHistory skipped: non-encodable entry');
+    }
   }
 
   void _addToHistory(
@@ -6447,10 +6731,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ShareParams(files: [XFile(file.path)], subject: _l10n.backupData),
       );
 
-      speak(_l10n.backupSuccess, force: true);
+      // R4: jednotný kanál (dříve force-bypass přes SR).
+      unawaited(
+        announceEvent(
+          _l10n.backupSuccess,
+          category: SpeechCategory.actionConfirm,
+          interruptCurrentSpeech: true,
+        ),
+      );
     } catch (e) {
       debugPrint('Chyba při vytváření zálohy: $e');
-      speak(_l10n.backupError, force: true);
+      unawaited(
+        announceEvent(
+          _l10n.backupError,
+          category: SpeechCategory.error,
+          interruptCurrentSpeech: true,
+        ),
+      );
     }
   }
 
@@ -6498,10 +6795,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _loadHistory();
       _loadStatsData();
       setState(() {});
-      speak(_l10n.restoreSuccess, force: true);
+      // R4: jednotný kanál (dříve force-bypass přes SR).
+      unawaited(
+        announceEvent(
+          _l10n.restoreSuccess,
+          category: SpeechCategory.actionConfirm,
+          interruptCurrentSpeech: true,
+        ),
+      );
     } catch (e) {
       debugPrint('Chyba při obnově dat: $e');
-      speak(_l10n.restoreError, force: true);
+      unawaited(
+        announceEvent(
+          _l10n.restoreError,
+          category: SpeechCategory.error,
+          interruptCurrentSpeech: true,
+        ),
+      );
     }
   }
 
@@ -6527,10 +6837,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
       await _exportContractFile(contract);
       final msg = _s('Konfigurace exportována', 'Configuration exported');
-      speak(msg, force: true);
+      // R9: oznamuje pouze SnackBar (dříve speak(force) + announce + snackbar).
       if (mounted) {
         _showAccessibleSnackBar(msg);
-        _announce(msg);
       }
     } catch (e) {
       debugPrint('Export kontraktu chyba: $e');
@@ -6538,7 +6847,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         'Chyba při exportu konfigurace',
         'Error exporting configuration',
       );
-      speak(msg, force: true);
+      // R9: oznamuje pouze SnackBar (dříve speak(force) + snackbar).
       if (mounted) _showAccessibleSnackBar(msg);
     }
   }
@@ -6573,12 +6882,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             ),
           );
         }
-        speak(
-          _s(
-            'Import selhal – neplatná konfigurace',
-            'Import failed – invalid configuration',
+        // R4: jednotný kanál (dříve force-bypass přes SR).
+        unawaited(
+          announceEvent(
+            _s(
+              'Import selhal – neplatná konfigurace',
+              'Import failed – invalid configuration',
+            ),
+            category: SpeechCategory.error,
+            interruptCurrentSpeech: true,
           ),
-          force: true,
         );
         return;
       }
@@ -6629,10 +6942,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         'Konfigurace importována, aktivní profil $name',
         'Configuration imported, active profile $name',
       );
-      speak(msg, force: true);
+      // R9: oznamuje pouze SnackBar (dříve speak(force) + 2× announce).
       if (mounted) {
         _showAccessibleSnackBar(msg, announceMessage: msg);
-        _announce(msg);
       }
     } catch (e) {
       debugPrint('Import kontraktu chyba: $e');
@@ -6640,7 +6952,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         'Chyba při importu konfigurace',
         'Error importing configuration',
       );
-      speak(msg, force: true);
+      // R9: oznamuje pouze SnackBar (dříve speak(force) + snackbar).
       if (mounted) _showAccessibleSnackBar(msg);
     }
   }
@@ -7066,12 +7378,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             debugPrint('TTS setEngine Error: $e');
                           });
                         }
-                        speak(
-                          _s(
-                            'Engine $engine vybrán',
-                            'Engine $engine selected',
+                        // R9: jedna hláška jednotným kanálem.
+                        unawaited(
+                          announceEvent(
+                            _s(
+                              'Engine $engine vybrán',
+                              'Engine $engine selected',
+                            ),
+                            category: SpeechCategory.settings,
+                            interruptCurrentSpeech: true,
                           ),
-                          force: true,
                         );
                       } else {
                         updateActiveAccessibilitySettings(
@@ -7080,12 +7396,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         if (!Platform.isWindows) {
                           tts.setEngine(engine);
                         }
-                        speak(
-                          _s(
-                            'Engine $engine vybrán',
-                            'Engine $engine selected',
+                        // R9: jedna hláška jednotným kanálem.
+                        unawaited(
+                          announceEvent(
+                            _s(
+                              'Engine $engine vybrán',
+                              'Engine $engine selected',
+                            ),
+                            category: SpeechCategory.settings,
+                            interruptCurrentSpeech: true,
                           ),
-                          force: true,
                         );
                       }
                       Navigator.pop(context);
@@ -7221,12 +7541,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           if (_editingProfileId == _activeProfileId) {
                             tts.clearVoice();
                           }
-                          speak(
-                            _s(
-                              'Hlas nastaven na výchozí',
-                              'Voice set to default',
+                          // R9: jedna hláška jednotným kanálem.
+                          unawaited(
+                            announceEvent(
+                              _s(
+                                'Hlas nastaven na výchozí',
+                                'Voice set to default',
+                              ),
+                              category: SpeechCategory.settings,
+                              interruptCurrentSpeech: true,
                             ),
-                            force: true,
                           );
                         } else {
                           updateActiveAccessibilitySettings(
@@ -7236,12 +7560,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             ),
                           );
                           tts.clearVoice();
-                          speak(
-                            _s(
-                              'Hlas nastaven na výchozí',
-                              'Voice set to default',
+                          // R9: jedna hláška jednotným kanálem.
+                          unawaited(
+                            announceEvent(
+                              _s(
+                                'Hlas nastaven na výchozí',
+                                'Voice set to default',
+                              ),
+                              category: SpeechCategory.settings,
+                              interruptCurrentSpeech: true,
                             ),
-                            force: true,
                           );
                         }
                         Navigator.pop(context);
@@ -7291,9 +7619,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             debugPrint('TTS setVoice Error: $e');
                           });
                         }
-                        speak(
-                          _s('Hlas $name vybrán', 'Voice $name selected'),
-                          force: true,
+                        // R9: jedna hláška jednotným kanálem.
+                        unawaited(
+                          announceEvent(
+                            _s('Hlas $name vybrán', 'Voice $name selected'),
+                            category: SpeechCategory.settings,
+                            interruptCurrentSpeech: true,
+                          ),
                         );
                       } else {
                         updateActiveAccessibilitySettings(
@@ -7303,9 +7635,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           ),
                         );
                         tts.setVoice(voiceMap);
-                        speak(
-                          _s('Hlas $name vybrán', 'Voice $name selected'),
-                          force: true,
+                        // R9: jedna hláška jednotným kanálem.
+                        unawaited(
+                          announceEvent(
+                            _s('Hlas $name vybrán', 'Voice $name selected'),
+                            category: SpeechCategory.settings,
+                            interruptCurrentSpeech: true,
+                          ),
                         );
                       }
                       Navigator.pop(context);
@@ -7644,13 +7980,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
 
     Future<void> defaultTap() async {
-      if (!['°→\'', '\'→°', 'DMS', '…'].contains(label)) {
-        final suppressMplusCountAnnounce =
-            label == 'M+' && _currentMode == CalculatorMode.statistics;
-        if (!_isScreenReaderActive && !suppressMplusCountAnnounce) {
-          speak(descriptiveName);
-        }
-      }
+      // R1: žádné předběžné speak(descriptiveName) – hlasové potvrzení
+      // generuje samotná akce (_handleButtonPressed/append/clear/...).
+      // Předběžné speak by zdvojovalo oznámení stejné informace.
       await _handleButtonPressed(label);
     }
 
@@ -7670,7 +8002,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             true, // Zamezí TalkBacku vidět InkWell jako samostatný prvek
         onFocusChange: (hasFocus) {
           // Mluvíme pouze pokud není aktivní TalkBack, aby nedocházelo k dvojitému čtení
-          if (hasFocus && !_isScreenReaderActive) speak(descriptiveName);
+          if (hasFocus && _isScreenReaderActive != true)
+            speak(descriptiveName);
         },
         onTap: () async {
           if (onPressed != null) {
@@ -7722,12 +8055,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _addSingleValueToStats() async {
     if (!_hasStatsSet) {
-      speak(
-        _s(
-          'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
-          'No statistics set created. Enter a name for a new set first.',
-        ),
-      );
+      // R9: oznamuje pouze SnackBar (dříve speak + snackbar = duplicita).
       if (mounted) {
         _showAccessibleSnackBar(
           _s(
@@ -7749,12 +8077,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return;
     }
     if (display.isEmpty) {
-      speak(
-        _s(
-          'Displej je prázdný. Zadejte číslo k uložení.',
-          'Display is empty. Enter a number to store.',
-        ),
-      );
+      // R9: oznamuje pouze SnackBar (dříve speak + snackbar = duplicita).
       if (mounted) {
         _showAccessibleSnackBar(
           _s(
@@ -7769,9 +8092,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final recordsToAdd = _parseDisplayToRecords(display);
 
       if (recordsToAdd.isEmpty) {
-        speak(
-          _s('Žádná platná čísla k uložení.', 'No valid numbers to store.'),
-        );
+        // R9: oznamuje pouze SnackBar (dříve speak + snackbar = duplicita).
         if (mounted) {
           _showAccessibleSnackBar(
             _s('Žádná platná čísla k uložení.', 'No valid numbers to store.'),
@@ -7796,7 +8117,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           msg = 'Připraveno $count $form k uložení do statistické sady.';
         }
       }
-      speak(msg);
+      // R9: oznamuje pouze SnackBar (dříve speak + snackbar = duplicita).
       if (mounted) {
         _showAccessibleSnackBar(msg);
       }
@@ -7808,7 +8129,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
               'Error storing to statistics memory. Check the data format.',
             );
-      speak(msg);
+      // R9: oznamuje pouze SnackBar (dříve speak + snackbar = duplicita).
       if (mounted) {
         _showAccessibleSnackBar(msg);
       }
@@ -7880,7 +8201,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         // zlomkový pohled se konzistentně vypíná.
         _fractionResultView = false;
       });
-      if (alreadyHandled) return;
+      if (alreadyHandled) {
+        // R1: tichý přepis ⁿ√ by byl bez SR němý – jediné potvrzení.
+        // (SIN-větev výše už vlastní hlášku má, tu nedvojovat.)
+        // Při aktivní čtečce oznamuje změna displeje (liveRegion).
+        if (label == 'ⁿ√' && !silent) {
+          unawaited(
+            announceEvent(
+              _getButtonName(label),
+              category: SpeechCategory.valueChange,
+            ),
+          );
+        }
+        return;
+      }
     }
 
     if (label == 'C') {
@@ -8075,8 +8409,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               display = resStr;
               _cursorPosition = display.length;
               _lastNumericValue = wmean;
+              // R10: statistický kontext – zlomek nevhodný (stale flag fix).
+              _lastResultIsPlainNumeric = false;
+              _fractionResultView = false;
             });
-            speak(spoken, force: true);
+            // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
+            unawaited(
+              announceEvent(
+                spoken,
+                category: SpeechCategory.actionConfirm,
+                isNumeric: true,
+                interruptCurrentSpeech: true,
+              ),
+            );
             _addToHistory('STATS($label)', resStr, numericValue: wmean);
             return;
           }
@@ -8207,13 +8552,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             display = resStr;
             _cursorPosition = display.length;
             _lastNumericValue = numericResult;
+            // R10: statistický kontext – zlomek nevhodný (stale flag fix).
+            _lastResultIsPlainNumeric = false;
+            _fractionResultView = false;
           });
-          speak(spoken, force: true);
+          // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
+          unawaited(
+            announceEvent(
+              spoken,
+              category: SpeechCategory.actionConfirm,
+              isNumeric: true,
+              interruptCurrentSpeech: true,
+            ),
+          );
           _addToHistory('STATS($label)', resStr, numericValue: numericResult);
         } catch (e) {
-          speak(
-            _s('Chyba statistického výpočtu.', 'Statistics calculation error.'),
-            force: true,
+          unawaited(
+            announceEvent(
+              _s(
+                'Chyba statistického výpočtu.',
+                'Statistics calculation error.',
+              ),
+              category: SpeechCategory.error,
+              interruptCurrentSpeech: true,
+            ),
           );
         }
       } else {
@@ -8221,13 +8583,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
     } else if (label == 'STO') {
       _isStoreMode = true;
-      speak(_l10n.selectMemory);
+      // R9: oznamuje pouze SnackBar (dříve speak + announce = duplicita).
       if (mounted) {
         _showAccessibleSnackBar(_l10n.selectMemory);
       }
     } else if (label == 'RCL') {
       _isRecallMode = true;
-      speak(_l10n.selectMemoryRecall);
+      // R9: oznamuje pouze SnackBar (dříve speak + announce = duplicita).
       if (mounted) {
         _showAccessibleSnackBar(_l10n.selectMemoryRecall);
       }
@@ -8238,14 +8600,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       });
       _saveStatsData();
       final clearedMsg = _memoryClearedMessage(cleared);
-      speak(clearedMsg);
+      // R9: oznamuje pouze SnackBar (dříve speak + announce = duplicita).
       if (mounted) {
         _showAccessibleSnackBar(clearedMsg);
       }
     } else if (_memory.containsKey(label)) {
       _handleMemoryVariable(label);
     } else if (label == 'EXP') {
-      append('E', silent: silent);
+      // R1: jediné oznámení správným jménem (append by řekl jen písmeno "E").
+      append('E', silent: true);
+      if (!silent) speak(_getButtonName('EXP'));
     } else if ([
       'SIN',
       'COS',
@@ -8328,10 +8692,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             display = '';
             _cursorPosition = 0;
             _lastNumericValue = val;
+            // R10: DMS kontext – zlomek nevhodný (stale flag fix).
+            _lastResultIsPlainNumeric = false;
+            _fractionResultView = false;
           });
           // Formátování pro TTS: "12°34'5\"" -> "12 stupňů, 34 minut a 5 sekund"
           String spokenDms = _formatDmsSpeech(dmsStr);
-          speak(_l10n.resultIs(spokenDms), force: true);
+          // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
+          unawaited(
+            announceEvent(
+              _l10n.resultIs(spokenDms),
+              category: SpeechCategory.actionConfirm,
+              isNumeric: true,
+              interruptCurrentSpeech: true,
+            ),
+          );
         } else if (label == '\'→°') {
           // Převod na desetinné stupně
           String decimalStr = val
@@ -8344,12 +8719,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             display = '';
             _cursorPosition = 0;
             _lastNumericValue = val;
+            // R10: DMS kontext – zlomek nevhodný (stale flag fix).
+            _lastResultIsPlainNumeric = false;
+            _fractionResultView = false;
           });
-          speak(
-            _l10n.resultIs(
-              '${decimalStr.replaceAll('.', ',')} ${_l10n.degreesUnit}',
+          // R4/R6: jedna hláška jednotným kanálem, oddělovač podle jazyka.
+          unawaited(
+            announceEvent(
+              _l10n.resultIs(
+                '${_localizeDecimalSeparator(decimalStr)} ${_l10n.degreesUnit}',
+              ),
+              category: SpeechCategory.actionConfirm,
+              isNumeric: true,
+              interruptCurrentSpeech: true,
             ),
-            force: true,
           );
         } else {
           final converted = label == '°→RAD'
@@ -8368,16 +8751,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             display = '';
             _cursorPosition = 0;
             _lastNumericValue = converted;
+            // R10: kontext převodu – zlomek nevhodný (stale flag fix).
+            _lastResultIsPlainNumeric = false;
+            _fractionResultView = false;
           });
-          speak(
-            _l10n.resultIs(
-              '${_formatSpokenNumber(val)} $fromUnit = ${_formatSpokenNumber(converted)} $toUnit',
+          // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
+          unawaited(
+            announceEvent(
+              _l10n.resultIs(
+                '${_formatSpokenNumber(val)} $fromUnit = ${_formatSpokenNumber(converted)} $toUnit',
+              ),
+              category: SpeechCategory.actionConfirm,
+              isNumeric: true,
+              interruptCurrentSpeech: true,
             ),
-            force: true,
           );
         }
       } catch (e) {
-        speak(_l10n.conversionError, force: true);
+        unawaited(
+          announceEvent(
+            _l10n.conversionError,
+            category: SpeechCategory.error,
+            interruptCurrentSpeech: true,
+          ),
+        );
       }
     } else if (label == '\u03C0') {
       append(label, silent: silent);
@@ -8391,8 +8788,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
     } else if (label == 'DIFF' || label == 'ROZDÍL') {
       if (_currentMode == CalculatorMode.time) {
-        append(';', silent: silent);
-        speak(_s('středník, rozdíl', 'semicolon, difference'));
+        // R1: jediné oznámení (dříve append mluvil ";" a hned další speak).
+        append(';', silent: true);
+        if (!silent) speak(_s('středník, rozdíl', 'semicolon, difference'));
       } else {
         append(label, silent: silent);
       }
@@ -8404,21 +8802,41 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           }
           final sec = _parseHmsToSeconds(display.trim());
           final secStr = sec.toString();
+          // R10: zdroj před vymazáním (dříve historie s prázdným výrazem).
+          final src = display.trim().isEmpty && _hasResult
+              ? _lastResult
+              : display.trim();
           setState(() {
             _lastResult = secStr;
             display = '';
             _hasResult = true;
             _lastNumericValue = sec.toDouble();
           });
-          speak(
-            _l10n
-                .timeToSecResult(display.isEmpty ? secStr : display, secStr)
-                .replaceAll('.', ','),
-            force: true,
+          // R4/R6: jedna hláška jednotným kanálem, oddělovač podle jazyka.
+          unawaited(
+            announceEvent(
+              _l10n.timeToSecResult(
+                _localizeDecimalSeparator(src.isEmpty ? secStr : src),
+                secStr,
+              ),
+              category: SpeechCategory.actionConfirm,
+              isNumeric: true,
+              interruptCurrentSpeech: true,
+            ),
           );
-          _addToHistory(display, secStr, numericValue: sec.toDouble());
+          _addToHistory(
+            src.isEmpty ? secStr : src,
+            secStr,
+            numericValue: sec.toDouble(),
+          );
         } catch (e) {
-          speak(_l10n.timeInvalidFormat, force: true);
+          unawaited(
+            announceEvent(
+              _l10n.timeInvalidFormat,
+              category: SpeechCategory.error,
+              interruptCurrentSpeech: true,
+            ),
+          );
         }
       } else {
         append(label, silent: silent);
@@ -8441,10 +8859,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _hasResult = true;
             _lastNumericValue = v;
           });
-          speak(_l10n.timeToHmsResult(v.round().toString(), hms), force: true);
+          // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
+          unawaited(
+            announceEvent(
+              _l10n.timeToHmsResult(v.round().toString(), hms),
+              category: SpeechCategory.actionConfirm,
+              isNumeric: true,
+              interruptCurrentSpeech: true,
+            ),
+          );
           _addToHistory(src, hms, numericValue: v);
         } catch (e) {
-          speak(_l10n.timeInvalidFormat, force: true);
+          unawaited(
+            announceEvent(
+              _l10n.timeInvalidFormat,
+              category: SpeechCategory.error,
+              interruptCurrentSpeech: true,
+            ),
+          );
         }
       } else {
         append(label, silent: silent);
@@ -8548,12 +8980,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _calculatePercentOf() {
     if (display.isEmpty) {
-      speak(
-        _s(
-          'Displej je prázdný. Zadejte hodnotu a celek oddělené středníkem, např. 30;200.',
-          'Display is empty. Enter value and whole separated by a semicolon, e.g. 30;200.',
+      // R4: jedna chybová hláška jednotným kanálem (dříve force-bypass).
+      unawaited(
+        announceEvent(
+          _s(
+            'Displej je prázdný. Zadejte hodnotu a celek oddělené středníkem, např. 30;200.',
+            'Display is empty. Enter value and whole separated by a semicolon, e.g. 30;200.',
+          ),
+          category: SpeechCategory.error,
+          interruptCurrentSpeech: true,
         ),
-        force: true,
       );
       return;
     }
@@ -8564,12 +9000,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         .where((p) => p.isNotEmpty)
         .toList();
     if (parts.length != 2) {
-      speak(
-        _s(
-          'Zadejte dvě hodnoty oddělené středníkem: hodnota;celek.',
-          'Enter two values separated by a semicolon: value;whole.',
+      unawaited(
+        announceEvent(
+          _s(
+            'Zadejte dvě hodnoty oddělené středníkem: hodnota;celek.',
+            'Enter two values separated by a semicolon: value;whole.',
+          ),
+          category: SpeechCategory.error,
+          interruptCurrentSpeech: true,
         ),
-        force: true,
       );
       return;
     }
@@ -8577,9 +9016,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final value = _evaluateExpression(parts[0]);
       final whole = _evaluateExpression(parts[1]);
       if (whole == 0) {
-        speak(
-          _s('Celek nesmí být nula.', 'The whole must not be zero.'),
-          force: true,
+        unawaited(
+          announceEvent(
+            _s('Celek nesmí být nula.', 'The whole must not be zero.'),
+            category: SpeechCategory.error,
+            interruptCurrentSpeech: true,
+          ),
         );
         return;
       }
@@ -8595,16 +9037,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         display = resStr;
         _cursorPosition = display.length;
         _lastNumericValue = percent;
+        // R10: kontext procent – zlomek nevhodný (stale flag fix).
+        _lastResultIsPlainNumeric = false;
+        _fractionResultView = false;
       });
-      speak(spoken, force: true);
+      // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
+      unawaited(
+        announceEvent(
+          spoken,
+          category: SpeechCategory.actionConfirm,
+          isNumeric: true,
+          interruptCurrentSpeech: true,
+        ),
+      );
       _addToHistory('PCT($originalDisplay)', resStr, numericValue: percent);
     } catch (e) {
-      speak(
-        _s(
-          'Chyba výpočtu procent. Zkontrolujte zadané hodnoty.',
-          'Percentage calculation error. Check the entered values.',
+      unawaited(
+        announceEvent(
+          _s(
+            'Chyba výpočtu procent. Zkontrolujte zadané hodnoty.',
+            'Percentage calculation error. Check the entered values.',
+          ),
+          category: SpeechCategory.error,
+          interruptCurrentSpeech: true,
         ),
-        force: true,
       );
     }
   }
@@ -8960,17 +9416,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _toggleScientificFunctionsPage() {
+    // R7: stejný text pro TTS i liveRegion (dříve "Funkce" vs "Stránka funkcí").
+    // Při aktivní čtečce oznamuje skrytý liveRegion, jinak vlastní TTS.
+    final msg = !_scientificFunctionsPage
+        ? _s('Stránka funkcí', 'Functions page')
+        : _s('Číselná stránka', 'Numbers page');
     setState(() {
       _scientificFunctionsPage = !_scientificFunctionsPage;
-      _scientificPageAnnouncement = _scientificFunctionsPage
-          ? _s('Stránka funkcí', 'Functions page')
-          : _s('Číselná stránka', 'Numbers page');
+      _scientificPageAnnouncement = msg;
     });
-    speak(
-      _scientificFunctionsPage
-          ? _s('Funkce', 'Functions')
-          : _s('Čísla', 'Numbers'),
-    );
+    speak(msg);
   }
 
   Widget _buildModeSelector() {
@@ -9080,12 +9535,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             'Odebrán záznam ${indices.first + 1}',
             'Removed record ${indices.first + 1}',
           );
-    speak(removedMsg);
+    // R9: oznamuje pouze SnackBar (dříve speak + snackbar = duplicita).
     if (mounted) {
       _showAccessibleSnackBar(removedMsg, scaffoldContext: dialogContext);
     }
     if (_statsMemory.isEmpty) {
-      speak(_statsEmptyMessage());
+      // R9: oznamuje pouze SnackBar (dříve speak + snackbar = duplicita).
       if (mounted) {
         _showAccessibleSnackBar(
           _statsEmptyMessage(),
@@ -9321,7 +9776,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 child: Focus(
                   autofocus: true,
                   onFocusChange: (hasFocus) {
-                    if (hasFocus && !_isScreenReaderActive)
+                    if (hasFocus && _isScreenReaderActive != true)
                       speak(spokenSummary);
                   },
                   child: SizedBox(
@@ -9777,8 +10232,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'Pořadí změněno: $orderSpoken',
       'Order changed: $orderSpoken',
     );
-    speak(msg);
-    _announce(msg);
+    // R9: jedna hláška jednotným kanálem (dříve speak + announce).
+    unawaited(
+      announceEvent(msg, category: SpeechCategory.settings),
+    );
   }
 
   void _moveStatsSummarySectionByOffset(int index, int offset) {
@@ -9791,8 +10248,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _saveSettings();
     final label = _getStatsSummarySectionLabel(_statsSummaryOrder[newIndex]);
     final dir = offset < 0 ? _s('výše', 'up') : _s('níže', 'down');
-    speak(_s('$label přesunuto $dir', '$label moved $dir'));
-    _announce(_s('$label přesunuto $dir', '$label moved $dir'));
+    final len = _statsSummaryOrder.length;
+    // R9: přesun i nová pozice v jedné hlášce (dříve 2 eventy).
+    unawaited(
+      announceEvent(
+        _s(
+          '$label přesunuto $dir, pozice ${newIndex + 1} z $len',
+          '$label moved $dir, position ${newIndex + 1} of $len',
+        ),
+        category: SpeechCategory.settings,
+      ),
+    );
   }
 
   void _resetStatsSummaryOrder() {
@@ -9805,8 +10271,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
     _saveSettings();
     final msg = _s('Pořadí obnoveno na výchozí', 'Order reset to default');
-    speak(msg);
-    _announce(msg);
+    // R9: jedna hláška jednotným kanálem (dříve speak + announce).
+    unawaited(
+      announceEvent(msg, category: SpeechCategory.settings),
+    );
   }
 
   String _getStatsComputedItemLabel(StatsComputedItem it) {
@@ -9869,8 +10337,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _saveSettings();
     final label = _getStatsComputedItemLabel(_statsComputedOrder[newIndex]);
     final dir = offset < 0 ? _s('výše', 'up') : _s('níže', 'down');
-    speak(_s('$label přesunuto $dir', '$label moved $dir'));
-    _announce(_s('$label přesunuto $dir', '$label moved $dir'));
+    final len = _statsComputedOrder.length;
+    // R9: přesun i nová pozice v jedné hlášce (dříve 2 eventy).
+    unawaited(
+      announceEvent(
+        _s(
+          '$label přesunuto $dir, pozice ${newIndex + 1} z $len',
+          '$label moved $dir, position ${newIndex + 1} of $len',
+        ),
+        category: SpeechCategory.settings,
+      ),
+    );
   }
 
   void _resetStatsComputedOrder() {
@@ -9893,8 +10370,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'Pořadí položek obnoveno na výchozí',
       'Items order reset to default',
     );
-    speak(msg);
-    _announce(msg);
+    // R9: jedna hláška jednotným kanálem (dříve speak + announce).
+    unawaited(
+      announceEvent(msg, category: SpeechCategory.settings),
+    );
   }
 
   String _presetLabel(StatsOrderPreset p) {
@@ -9954,10 +10433,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return StatsOrderPreset.custom;
   }
 
-  void applyStatsOrderPreset(StatsOrderPreset p) {
+  void applyStatsOrderPreset(StatsOrderPreset p, {bool announce = true}) {
     if (p == StatsOrderPreset.custom) {
-      speak(_s('Vlastní pořadí - použijte šipky', 'Custom order - use arrows'));
-      _announce(_s('Vlastní pořadí aktivováno', 'Custom order activated'));
+      // R9: jedna hláška (dříve speak + announce různým textem).
+      if (announce) {
+        unawaited(
+          announceEvent(
+            _s('Vlastní pořadí aktivováno', 'Custom order activated'),
+            category: SpeechCategory.settings,
+          ),
+        );
+      }
       return;
     }
     setState(() {
@@ -9996,16 +10482,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
     _saveSettings();
     final name = _presetLabel(p);
-    speak(_s('Preset $name aktivován', 'Preset $name activated'));
-    _announce(_s('Preset $name aktivován', 'Preset $name activated'));
+    // R9: jedna hláška jednotným kanálem (dříve speak + announce).
+    if (announce) {
+      unawaited(
+        announceEvent(
+          _s('Preset $name aktivován', 'Preset $name activated'),
+          category: SpeechCategory.settings,
+        ),
+      );
+    }
   }
 
   void _showStatisticsSummaryDialog() {
     _statsSummaryInitialized = false;
     if (_statsSets.isEmpty || _statsMemory.isEmpty) {
+      // R9: oznamuje pouze SnackBar (jednotný kanál), dříve 3 eventy.
       final msg = _statsEmptyMessage();
-      speak(msg);
-      _announce(msg);
       _showAccessibleSnackBar(msg);
       return;
     }
@@ -10126,7 +10618,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         'Úpravy sady "${set.name}" zahozeny. Sada nebyla změněna.',
         'Edits of set "${set.name}" discarded. Set was not changed.',
       );
-      speak(msg, force: true);
+      // R9: oznamuje pouze SnackBar (dříve speak(force) + snackbar).
       if (mounted) {
         _showAccessibleSnackBar(msg);
       }
@@ -10146,7 +10638,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           'Název pole nesmí být prázdný.',
           'Field name must not be empty.',
         );
-        speak(err, force: true);
+        // R9: oznamuje pouze SnackBar (dříve speak(force) + snackbar).
         if (mounted) {
           _showAccessibleSnackBar(err);
         }
@@ -10170,9 +10662,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (!dirty && !namesChanged) {
         disposeControllers();
         Navigator.pop(dialogContext);
-        final msg = _s('Žádné změny k uložení.', 'No changes to save.');
-        speak(msg, force: true);
-        return;
+      final msg = _s('Žádné změny k uložení.', 'No changes to save.');
+      // R4: jednotný kanál (dříve force-bypass přes SR).
+      unawaited(
+        announceEvent(msg, category: SpeechCategory.actionConfirm),
+      );
+      return;
       }
 
       setState(() {
@@ -10204,7 +10699,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         'Sada "${set.name}" upravena. Pole: $summary. Změny uloženy.',
         'Set "${set.name}" edited. Fields: $summary. Changes saved.',
       );
-      speak(msg, force: true);
+      // R9: oznamuje pouze SnackBar (dříve speak(force) + snackbar).
       if (mounted) {
         _showAccessibleSnackBar(msg);
       }
@@ -10704,13 +11199,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() => _statsSets.add(newSet));
     _saveStatsData();
     onUpdated();
-    speak(
-      _s(
-        'Sada $copyName vytvořena kopírováním',
-        'Set $copyName created by copying',
-      ),
-      force: true,
-    );
+    // R9: oznamuje pouze SnackBar (dříve speak + snackbar stejné informace).
     if (mounted)
       _showAccessibleSnackBar(
         _s('Sada $copyName zkopírována', 'Set $copyName copied'),
@@ -10722,11 +11211,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _saveStatsData();
     onUpdated();
     final pinned = _statsSets[index].pinned;
-    speak(
-      pinned
-          ? _s('Sada připnuta', 'Set pinned')
-          : _s('Sada odepnuta', 'Set unpinned'),
-      force: true,
+    // R4: jednotný kanál (dříve force-bypass přes SR).
+    unawaited(
+      announceEvent(
+        pinned
+            ? _s('Sada připnuta', 'Set pinned')
+            : _s('Sada odepnuta', 'Set unpinned'),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
+      ),
     );
   }
 
@@ -10735,11 +11228,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _saveStatsData();
     onUpdated();
     final archived = _statsSets[index].archived;
-    speak(
-      archived
-          ? _s('Sada archivována', 'Set archived')
-          : _s('Sada obnovena', 'Set restored'),
-      force: true,
+    // R4: jednotný kanál (dříve force-bypass přes SR).
+    unawaited(
+      announceEvent(
+        archived
+            ? _s('Sada archivována', 'Set archived')
+            : _s('Sada obnovena', 'Set restored'),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
+      ),
     );
   }
 
@@ -10813,12 +11310,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     onUpdated();
                     setDlg(() {});
                     Navigator.pop(ctx);
-                    speak(
-                      _s(
-                        'Sada ${set.name} přesunuta z $oldFolder do $newFolder',
-                        'Set ${set.name} moved from $oldFolder to $newFolder',
+                    // R4: jednotný kanál (dříve force-bypass přes SR).
+                    unawaited(
+                      announceEvent(
+                        _s(
+                          'Sada ${set.name} přesunuta z $oldFolder do $newFolder',
+                          'Set ${set.name} moved from $oldFolder to $newFolder',
+                        ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
                       ),
-                      force: true,
                     );
                   },
                   child: Text(_s('Přesunout', 'Move')),
@@ -10923,12 +11424,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     _saveStatsData();
                     onUpdated();
                     Navigator.pop(ctx);
-                    speak(
-                      _s(
-                        'Kopie $copyName vytvořena ve složce ${_statsFolderName(selectedFolderId)}',
-                        'Copy $copyName created in folder ${_statsFolderName(selectedFolderId)}',
+                    // R4: jednotný kanál (dříve force-bypass přes SR).
+                    unawaited(
+                      announceEvent(
+                        _s(
+                          'Kopie $copyName vytvořena ve složce ${_statsFolderName(selectedFolderId)}',
+                          'Copy $copyName created in folder ${_statsFolderName(selectedFolderId)}',
+                        ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
                       ),
-                      force: true,
                     );
                   },
                   child: Text(_s('Kopírovat', 'Copy')),
@@ -11075,12 +11580,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     _saveStatsData();
                     onUpdated();
                     Navigator.pop(ctx);
-                    speak(
-                      _s(
-                        'Barva a ikona sady ${set.name} změněny',
-                        'Color and icon of set ${set.name} changed',
+                    // R4: jednotný kanál (dříve force-bypass přes SR).
+                    unawaited(
+                      announceEvent(
+                        _s(
+                          'Barva a ikona sady ${set.name} změněny',
+                          'Color and icon of set ${set.name} changed',
+                        ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
                       ),
-                      force: true,
                     );
                   },
                   child: Text(_l10n.confirmAction),
@@ -11161,21 +11670,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   onPressed: () {
                     final name = controller.text.trim();
                     if (name.isEmpty) {
-                      speak(
-                        _s('Název nesmí být prázdný', 'Name must not be empty'),
-                        force: true,
+                      // R4: jednotný kanál (dříve force-bypass přes SR).
+                      unawaited(
+                        announceEvent(
+                          _s(
+                            'Název nesmí být prázdný',
+                            'Name must not be empty',
+                          ),
+                          category: SpeechCategory.error,
+                          interruptCurrentSpeech: true,
+                        ),
                       );
                       return;
                     }
                     if (_statsFolders.any(
                       (f) => f.name.toLowerCase() == name.toLowerCase(),
                     )) {
-                      speak(
-                        _s(
-                          'Složka s tímto názvem již existuje',
-                          'Folder with this name already exists',
+                      unawaited(
+                        announceEvent(
+                          _s(
+                            'Složka s tímto názvem již existuje',
+                            'Folder with this name already exists',
+                          ),
+                          category: SpeechCategory.error,
+                          interruptCurrentSpeech: true,
                         ),
-                        force: true,
                       );
                       return;
                     }
@@ -11190,9 +11709,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     _saveStatsData();
                     onUpdated();
                     Navigator.pop(ctx);
-                    speak(
-                      _s('Složka $name vytvořena', 'Folder $name created'),
-                      force: true,
+                    // R4: jednotný kanál (dříve force-bypass přes SR).
+                    unawaited(
+                      announceEvent(
+                        _s('Složka $name vytvořena', 'Folder $name created'),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
+                      ),
                     );
                   },
                   child: Text(_l10n.confirmAction),
@@ -11246,12 +11769,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 _saveStatsData();
                 onUpdated();
                 Navigator.pop(ctx);
-                speak(
-                  _s(
-                    'Složka přejmenována na $newName',
-                    'Folder renamed to $newName',
+                // R4: jednotný kanál (dříve force-bypass přes SR).
+                unawaited(
+                  announceEvent(
+                    _s(
+                      'Složka přejmenována na $newName',
+                      'Folder renamed to $newName',
+                    ),
+                    category: SpeechCategory.settings,
+                    interruptCurrentSpeech: true,
                   ),
-                  force: true,
                 );
               },
               child: Text(_l10n.confirmAction),
@@ -11415,12 +11942,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                           onUpdated();
                                           setDlg(() {});
                                           Navigator.pop(c2);
-                                          speak(
-                                            _s(
-                                              'Složka ${f.name} smazána',
-                                              'Folder ${f.name} deleted',
+                                          // R4: jednotný kanál (dříve force-bypass přes SR).
+                                          unawaited(
+                                            announceEvent(
+                                              _s(
+                                                'Složka ${f.name} smazána',
+                                                'Folder ${f.name} deleted',
+                                              ),
+                                              category: SpeechCategory.settings,
+                                              interruptCurrentSpeech: true,
                                             ),
-                                            force: true,
                                           );
                                         },
                                         child: Text(_s('Smazat', 'Delete')),
@@ -11811,6 +12342,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   String formatForSpeechForTest(String t) => _formatForSpeech(t);
+
+  @visibleForTesting
+  String numberToSpeechForTest(String t) => _numberToSpeech(t);
+
+  @visibleForTesting
+  String sentenceToSpeechForTest(String t) => _sentenceToSpeech(t);
+
+  @visibleForTesting
+  Future<void> announceEventForTest(
+    String message, {
+    required SpeechCategory category,
+    bool isNumeric = false,
+    bool interruptCurrentSpeech = false,
+  }) => announceEvent(
+    message,
+    category: category,
+    isNumeric: isNumeric,
+    interruptCurrentSpeech: interruptCurrentSpeech,
+  );
+
+  /// Poslední publikované oznámení Semantics kanálem (bez ohledu na kanál).
+  @visibleForTesting
+  String get lastAnnouncementForTest => _lastPublishedAnnouncement;
+
+  @visibleForTesting
+  bool? get isScreenReaderActiveForTest => _isScreenReaderActive;
 
   @visibleForTesting
   String formatSpokenNumberForTest(double v) => _formatSpokenNumber(v);
@@ -12628,7 +13185,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           return Focus(
                             autofocus: idx == 1,
                             onFocusChange: (hasFocus) {
-                              if (hasFocus && !_isScreenReaderActive) {
+                              if (hasFocus && _isScreenReaderActive != true) {
                                 speak(rowLabel);
                               }
                             },
@@ -12702,7 +13259,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_isScreenReaderActive) speak(summary);
+      if (mounted && _isScreenReaderActive != true) speak(summary);
     });
   }
 
@@ -12935,7 +13492,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_isScreenReaderActive && !suppressInitialAnnounce) {
+      if (mounted &&
+          _isScreenReaderActive != true &&
+          !suppressInitialAnnounce) {
         speak('$summary ${l10n.statsRepeatHint}');
       }
     });
@@ -13448,6 +14007,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         child: const SizedBox(width: 1, height: 1),
                       ),
                     ],
+                    // R-architektura: dedikovaný oznamovací liveRegion.
+                    // Primární kanál při aktivní čtečce na Androidu
+                    // (doporučení Flutteru místo announcement eventů),
+                    // fallback na Windows. Změna labelu = jedno oznámení.
+                    // Mimo keypad rastr i focus order, bez vizuálního dopadu.
+                    Semantics(
+                      liveRegion: true,
+                      label: _lastAnnouncement,
+                      excludeSemantics: true,
+                      child: const SizedBox(width: 1, height: 1),
+                    ),
                     // Klávesnice
                     Expanded(
                       flex: (keyboardFlex * 100).toInt(),
@@ -13711,16 +14281,17 @@ class _TutorialDialogState extends State<_TutorialDialog>
     if (!_tabController.indexIsChanging) {
       setState(() {});
       final label = widget.tabs[_tabController.index].label;
-      SemanticsService.announce(
-        widget.parent._s(
-          'Karta ${_tabController.index + 1} z ${widget.tabs.length}: $label',
-          'Tab ${_tabController.index + 1} of ${widget.tabs.length}: $label',
+      // R-architektura: jedna navigační hláška jednotným kanálem
+      // (přímé deprecated SemanticsService.announce odstraněno).
+      unawaited(
+        widget.parent.announceEvent(
+          widget.parent._s(
+            'Karta ${_tabController.index + 1} z ${widget.tabs.length}: $label',
+            'Tab ${_tabController.index + 1} of ${widget.tabs.length}: $label',
+          ),
+          category: SpeechCategory.navigation,
         ),
-        TextDirection.ltr,
       );
-      if (!widget.parent._isScreenReaderActive) {
-        widget.parent.speak(widget.tabs[_tabController.index].text);
-      }
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(0);
       }

@@ -536,7 +536,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceOff => 'Voice off';
 
   @override
-  String get cleared => 'Clear';
+  String get cleared => 'Cleared';
 
   @override
   String get deleted => 'Deleted';

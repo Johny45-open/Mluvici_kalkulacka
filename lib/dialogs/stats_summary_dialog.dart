@@ -25,9 +25,11 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
         if (snapshot == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) Navigator.pop(dialogContext);
+            // R8: jedna hláška jednotným kanálem (dříve speak + announce).
             final msg = p._statsEmptyMessage();
-            p.speak(msg);
-            p._announce(msg, dialogContext);
+            unawaited(
+              p.announceEvent(msg, category: SpeechCategory.actionConfirm),
+            );
           });
           return const SizedBox.shrink();
         }
@@ -148,11 +150,14 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                       'Statistický souhrn otevřen.',
                       'Statistics summary opened.',
                     );
-              if (p._isScreenReaderActive) {
-                p._announce(short, dialogContext);
-              } else {
-                p.speak(short);
-              }
+              // R8: jedna hláška jednotným kanálem (dříve announce/speak).
+              unawaited(
+                p.announceEvent(
+                  short,
+                  category: SpeechCategory.navigation,
+                  interruptCurrentSpeech: true,
+                ),
+              );
               return;
             }
             // Obojí: celý souhrn v nastaveném pořadí + Tab hint (jen když je nápověda zapnutá), pro obě větve
@@ -168,11 +173,14 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                     'Statistický souhrn otevřen.',
                     'Statistics summary opened.',
                   );
-            if (p._isScreenReaderActive) {
-              p._announce(announceText, dialogContext);
-            } else {
-              p.speak(announceText, force: true);
-            }
+            // R8: jedna hláška jednotným kanálem (dříve announce/speak).
+            unawaited(
+              p.announceEvent(
+                announceText,
+                category: SpeechCategory.navigation,
+                interruptCurrentSpeech: true,
+              ),
+            );
           });
         }
 
@@ -187,10 +195,14 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                 'Selected field ${fieldNames[nextIndex]}. ',
               ) +
               nextSummary;
-          if (p._isScreenReaderActive) {
-            p._announce(msg, dialogContext);
-          }
-          p.speak(msg, force: true);
+          // R8: jedna hláška jednotným kanálem (dříve announce + speak(force)).
+          unawaited(
+            p.announceEvent(
+              msg,
+              category: SpeechCategory.settings,
+              interruptCurrentSpeech: true,
+            ),
+          );
         }
 
         void toggleReadValues(bool? v) {
@@ -204,10 +216,7 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
               : p._s('Čtení hodnot vypnuto', 'Reading values disabled');
           final ordered = p._getOrderedSpokenSummary(p._selectedFieldIndex);
           final full = ordered.isNotEmpty ? '$statusMsg. $ordered' : statusMsg;
-          if (p._isScreenReaderActive) {
-            p._announce(full, dialogContext);
-          }
-          p.speak(full, force: true);
+          // R8: oznamuje pouze SnackBar (jednotný kanál), žádné paralelní speak.
           p._showAccessibleSnackBar(
             statusMsg,
             announceMessage: full,
@@ -240,10 +249,7 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                   'On open only the header with Tab hint will be announced.',
                 );
           final full = '$statusMsg. $hint';
-          if (p._isScreenReaderActive) {
-            p._announce(full, dialogContext);
-          }
-          p.speak(full, force: true);
+          // R8: oznamuje pouze SnackBar (jednotný kanál), žádné paralelní speak.
           p._showAccessibleSnackBar(
             statusMsg,
             announceMessage: full,
@@ -259,10 +265,7 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
           setDialogState(() {});
           final state = newVal ? p._s('Zapnuto', 'On') : p._s('Vypnuto', 'Off');
           final full = p._l10n.statsNavigationHintState(state);
-          if (p._isScreenReaderActive) {
-            p._announce(full, dialogContext);
-          }
-          p.speak(full, force: true);
+          // R8: oznamuje pouze SnackBar (jednotný kanál), žádné paralelní speak.
           p._showAccessibleSnackBar(
             full,
             announceMessage: full,
@@ -290,10 +293,14 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                   'Statistický souhrn otevřen.',
                   'Statistics summary opened.',
                 );
-          if (p._isScreenReaderActive) {
-            p._announce(text, dialogContext);
-          }
-          p.speak(text, force: true);
+          // R8: jedna hláška jednotným kanálem (dříve announce + speak(force)).
+          unawaited(
+            p.announceEvent(
+              text,
+              category: SpeechCategory.actionConfirm,
+              interruptCurrentSpeech: true,
+            ),
+          );
         }
 
         return AlertDialog(

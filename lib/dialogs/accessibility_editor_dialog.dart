@@ -46,38 +46,73 @@ class _AccessibilityProfileEditorDialogState
   void _adjustDotMatrixZoom(double delta) {
     final nv = (editingSettings.dotMatrixZoom + delta).clamp(0.5, 5.0);
     _onUpdate((s) => s.copyWith(dotMatrixZoom: nv));
+    setState(() {});
+    // R9: doplněno chybějící potvrzení (ostatní steppery ho mají).
+    unawaited(
+      parent.announceEvent(
+        parent._l10n.zoomUpperPct((nv * 100).toInt()),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
+      ),
+    );
   }
 
   void _adjustResultZoom(double delta) {
     final nv = (editingSettings.resultZoom + delta).clamp(0.5, 5.0);
     _onUpdate((s) => s.copyWith(resultZoom: nv));
     setState(() {});
+    // R9: doplněno chybějící potvrzení (ostatní steppery ho mají).
+    unawaited(
+      parent.announceEvent(
+        parent._l10n.zoomLowerPct((nv * 100).toInt()),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
+      ),
+    );
   }
 
   void _adjustSpeechRate(double delta) {
     final nv = (editingSettings.speechRate + delta).clamp(0.1, 1.0);
     _onUpdate((s) => s.copyWith(speechRate: nv));
     setState(() {});
-    parent.speak(parent._l10n.speechRatePct((nv * 100).toInt()), force: true);
+    // R9: jedna hláška jednotným kanálem (při SR liveRegion, jinak TTS).
+    unawaited(
+      parent.announceEvent(
+        parent._l10n.speechRatePct((nv * 100).toInt()),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
+      ),
+    );
   }
 
   void _adjustSpeechVolume(double delta) {
     final nv = (editingSettings.speechVolume + delta).clamp(0.0, 1.0);
     _onUpdate((s) => s.copyWith(speechVolume: nv));
     setState(() {});
-    parent.speak(parent._l10n.volumePct((nv * 100).toInt()), force: true);
+    // R9: jedna hláška jednotným kanálem (při SR liveRegion, jinak TTS).
+    unawaited(
+      parent.announceEvent(
+        parent._l10n.volumePct((nv * 100).toInt()),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
+      ),
+    );
   }
 
   void _adjustDialogFontScale(double delta) {
     final nv = (editingSettings.dialogFontScale + delta).clamp(0.5, 5.0);
     _onUpdate((s) => s.copyWith(dialogFontScale: nv));
     setState(() {});
-    parent.speak(
-      parent._s(
-        'Velikost písma dialogů ${(nv * 100).toInt()} procent',
-        'Dialog font size ${(nv * 100).toInt()} percent',
+    // R9: jedna hláška jednotným kanálem (při SR liveRegion, jinak TTS).
+    unawaited(
+      parent.announceEvent(
+        parent._s(
+          'Velikost písma dialogů ${(nv * 100).toInt()} procent',
+          'Dialog font size ${(nv * 100).toInt()} percent',
+        ),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
       ),
-      force: true,
     );
   }
 
@@ -85,12 +120,16 @@ class _AccessibilityProfileEditorDialogState
     final nv = (editingSettings.fontSizeMultiplier + delta).clamp(0.7, 2.5);
     _onUpdate((s) => s.copyWith(fontSizeMultiplier: nv));
     setState(() {});
-    parent.speak(
-      parent._s(
-        'Velikost písma tlačítek ${(nv * 100).toInt()} procent',
-        'Keyboard button font size ${(nv * 100).toInt()} percent',
+    // R9: jedna hláška jednotným kanálem (při SR liveRegion, jinak TTS).
+    unawaited(
+      parent.announceEvent(
+        parent._s(
+          'Velikost písma tlačítek ${(nv * 100).toInt()} procent',
+          'Keyboard button font size ${(nv * 100).toInt()} percent',
+        ),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
       ),
-      force: true,
     );
   }
 
@@ -98,12 +137,16 @@ class _AccessibilityProfileEditorDialogState
     final nv = (editingSettings.overlineHeight + delta).clamp(0.5, 2.0);
     _onUpdate((s) => s.copyWith(overlineHeight: (nv as double)));
     setState(() {});
-    parent.speak(
-      parent._s(
-        'Výška periodické čáry ${(nv * 100).toInt()} procent',
-        'Repeating bar height ${(nv * 100).toInt()} percent',
+    // R9: jedna hláška jednotným kanálem (při SR liveRegion, jinak TTS).
+    unawaited(
+      parent.announceEvent(
+        parent._s(
+          'Výška periodické čáry ${(nv * 100).toInt()} procent',
+          'Repeating bar height ${(nv * 100).toInt()} percent',
+        ),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
       ),
-      force: true,
     );
   }
 
@@ -111,24 +154,32 @@ class _AccessibilityProfileEditorDialogState
     final nv = (editingSettings.overlineThickness + delta).clamp(0.8, 4.0);
     _onUpdate((s) => s.copyWith(overlineThickness: (nv as double)));
     setState(() {});
-    parent.speak(
-      parent._s(
-        'Tloušťka periodické čáry ${(nv * 100).toInt()} procent',
-        'Repeating bar thickness ${(nv * 100).toInt()} percent',
+    // R9: jedna hláška jednotným kanálem (při SR liveRegion, jinak TTS).
+    unawaited(
+      parent.announceEvent(
+        parent._s(
+          'Tloušťka periodické čáry ${(nv * 100).toInt()} procent',
+          'Repeating bar thickness ${(nv * 100).toInt()} percent',
+        ),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
       ),
-      force: true,
     );
   }
 
   void _resetOverlineStyle() {
     _onUpdate((s) => s.copyWith(overlineHeight: 1.0, overlineThickness: 1.0));
     setState(() {});
-    parent.speak(
-      parent._s(
-        'Vzhled periodické čáry obnoven',
-        'Repeating bar appearance reset',
+    // R9: jedna hláška jednotným kanálem (při SR liveRegion, jinak TTS).
+    unawaited(
+      parent.announceEvent(
+        parent._s(
+          'Vzhled periodické čáry obnoven',
+          'Repeating bar appearance reset',
+        ),
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
       ),
-      force: true,
     );
   }
 
@@ -486,9 +537,15 @@ class _AccessibilityProfileEditorDialogState
                           v.copyWith(useSixteenSegment: !v.useSixteenSegment),
                     );
                     final nv = editingSettings.useSixteenSegment;
-                    parent.speak(
-                      nv ? parent._l10n.segment16On : parent._l10n.segment7On,
-                      force: true,
+                    // R9: jedna hláška jednotným kanálem.
+                    unawaited(
+                      parent.announceEvent(
+                        nv
+                            ? parent._l10n.segment16On
+                            : parent._l10n.segment7On,
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
+                      ),
                     );
                     setState(() {});
                   },
@@ -517,12 +574,16 @@ class _AccessibilityProfileEditorDialogState
                       ),
                     );
                     final nv = editingSettings.usePeriodicNotation;
-                    parent.speak(
-                      parent._s(
-                        'Periodický zápis: ${nv ? 'Zapnuto' : 'Vypnuto'}',
-                        'Repeating notation: ${nv ? 'On' : 'Off'}',
+                    // R9: jedna hláška jednotným kanálem.
+                    unawaited(
+                      parent.announceEvent(
+                        parent._s(
+                          'Periodický zápis: ${nv ? 'Zapnuto' : 'Vypnuto'}',
+                          'Repeating notation: ${nv ? 'On' : 'Off'}',
+                        ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
                       ),
-                      force: true,
                     );
                     setState(() {});
                   },
@@ -546,12 +607,18 @@ class _AccessibilityProfileEditorDialogState
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    _onUpdate((v) => v.copyWith(ttsEnabled: !v.ttsEnabled));
-                    final nv = editingSettings.ttsEnabled;
-                    parent.speak(
-                      nv ? parent._l10n.voiceOn : parent._l10n.voiceOff,
-                      force: true,
+                    // R9: oznámit PŘED aplikací – po vypnutí TTS by speak
+                    // mlčel (ttsEnabled se čte z draftu aktivního profilu).
+                    // Při SR jde potvrzení Semantics kanálem.
+                    final nv = !editingSettings.ttsEnabled;
+                    unawaited(
+                      parent.announceEvent(
+                        nv ? parent._l10n.voiceOn : parent._l10n.voiceOff,
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
+                      ),
                     );
+                    _onUpdate((v) => v.copyWith(ttsEnabled: nv));
                     setState(() {});
                   },
                   child: Text(
@@ -576,13 +643,17 @@ class _AccessibilityProfileEditorDialogState
                           v.copyWith(announceExpression: !v.announceExpression),
                     );
                     final nv = editingSettings.announceExpression;
-                    parent.speak(
-                      parent._l10n.announceExpressionState(
-                        nv
-                            ? parent._s('Zapnuto', 'On')
-                            : parent._s('Vypnuto', 'Off'),
+                    // R9: jedna hláška jednotným kanálem.
+                    unawaited(
+                      parent.announceEvent(
+                        parent._l10n.announceExpressionState(
+                          nv
+                              ? parent._s('Zapnuto', 'On')
+                              : parent._s('Vypnuto', 'Off'),
+                        ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
                       ),
-                      force: true,
                     );
                     setState(() {});
                   },
@@ -609,13 +680,17 @@ class _AccessibilityProfileEditorDialogState
                       ),
                     );
                     final nv = editingSettings.autoReadStatsSummary;
-                    parent.speak(
-                      parent._l10n.autoReadStatsSummaryState(
-                        nv
-                            ? parent._s('Zapnuto', 'On')
-                            : parent._s('Vypnuto', 'Off'),
+                    // R9: jedna hláška jednotným kanálem.
+                    unawaited(
+                      parent.announceEvent(
+                        parent._l10n.autoReadStatsSummaryState(
+                          nv
+                              ? parent._s('Zapnuto', 'On')
+                              : parent._s('Vypnuto', 'Off'),
+                        ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
                       ),
-                      force: true,
                     );
                     setState(() {});
                   },
@@ -642,13 +717,17 @@ class _AccessibilityProfileEditorDialogState
                       ),
                     );
                     final nv = editingSettings.showStatsNavigationHint;
-                    parent.speak(
-                      parent._l10n.statsNavigationHintState(
-                        nv
-                            ? parent._s('Zapnuto', 'On')
-                            : parent._s('Vypnuto', 'Off'),
+                    // R9: jedna hláška jednotným kanálem.
+                    unawaited(
+                      parent.announceEvent(
+                        parent._l10n.statsNavigationHintState(
+                          nv
+                              ? parent._s('Zapnuto', 'On')
+                              : parent._s('Vypnuto', 'Off'),
+                        ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
                       ),
-                      force: true,
                     );
                     setState(() {});
                   },
@@ -702,12 +781,16 @@ class _AccessibilityProfileEditorDialogState
                     selected: {s.screenReaderMode},
                     onSelectionChanged: (Set<ScreenReaderMode> sel) {
                       _onUpdate((v) => v.copyWith(screenReaderMode: sel.first));
-                      parent.speak(
-                        parent._s(
-                          'Režim čtečky: ${sel.first.name}',
-                          'Screen reader: ${sel.first.name}',
+                      // R9: jedna hláška jednotným kanálem.
+                      unawaited(
+                        parent.announceEvent(
+                          parent._s(
+                            'Režim čtečky: ${sel.first.name}',
+                            'Screen reader: ${sel.first.name}',
+                          ),
+                          category: SpeechCategory.settings,
+                          interruptCurrentSpeech: true,
                         ),
-                        force: true,
                       );
                       setState(() {});
                     },
@@ -765,12 +848,16 @@ class _AccessibilityProfileEditorDialogState
                     final cur = s.inverseFormatPreference ?? 1;
                     final nf = cur == 0 ? 1 : 0;
                     _onUpdate((v) => v.copyWith(inverseFormatPreference: nf));
-                    parent.speak(
-                      parent._s(
-                        'Úhly: ${nf == 0 ? 'DMS' : 'Desetinné'}',
-                        'Angles: ${nf == 0 ? 'DMS' : 'Decimal'}',
+                    // R9: jedna hláška jednotným kanálem.
+                    unawaited(
+                      parent.announceEvent(
+                        parent._s(
+                          'Úhly: ${nf == 0 ? 'DMS' : 'Desetinné'}',
+                          'Angles: ${nf == 0 ? 'DMS' : 'Decimal'}',
+                        ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
                       ),
-                      force: true,
                     );
                     setState(() {});
                   },
@@ -812,12 +899,16 @@ class _AccessibilityProfileEditorDialogState
                     selected: {s.dialogSize},
                     onSelectionChanged: (Set<DialogSize> sel) {
                       _onUpdate((v) => v.copyWith(dialogSize: sel.first));
-                      parent.speak(
-                        parent._s(
-                          'Velikost dialogů: ${sel.first.name}',
-                          'Dialog size: ${sel.first.name}',
+                      // R9: jedna hláška jednotným kanálem.
+                      unawaited(
+                        parent.announceEvent(
+                          parent._s(
+                            'Velikost dialogů: ${sel.first.name}',
+                            'Dialog size: ${sel.first.name}',
+                          ),
+                          category: SpeechCategory.settings,
+                          interruptCurrentSpeech: true,
                         ),
-                        force: true,
                       );
                       setState(() {});
                     },
@@ -1050,12 +1141,16 @@ class _AccessibilityProfileEditorDialogState
                     selected: {s.thousandGroupGap},
                     onSelectionChanged: (Set<ThousandGroupGap> sel) {
                       _onUpdate((v) => v.copyWith(thousandGroupGap: sel.first));
-                      parent.speak(
-                        parent._s(
-                          'Mezera skupin: ${sel.first.name}',
-                          'Group gap: ${sel.first.name}',
+                      // R9: jedna hláška jednotným kanálem.
+                      unawaited(
+                        parent.announceEvent(
+                          parent._s(
+                            'Mezera skupin: ${sel.first.name}',
+                            'Group gap: ${sel.first.name}',
+                          ),
+                          category: SpeechCategory.settings,
+                          interruptCurrentSpeech: true,
                         ),
-                        force: true,
                       );
                       setState(() {});
                     },
@@ -1079,17 +1174,21 @@ class _AccessibilityProfileEditorDialogState
                       (v) => v.copyWith(alignInputLeft: !v.alignInputLeft),
                     );
                     final nv = editingSettings.alignInputLeft;
-                    parent.speak(
-                      nv
-                          ? parent._s(
-                              'Vstupní řádek: vlevo',
-                              'Input line: left',
-                            )
-                          : parent._s(
-                              'Vstupní řádek: na střed',
-                              'Input line: centered',
-                            ),
-                      force: true,
+                    // R9: jedna hláška jednotným kanálem.
+                    unawaited(
+                      parent.announceEvent(
+                        nv
+                            ? parent._s(
+                                'Vstupní řádek: vlevo',
+                                'Input line: left',
+                              )
+                            : parent._s(
+                                'Vstupní řádek: na střed',
+                                'Input line: centered',
+                              ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
+                      ),
                     );
                     setState(() {});
                   },
