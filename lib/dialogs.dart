@@ -1184,7 +1184,9 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
     'M',
   ];
 
-  bool _recallStep = false;
+  /// Režim rychlého dialogu. Výchozí je vložení symbolu — samotné otevření
+  /// dialogu nesmí implicitně znamenat „uložit hodnotu".
+  _QuickMemAction _action = _QuickMemAction.insert;
   bool _showOverview = false;
 
   Widget _variableGrid(
@@ -1225,20 +1227,10 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
       children: [
         const Divider(),
         ElevatedButton.icon(
-          icon: const Icon(Icons.file_download, size: 18),
-          label: Text(parent._l10n.memoryRecallAction),
-          onPressed: () => setState(() {
-            _recallStep = true;
-            _showOverview = false;
-          }),
-        ),
-        const SizedBox(height: 8),
-        ElevatedButton.icon(
           icon: const Icon(Icons.list_alt, size: 18),
           label: Text(parent._l10n.memoryOverviewAction),
           onPressed: () => setState(() {
             _showOverview = true;
-            _recallStep = false;
           }),
         ),
         const SizedBox(height: 8),
@@ -1304,43 +1296,17 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
   @override
   Widget build(BuildContext context) {
     final parent = widget.parent;
-    final bool isRecall = _recallStep && !_showOverview;
     // Stejná struktura jako _AdvancedFunctionsDialog: nescrollovatelný
     // AlertDialog + ListView. Scrollable AlertDialog by měřil content
     // intrinsicky a buildButton (uvnitř LayoutBuilder) na dry layout padá.
     final List<Widget> content;
     if (_showOverview) {
       content = [_overviewList()];
-    } else if (isRecall) {
-      content = [
-        Semantics(header: true, child: Text(parent._l10n.quickMemoryRecallTitle)),
-        const SizedBox(height: 8),
-        _variableGrid(
-          context,
-          semanticLabelFor: (b) => parent._l10n.recallFromVariableButton(b),
-          onSelect: (b) {
-            parent.recallMemoryVariable(b);
-            Navigator.pop(context);
-          },
-        ),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: () => setState(() => _recallStep = false),
-          child: Text(parent._s('ZPĚT', 'BACK')),
-        ),
-      ];
     } else {
       content = [
-        Semantics(header: true, child: Text(parent._l10n.quickMemorySaveTo)),
+        _modeSwitch(parent),
         const SizedBox(height: 8),
-        _variableGrid(
-          context,
-          semanticLabelFor: (b) => parent._l10n.saveToVariable(b),
-          onSelect: (b) {
-            parent.storeCurrentValueToMemory(b);
-            Navigator.pop(context);
-          },
-        ),
+        _modeContent(context, parent),
         _secondaryActions(context),
       ];
     }
@@ -1359,7 +1325,110 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
       ],
     );
   }
+
+  /// Přepínač tří jasně rozlišených operací (standardní tlačítka, žádná
+  /// nová Semantics). Výchozí je vložení symbolu.
+  Widget _modeSwitch(_CalculatorScreenState parent) {
+    Widget tab(_QuickMemAction value, String label) {
+      final selected = _action == value;
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: selected
+              ? ElevatedButton(
+                  onPressed: null,
+                  child: Text(label),
+                )
+              : TextButton(
+                  onPressed: () => setState(() {
+                    _action = value;
+                  }),
+                  child: Text(label),
+                ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        tab(_QuickMemAction.insert, parent._l10n.memoryInsertAction),
+        tab(_QuickMemAction.store, parent._l10n.memoryStoreAction),
+        tab(_QuickMemAction.recall, parent._l10n.memoryRecallAction),
+      ],
+    );
+  }
+
+  /// Mřížka proměnných pro aktuální režim.
+  /// Vložit -> symbol 'A' (display zůstává 'A*5'); Uložit -> STO logika;
+  /// Vyvolat -> RCL logika (vloží numerickou hodnotu).
+  Widget _modeContent(BuildContext context, _CalculatorScreenState parent) {
+    switch (_action) {
+      case _QuickMemAction.insert:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              header: true,
+              child: Text(parent._l10n.quickMemoryInsertTitle),
+            ),
+            const SizedBox(height: 8),
+            _variableGrid(
+              context,
+              semanticLabelFor: (b) => parent._l10n.insertVariableButton(b),
+              onSelect: (b) {
+                parent.insertMemorySymbol(b);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      case _QuickMemAction.store:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              header: true,
+              child: Text(parent._l10n.quickMemorySaveTo),
+            ),
+            const SizedBox(height: 8),
+            _variableGrid(
+              context,
+              semanticLabelFor: (b) => parent._l10n.saveToVariable(b),
+              onSelect: (b) {
+                parent.storeCurrentValueToMemory(b);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      case _QuickMemAction.recall:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              header: true,
+              child: Text(parent._l10n.quickMemoryRecallTitle),
+            ),
+            const SizedBox(height: 8),
+            _variableGrid(
+              context,
+              semanticLabelFor: (b) => parent._l10n.recallFromVariableButton(b),
+              onSelect: (b) {
+                parent.recallMemoryVariable(b);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+    }
+  }
 }
+
+/// Režim rychlého dialogu paměti: tři jasně oddělené operace.
+enum _QuickMemAction { insert, store, recall }
 
 class _CurrencyManagerDialog extends StatefulWidget {
   final _CalculatorScreenState parent;

@@ -575,6 +575,43 @@ class AppLocalizationsCs extends AppLocalizations {
   String get valueOutOfRange => 'Hodnota je mimo povolený rozsah funkce';
 
   @override
+  String get negativeSqrtArgument =>
+      'Odmocnina ze záporného čísla není v oboru reálných čísel.';
+
+  @override
+  String get logArgumentMustBePositive => 'Argument logaritmu musí být kladný.';
+
+  @override
+  String get logBaseInvalid =>
+      'Základ logaritmu musí být kladný a různý od jedné.';
+
+  @override
+  String get asinArgumentOutOfRange =>
+      'Argument funkce asin musí být v rozsahu od minus jedna do jedna.';
+
+  @override
+  String get acosArgumentOutOfRange =>
+      'Argument funkce acos musí být v rozsahu od minus jedna do jedna.';
+
+  @override
+  String get calculationOverflow => 'Výsledek je příliš velký.';
+
+  @override
+  String get expressionSyntaxError => 'Ve výrazu je syntaktická chyba.';
+
+  @override
+  String get unbalancedParentheses => 'Ve výrazu nejsou vyvážené závorky.';
+
+  @override
+  String get quickMemoryInsertTitle => 'Vložit proměnnou do výrazu:';
+
+  @override
+  String get memoryInsertAction => 'Vložit proměnnou';
+
+  @override
+  String get memoryStoreAction => 'Uložit hodnotu';
+
+  @override
   String resultIs(String value) {
     return 'Výsledek je $value';
   }
@@ -644,6 +681,11 @@ class AppLocalizationsCs extends AppLocalizations {
   @override
   String recallFromVariableButton(String name) {
     return 'Vyvolat z proměnné $name';
+  }
+
+  @override
+  String insertVariableButton(String name) {
+    return 'Vložit proměnnou $name';
   }
 
   @override

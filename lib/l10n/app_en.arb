@@ -229,6 +229,17 @@
   "expressionNotUnderstood": "I don't understand the expression, please check the parentheses or signs",
   "cannotDivideByZero": "Cannot divide by zero",
   "valueOutOfRange": "Value is outside the valid range of the function",
+  "negativeSqrtArgument": "Square root of a negative number is not a real number.",
+  "logArgumentMustBePositive": "Logarithm argument must be positive.",
+  "logBaseInvalid": "Logarithm base must be positive and different from one.",
+  "asinArgumentOutOfRange": "Argument of asin must be between minus one and one.",
+  "acosArgumentOutOfRange": "Argument of acos must be between minus one and one.",
+  "calculationOverflow": "The result is too large.",
+  "expressionSyntaxError": "There is a syntax error in the expression.",
+  "unbalancedParentheses": "Parentheses in the expression are not balanced.",
+  "quickMemoryInsertTitle": "Insert variable into expression:",
+  "memoryInsertAction": "Insert variable",
+  "memoryStoreAction": "Store value",
   "resultIs": "The result is {value}",
   "@resultIs": {
     "placeholders": {
@@ -327,6 +338,14 @@
     "description": "Heading in the quick memory dialog recall step."
   },
   "recallFromVariableButton": "Recall from variable {name}",
+  "insertVariableButton": "Insert variable {name}",
+  "@insertVariableButton": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "@recallFromVariableButton": {
     "placeholders": {
       "name": {

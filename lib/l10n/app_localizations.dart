@@ -1163,6 +1163,72 @@ abstract class AppLocalizations {
   /// **'Value is outside the valid range of the function'**
   String get valueOutOfRange;
 
+  /// No description provided for @negativeSqrtArgument.
+  ///
+  /// In en, this message translates to:
+  /// **'Square root of a negative number is not a real number.'**
+  String get negativeSqrtArgument;
+
+  /// No description provided for @logArgumentMustBePositive.
+  ///
+  /// In en, this message translates to:
+  /// **'Logarithm argument must be positive.'**
+  String get logArgumentMustBePositive;
+
+  /// No description provided for @logBaseInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Logarithm base must be positive and different from one.'**
+  String get logBaseInvalid;
+
+  /// No description provided for @asinArgumentOutOfRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Argument of asin must be between minus one and one.'**
+  String get asinArgumentOutOfRange;
+
+  /// No description provided for @acosArgumentOutOfRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Argument of acos must be between minus one and one.'**
+  String get acosArgumentOutOfRange;
+
+  /// No description provided for @calculationOverflow.
+  ///
+  /// In en, this message translates to:
+  /// **'The result is too large.'**
+  String get calculationOverflow;
+
+  /// No description provided for @expressionSyntaxError.
+  ///
+  /// In en, this message translates to:
+  /// **'There is a syntax error in the expression.'**
+  String get expressionSyntaxError;
+
+  /// No description provided for @unbalancedParentheses.
+  ///
+  /// In en, this message translates to:
+  /// **'Parentheses in the expression are not balanced.'**
+  String get unbalancedParentheses;
+
+  /// No description provided for @quickMemoryInsertTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert variable into expression:'**
+  String get quickMemoryInsertTitle;
+
+  /// No description provided for @memoryInsertAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert variable'**
+  String get memoryInsertAction;
+
+  /// No description provided for @memoryStoreAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Store value'**
+  String get memoryStoreAction;
+
   /// No description provided for @resultIs.
   ///
   /// In en, this message translates to:
@@ -1270,6 +1336,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recall from variable {name}'**
   String recallFromVariableButton(String name);
+
+  /// No description provided for @insertVariableButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert variable {name}'**
+  String insertVariableButton(String name);
 
   /// No description provided for @memoryRecallAction.
   ///

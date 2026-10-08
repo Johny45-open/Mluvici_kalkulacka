@@ -613,6 +613,47 @@ class _MathDomainException implements Exception {
   String toString() => message;
 }
 
+/// Centrální kategorie chyby výpočtu (R1: přesné chyby při výpočtech).
+/// Klasifikace je strukturální (vyhodnocený jmenovatel / argument),
+/// nikdy se neodvozuje z anglického textu výjimky knihovny.
+enum CalcErrorKind {
+  divisionByZero,
+  syntax,
+  domain,
+  overflow,
+  invalidOperation,
+}
+
+/// Přesný důvod chyby uvnitř [CalcErrorKind].
+/// Slouží pro přesné hlášky, logy a testy; není klasifikačním mechanismem.
+enum CalcErrorReason {
+  zeroDenominator,
+  zeroToNegativePower,
+  sqrtOfNegative,
+  logNonPositiveArg,
+  logBadBase,
+  asinOutOfRange,
+  acosOutOfRange,
+  tanUndefined,
+  overflowInfinite,
+  syntaxParens,
+  syntaxGeneral,
+  unknown,
+}
+
+/// Typizovaná chyba výpočtu: kategorie + přesný důvod + debug detail.
+/// Debug detail je pouze pro `debugPrint`, nikdy pro klasifikaci ani UI.
+class CalcError implements Exception {
+  final CalcErrorKind kind;
+  final CalcErrorReason reason;
+  final String debugDetail;
+
+  const CalcError(this.kind, this.reason, [this.debugDetail = '']);
+
+  @override
+  String toString() => 'CalcError($kind, $reason): $debugDetail';
+}
+
 class _StatisticsSnapshot {
   final double sum;
   final double mean;

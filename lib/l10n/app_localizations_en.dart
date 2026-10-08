@@ -575,6 +575,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get valueOutOfRange => 'Value is outside the valid range of the function';
 
   @override
+  String get negativeSqrtArgument =>
+      'Square root of a negative number is not a real number.';
+
+  @override
+  String get logArgumentMustBePositive =>
+      'Logarithm argument must be positive.';
+
+  @override
+  String get logBaseInvalid =>
+      'Logarithm base must be positive and different from one.';
+
+  @override
+  String get asinArgumentOutOfRange =>
+      'Argument of asin must be between minus one and one.';
+
+  @override
+  String get acosArgumentOutOfRange =>
+      'Argument of acos must be between minus one and one.';
+
+  @override
+  String get calculationOverflow => 'The result is too large.';
+
+  @override
+  String get expressionSyntaxError =>
+      'There is a syntax error in the expression.';
+
+  @override
+  String get unbalancedParentheses =>
+      'Parentheses in the expression are not balanced.';
+
+  @override
+  String get quickMemoryInsertTitle => 'Insert variable into expression:';
+
+  @override
+  String get memoryInsertAction => 'Insert variable';
+
+  @override
+  String get memoryStoreAction => 'Store value';
+
+  @override
   String resultIs(String value) {
     return 'The result is $value';
   }
@@ -644,6 +684,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String recallFromVariableButton(String name) {
     return 'Recall from variable $name';
+  }
+
+  @override
+  String insertVariableButton(String name) {
+    return 'Insert variable $name';
   }
 
   @override

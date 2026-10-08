@@ -301,6 +301,17 @@
   "expressionNotUnderstood": "Výrazu nerozumím, zkuste zkontrolovat závorky nebo znaménka",
   "cannotDivideByZero": "Nulou nelze dělit",
   "valueOutOfRange": "Hodnota je mimo povolený rozsah funkce",
+  "negativeSqrtArgument": "Odmocnina ze záporného čísla není v oboru reálných čísel.",
+  "logArgumentMustBePositive": "Argument logaritmu musí být kladný.",
+  "logBaseInvalid": "Základ logaritmu musí být kladný a různý od jedné.",
+  "asinArgumentOutOfRange": "Argument funkce asin musí být v rozsahu od minus jedna do jedna.",
+  "acosArgumentOutOfRange": "Argument funkce acos musí být v rozsahu od minus jedna do jedna.",
+  "calculationOverflow": "Výsledek je příliš velký.",
+  "expressionSyntaxError": "Ve výrazu je syntaktická chyba.",
+  "unbalancedParentheses": "Ve výrazu nejsou vyvážené závorky.",
+  "quickMemoryInsertTitle": "Vložit proměnnou do výrazu:",
+  "memoryInsertAction": "Vložit proměnnou",
+  "memoryStoreAction": "Uložit hodnotu",
   "resultIs": "Výsledek je {value}",
   "@resultIs": {
     "placeholders": {
@@ -399,6 +410,14 @@
     "description": "Nadpis kroku vyvolání v rychlém dialogu paměti."
   },
   "recallFromVariableButton": "Vyvolat z proměnné {name}",
+  "insertVariableButton": "Vložit proměnnou {name}",
+  "@insertVariableButton": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "@recallFromVariableButton": {
     "placeholders": {
       "name": {

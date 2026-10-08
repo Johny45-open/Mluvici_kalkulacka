@@ -3689,38 +3689,60 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// fallback na [_lastResult], kontrolu finite hodnoty, zápis do [_memory],
   /// persistenci přes [_saveStatsData] a hlasové potvrzení.
   /// Vrací true při úspěchu, false při chybě (neplatný výraz / NaN / Infinity).
+  /// Jednotné oznámení neúspěšného uložení do paměti
+  /// (R9: jedna hláška — announceEvent + vizuální SnackBar bez duplicity).
+  void _announceStoreFailure(String message) {
+    unawaited(
+      announceEvent(
+        message,
+        category: SpeechCategory.error,
+        interruptCurrentSpeech: true,
+      ),
+    );
+    if (mounted) {
+      _showAccessibleSnackBar(message, announce: false);
+    }
+  }
+
   bool storeCurrentValueToMemory(String name) {
-    double val;
+    late double val;
     if (display.isNotEmpty) {
       try {
-        val = _evaluateExpression(display);
-      } catch (_) {
-        val = double.nan;
-      }
-      if (!val.isFinite) {
-        setState(() => _isStoreMode = false);
-        // R9: jedna chybová hláška (dříve speak(force) + announce SnackBaru).
-        unawaited(
-          announceEvent(
-            _l10n.cannotStoreExpression,
-            category: SpeechCategory.error,
-            interruptCurrentSpeech: true,
-          ),
-        );
-        if (mounted) {
-          _showAccessibleSnackBar(
-            _l10n.cannotStoreExpression,
-            announce: false,
+        final evaluated = _evaluateExpression(display);
+        if (!evaluated.isFinite) {
+          // Strukturální kontrola uvnitř _evaluateExpression nenašla důkaz
+          // dělení nulou ani domény — jde o přetečení / neplatnou operaci.
+          _announceStoreFailure(
+            _messageForCalcError(
+              _classifyResidualNonFinite(evaluated, display),
+            ),
           );
+          setState(() => _isStoreMode = false);
+          return false;
         }
+        val = evaluated;
+      } on CalcError catch (e) {
+        // Původní důvod chyby se zachovává — přesná hláška, ne generická.
+        _announceStoreFailure(_messageForCalcError(e));
+        setState(() => _isStoreMode = false);
+        return false;
+      } catch (e) {
+        debugPrint('Unexpected store error: $e');
+        _announceStoreFailure(_l10n.cannotStoreExpression);
+        setState(() => _isStoreMode = false);
         return false;
       }
     } else {
-      try {
-        val = double.parse(_lastResult.replaceAll(',', '.'));
-      } catch (_) {
-        val = 0;
+      // Zdroj numerické pravdy je _lastNumericValue, nikdy prezentační
+      // text _lastResult (může být 'Error', DMS či jiný speciální formát).
+      // Není-li platná hodnota, nic se neukládá — nikdy tiše 0.
+      final last = _lastNumericValue;
+      if (last == null || !last.isFinite || _lastResult == 'Error') {
+        _announceStoreFailure(_l10n.cannotStoreExpression);
+        setState(() => _isStoreMode = false);
+        return false;
       }
+      val = last;
     }
     final String valStrVis = _formatNumberSmart(val).replaceAll('.', ',');
     final String valStrSpoken = _formatSpokenNumber(val);
@@ -3780,14 +3802,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _isRecallMode = false;
   }
 
+  /// Vloží symbol proměnné (např. 'A') do výrazu — nikoli její hodnotu.
+  /// Výraz zůstává symbolický ('A*5'), dosazení proběhne až při výpočtu
+  /// substitucí v _evaluateExpression. Žádný STO/RCL režim se nemění.
+  void insertMemorySymbol(String name) {
+    append(name, silent: true);
+    speak(_l10n.variableName(name));
+  }
+
   void _handleMemoryVariable(String name) {
     if (_isStoreMode) {
       storeCurrentValueToMemory(name);
     } else if (_isRecallMode) {
       recallMemoryVariable(name);
     } else {
-      append(name, silent: true);
-      speak(_l10n.variableName(name));
+      insertMemorySymbol(name);
     }
   }
 
@@ -4413,11 +4442,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
 
         double result = _evaluateExpression(display);
-        // Dělení nulou (5/0 → Infinity, 0/0 → NaN) a přetečení nejsou
-        // platný výsledek, ale chyba – hlasem „Nulou nelze dělit".
-        // (math_expressions nevyhazuje, vrací non-finite double.)
+        // Strukturální kontrola už proběhla uvnitř _evaluateExpression:
+        // každé prokázané dělení nulou vyhodilo CalcError(divisionByZero).
+        // Zbytkový non-finite výsledek bez takového důkazu proto nikdy
+        // není dělení nulou — je to přetečení, resp. neplatná operace.
         if (!result.isFinite) {
-          throw _MathDomainException(_l10n.cannotDivideByZero);
+          throw _classifyResidualNonFinite(result, display);
         }
         _lastNumericValue = result;
 
@@ -4511,22 +4541,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         numericValue: _lastNumericValue,
       );
     } catch (e) {
+      // Známý CalcError -> přesná hláška dle kind + reason.
+      // TAN doménová výjimka si drží vlastní přesnou větu (beze změny).
+      // ArgumentError z enginu (např. faktoriál) -> obecná doménová hláška
+      // dle typu výjimky, nikdy dle jejího anglického textu.
+      // Neočekávaná interní výjimka -> bezpečná obecná cesta, nikdy se
+      // automaticky nepřeklasifikovává na syntax; detail jen do debug logu.
       String msg = _l10n.expressionNotUnderstood;
       if (e is _ElectricianInputException) {
         msg = e.message;
       } else if (e is _TimeInputException) {
         msg = e.message;
+      } else if (e is CalcError) {
+        msg = _messageForCalcError(e);
       } else if (e is _MathDomainException) {
         msg = e.message;
+      } else if (e is ArgumentError) {
+        msg = _l10n.valueOutOfRange;
       } else {
-        String errStr = e.toString().toLowerCase();
-        if (errStr.contains('division by zero') ||
-            errStr.contains('infinity')) {
-          msg = _l10n.cannotDivideByZero;
-        } else if (errStr.contains('range') ||
-            errStr.contains('invalid argument')) {
-          msg = _l10n.valueOutOfRange;
-        }
+        debugPrint('Unexpected calculation error: $e');
       }
 
       setState(() {
@@ -4545,6 +4578,250 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
       );
     }
+  }
+
+  /// Mapuje známý [CalcError] na přesnou lokalizovanou hlášku.
+  /// Neznámý důvod padá na obecnou hlášku své kategorie, nikdy na dělení
+  /// nulou. Anglický text výjimky knihovny se zde nikdy nepoužívá.
+  String _messageForCalcError(CalcError e) {
+    switch (e.reason) {
+      case CalcErrorReason.zeroDenominator:
+      case CalcErrorReason.zeroToNegativePower:
+        return _l10n.cannotDivideByZero;
+      case CalcErrorReason.sqrtOfNegative:
+        return _l10n.negativeSqrtArgument;
+      case CalcErrorReason.logNonPositiveArg:
+        return _l10n.logArgumentMustBePositive;
+      case CalcErrorReason.logBadBase:
+        return _l10n.logBaseInvalid;
+      case CalcErrorReason.asinOutOfRange:
+        return _l10n.asinArgumentOutOfRange;
+      case CalcErrorReason.acosOutOfRange:
+        return _l10n.acosArgumentOutOfRange;
+      case CalcErrorReason.overflowInfinite:
+        return _l10n.calculationOverflow;
+      case CalcErrorReason.syntaxParens:
+        return _l10n.unbalancedParentheses;
+      case CalcErrorReason.syntaxGeneral:
+        return _l10n.expressionSyntaxError;
+      case CalcErrorReason.tanUndefined:
+      case CalcErrorReason.unknown:
+        switch (e.kind) {
+          case CalcErrorKind.divisionByZero:
+            return _l10n.cannotDivideByZero;
+          case CalcErrorKind.syntax:
+            return _l10n.expressionSyntaxError;
+          case CalcErrorKind.overflow:
+            return _l10n.calculationOverflow;
+          case CalcErrorKind.domain:
+          case CalcErrorKind.invalidOperation:
+            return _l10n.valueOutOfRange;
+        }
+    }
+  }
+
+  /// Vyhodnotí podstrom stejným enginem i kontextem jako hlavní výpočet.
+  /// Vrací null, pokud podstrom nelze vyhodnotit — volající pak pokračuje
+  /// bez strukturálního důkazu a nikdy z null neodvozuje chybu.
+  /// Žádný setState, žádná mutace stavu.
+  double? _tryEvalSubtree(
+    math_expr.Expression sub,
+    math_expr.ContextModel cm,
+  ) {
+    try {
+      final v = sub.evaluate(math_expr.EvaluationType.REAL, cm);
+      if (v is num) return v.toDouble();
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Odobalí argument funkce: BoundVariable -> vázaný výraz, jinak beze změny.
+  math_expr.Expression _unbindFuncArg(math_expr.Expression e) {
+    if (e is math_expr.BoundVariable) {
+      final v = e.value;
+      if (v is math_expr.Expression) return v;
+    }
+    return e;
+  }
+
+  /// Strukturální kontrola AST: najde relevantní operátor/funkci, vyhodnotí
+  /// pouze potřebný podstrom stejným RealEvaluatorem a stejným ContextModelem
+  /// a vrátí [CalcError], pokud je důvod chyby spolehlivě známý.
+  /// Jinak vrací null a volající pokračuje normálním výpočtem.
+  /// Netvoří druhý kalkulační algoritmus, nic nemutuje (pure read-only).
+  /// Pořadí: nejdřív rekurze do dětí (nejvnitřnější chyba má prioritu),
+  /// pak kontrola vlastního uzlu. Doména před dělením nulou před overflow.
+  CalcError? _findCalcError(
+    math_expr.Expression exp,
+    math_expr.ContextModel cm,
+  ) {
+    // Děti nejdřív (post-order).
+    if (exp is math_expr.BinaryOperator) {
+      final leftErr = _findCalcError(exp.first, cm);
+      if (leftErr != null) return leftErr;
+      final rightErr = _findCalcError(exp.second, cm);
+      if (rightErr != null) return rightErr;
+      if (exp is math_expr.Divide) {
+        final divisor = _tryEvalSubtree(exp.second, cm);
+        if (divisor != null && divisor == 0) {
+          return const CalcError(
+            CalcErrorKind.divisionByZero,
+            CalcErrorReason.zeroDenominator,
+          );
+        }
+      } else if (exp is math_expr.Power) {
+        final base = _tryEvalSubtree(exp.first, cm);
+        final exponent = _tryEvalSubtree(exp.second, cm);
+        if (base != null && exponent != null) {
+          if (base == 0 && exponent < 0) {
+            return const CalcError(
+              CalcErrorKind.divisionByZero,
+              CalcErrorReason.zeroToNegativePower,
+            );
+          }
+          // base == 0 && exponent == 0: runtime sonda prokázala 1.0
+          // (Dart math.pow) — validní výsledek, žádná chyba.
+        }
+      }
+      return null;
+    }
+    if (exp is math_expr.Ln) {
+      final childErr = _findCalcErrorInFuncArgs(exp, cm);
+      if (childErr != null) return childErr;
+      // Ln ukládá bázi (e) na getParam(0), argument na getParam(1).
+      final arg = _tryEvalSubtree(
+        _unbindFuncArg(exp.getParam(1)),
+        cm,
+      );
+      if (arg != null && arg <= 0) {
+        return const CalcError(
+          CalcErrorKind.domain,
+          CalcErrorReason.logNonPositiveArg,
+        );
+      }
+      return null;
+    }
+    if (exp is math_expr.Log) {
+      final childErr = _findCalcErrorInFuncArgs(exp, cm);
+      if (childErr != null) return childErr;
+      final number = _tryEvalSubtree(
+        _unbindFuncArg(exp.getParam(1)),
+        cm,
+      );
+      if (number != null && number <= 0) {
+        return const CalcError(
+          CalcErrorKind.domain,
+          CalcErrorReason.logNonPositiveArg,
+        );
+      }
+      final base = _tryEvalSubtree(
+        _unbindFuncArg(exp.getParam(0)),
+        cm,
+      );
+      if (base != null && (base <= 0 || base == 1)) {
+        return const CalcError(
+          CalcErrorKind.domain,
+          CalcErrorReason.logBadBase,
+        );
+      }
+      return null;
+    }
+    if (exp is math_expr.Sqrt) {
+      final childErr = _findCalcErrorInFuncArgs(exp, cm);
+      if (childErr != null) return childErr;
+      final arg = _tryEvalSubtree(
+        _unbindFuncArg(exp.getParam(1)),
+        cm,
+      );
+      if (arg != null && arg < 0) {
+        return const CalcError(
+          CalcErrorKind.domain,
+          CalcErrorReason.sqrtOfNegative,
+        );
+      }
+      return null;
+    }
+    if (exp is math_expr.Root) {
+      // Lichá odmocnina ze záporného čísla je validní (engine rewrite),
+      // sudá se chová jako sqrt — tu engine modeluje přes Power, takže
+      // zde pouze rekurze do dětí bez vlastního verdiktu.
+      return _findCalcErrorInFuncArgs(exp, cm);
+    }
+    if (exp is math_expr.Asin) {
+      final childErr = _findCalcErrorInFuncArgs(exp, cm);
+      if (childErr != null) return childErr;
+      final arg = _tryEvalSubtree(
+        _unbindFuncArg(exp.getParam(0)),
+        cm,
+      );
+      if (arg != null && arg.abs() > 1 + 1e-12) {
+        return const CalcError(
+          CalcErrorKind.domain,
+          CalcErrorReason.asinOutOfRange,
+        );
+      }
+      return null;
+    }
+    if (exp is math_expr.Acos) {
+      final childErr = _findCalcErrorInFuncArgs(exp, cm);
+      if (childErr != null) return childErr;
+      final arg = _tryEvalSubtree(
+        _unbindFuncArg(exp.getParam(0)),
+        cm,
+      );
+      if (arg != null && arg.abs() > 1 + 1e-12) {
+        return const CalcError(
+          CalcErrorKind.domain,
+          CalcErrorReason.acosOutOfRange,
+        );
+      }
+      return null;
+    }
+    if (exp is math_expr.DefaultFunction) {
+      return _findCalcErrorInFuncArgs(exp, cm);
+    }
+    if (exp is math_expr.UnaryOperator) {
+      return _findCalcError(exp.exp, cm);
+    }
+    return null;
+  }
+
+  /// Rekurze do vázaných argumentů DefaultFunction (BoundVariable -> výraz).
+  CalcError? _findCalcErrorInFuncArgs(
+    math_expr.DefaultFunction func,
+    math_expr.ContextModel cm,
+  ) {
+    for (final param in func.args) {
+      final sub = _unbindFuncArg(param);
+      if (identical(sub, param) && param is! math_expr.BoundVariable) {
+        // Prostá proměnná bez vazby: po substituci by neměla nastat.
+        // Bez důkazu — přeskočit, nehlásit.
+        continue;
+      }
+      final err = _findCalcError(sub, cm);
+      if (err != null) return err;
+    }
+    return null;
+  }
+
+  /// Klasifikuje zbytkový non-finite výsledek, pro který strukturální
+  /// kontrola nenašla důkaz dělení nulou ani domény.
+  /// Nekonečno -> overflow; NaN -> invalidOperation. Nikdy divisionByZero.
+  CalcError _classifyResidualNonFinite(double value, String debugDetail) {
+    if (value.isNaN) {
+      return CalcError(
+        CalcErrorKind.invalidOperation,
+        CalcErrorReason.unknown,
+        debugDetail,
+      );
+    }
+    return CalcError(
+      CalcErrorKind.overflow,
+      CalcErrorReason.overflowInfinite,
+      debugDetail,
+    );
   }
 
   double _evaluateExpression(String expr) {
@@ -4718,10 +4995,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       },
     );
 
-    // FAKTORIÁL
+    // FAKTORIÁL (n > 20 přetéká double -> strukturální overflow,
+    // nikoli syntax ani dělení nulou).
     processed = processed.replaceAllMapped(RegExp(r'(\d+)!'), (m) {
       int n = int.parse(m[1]!);
-      return _factorial(n).toString();
+      final f = _factorial(n);
+      if (!f.isFinite) {
+        throw const CalcError(
+          CalcErrorKind.overflow,
+          CalcErrorReason.overflowInfinite,
+        );
+      }
+      return f.toString();
     });
 
     if (processed.isEmpty) return 0.0;
@@ -4738,13 +5023,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       },
     );
 
-    // 6. BALANCOVÁNÍ ZÁVOREK
+    // 6. KONTROLA ZÁVOREK (bez automatické opravy).
+    // Nevyvážené závorky jsou syntaktická chyba — kalkulačka nesmí hádat
+    // význam výrazu za uživatele (viz audit: '1+2)' se nesmí tiše změnit).
     int openCount = '('.allMatches(processed).length;
     int closeCount = ')'.allMatches(processed).length;
-    if (openCount > closeCount) {
-      processed += ')' * (openCount - closeCount);
-    } else if (closeCount > openCount) {
-      processed = processed.replaceAll(RegExp(r'^\)+|\)+$'), '');
+    if (openCount != closeCount) {
+      throw const CalcError(
+        CalcErrorKind.syntax,
+        CalcErrorReason.syntaxParens,
+      );
     }
 
     // =========================================================================
@@ -4823,18 +5111,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     processed = processed.replaceAll('arccos((', 'arccos(');
     processed = processed.replaceAll('arctan((', 'arctan(');
 
-    // Robustní vyvážení závorek
+    // KONTROLA ZÁVOREK po DEG/RAD expanzi (bez automatické opravy —
+    // viz bod 6 výše). Expanze přidává pouze vyvážené závorky.
     openCount = '('.allMatches(processed).length;
     closeCount = ')'.allMatches(processed).length;
 
-    if (openCount > closeCount) {
-      processed += ')' * (openCount - closeCount);
-    } else if (closeCount > openCount) {
-      // Odstranění přebytečných ')' na konci
-      while (closeCount > openCount && processed.endsWith(')')) {
-        processed = processed.substring(0, processed.length - 1);
-        closeCount--;
-      }
+    if (openCount != closeCount) {
+      throw const CalcError(
+        CalcErrorKind.syntax,
+        CalcErrorReason.syntaxParens,
+      );
     }
 
     // PROCENTA: % jako postfixový operátor "/100"
@@ -4854,13 +5140,41 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     try {
       final p = math_expr.ShuntingYardParser();
-      debugPrint("Parsing expression: $processed");
-      math_expr.Expression exp = p.parse(processed);
+    // Zbytkový marker funkce (např. prázdné SIN()) = neúplná syntaxe.
+    // Kontrolují se pouze naše vlastní sentinely (_SIN_, _LOG_, ...),
+    // nikdy text výjimky knihovny. E-notační placeholdery jsou v tomto
+    // bodě již expandovány (krok 3b), takže tu nemají co dělat.
+    if (RegExp(r'_[A-Z]+_').hasMatch(processed)) {
+      throw const CalcError(
+        CalcErrorKind.syntax,
+        CalcErrorReason.syntaxGeneral,
+      );
+    }
+
+    debugPrint("Parsing expression: $processed");
+      math_expr.Expression exp;
+      try {
+        exp = p.parse(processed);
+      } catch (e) {
+        // Nepodařený parse = potvrzená syntaktická chyba vstupu.
+        debugPrint("Parse error: $e for expression: $processed");
+        throw CalcError(
+          CalcErrorKind.syntax,
+          CalcErrorReason.syntaxGeneral,
+          e.toString(),
+        );
+      }
       math_expr.ContextModel cm = math_expr.ContextModel();
+      // Strukturální kontrola před vyhodnocením: vyhodnocený jmenovatel
+      // (dělení nulou) a vyhodnocený argument (definiční obor).
+      final structural = _findCalcError(exp, cm);
+      if (structural != null) throw structural;
 
       return exp.evaluate(math_expr.EvaluationType.REAL, cm);
+    } on CalcError {
+      rethrow;
     } catch (e) {
-      debugPrint("Parse error: $e for expression: $processed");
+      debugPrint("Evaluation error: $e for expression: $processed");
       rethrow;
     }
   }
@@ -12328,6 +12642,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @visibleForTesting
   double evaluateExpressionForTest(String expr) => _evaluateExpression(expr);
 
+  /// Klasifikace zbytkového non-finite výsledku pro testy.
+  @visibleForTesting
+  CalcError classifyResidualForTest(double value) =>
+      _classifyResidualNonFinite(value, 'test');
+
+  /// Read-only hodnota pro Info o čísle (display -> _lastNumericValue).
+  /// Vrací null, není-li dostupná žádná hodnota nebo je výraz chybný.
+  @visibleForTesting
+  double? resolveNumberInfoForTest() => _resolveNumberInfoValue().value;
+
   @visibleForTesting
   String formatNumberForTest(double v) => _formatNumber(v);
 
@@ -12626,13 +12950,53 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  /// Read-only rozlišení hodnoty pro dialog Info o čísle.
+  /// Priorita: 1. neprázdný display -> stejná cesta _evaluateExpression
+  /// jako hlavní kalkulace (žádná duplicitní logika); 2. prázdný display ->
+  /// _lastNumericValue; 3. nic dostupného -> value null (volající ukáže
+  /// infoNoResult). Při chybě výrazu vrací příslušný CalcError pro přesnou
+  /// hlášku. Nikdy nevolá setState ani nemění kalkulační stav.
+  ({double? value, CalcError? error}) _resolveNumberInfoValue() {
+    if (display.trim().isNotEmpty) {
+      try {
+        final evaluated = _evaluateExpression(display);
+        if (!evaluated.isFinite) {
+          return (
+            value: null,
+            error: _classifyResidualNonFinite(evaluated, display),
+          );
+        }
+        return (value: evaluated, error: null);
+      } on CalcError catch (e) {
+        return (value: null, error: e);
+      } catch (e) {
+        debugPrint('Unexpected number-info error: $e');
+        return (
+          value: null,
+          error: const CalcError(
+            CalcErrorKind.invalidOperation,
+            CalcErrorReason.unknown,
+          ),
+        );
+      }
+    }
+    final last = _lastNumericValue;
+    if (last != null && last.isFinite) {
+      return (value: last, error: null);
+    }
+    return (value: null, error: null);
+  }
+
   void _showNumberInfoDialog() {
     final l10n = _l10n;
-    final value = _lastNumericValue;
+    final resolved = _resolveNumberInfoValue();
+    final value = resolved.value;
     if (value == null) {
-      speak(l10n.infoNoResult);
+      final err = resolved.error;
+      final msg = err == null ? l10n.infoNoResult : _messageForCalcError(err);
+      speak(msg);
       if (mounted) {
-        _showAccessibleSnackBar(l10n.infoNoResult);
+        _showAccessibleSnackBar(msg);
       }
       return;
     }

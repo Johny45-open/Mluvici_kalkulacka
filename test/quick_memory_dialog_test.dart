@@ -133,11 +133,25 @@ void main() {
       );
     });
 
-    testWidgets('3. Dialog lze otevrit', (tester) async {
+    testWidgets('3. Dialog se otevre ve vychozim rezimu Vlozit', (tester) async {
       await pumpApp(tester);
       await openQuickMemory(tester);
-      // Nadpis dialogu + heading pro uložení.
+      // Nadpis dialogu + heading pro vložení (default, ne ukládání).
       expect(textAny(['Paměť', 'Memory']), findsWidgets);
+      expect(
+        textAny([
+          'Vložit proměnnou do výrazu:',
+          'Insert variable into expression:',
+        ]),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('3b. Zalozka Ulozit zobrazi ukladaci nadpis', (tester) async {
+      await pumpApp(tester);
+      await openQuickMemory(tester);
+      await tester.tap(textAny(['Uložit hodnotu', 'Store value']));
+      await tester.pumpAndSettle();
       expect(
         textAny(['Uložit aktuální hodnotu do:', 'Save current value to:']),
         findsOneWidget,
@@ -194,12 +208,16 @@ void main() {
       expect(state.memoryForTest['A'], 42.0);
     });
 
-    testWidgets('Pamet → B ulozi vyhodnoceny vyraz, ne text', (tester) async {
+    testWidgets('Pamet → zalozka Ulozit → B ulozi vyhodnoceny vyraz', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('12*20+5', 7);
       await tester.pump();
-      // Cesta rychlého dialogu: Paměť → B.
+      // Cesta rychlého dialogu: Paměť → Uložit hodnotu → B.
       await tester.tap(memoryEntryButton());
+      await tester.pumpAndSettle();
+      await tester.tap(textAny(['Uložit hodnotu', 'Store value']));
       await tester.pumpAndSettle();
       await tester.tap(dialogText('B'));
       await tester.pumpAndSettle();
@@ -448,6 +466,39 @@ void main() {
       await tester.tap(dialogText('A'));
       await tester.pumpAndSettle();
       expect(state.memoryForTest['A'], 10.0);
+    });
+  });
+
+  group('Vlozit promennou (vychozi rezim)', () {
+    testWidgets('Vlozeni A vlozi symbol, ne hodnotu', (tester) async {
+      final state = await pumpApp(tester);
+      state.setMemoryForTest('A', 10.0);
+      state.setDisplayForTest('', 0);
+      await tester.pump();
+      await tester.tap(memoryEntryButton());
+      await tester.pumpAndSettle();
+      // Výchozí režim: vložení (otevření dialogu neukládá).
+      expect(
+        textAny([
+          'Vložit proměnnou do výrazu:',
+          'Insert variable into expression:',
+        ]),
+        findsOneWidget,
+      );
+      await tester.tap(dialogText('A'));
+      await tester.pumpAndSettle();
+      expect(state.displayForTest, contains('A'));
+      expect(state.memoryForTest['A'], 10.0);
+    });
+
+    testWidgets('A*5 zustane symbolicky a spocita 50', (tester) async {
+      final state = await pumpApp(tester);
+      state.setMemoryForTest('A', 10.0);
+      state.setDisplayForTest('A*5', 3);
+      await tester.pump();
+      state.calculateForTest();
+      await tester.pumpAndSettle();
+      expect(state.lastNumericForTest, 50.0);
     });
   });
 }
