@@ -1,5 +1,213 @@
 part of 'main.dart';
 
+class _ExpressionSemanticsBridge extends SingleChildRenderObjectWidget {
+  final String display;
+  final int cursorPosition;
+  final FocusNode focusNode;
+  final VoidCallback? onTap;
+  final MoveCursorHandler? onMoveCursorForwardByCharacter;
+  final MoveCursorHandler? onMoveCursorBackwardByCharacter;
+  final SetSelectionHandler? onSetSelection;
+  final String label;
+  final String hint;
+
+  const _ExpressionSemanticsBridge({
+    super.key,
+    required this.display,
+    required this.cursorPosition,
+    required this.focusNode,
+    required this.label,
+    required this.hint,
+    this.onTap,
+    this.onMoveCursorForwardByCharacter,
+    this.onMoveCursorBackwardByCharacter,
+    this.onSetSelection,
+    super.child,
+  });
+
+  @override
+  RenderProxyBox createRenderObject(BuildContext context) {
+    return _RenderExpressionSemanticsBridge(
+      display: display,
+      cursorPosition: cursorPosition,
+      focusNode: focusNode,
+      label: label,
+      hint: hint,
+      onTap: onTap,
+      onMoveCursorForwardByCharacter: onMoveCursorForwardByCharacter,
+      onMoveCursorBackwardByCharacter: onMoveCursorBackwardByCharacter,
+      onSetSelection: onSetSelection,
+    );
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderExpressionSemanticsBridge renderObject,
+  ) {
+    renderObject
+      ..display = display
+      ..cursorPosition = cursorPosition
+      ..focusNode = focusNode
+      ..label = label
+      ..hint = hint
+      ..onTap = onTap
+      ..onMoveCursorForwardByCharacter = onMoveCursorForwardByCharacter
+      ..onMoveCursorBackwardByCharacter = onMoveCursorBackwardByCharacter
+      ..onSetSelection = onSetSelection;
+  }
+}
+
+class _RenderExpressionSemanticsBridge extends RenderProxyBox {
+  _RenderExpressionSemanticsBridge({
+    required String display,
+    required int cursorPosition,
+    required FocusNode focusNode,
+    required String label,
+    required String hint,
+    VoidCallback? onTap,
+    MoveCursorHandler? onMoveCursorForwardByCharacter,
+    MoveCursorHandler? onMoveCursorBackwardByCharacter,
+    SetSelectionHandler? onSetSelection,
+    RenderBox? child,
+  }) : _display = display,
+       _cursorPosition = cursorPosition,
+       _focusNode = focusNode,
+       _label = label,
+       _hint = hint,
+       _onTap = onTap,
+       _onMoveCursorForwardByCharacter = onMoveCursorForwardByCharacter,
+       _onMoveCursorBackwardByCharacter = onMoveCursorBackwardByCharacter,
+       _onSetSelection = onSetSelection,
+       super(child);
+
+  String _display;
+  int _cursorPosition;
+  FocusNode _focusNode;
+  String _label;
+  String _hint;
+  VoidCallback? _onTap;
+  MoveCursorHandler? _onMoveCursorForwardByCharacter;
+  MoveCursorHandler? _onMoveCursorBackwardByCharacter;
+  SetSelectionHandler? _onSetSelection;
+
+  String get display => _display;
+  set display(String value) {
+    if (value == _display) return;
+    _display = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  int get cursorPosition => _cursorPosition;
+  set cursorPosition(int value) {
+    if (value == _cursorPosition) return;
+    _cursorPosition = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  FocusNode get focusNode => _focusNode;
+  set focusNode(FocusNode value) {
+    if (value == _focusNode) return;
+    _removeFocusListener(_focusNode);
+    _focusNode = value;
+    _addFocusListener(_focusNode);
+    markNeedsSemanticsUpdate();
+  }
+
+  String get label => _label;
+  set label(String value) {
+    if (value == _label) return;
+    _label = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  String get hint => _hint;
+  set hint(String value) {
+    if (value == _hint) return;
+    _hint = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  VoidCallback? get onTap => _onTap;
+  set onTap(VoidCallback? value) {
+    if (value == _onTap) return;
+    _onTap = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  MoveCursorHandler? get onMoveCursorForwardByCharacter =>
+      _onMoveCursorForwardByCharacter;
+  set onMoveCursorForwardByCharacter(MoveCursorHandler? value) {
+    if (value == _onMoveCursorForwardByCharacter) return;
+    _onMoveCursorForwardByCharacter = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  MoveCursorHandler? get onMoveCursorBackwardByCharacter =>
+      _onMoveCursorBackwardByCharacter;
+  set onMoveCursorBackwardByCharacter(MoveCursorHandler? value) {
+    if (value == _onMoveCursorBackwardByCharacter) return;
+    _onMoveCursorBackwardByCharacter = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  SetSelectionHandler? get onSetSelection => _onSetSelection;
+  set onSetSelection(SetSelectionHandler? value) {
+    if (value == _onSetSelection) return;
+    _onSetSelection = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  void _addFocusListener(FocusNode node) {
+    node.addListener(_handleFocusChanged);
+  }
+
+  void _removeFocusListener(FocusNode node) {
+    node.removeListener(_handleFocusChanged);
+  }
+
+  void _handleFocusChanged() {
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _addFocusListener(_focusNode);
+  }
+
+  @override
+  void detach() {
+    _removeFocusListener(_focusNode);
+    super.detach();
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    final offset = _cursorPosition.clamp(0, _display.length);
+    config
+      ..isSemanticBoundary = true
+      ..isMergingSemanticsOfDescendants = true
+      ..isTextField = true
+      ..isReadOnly = true
+      ..isFocused = _focusNode.hasFocus
+      ..label = _label
+      ..hint = _hint
+      ..value = _display
+      ..currentValueLength = _display.length
+      ..textSelection = TextSelection.collapsed(offset: offset);
+    if (_onTap != null) config.onTap = _onTap;
+    if (_onMoveCursorForwardByCharacter != null) {
+      config.onMoveCursorForwardByCharacter = _onMoveCursorForwardByCharacter;
+    }
+    if (_onMoveCursorBackwardByCharacter != null) {
+      config.onMoveCursorBackwardByCharacter = _onMoveCursorBackwardByCharacter;
+    }
+    if (_onSetSelection != null) config.onSetSelection = _onSetSelection;
+  }
+}
+
 class CalculatorScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
@@ -1639,12 +1847,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     result = result.replaceAllMapped(
       RegExp(r'(\d+)(?:[.,](\d*))?\((\d+)\)'),
       (m) {
-        final intPart = m.group(1)!;
-        final nonRepeating = m.group(2) ?? '';
-        final period = m.group(3)!;
-        final suffix = _s('periodických', 'repeating');
-        if (nonRepeating.isEmpty) return '$intPart,$period $suffix';
-        return '$intPart,$nonRepeating, $period $suffix';
+      final intPart = m.group(1)!;
+      final nonRepeating = m.group(2) ?? '';
+      final period = m.group(3)!;
+      final suffix = _s('periodických', 'repeating');
+      if (nonRepeating.isEmpty) return '$intPart,$period $suffix';
+      return '$intPart,$nonRepeating, $period $suffix';
       },
     );
     // Centrální exponenciální převod (mantisa E±exponent) – používá ordinál
@@ -1652,8 +1860,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     result = result.replaceAllMapped(
       RegExp(r"(\d+(?:[.,]\d+)?)E([+-])(\d+)"),
       (m) {
-        final mantissa = _localizeDecimalSeparator(m.group(1)!);
-        return _speakExponentialPart(mantissa, m.group(2)!, m.group(3)!);
+      final mantissa = _localizeDecimalSeparator(m.group(1)!);
+      return _speakExponentialPart(mantissa, m.group(2)!, m.group(3)!);
       },
     );
     return _localizeDecimalSeparator(result);
@@ -4217,9 +4425,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
         content: SingleChildScrollView(
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Semantics(
                 label: _s('Celá část', 'Integer part'),
                 child: TextFormField(
@@ -5187,18 +5395,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     try {
       final p = math_expr.ShuntingYardParser();
-    // Zbytkový marker funkce (např. prázdné SIN()) = neúplná syntaxe.
-    // Kontrolují se pouze naše vlastní sentinely (_SIN_, _LOG_, ...),
-    // nikdy text výjimky knihovny. E-notační placeholdery jsou v tomto
-    // bodě již expandovány (krok 3b), takže tu nemají co dělat.
-    if (RegExp(r'_[A-Z]+_').hasMatch(processed)) {
-      throw const CalcError(
-        CalcErrorKind.syntax,
-        CalcErrorReason.syntaxGeneral,
-      );
-    }
+      // Zbytkový marker funkce (např. prázdné SIN()) = neúplná syntaxe.
+      // Kontrolují se pouze naše vlastní sentinely (_SIN_, _LOG_, ...),
+      // nikdy text výjimky knihovny. E-notační placeholdery jsou v tomto
+      // bodě již expandovány (krok 3b), takže tu nemají co dělat.
+      if (RegExp(r'_[A-Z]+_').hasMatch(processed)) {
+        throw const CalcError(
+          CalcErrorKind.syntax,
+          CalcErrorReason.syntaxGeneral,
+        );
+      }
 
-    debugPrint("Parsing expression: $processed");
+      debugPrint("Parsing expression: $processed");
       math_expr.Expression exp;
       try {
         exp = p.parse(processed);
@@ -6593,42 +6801,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
               content: SingleChildScrollView(
                 child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Semantics(
-                    label: _s('Název nového profilu', 'New profile name'),
-                    child: TextField(
-                      controller: nameCtrl,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: _s('Název', 'Name'),
-                        border: const OutlineInputBorder(),
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Semantics(
+                      label: _s('Název nového profilu', 'New profile name'),
+                      child: TextField(
+                        controller: nameCtrl,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: _s('Název', 'Name'),
+                          border: const OutlineInputBorder(),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Semantics(
-                    label: _s('Základní profil pro kopii', 'Base profile'),
-                    child: DropdownButtonFormField<String>(
-                      value: baseId,
-                      decoration: InputDecoration(
-                        labelText: _s('Vycházet z', 'Base on'),
+                    const SizedBox(height: 12),
+                    Semantics(
+                      label: _s('Základní profil pro kopii', 'Base profile'),
+                      child: DropdownButtonFormField<String>(
+                        value: baseId,
+                        decoration: InputDecoration(
+                          labelText: _s('Vycházet z', 'Base on'),
+                        ),
+                        items: _effectiveProfiles
+                            .map(
+                              (p) => DropdownMenuItem(
+                                value: p.id,
+                                child: Text(_displayProfileName(p)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setLocal(() => baseId = v);
+                        },
                       ),
-                      items: _effectiveProfiles
-                          .map(
-                            (p) => DropdownMenuItem(
-                              value: p.id,
-                              child: Text(_displayProfileName(p)),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setLocal(() => baseId = v);
-                      },
                     ),
-                  ),
-                ],
+                  ],
                 ),
               ),
               actions: [
@@ -6774,15 +6982,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
         content: SingleChildScrollView(
           child: Semantics(
-          label: _s('Nový název profilu', 'New profile name'),
-          child: TextField(
-            controller: ctrl,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: _s('Název', 'Name'),
-              border: const OutlineInputBorder(),
+            label: _s('Nový název profilu', 'New profile name'),
+            child: TextField(
+              controller: ctrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: _s('Název', 'Name'),
+                border: const OutlineInputBorder(),
+              ),
             ),
-          ),
           ),
         ),
         actions: [
@@ -9953,30 +10161,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ),
           content: SingleChildScrollView(
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(fieldNames.length, (i) {
-              final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
-              final label = unitCode != null
-                  ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
-                  : fieldNames[i];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Semantics(
-                  label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
-                  child: TextField(
-                    controller: controllers[i],
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: label,
-                      isDense: true,
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(fieldNames.length, (i) {
+                final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
+                final label = unitCode != null
+                    ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
+                    : fieldNames[i];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Semantics(
+                    label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                    child: TextField(
+                      controller: controllers[i],
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: label,
+                        isDense: true,
+                      ),
                     ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
             ),
           ),
           actions: [
@@ -10594,9 +10802,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'Order changed: $orderSpoken',
     );
     // R9: jedna hláška jednotným kanálem (dříve speak + announce).
-    unawaited(
-      announceEvent(msg, category: SpeechCategory.settings),
-    );
+    unawaited(announceEvent(msg, category: SpeechCategory.settings));
   }
 
   void _moveStatsSummarySectionByOffset(int index, int offset) {
@@ -10633,9 +10839,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _saveSettings();
     final msg = _s('Pořadí obnoveno na výchozí', 'Order reset to default');
     // R9: jedna hláška jednotným kanálem (dříve speak + announce).
-    unawaited(
-      announceEvent(msg, category: SpeechCategory.settings),
-    );
+    unawaited(announceEvent(msg, category: SpeechCategory.settings));
   }
 
   String _getStatsComputedItemLabel(StatsComputedItem it) {
@@ -10732,9 +10936,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'Items order reset to default',
     );
     // R9: jedna hláška jednotným kanálem (dříve speak + announce).
-    unawaited(
-      announceEvent(msg, category: SpeechCategory.settings),
-    );
+    unawaited(announceEvent(msg, category: SpeechCategory.settings));
   }
 
   String _presetLabel(StatsOrderPreset p) {
@@ -11023,12 +11225,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (!dirty && !namesChanged) {
         disposeControllers();
         Navigator.pop(dialogContext);
-      final msg = _s('Žádné změny k uložení.', 'No changes to save.');
-      // R4: jednotný kanál (dříve force-bypass přes SR).
-      unawaited(
-        announceEvent(msg, category: SpeechCategory.actionConfirm),
-      );
-      return;
+        final msg = _s('Žádné změny k uložení.', 'No changes to save.');
+        // R4: jednotný kanál (dříve force-bypass přes SR).
+        unawaited(announceEvent(msg, category: SpeechCategory.actionConfirm));
+        return;
       }
 
       setState(() {
@@ -11090,9 +11290,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
                 content: SingleChildScrollView(
                   child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       ...List.generate(fieldNameControllers.length, (i) {
                         final isLast = fieldNameControllers.length == 1;
                         return Padding(
@@ -11302,9 +11502,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 policy: ReadingOrderTraversalPolicy(),
                 child: SingleChildScrollView(
                   child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       Semantics(
                         label: l10n.statsSetNameLabel,
                         child: TextField(
@@ -11985,41 +12185,41 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
               content: SingleChildScrollView(
                 child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controller,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: _s('Název složky', 'Folder name'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    children: List.generate(
-                      _statsPalette.length,
-                      (i) => ChoiceChip(
-                        label: Text('${i + 1}'),
-                        selected: draftColor == i,
-                        onSelected: (_) => setDlg(() => draftColor = i),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: _s('Název složky', 'Folder name'),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    children: _statsIconNames
-                        .map(
-                          (n) => ChoiceChip(
-                            label: Icon(_statsIconFor(n), size: 16),
-                            selected: draftIcon == n,
-                            onSelected: (_) => setDlg(() => draftIcon = n),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      children: List.generate(
+                        _statsPalette.length,
+                        (i) => ChoiceChip(
+                          label: Text('${i + 1}'),
+                          selected: draftColor == i,
+                          onSelected: (_) => setDlg(() => draftColor = i),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      children: _statsIconNames
+                          .map(
+                            (n) => ChoiceChip(
+                              label: Icon(_statsIconFor(n), size: 16),
+                              selected: draftIcon == n,
+                              onSelected: (_) => setDlg(() => draftIcon = n),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
                 ),
               ),
               actions: [
@@ -12110,11 +12310,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ),
           content: SingleChildScrollView(
             child: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: _s('Název složky', 'Folder name'),
-            ),
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: _s('Název složky', 'Folder name'),
+              ),
             ),
           ),
           actions: [
@@ -13708,30 +13908,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
         content: SingleChildScrollView(
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(fieldNames.length, (i) {
-            final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
-            final label = unitCode != null
-                ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
-                : fieldNames[i];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Semantics(
-                label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
-                child: TextField(
-                  controller: controllers[i],
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: label,
-                    isDense: true,
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(fieldNames.length, (i) {
+              final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
+              final label = unitCode != null
+                  ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
+                  : fieldNames[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Semantics(
+                  label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                  child: TextField(
+                    controller: controllers[i],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: label,
+                      isDense: true,
+                    ),
                   ),
                 ),
-              ),
-            );
-          }),
+              );
+            }),
           ),
         ),
         actions: [
@@ -13802,57 +14002,57 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 policy: ReadingOrderTraversalPolicy(),
                 child: SingleChildScrollView(
                   child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                        Text(
-                          summary,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        summary,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
-                        const SizedBox(height: 8),
-                        ...editableRecords.asMap().entries.map((entry) {
-                          final idx = entry.key + 1;
-                          final rowTextVis = entry.value.values
-                              .map((v) => _formatNumberSmart(v))
-                              .join('; ');
-                          final rowText = entry.value.values
-                              .map((v) => _formatNumber(v))
-                              .join('; ');
-                          final rowLabel = _s(
-                            'Hodnota $idx: $rowText',
-                            'Value $idx: $rowText',
-                          );
-                          return Semantics(
-                            container: true,
-                            label: rowLabel,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: ExcludeSemantics(
-                                      child: _PeriodicText(
-                                        '$idx. $rowTextVis',
-                                        overlineThickness: _overlineThickness,
-                                        overlineHeight: _overlineHeight,
-                                      ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...editableRecords.asMap().entries.map((entry) {
+                        final idx = entry.key + 1;
+                        final rowTextVis = entry.value.values
+                            .map((v) => _formatNumberSmart(v))
+                            .join('; ');
+                        final rowText = entry.value.values
+                            .map((v) => _formatNumber(v))
+                            .join('; ');
+                        final rowLabel = _s(
+                          'Hodnota $idx: $rowText',
+                          'Value $idx: $rowText',
+                        );
+                        return Semantics(
+                          container: true,
+                          label: rowLabel,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: ExcludeSemantics(
+                                    child: _PeriodicText(
+                                      '$idx. $rowTextVis',
+                                      overlineThickness: _overlineThickness,
+                                      overlineHeight: _overlineHeight,
                                     ),
                                   ),
-                                  IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      size: 20,
-                                      color: Colors.blue,
-                                    ),
-                                    tooltip: _s(
-                                      'Upravit hodnotu $idx',
-                                      'Edit value $idx',
-                                    ),
+                                ),
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    size: 20,
+                                    color: Colors.blue,
+                                  ),
+                                  tooltip: _s(
+                                    'Upravit hodnotu $idx',
+                                    'Edit value $idx',
+                                  ),
                                     onPressed: () =>
                                         _showEditReviewRecordDialog(
                                           entry.key,
@@ -13860,26 +14060,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                           dialogContext,
                                           setStateDialog,
                                         ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          );
-                        }),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: controller,
-                          keyboardType: TextInputType.number,
-                          autofocus: true,
-                          decoration: InputDecoration(
-                            labelText: l10n.statsRepeatLabel,
                           ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: controller,
+                        keyboardType: TextInputType.number,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: l10n.statsRepeatLabel,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+            ),
             actions: [
               TextButton(
                 onPressed: () {
@@ -14249,31 +14449,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               width: 3 * s.clamp(1.0, 1.3),
                             ),
                           ),
-                          child: Semantics(
-                            liveRegion: true,
+                          child: _ExpressionSemanticsBridge(
+                            key: const ValueKey('expression_semantics_bridge'),
+                            display: display,
+                            cursorPosition: _cursorPosition,
+                            focusNode: _mainFocusNode,
                             label: l10n.displayLabel,
                             hint: l10n.displayHint,
-                            textField: display.isNotEmpty,
-                            readOnly: display.isNotEmpty,
-                            value:
-                                '${display.isEmpty ? (_hasResult ? _currentResultSpeech() : l10n.displayEmpty) : display}',
-                            // Pozn.: prostý widget Semantics v tomto SDK
-                            // neumí vystavit textSelection (tu zapisuje do
-                            // stromu pouze RenderEditable). Pozice kurzoru
-                            // proto zůstává ve _cursorPosition + vizuálním
-                            // '_' markeru; AT akce níže s ním pracují přímo.
-                            onMoveCursorForwardByCharacter:
-                                display.isNotEmpty
+                            onMoveCursorForwardByCharacter: display.isNotEmpty
                                 ? (_) => _moveCursorBy(1)
                                 : null,
-                            onMoveCursorBackwardByCharacter:
-                                display.isNotEmpty
+                            onMoveCursorBackwardByCharacter: display.isNotEmpty
                                 ? (_) => _moveCursorBy(-1)
                                 : null,
                             onSetSelection: display.isNotEmpty
-                                ? (selection) => _moveCursorTo(
-                                    selection.extentOffset,
-                                  )
+                                ? (selection) =>
+                                      _moveCursorTo(selection.extentOffset)
                                 : null,
                             onTap: () {
                               _mainFocusNode.requestFocus();
@@ -14285,16 +14476,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                     : _expressionToSpeech(display),
                               );
                             },
-                            // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
-                            // a vše se přečte z tohoto Semantics widgetu. Textový matematický
-                            // renderer je navíc v ExcludeSemantics, takže displej zůstává
-                            // jeden logický prvek bez duplicitního čtení.
-                            // Displej je samostatny prvek hlavniho layoutu.
-                            // Ovladani zlomku (DEC <-> a/b) je presunuto do
-                            // _buildFractionViewToggleRow() pod displejem:
-                            // bez Stack/Positioned overlaye, s normalnim
-                            // focus order pro TalkBack/NVDA/klavesnici.
-                            // Popisek zustava jednoradkovy jako driv.
                             child: Column(
                               children: [
                                 Align(

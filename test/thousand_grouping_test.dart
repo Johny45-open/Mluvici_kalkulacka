@@ -232,20 +232,14 @@ void main() {
       final state = await pumpApp(tester);
       state.setDisplayForTest('1234567+8888888', 15);
       await tester.pump();
-      // Find Semantics that wraps display (cs: Displej, en: Display)
-      final semanticsFinder = find.descendant(
-        of: find.byType(CalculatorScreen),
-        matching: find.byWidgetPredicate(
-          (w) =>
-              w is Semantics &&
-              (w.properties.label == 'Displej' ||
-                  w.properties.label == 'Display'),
-        ),
+      // Načti skutečný semantics node bridge displeje.
+      final semanticsFinder = find.byKey(
+        const ValueKey('expression_semantics_bridge'),
       );
       expect(semanticsFinder, findsOneWidget);
-      final semantics = tester.widget<Semantics>(semanticsFinder.first);
+      final semantics = tester.getSemantics(semanticsFinder);
       // value should be based on _expressionToSpeech which does not contain visual spaces
-      final val = semantics.properties.value ?? '';
+      final val = semantics.value;
       expect(val.contains('  '), isFalse);
       // It should contain spoken forms but not contain formatted visual spaces as characters
       // Check that underlying display has no spaces

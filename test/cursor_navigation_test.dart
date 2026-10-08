@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mluvici_kalkulacka/main.dart';
@@ -68,25 +69,24 @@ void main() {
     return state;
   }
 
-  /// Displejový Semantics node s textovým polem (neprázdný výraz).
-  Semantics displaySemantics(WidgetTester tester) {
-    final finder = find.byWidgetPredicate(
-      (w) => w is Semantics && (w.properties.textField == true),
-    );
-    expect(finder, findsOneWidget, reason: 'Displej musí být textové pole');
-    return tester.widget<Semantics>(finder);
+  /// Skutečný SemanticsNode displeje včetně publikované selection.
+  SemanticsNode displaySemantics(WidgetTester tester) {
+    final finder = find.byKey(const ValueKey('expression_semantics_bridge'));
+    expect(finder, findsOneWidget, reason: 'Displej node musí existovat');
+    return tester.getSemantics(finder);
   }
 
-  /// Displejový Semantics node podle labelu (funguje i pro prázdný stav).
-  Semantics displaySemanticsByLabel(WidgetTester tester) {
-    final finder = find.byWidgetPredicate(
-      (w) =>
-          w is Semantics &&
-          (w.properties.label == 'Displej' ||
-              w.properties.label == 'Display'),
+  void performSemanticsAction(
+    WidgetTester tester,
+    SemanticsNode node,
+    SemanticsAction action, [
+    Object? args,
+  ]) {
+    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+      node.id,
+      action,
+      args,
     );
-    expect(finder, findsOneWidget, reason: 'Displej node musí existovat');
-    return tester.widget<Semantics>(finder);
   }
 
   group('Kurzor ve výrazu', () {
@@ -97,7 +97,8 @@ void main() {
 
       expect(state.cursorForTest, 0);
       final sem = displaySemantics(tester);
-      expect(sem.properties.value, '12+3');
+      expect(sem.value, '12+3');
+      expect(sem.textSelection, const TextSelection.collapsed(offset: 0));
       await tester.pump(const Duration(seconds: 3));
     });
 
@@ -109,7 +110,8 @@ void main() {
       expect(state.cursorForTest, 4);
       expect(state.cursorForTest, state.displayForTest.length);
       final sem = displaySemantics(tester);
-      expect(sem.properties.value, '12+3');
+      expect(sem.value, '12+3');
+      expect(sem.textSelection, const TextSelection.collapsed(offset: 4));
       await tester.pump(const Duration(seconds: 3));
     });
 
@@ -165,6 +167,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 0);
       expect(state.displayForTest, '12+3');
+      expect(
+        displaySemantics(tester).textSelection,
+        const TextSelection.collapsed(offset: 0),
+      );
       await tester.pump(const Duration(seconds: 3));
     });
 
@@ -177,6 +183,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(state.cursorForTest, state.displayForTest.length);
       expect(state.displayForTest, '12+3');
+      expect(
+        displaySemantics(tester).textSelection,
+        const TextSelection.collapsed(offset: 4),
+      );
       await tester.pump(const Duration(seconds: 3));
     });
 
@@ -248,7 +258,8 @@ void main() {
       expect(state.displayForTest, '123');
       expect(state.cursorForTest, 3);
       final sem = displaySemantics(tester);
-      expect(sem.properties.value, '123');
+      expect(sem.value, '123');
+      expect(sem.textSelection, const TextSelection.collapsed(offset: 3));
       // Kurzorové/editační cesty nepřidávají vlastní TTS ani publish hlášku.
       expect(ttsLog, isEmpty);
       expect(state.lastAnnouncementForTest as String, before);
@@ -261,48 +272,125 @@ void main() {
       await tester.pumpAndSettle();
 
       var sem = displaySemantics(tester);
-      expect(sem.properties.textField, isTrue);
-      expect(sem.properties.readOnly, isTrue);
-      expect(sem.properties.value, '12+3');
+      final data = sem.getSemanticsData();
+      expect(data.hasFlag(SemanticsFlag.isTextField), isTrue);
+      expect(data.hasFlag(SemanticsFlag.isReadOnly), isTrue);
+      expect(sem.value, '12+3');
+      expect(sem.textSelection, const TextSelection.collapsed(offset: 2));
+      final childMergeStates = <bool>[];
+      sem.visitChildren((child) {
+        childMergeStates.add(child.isMergedIntoParent);
+        return true;
+      });
       expect(
-        sem.properties.onMoveCursorForwardByCharacter,
-        isNotNull,
+        childMergeStates,
+        everyElement(isTrue),
+        reason: 'Vizuální potomci nesmí být dalšími logickými prvky displeje',
+      );
+      expect(
+        data.hasAction(SemanticsAction.moveCursorForwardByCharacter),
+        isTrue,
         reason: 'move forward by character musí existovat',
       );
       expect(
-        sem.properties.onMoveCursorBackwardByCharacter,
-        isNotNull,
+        data.hasAction(SemanticsAction.moveCursorBackwardByCharacter),
+        isTrue,
         reason: 'move backward by character musí existovat',
       );
       expect(
-        sem.properties.onSetSelection,
-        isNotNull,
+        data.hasAction(SemanticsAction.setSelection),
+        isTrue,
         reason: 'set selection musí existovat',
       );
 
-      sem.properties.onMoveCursorForwardByCharacter!(false);
+      performSemanticsAction(
+        tester,
+        sem,
+        SemanticsAction.moveCursorForwardByCharacter,
+        false,
+      );
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 3);
+      expect(
+        displaySemantics(tester).textSelection,
+        const TextSelection.collapsed(offset: 3),
+      );
 
       sem = displaySemantics(tester);
-      sem.properties.onMoveCursorBackwardByCharacter!(false);
+      performSemanticsAction(
+        tester,
+        sem,
+        SemanticsAction.moveCursorBackwardByCharacter,
+        false,
+      );
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 2);
 
       sem = displaySemantics(tester);
-      sem.properties.onSetSelection!(
-        const TextSelection(baseOffset: 0, extentOffset: 0),
+      performSemanticsAction(
+        tester,
+        sem,
+        SemanticsAction.setSelection,
+        <String, int>{'base': 0, 'extent': 0},
       );
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 0);
 
       sem = displaySemantics(tester);
-      sem.properties.onSetSelection!(
-        const TextSelection(baseOffset: 4, extentOffset: 4),
+      performSemanticsAction(
+        tester,
+        sem,
+        SemanticsAction.setSelection,
+        <String, int>{'base': 4, 'extent': 4},
       );
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 4);
       expect(state.displayForTest, '12+3');
+      expect(
+        displaySemantics(tester).textSelection,
+        const TextSelection.collapsed(offset: 4),
+      );
+      await tester.pump(const Duration(seconds: 3));
+    });
+
+    testWidgets('123+456 publikuje selection při celé navigaci', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      state.setDisplayForTest('123+456', 0);
+      await tester.pumpAndSettle();
+
+      void expectCursor(int offset) {
+        expect(state.cursorForTest, offset);
+        expect(
+          displaySemantics(tester).textSelection,
+          TextSelection.collapsed(offset: offset),
+        );
+        expect(displaySemantics(tester).value, '123+456');
+      }
+
+      expectCursor(0);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expectCursor(1);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expectCursor(2);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expectCursor(1);
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+      await tester.pumpAndSettle();
+      expectCursor(0);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expectCursor(0);
+      await tester.sendKeyEvent(LogicalKeyboardKey.end);
+      await tester.pumpAndSettle();
+      expectCursor(7);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expectCursor(7);
       await tester.pump(const Duration(seconds: 3));
     });
 
@@ -335,18 +423,63 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('prazdny displej neni textove pole', (tester) async {
+    testWidgets('13. selection sleduje vsechny zmeny autoritativniho stavu', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+
+      void expectSelection(int offset, String expectedDisplay) {
+        final sem = displaySemantics(tester);
+        expect(sem.value, expectedDisplay);
+        expect(sem.textSelection, TextSelection.collapsed(offset: offset));
+      }
+
+      state.setDisplayForTest('123+456', 3);
+      await tester.pumpAndSettle();
+      expectSelection(3, '123+456');
+
+      await state.handleButtonPressedForTest('9');
+      await tester.pumpAndSettle();
+      expectSelection(4, '1239+456');
+
+      state.backspaceForTest();
+      await tester.pumpAndSettle();
+      expectSelection(3, '123+456');
+
+      state.setDisplayForTest('123+456', 3);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+      expect(state.displayForTest, isEmpty);
+      expectSelection(0, '');
+
+      state.setDisplayForTest('98', 1);
+      await tester.pumpAndSettle();
+      state.clearForTest();
+      await tester.pumpAndSettle();
+      expectSelection(0, '');
+
+      state.setDisplayForTest('12', 1);
+      await tester.pumpAndSettle();
+      state.switchModeForTest(CalculatorMode.basic);
+      await tester.pumpAndSettle();
+      expectSelection(0, '');
+      await tester.pump(const Duration(seconds: 3));
+    });
+
+    testWidgets('prazdny displej publikuje collapsed selection', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('', 0);
       await tester.pumpAndSettle();
 
-      final sem = displaySemanticsByLabel(tester);
-      expect(
-        sem.properties.textField,
-        isNot(true),
-        reason: 'Prázdný stav nesmí být textové pole',
-      );
-      expect(sem.properties.onSetSelection, isNull);
+      final sem = displaySemantics(tester);
+      final data = sem.getSemanticsData();
+      expect(data.hasFlag(SemanticsFlag.isTextField), isTrue);
+      expect(sem.value, isEmpty);
+      expect(sem.textSelection, const TextSelection.collapsed(offset: 0));
+      expect(data.hasAction(SemanticsAction.setSelection), isFalse);
       await tester.pump(const Duration(seconds: 3));
     });
   });

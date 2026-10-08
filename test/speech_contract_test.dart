@@ -97,17 +97,9 @@ void main() {
   }
 
   String displayValue(WidgetTester tester) {
-    final finder = find.descendant(
-      of: find.byType(CalculatorScreen),
-      matching: find.byWidgetPredicate(
-        (w) =>
-            w is Semantics &&
-            (w.properties.label == 'Displej' ||
-                w.properties.label == 'Display'),
-      ),
-    );
+    final finder = find.byKey(const ValueKey('expression_semantics_bridge'));
     expect(finder, findsOneWidget);
-    return tester.widget<Semantics>(finder.first).properties.value ?? '';
+    return tester.getSemantics(finder).value;
   }
 
   group('R1 – jeden stisk = jedno oznámení (SR OFF)', () {
