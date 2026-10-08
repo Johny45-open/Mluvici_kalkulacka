@@ -3530,6 +3530,28 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final isControl = HardwareKeyboard.instance.isControlPressed;
       final isShift = HardwareKeyboard.instance.isShiftPressed;
 
+      // Pohyb kurzoru ve výrazu — musí fungovat i při aktivním screen
+      // readeru, proto před SR filtrem níže (šípky/Home/End nenesou znak).
+      // Shift/Ctrl modifikátory se prozatím ignorují (žádný výběr textu).
+      if (!isControl &&
+          event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        _moveCursorBy(-1);
+        return;
+      }
+      if (!isControl &&
+          event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        _moveCursorBy(1);
+        return;
+      }
+      if (!isControl && event.logicalKey == LogicalKeyboardKey.home) {
+        _moveCursorTo(0);
+        return;
+      }
+      if (!isControl && event.logicalKey == LogicalKeyboardKey.end) {
+        _moveCursorTo(display.length);
+        return;
+      }
+
       // Když je aktivní screen reader (NVDA, JAWS, TalkBack),
       // jednoznakové klávesy (S, C, T, A, P, atd.) se předávají čtečce.
       // Zpracovávají se pouze Ctrl+ kombinace, čísla, operátory a navigační klávesy.
@@ -3853,6 +3875,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       });
       speak(_l10n.deleted);
     }
+  }
+
+  /// Pohyb kurzoru o [delta] znaků bez změny [display].
+  /// Jediný zdroj pravdy zůstává [_cursorPosition]; po skutečné změně
+  /// se volá existující [_scheduleInputAutoscroll()]. Záměrně bez
+  /// speak/announceEvent/TTS — feedback řeší změna Semantics selection.
+  void _moveCursorBy(int delta) {
+    if (delta == 0) return;
+    final target = (_cursorPosition + delta).clamp(0, display.length);
+    if (target == _cursorPosition) return;
+    setState(() {
+      _cursorPosition = target;
+    });
+    _scheduleInputAutoscroll();
+  }
+
+  /// Přímé nastavení kurzoru na [position] (clamp do 0..display.length).
+  /// Bez změny [display], bez hlasových hlášek (viz [_moveCursorBy]).
+  void _moveCursorTo(int position) {
+    final target = position.clamp(0, display.length);
+    if (target == _cursorPosition) return;
+    setState(() {
+      _cursorPosition = target;
+    });
+    _scheduleInputAutoscroll();
   }
 
   // === NEG (±) helpers ===
@@ -14206,8 +14253,28 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             liveRegion: true,
                             label: l10n.displayLabel,
                             hint: l10n.displayHint,
+                            textField: display.isNotEmpty,
+                            readOnly: display.isNotEmpty,
                             value:
-                                '${display.isEmpty ? (_hasResult ? _currentResultSpeech() : l10n.displayEmpty) : _expressionToSpeech(display)}',
+                                '${display.isEmpty ? (_hasResult ? _currentResultSpeech() : l10n.displayEmpty) : display}',
+                            // Pozn.: prostý widget Semantics v tomto SDK
+                            // neumí vystavit textSelection (tu zapisuje do
+                            // stromu pouze RenderEditable). Pozice kurzoru
+                            // proto zůstává ve _cursorPosition + vizuálním
+                            // '_' markeru; AT akce níže s ním pracují přímo.
+                            onMoveCursorForwardByCharacter:
+                                display.isNotEmpty
+                                ? (_) => _moveCursorBy(1)
+                                : null,
+                            onMoveCursorBackwardByCharacter:
+                                display.isNotEmpty
+                                ? (_) => _moveCursorBy(-1)
+                                : null,
+                            onSetSelection: display.isNotEmpty
+                                ? (selection) => _moveCursorTo(
+                                    selection.extentOffset,
+                                  )
+                                : null,
                             onTap: () {
                               _mainFocusNode.requestFocus();
                               speak(
