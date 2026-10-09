@@ -5936,6 +5936,55 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return _buildStandardDisplay(text, fitScale: fitScale);
   }
 
+  // Přímé ovládání kurzoru: 4 tlačítka (Začátek, Doleva, Doprava, Konec).
+  // Hlavní řádek nad zlomkovým přepínačem.
+  Widget _buildCursorNavigationRow() {
+    final s = _responsiveScale(context);
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4 * s),
+      child: Row(
+        children: [
+          Expanded(
+            child: buildButton(
+              _s('Zač.', 'Start'),
+              icon: Icons.first_page,
+              semanticLabel: _s('Na začátek', 'To start'),
+              onPressed: () => _moveCursorTo(0),
+              expanded: false,
+            ),
+          ),
+          Expanded(
+            child: buildButton(
+              _s('Zpět', 'Back'),
+              icon: Icons.chevron_left,
+              semanticLabel: _s('O jeden znak doleva', 'One character left'),
+              onPressed: () => _moveCursorBy(-1),
+              expanded: false,
+            ),
+          ),
+          Expanded(
+            child: buildButton(
+              _s('Vpřed', 'Forward'),
+              icon: Icons.chevron_right,
+              semanticLabel: _s('O jeden znak doprava', 'One character right'),
+              onPressed: () => _moveCursorBy(1),
+              expanded: false,
+            ),
+          ),
+          Expanded(
+            child: buildButton(
+              _s('Konec', 'End'),
+              icon: Icons.last_page,
+              semanticLabel: _s('Na konec', 'To end'),
+              onPressed: () => _moveCursorTo(display.length),
+              expanded: false,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Samostatný řádek ovládání zobrazení výsledku DEC <-> a/b v hlavním
   // vertikálním layoutu (displej -> tento řádek -> přepínač režimů ->
   // vědecká stránka -> klávesnice). Není součástí displeje, jeho Stacku
@@ -8429,10 +8478,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     FutureOr<void> Function()? onPressed,
     FutureOr<void> Function()? onLongPressed,
     bool expanded = true,
-    // Fit klávesnice: 1.0 = standardní geometrie; <1.0 = proporcionální
-    // zmenšení celého tlačítka (margin/padding/font) aby se 7 řádků vešlo
-    // bez scrollu. Aplikuje se PRÁVĚ JEDNOU přes gs = scale*fitScale.
     double fitScale = 1.0,
+    IconData? icon,
   }) {
     String descriptiveName = semanticLabel ?? _getButtonName(label);
     if (label == 'M+' && _currentMode == CalculatorMode.statistics) {
@@ -8459,21 +8506,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final scale = _responsiveScale(context);
-    // Velikost písma – opraveno: geometrie škáluje 1.0→1.7, font musí
-    // škálovat stejným poměrem. Původní largeBoost 1.35 způsoboval
-    // divergenci (48→81.6 vs 20→27). Nově:
-    // - geometrie: margin/padding/minSize dál používá gs = scale*fitScale
-    // - font: 20 * _keyboardFontScale * sysFactor * gs  (bez 0.5 tlumení)
-    // - fitScale se aplikuje PRÁVĚ JEDNOU (gs), nikdy zvlášť na rowH a
-    //   znovu na vnitřek tlačítka. Při fitScale<1 se navíc uvolní
-    //   minHeight/minWidth, aby vnitřek přesně vyplnil adaptivní rowH
-    //   a nevznikl overflow ani dvojí zmenšení.
-    // - skutečný dostupný prostor tlačítka (LayoutBuilder) slouží jako
-    //   strop pro vertikální přetečení, šířku řeší FittedBox(scaleDown)
-    //   jako pojistka pro dlouhé popisky (ASIN, WMEAN, RAD→°).
-    //   Krátké popisky (1, +, C, DEL) tak využijí plný prostor (scale 1.0).
-    // Systémový scaler se započítá právě jednou ručně a vnitřní Text je
-    // izolován TextScaler.noScaling – nedochází k dvojímu započtení.
     final double fit = fitScale.clamp(0.2, 1.0);
     final double gs = scale * fit;
     final sysFactor = MediaQuery.textScalerOf(
@@ -8496,42 +8528,44 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
       alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: 4 * gs, vertical: 6 * gs),
-      // LayoutBuilder poskytuje skutečné constraints tlačítka po odečtení
-      // paddingu (dostupný prostor pro text). Ponechán jako architektonický
-      // bod pro budoucí jemné doladění podle dostupného prostoru; aktuálně
-      // font škáluje s geometryScale (1.0→1.7) a šířku/výšku hlídá
-      // FittedBox(scaleDown) jako pojistka pro dlouhé popisky (ASIN, WMEAN,
-      // RAD→°). Krátké popisky (1, +, C, DEL) tak využijí plný prostor.
       child: LayoutBuilder(
         builder: (innerContext, innerConstraints) {
           final double keyboardFontSize = baseFontForScale;
-          // Pozn.: vertikální strop záměrně neaplikován – innerConstraints
-          // během flex layoutu může být dočasně malé a zbytečně by
-          // ořezával font (viz regrese 17px na desktopu). FittedBox
-          // zajistí, že přetečení v obou osách se škáluje jednotně.
           return FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.center,
             child: ExcludeSemantics(
-              // Vizuální popisek je skrytý před odečítačem (ten čte vnější
-              // Semantics s descriptiveName). TextScaler.noScaling zde znamená,
-              // že systémové škálování se aplikuje právě jednou – ručně přes
-              // sysFactor ve výpočtu keyboardFontSize (viz výše).
               child: MediaQuery(
                 data: MediaQuery.of(
                   context,
                 ).copyWith(textScaler: TextScaler.noScaling),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  softWrap: false,
-                  style: TextStyle(
-                    fontSize: keyboardFontSize,
-                    fontWeight: FontWeight.bold,
-                    color: color != null
-                        ? Colors.white
-                        : (isDark ? Colors.white : Colors.black),
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (icon != null)
+                      Icon(
+                        icon,
+                        color: color != null
+                            ? Colors.white
+                            : (isDark ? Colors.white : Colors.black),
+                        size: keyboardFontSize,
+                      ),
+                    if (icon != null && label.isNotEmpty)
+                      SizedBox(width: 4 * gs),
+                    if (label.isNotEmpty)
+                      Text(
+                        label,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontSize: keyboardFontSize,
+                          fontWeight: FontWeight.bold,
+                          color: color != null
+                              ? Colors.white
+                              : (isDark ? Colors.white : Colors.black),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -14708,6 +14742,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ),
                   ),
                 ),
+                    // Ovládání kurzoru.
+                    _buildCursorNavigationRow(),
                     // Ovládání zobrazení výsledku DEC <-> a/b: samostatný
                     // prvek hlavního layoutu mimo displej i mimo keypad.
                     _buildFractionViewToggleRow(),
