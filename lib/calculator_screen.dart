@@ -4085,6 +4085,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Widget _buildResultA11yNode({required Widget child}) {
     final String speech = _currentResultSpeech();
     return Semantics(
+      container: true,
       label: _l10n.resultLabel,
       value: speech,
       onTap: () {
