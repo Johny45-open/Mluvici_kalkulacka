@@ -96,7 +96,17 @@ void main() {
     return ttsLog.length - before;
   }
 
+  /// Přístupná hodnota displeje: při editaci nese výraz skrytá proxy
+  /// (`EditableText`), v prázdném stavu (výsledek / "Prázdno") vnější
+  /// popisný uzel. Odpovídá implementaci proxy (gated BUILD spike).
   String displayValue(WidgetTester tester) {
+    final fields = find.descendant(
+      of: find.byType(CalculatorScreen),
+      matching: find.byType(EditableText),
+    );
+    if (fields.evaluate().isNotEmpty) {
+      return tester.widget<EditableText>(fields.first).controller.text;
+    }
     final finder = find.descendant(
       of: find.byType(CalculatorScreen),
       matching: find.byWidgetPredicate(

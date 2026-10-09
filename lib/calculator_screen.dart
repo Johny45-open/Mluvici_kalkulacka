@@ -31,6 +31,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     debugLabel: 'readingOrderButton',
   );
 
+  /// Skrytá accessibility proxy vstupního výrazu (gated BUILD spike).
+  /// Jediný standardní textový prvek displeje: publikuje do Semantics stromu
+  /// `value == display` + `textSelection == collapsed(_cursorPosition)` přes
+  /// `RenderEditable`. Vizuál zůstává `CustomDotMatrixDisplay` s `_` markerem.
+  /// Controller je POUZE derivace `display`/`_cursorPosition` (viz
+  /// [_syncA11yProxy]), nikdy zdroj pravdy. Proxy si nikdy sama nebere
+  /// input focus (`autofocus: false`, `skipTraversal: true`); `readOnly: true`
+  /// brání otevření softwarové klávesnice (`_shouldCreateInputConnection`).
+  /// `canRequestFocus` zůstává záměrně true — s false by `RenderEditable`
+  /// nikdy nepublikoval `onSetSelection` (ověřeno v SDK).
+  final TextEditingController _displayA11yController = TextEditingController();
+  late final FocusNode _displayA11yFocusNode = FocusNode(
+    debugLabel: 'displayA11yProxy',
+    skipTraversal: true,
+  );
+
+  /// Zda je naplánován post-frame sync proxy (ochrana před frontou duplicit).
+  bool _a11ySyncScheduled = false;
+
   void _returnFocusToKeyboard() {
     Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted && _mainFocusNode.hasFocus == false) {
@@ -2654,6 +2673,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _devTapTimer?.cancel();
     _voiceCreationSession?.dispose();
     _mainFocusNode.dispose();
+    _displayA11yFocusNode.dispose();
+    _displayA11yController.dispose();
     _readingOrderFocusNode.dispose();
     _scrollControllerH.dispose();
     _scrollControllerResultH.dispose();
@@ -3861,6 +3882,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
       }
     });
+    // Event kontext (mimo build): proxy lze syncnout okamžitě; zbytek cest
+    // kryje post-frame [_scheduleA11yProxySync] z buildu.
+    _syncA11yProxy();
   }
 
   void _deleteAtCursor() {
@@ -3873,14 +3897,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _cursorPosition--;
         _syncPendingNegOnDelete(delPos);
       });
+      _syncA11yProxy();
       speak(_l10n.deleted);
     }
   }
 
   /// Pohyb kurzoru o [delta] znaků bez změny [display].
-  /// Jediný zdroj pravdy zůstává [_cursorPosition]; po skutečné změně
-  /// se volá existující [_scheduleInputAutoscroll()]. Záměrně bez
-  /// speak/announceEvent/TTS — feedback řeší změna Semantics selection.
+  /// Jediný zdroj pravdy zůstává [_cursorPosition]. Po skutečné změně se
+  /// synchronizuje a11y proxy ([_syncA11yProxy]), zachová autoscroll a právě
+  /// jednou se oznámí nová pozice jedním kanálem ([_announceCursorPosition]).
+  /// Clamp-noop (za hranicí) je tichý — negeneruje žádné hlášení.
   void _moveCursorBy(int delta) {
     if (delta == 0) return;
     final target = (_cursorPosition + delta).clamp(0, display.length);
@@ -3888,18 +3914,136 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() {
       _cursorPosition = target;
     });
+    _syncA11yProxy();
     _scheduleInputAutoscroll();
+    _announceCursorPosition();
   }
 
   /// Přímé nastavení kurzoru na [position] (clamp do 0..display.length).
-  /// Bez změny [display], bez hlasových hlášek (viz [_moveCursorBy]).
+  /// Bez změny [display]; feedback viz [_moveCursorBy].
   void _moveCursorTo(int position) {
     final target = position.clamp(0, display.length);
     if (target == _cursorPosition) return;
     setState(() {
       _cursorPosition = target;
     });
+    _syncA11yProxy();
     _scheduleInputAutoscroll();
+    _announceCursorPosition();
+  }
+
+  /// Jednosměrná derivace proxy z jediného zdroje pravdy
+  /// (`display` + `_cursorPosition`). Společný zápis textu i collapsed
+  /// selection jedním `TextEditingValue` (samostatný zápis `text` by resetoval
+  /// selection). Při shodě nic nedělá — bezpečné volat opakovaně, nevzniká
+  /// smyčka ani druhý zdroj pravdy. Nesmí se volat synchronně uvnitř
+  /// `build()` (listener `EditableText` volá `setState`); z buildu se chodí
+  /// přes [_scheduleA11yProxySync], z event handlerů přímo.
+  void _syncA11yProxy() {
+    final pos = _cursorPosition.clamp(0, display.length);
+    final value = TextEditingValue(
+      text: display,
+      selection: TextSelection.collapsed(offset: pos),
+    );
+    if (_displayA11yController.value != value) {
+      _displayA11yController.value = value;
+    }
+  }
+
+  /// Naplánuje post-frame sync proxy. Kryje VŠECHNY cesty měnící `display`
+  /// (vkládání, mazání, ANS, historie, NEG, DMS, perioda, výpočet, ...) bez
+  /// nutnosti sahat do desítek míst: každá mutace volá `setState` → rebuild →
+  /// tento hook → jeden post-frame sync (guard `_a11ySyncScheduled`).
+  void _scheduleA11yProxySync() {
+    if (_a11ySyncScheduled) return;
+    _a11ySyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _a11ySyncScheduled = false;
+      if (!mounted) return;
+      _syncA11yProxy();
+    });
+  }
+
+  /// Zpětný směr proxy → stav: TalkBack/AT změnila selection v proxy.
+  /// Jde výhradně přes [_moveCursorTo] (žádný druhý zdroj pravdy).
+  /// Rozšířená (non-collapsed) selection se nepodporuje: sjednotí se na
+  /// kurzor na `extentOffset` a proxy se dosynchronizuje zpět. Echo
+  /// vlastního syncu (shodná collapsed) se ignoruje.
+  void _handleA11ySelectionChanged(
+    TextSelection selection,
+    SelectionChangedCause? cause,
+  ) {
+    final target = selection.extentOffset.clamp(0, display.length);
+    if (selection.isCollapsed && target == _cursorPosition) return;
+    _moveCursorTo(target);
+    // _moveCursorTo při shodě mlčí i nesyncuje — po non-collapsed vstupu
+    // musí proxy vždy zpět na collapsed.
+    _syncA11yProxy();
+  }
+
+  /// Lidská věta o pozici kurzoru (CS/EN přes [_s] + [_getButtonName]).
+  /// Hrany: začátek / konec výrazu. Uvnitř: před kterým znakem + absolutní
+  /// pozice (1-based, `pos+1 z len+1`), aby bylo jasné kde kurzor je i bez
+  /// počítání.
+  String _cursorPositionSpeech() {
+    final len = display.length;
+    final pos = _cursorPosition.clamp(0, len);
+    if (len == 0) return _s('Prázdno', 'Empty');
+    if (pos == 0) return _s('Začátek výrazu', 'Start of expression');
+    if (pos >= len) return _s('Konec výrazu', 'End of expression');
+    final ch = display[pos];
+    final String name;
+    if (_isDigitChar(ch)) {
+      name = _s('číslem $ch', 'digit $ch');
+    } else {
+      name = _getButtonName(ch);
+    }
+    return _s(
+      'Před $name, pozice ${pos + 1} z ${len + 1}',
+      'Before $name, position ${pos + 1} of ${len + 1}',
+    );
+  }
+
+  /// Jediný aplikační kanál pro feedback kurzoru: centrální
+  /// [announceEvent] s `actionConfirm` (nikoli potlačovaný `valueChange`,
+  /// žádné přímé TTS, žádný extra SnackBar). Volat pouze při skutečné změně.
+  void _announceCursorPosition() {
+    unawaited(
+      announceEvent(
+        _cursorPositionSpeech(),
+        category: SpeechCategory.actionConfirm,
+      ),
+    );
+  }
+
+  /// Vizuálně neviditelná, sémanticky přítomná proxy vstupního výrazu.
+  /// Záměrně 1×1 px s průhledným stylem (žádné `Opacity(0)` bez
+  /// `alwaysIncludeSemantics`, žádné `Offstage`). `readOnly: true` +
+  /// `TextInputType.none` = žádná soft klávesnice.
+  Widget _buildDisplayA11yProxy() {
+    return SizedBox(
+      width: 1,
+      height: 1,
+      child: EditableText(
+        controller: _displayA11yController,
+        focusNode: _displayA11yFocusNode,
+        style: const TextStyle(fontSize: 1, color: Colors.transparent),
+        cursorColor: Colors.transparent,
+        backgroundCursorColor: Colors.transparent,
+        selectionColor: Colors.transparent,
+        readOnly: true,
+        showCursor: false,
+        showSelectionHandles: false,
+        enableInteractiveSelection: true,
+        enableIMEPersonalizedLearning: false,
+        autocorrect: false,
+        autofocus: false,
+        minLines: 1,
+        maxLines: 1,
+        keyboardType: TextInputType.none,
+        onSelectionChanged: _handleA11ySelectionChanged,
+      ),
+    );
   }
 
   // === NEG (±) helpers ===
@@ -12600,6 +12744,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
+  /// Aktuální derivovaná hodnota a11y proxy (text + collapsed selection).
+  @visibleForTesting
+  TextEditingValue get a11yProxyValueForTest => _displayA11yController.value;
+
+  @visibleForTesting
+  FocusNode get a11yProxyFocusNodeForTest => _displayA11yFocusNode;
+
+  /// Lidská věta o pozici kurzoru (viz [_cursorPositionSpeech]).
+  @visibleForTesting
+  String cursorSpeechForTest() => _cursorPositionSpeech();
+
+  /// Vstup AT selection do stavového stroje (viz [_handleA11ySelectionChanged]).
+  @visibleForTesting
+  void handleA11ySelectionForTest(TextSelection selection) =>
+      _handleA11ySelectionChanged(selection, null);
+
   @visibleForTesting
   void backspaceForTest() => backspace();
 
@@ -14129,6 +14289,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Widget build(BuildContext context) {
     _updateTtsLanguage();
     final l10n = _l10n;
+    // Post-frame derivace a11y proxy (guardovaná, viz [_scheduleA11yProxySync]).
+    _scheduleA11yProxySync();
 
     return KeyboardListener(
       focusNode: _mainFocusNode,
@@ -14253,27 +14415,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             liveRegion: true,
                             label: l10n.displayLabel,
                             hint: l10n.displayHint,
-                            textField: display.isNotEmpty,
-                            readOnly: display.isNotEmpty,
-                            value:
-                                '${display.isEmpty ? (_hasResult ? _currentResultSpeech() : l10n.displayEmpty) : display}',
-                            // Pozn.: prostý widget Semantics v tomto SDK
-                            // neumí vystavit textSelection (tu zapisuje do
-                            // stromu pouze RenderEditable). Pozice kurzoru
-                            // proto zůstává ve _cursorPosition + vizuálním
-                            // '_' markeru; AT akce níže s ním pracují přímo.
-                            onMoveCursorForwardByCharacter:
-                                display.isNotEmpty
-                                ? (_) => _moveCursorBy(1)
-                                : null,
-                            onMoveCursorBackwardByCharacter:
-                                display.isNotEmpty
-                                ? (_) => _moveCursorBy(-1)
-                                : null,
-                            onSetSelection: display.isNotEmpty
-                                ? (selection) => _moveCursorTo(
-                                    selection.extentOffset,
-                                  )
+                            // Dvě role hodnoty: při editaci (display != '')
+                            // je jedinou reprezentací proxy
+                            // [_buildDisplayA11yProxy] (RenderEditable:
+                            // value + textSelection + pohybové akce) a wrapper
+                            // value NESMÍ konkurovat (jinak dvě pole/hodnoty).
+                            // Při prázdném výrazu proxy není ve stromě a
+                            // wrapper dál nese řeč výsledku / "Prázdno" —
+                            // výsledkové renderery jsou ExcludeSemantics/
+                            // CustomPaint a čtečka je odkázána na tuto value
+                            // (kontrakty fraction/surd/result testů).
+                            value: display.isEmpty
+                                ? (_hasResult
+                                      ? _currentResultSpeech()
+                                      : l10n.displayEmpty)
                                 : null,
                             onTap: () {
                               _mainFocusNode.requestFocus();
@@ -14378,8 +14533,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                             child: SingleChildScrollView(
                                               controller: _scrollControllerH,
                                               scrollDirection: Axis.horizontal,
-                                              child: _buildDotMatrixDisplay(
-                                                fitScale: fitScale,
+                                              // Vizuální renderer je při editaci pro
+                                              // čtečku nahrazen proxy (jeden
+                                              // zdroj pravdy, viz
+                                              // _syncA11yProxy). Při prázdném
+                                              // výrazu proxy ve stromě není
+                                              // (stav beze změny: wrapper nese
+                                              // řeč výsledku / "Prázdno").
+                                              // Stack/Positioned nemění layout
+                                              // ani vzhled (proxy je 1×1).
+                                              child: Stack(
+                                                children: [
+                                                  ExcludeSemantics(
+                                                    child:
+                                                        _buildDotMatrixDisplay(
+                                                          fitScale: fitScale,
+                                                        ),
+                                                  ),
+                                                  if (display.isNotEmpty)
+                                                    Positioned(
+                                                      left: 0,
+                                                      top: 0,
+                                                      child:
+                                                          _buildDisplayA11yProxy(),
+                                                    ),
+                                                ],
                                               ),
                                             ),
                                           ),

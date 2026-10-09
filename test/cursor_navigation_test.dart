@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mluvici_kalkulacka/main.dart';
@@ -7,10 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Navigace kurzoru ve výrazu kalkulačky.
 ///
 /// Jediný zdroj pravdy je `_cursorPosition` (test hook `cursorForTest`).
-/// Displej s neprázdným výrazem je vystaven jako read-only textové pole
-/// (`textField: true`, `readOnly: true`, `value == display`) s kurzorovými
-/// akcemi `onMoveCursorForward/BackwardByCharacter` a `onSetSelection`.
-/// Kurzorové cesty negenerují vlastní TTS/announce hlášky.
+/// Jediná přístupná reprezentace výrazu je skrytá `EditableText` proxy
+/// (hook `a11yProxyValueForTest`): `value.text == display`,
+/// `selection == collapsed(cursor)`; kurzorové akce publikuje `RenderEditable`.
+/// Kurzorové cesty oznamují novou pozici právě jednou přes `announceEvent`
+/// (`actionConfirm`); clamp-noop mlčí a negeneruje vlastní TTS.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -68,13 +70,12 @@ void main() {
     return state;
   }
 
-  /// Displejový Semantics node s textovým polem (neprázdný výraz).
-  Semantics displaySemantics(WidgetTester tester) {
-    final finder = find.byWidgetPredicate(
-      (w) => w is Semantics && (w.properties.textField == true),
-    );
-    expect(finder, findsOneWidget, reason: 'Displej musí být textové pole');
-    return tester.widget<Semantics>(finder);
+  /// Proxy `EditableText` displeje (jediná přístupná reprezentace výrazu).
+  /// V testech bez otevřených dialogů je v hlavním stromě právě jedna.
+  EditableText displayProxy(WidgetTester tester) {
+    final finder = find.byType(EditableText);
+    expect(finder, findsOneWidget, reason: 'Proxy displeje musí existovat');
+    return tester.widget<EditableText>(finder);
   }
 
   /// Displejový Semantics node podle labelu (funguje i pro prázdný stav).
@@ -96,8 +97,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(state.cursorForTest, 0);
-      final sem = displaySemantics(tester);
-      expect(sem.properties.value, '12+3');
+      expect(state.a11yProxyValueForTest.text, '12+3');
+      expect(
+        state.a11yProxyValueForTest.selection,
+        const TextSelection.collapsed(offset: 0),
+      );
+      displayProxy(tester);
       await tester.pump(const Duration(seconds: 3));
     });
 
@@ -108,8 +113,11 @@ void main() {
 
       expect(state.cursorForTest, 4);
       expect(state.cursorForTest, state.displayForTest.length);
-      final sem = displaySemantics(tester);
-      expect(sem.properties.value, '12+3');
+      expect(state.a11yProxyValueForTest.text, '12+3');
+      expect(
+        state.a11yProxyValueForTest.selection,
+        const TextSelection.collapsed(offset: 4),
+      );
       await tester.pump(const Duration(seconds: 3));
     });
 
@@ -247,63 +255,103 @@ void main() {
 
       expect(state.displayForTest, '123');
       expect(state.cursorForTest, 3);
-      final sem = displaySemantics(tester);
-      expect(sem.properties.value, '123');
-      // Kurzorové/editační cesty nepřidávají vlastní TTS ani publish hlášku.
+      expect(state.a11yProxyValueForTest.text, '123');
+      expect(
+        state.a11yProxyValueForTest.selection,
+        const TextSelection.collapsed(offset: 3),
+      );
+      // Editační cesta (vložení) nepřidává vlastní TTS ani publish hlášku.
       expect(ttsLog, isEmpty);
       expect(state.lastAnnouncementForTest as String, before);
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('11. Semantics cursor actions', (tester) async {
-      final state = await pumpApp(tester);
-      state.setDisplayForTest('12+3', 2);
-      await tester.pumpAndSettle();
+    testWidgets('11. proxy publikuje textField + selection + akce', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      try {
+        final state = await pumpApp(tester);
+        state.setDisplayForTest('12+3', 2);
+        await tester.pumpAndSettle();
 
-      var sem = displaySemantics(tester);
-      expect(sem.properties.textField, isTrue);
-      expect(sem.properties.readOnly, isTrue);
-      expect(sem.properties.value, '12+3');
-      expect(
-        sem.properties.onMoveCursorForwardByCharacter,
-        isNotNull,
-        reason: 'move forward by character musí existovat',
-      );
-      expect(
-        sem.properties.onMoveCursorBackwardByCharacter,
-        isNotNull,
-        reason: 'move backward by character musí existovat',
-      );
-      expect(
-        sem.properties.onSetSelection,
-        isNotNull,
-        reason: 'set selection musí existovat',
-      );
+        // Jediná přístupná reprezentace: proxy nese hodnotu i selection.
+        expect(state.a11yProxyValueForTest.text, '12+3');
+        expect(
+          state.a11yProxyValueForTest.selection,
+          const TextSelection.collapsed(offset: 2),
+        );
+        final owner = tester.binding.pipelineOwner.semanticsOwner!;
+        final fields = <SemanticsNode>[];
+        void visit(SemanticsNode n) {
+          if (n.getSemanticsData().flagsCollection.isTextField) {
+            fields.add(n);
+          }
+          n.visitChildren((c) {
+            visit(c);
+            return true;
+          });
+        }
 
-      sem.properties.onMoveCursorForwardByCharacter!(false);
+        visit(owner.rootSemanticsNode!);
+        expect(fields, hasLength(1));
+        final data = fields.single.getSemanticsData();
+        expect(data.flagsCollection.isTextField, isTrue);
+        expect(data.flagsCollection.isReadOnly, isTrue);
+        expect(data.attributedValue.string, '12+3');
+        expect(
+          data.textSelection,
+          const TextSelection(baseOffset: 2, extentOffset: 2),
+        );
+        expect(
+          data.hasAction(SemanticsAction.moveCursorForwardByCharacter),
+          isTrue,
+          reason: 'move forward by character musí existovat',
+        );
+        expect(
+          data.hasAction(SemanticsAction.moveCursorBackwardByCharacter),
+          isTrue,
+          reason: 'move backward by character musí existovat',
+        );
+
+      // Pohyb přes klávesnici (stejná metoda jako AT akce) syncuje proxy.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 3);
+      expect(
+        state.a11yProxyValueForTest.selection,
+        const TextSelection.collapsed(offset: 3),
+      );
 
-      sem = displaySemantics(tester);
-      sem.properties.onMoveCursorBackwardByCharacter!(false);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 2);
 
-      sem = displaySemantics(tester);
-      sem.properties.onSetSelection!(
+      // AT selection (collapsed) na začátek a konec prochází stavovým strojem.
+      state.handleA11ySelectionForTest(
         const TextSelection(baseOffset: 0, extentOffset: 0),
       );
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 0);
+      expect(
+        state.a11yProxyValueForTest.selection,
+        const TextSelection.collapsed(offset: 0),
+      );
 
-      sem = displaySemantics(tester);
-      sem.properties.onSetSelection!(
+      state.handleA11ySelectionForTest(
         const TextSelection(baseOffset: 4, extentOffset: 4),
       );
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 4);
       expect(state.displayForTest, '12+3');
+      expect(
+        state.a11yProxyValueForTest.selection,
+        const TextSelection.collapsed(offset: 4),
+      );
       await tester.pump(const Duration(seconds: 3));
+      } finally {
+        handle.dispose();
+      }
     });
 
     testWidgets('12. focus zustava a dialog ho vrati', (tester) async {
@@ -335,18 +383,23 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('prazdny displej neni textove pole', (tester) async {
+    testWidgets('prazdny displej: zadne pole, wrapper nese stav', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('', 0);
       await tester.pumpAndSettle();
 
+      // Vnější popisný uzel zůstává netextový a nese "Prázdno".
       final sem = displaySemanticsByLabel(tester);
       expect(
         sem.properties.textField,
         isNot(true),
-        reason: 'Prázdný stav nesmí být textové pole',
+        reason: 'Popisný wrapper nesmí být druhé textové pole',
       );
-      expect(sem.properties.onSetSelection, isNull);
+      expect(sem.properties.value, 'Prázdno');
+      // Proxy se montuje až s prvním znakem výrazu.
+      expect(find.byType(EditableText), findsNothing);
       await tester.pump(const Duration(seconds: 3));
     });
   });
