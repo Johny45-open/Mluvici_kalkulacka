@@ -4020,28 +4020,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// Záměrně 1×1 px s průhledným stylem (žádné `Opacity(0)` bez
   /// `alwaysIncludeSemantics`, žádné `Offstage`). `readOnly: true` +
   /// `TextInputType.none` = žádná soft klávesnice.
+  /// Obalující `Semantics` nese popisek displeje a aktivační `onTap`
+  /// (převzato z vnější obálky pro neprázdný stav): bez `container: true`
+  /// se slévá s `RenderEditable` do JEDINÉHO uzlu `textField`
+  /// (label + value + selection + pohybové akce + tap — ověřeno
+  /// `scratch_semantics_merge_test` V1/V4). Záměrně ŽÁDNÝ `hint`
+  /// s instrukcí zoomu — ta nesmí zdržovat při každém průchodu
+  /// (zoom zůstává gestem, dvojitým klepem a posuvníky v nastavení).
   Widget _buildDisplayA11yProxy() {
-    return SizedBox(
-      width: 1,
-      height: 1,
-      child: EditableText(
-        controller: _displayA11yController,
-        focusNode: _displayA11yFocusNode,
-        style: const TextStyle(fontSize: 1, color: Colors.transparent),
-        cursorColor: Colors.transparent,
-        backgroundCursorColor: Colors.transparent,
-        selectionColor: Colors.transparent,
-        readOnly: true,
-        showCursor: false,
-        showSelectionHandles: false,
-        enableInteractiveSelection: true,
-        enableIMEPersonalizedLearning: false,
-        autocorrect: false,
-        autofocus: false,
-        minLines: 1,
-        maxLines: 1,
-        keyboardType: TextInputType.none,
-        onSelectionChanged: _handleA11ySelectionChanged,
+    return Semantics(
+      label: _l10n.displayLabel,
+      onTap: () {
+        _mainFocusNode.requestFocus();
+        speak(_expressionToSpeech(display));
+      },
+      child: SizedBox(
+        width: 1,
+        height: 1,
+        child: EditableText(
+          controller: _displayA11yController,
+          focusNode: _displayA11yFocusNode,
+          style: const TextStyle(fontSize: 1, color: Colors.transparent),
+          cursorColor: Colors.transparent,
+          backgroundCursorColor: Colors.transparent,
+          selectionColor: Colors.transparent,
+          readOnly: true,
+          showCursor: false,
+          showSelectionHandles: false,
+          enableInteractiveSelection: true,
+          enableIMEPersonalizedLearning: false,
+          autocorrect: false,
+          autofocus: false,
+          minLines: 1,
+          maxLines: 1,
+          keyboardType: TextInputType.none,
+          onSelectionChanged: _handleA11ySelectionChanged,
+        ),
       ),
     );
   }
@@ -14413,8 +14427,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           ),
                           child: Semantics(
                             liveRegion: true,
-                            label: l10n.displayLabel,
-                            hint: l10n.displayHint,
+                            // Jediný přístupný prvek displeje: při neprázdném
+                            // výrazu je jím proxy [_buildDisplayA11yProxy]
+                            // (RenderEditable: label + value + textSelection +
+                            // pohybové akce + tap v jednom uzlu). Vnější
+                            // obálka proto při editaci NENÍ popisek ani
+                            // akce — jinak by TalkBack hlásil displej dvakrát
+                            // (nejdřív obálku se zoom-hintem, pak pole).
+                            // Při prázdném výrazu proxy ve stromě není a
+                            // obálka dál nese řeč výsledku / "Prázdno".
+                            // Zoom-hint (displayHint) zde záměrně NENÍ ani
+                            // v jednom stavu: zoom zůstává gestem, dvojitým
+                            // klepem a posuvníky v nastavení přístupnosti.
+                            label: display.isEmpty ? l10n.displayLabel : null,
                             // Dvě role hodnoty: při editaci (display != '')
                             // je jedinou reprezentací proxy
                             // [_buildDisplayA11yProxy] (RenderEditable:
@@ -14430,16 +14455,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                       ? _currentResultSpeech()
                                       : l10n.displayEmpty)
                                 : null,
-                            onTap: () {
-                              _mainFocusNode.requestFocus();
-                              speak(
-                                display.isEmpty
-                                    ? (_hasResult
+                            onTap: display.isEmpty
+                                ? () {
+                                    _mainFocusNode.requestFocus();
+                                    speak(
+                                      _hasResult
                                           ? _currentResultSpeech()
-                                          : l10n.displayEmpty)
-                                    : _expressionToSpeech(display),
-                              );
-                            },
+                                          : l10n.displayEmpty,
+                                    );
+                                  }
+                                : null,
                             // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
                             // a vše se přečte z tohoto Semantics widgetu. Textový matematický
                             // renderer je navíc v ExcludeSemantics, takže displej zůstává
@@ -14454,15 +14479,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               children: [
                                 Align(
                                   alignment: Alignment.topLeft,
-                                  child: Text(
-                                    _getModeName(_currentMode).toUpperCase(),
-                                    maxLines: 1,
-                                    softWrap: false,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.redAccent,
-                                      fontSize: 12 * s,
-                                      fontWeight: FontWeight.bold,
+                                  // Dekorativní duplikát pro čtečky: režim je
+                                  // v sémantickém stromě zastoupen přepínačem
+                                  // režimů ( unfolded chips s `selected`).
+                                  // Bez vyloučení by se text slil do labelu
+                                  // displeje ("Displej\nVĚDECKÁ") a tvořil
+                                  // zastávku navíc před kurzorovým polem.
+                                  child: ExcludeSemantics(
+                                    child: Text(
+                                      _getModeName(_currentMode).toUpperCase(),
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 12 * s,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
