@@ -102,6 +102,7 @@
   },
   "displayEmpty": "Prázdno",
   "displayLabel": "Displej",
+  "resultLabel": "Výsledek",
   "displayHint": "Zoomujte dvěma prsty, posouvejte tahem",
   "cancel": "Zrušit",
   "confirmAction": "Potvrdit",

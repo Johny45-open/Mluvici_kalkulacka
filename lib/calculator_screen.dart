@@ -4019,40 +4019,38 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   /// Vizuálně neviditelná, sémanticky přítomná proxy vstupního výrazu.
-  /// Záměrně 1×1 px s průhledným stylem (žádné `Opacity(0)` bez
-  /// `alwaysIncludeSemantics`, žádné `Offstage`). `readOnly: true` +
+  /// Proxy sama o sobě neurčuje svou velikost: rodič ji vkládá jako
+  /// `Positioned.fill` překryv POUZE horního vstupního řádku (viz displej
+  /// v `build`), takže `SemanticsNode.rect` odpovídá skutečné ploše horního
+  /// výpočetního displeje, nikoli rohu kontejneru. Žádné `Opacity(0)` bez
+  /// `alwaysIncludeSemantics`, žádné `Offstage`. `readOnly: true` +
   /// `TextInputType.none` = žádná soft klávesnice.
   /// Proxy je ve stromě VŽDY (i při prázdném výrazu), aby byl displej
   /// dosažitelný lineární navigací TalkBacku hned po startu bez nutnosti
-  /// nejprve navštívit tlačítko. Vnější obálka je proto trvale
-  /// pass-through (žádný vlastní label/value/onTap) a jediná reprezentace
-  /// displeje je tento uzel.
+  /// nejprve navštívit tlačítko.
+  /// Proxy nese POUZE význam horního výrazu: při editaci `value == display`
+  /// + `textSelection == collapsed(_cursorPosition)` přes standardní
+  /// mechanismus `RenderEditable`; při prázdném výrazu hodnotu prázdného
+  /// stavu (`_l10n.displayEmpty`). Řeč výsledku sem NEPATŘÍ — tu nese
+  /// samostatný uzel dolního řádku (viz [_buildResultA11yNode]).
   /// Obalující `Semantics` nese popisek displeje a aktivační `onTap`:
   /// bez `container: true` se slévá s `RenderEditable` do JEDINÉHO uzlu
   /// `textField` (label + value + selection + pohybové akce + tap —
-  /// ověřeno `scratch_semantics_merge_test` V1/V4). Při prázdném výrazu
-  /// nese wrapper hodnotu prázdného stavu (řeč výsledku / "Prázdno") —
-  /// `RenderEditable` má text `''` a nekonkuruje; při editaci je zdrojem
-  /// hodnoty i selection standardní mechanismus `RenderEditable`.
+  /// ověřeno `scratch_semantics_merge_test` V1/V4).
   /// Záměrně ŽÁDNÝ `hint` s instrukcí zoomu — ta nesmí zdržovat při každém
   /// průchodu (zoom zůstává gestem, dvojitým klepem a posuvníky v nastavení).
   Widget _buildDisplayA11yProxy() {
-    // Větev prázdného stavu kopíruje původní řeč vnější obálky, aby se
-    // nezměnilo ohlášení výsledku / "Prázdno" ani chování tapu.
     final bool isEmpty = display.isEmpty;
-    final String emptySpeech = _hasResult
-        ? _currentResultSpeech()
-        : _l10n.displayEmpty;
     return Semantics(
       label: _l10n.displayLabel,
-      value: isEmpty ? emptySpeech : null,
+      value: isEmpty ? _l10n.displayEmpty : null,
       onTap: () {
         _mainFocusNode.requestFocus();
-        speak(isEmpty ? emptySpeech : _expressionToSpeech(display));
+        speak(isEmpty ? _l10n.displayEmpty : _expressionToSpeech(display));
       },
-      child: SizedBox(
-        width: 1,
-        height: 1,
+      // Velikost dává výhradně rodič (`Positioned.fill` přes horní řádek):
+      // expanduje na celou překryvou plochu, nic sama nezmenšuje na 1×1.
+      child: SizedBox.expand(
         child: EditableText(
           controller: _displayA11yController,
           focusNode: _displayA11yFocusNode,
@@ -4073,6 +4071,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           onSelectionChanged: _handleA11ySelectionChanged,
         ),
       ),
+    );
+  }
+
+  /// Samostatná přístupná reprezentace dolního výsledkového řádku.
+  /// Jediný statický uzel (nikoli textové pole): `label` + `value` z
+  /// [_currentResultSpeech] (desetinná čísla, zlomky, surd tvary i chybové
+  /// stavy — stejný kontrakt jako dřívější prázdný stav proxy).
+  /// Rodič v `build` tento uzel roztahuje přes skutečnou plochu dolního
+  /// řádku, takže TalkBack ho najde dotykovým průzkumem i swipem nezávisle
+  /// na horním kurzorovém poli. Výsledek je VŽDY viditelný (minimálně
+  /// `0.`), proto je uzel ve stromě trvale — nikdy prázdný.
+  Widget _buildResultA11yNode({required Widget child}) {
+    final String speech = _currentResultSpeech();
+    return Semantics(
+      label: _l10n.resultLabel,
+      value: speech,
+      onTap: () {
+        _mainFocusNode.requestFocus();
+        speak(speech);
+      },
+      child: child,
     );
   }
 
@@ -5885,12 +5904,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text(
-              'x10',
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontSize: 10 * scale * fitScale,
-                fontWeight: FontWeight.bold,
+            // Dekorativní exponent-marker: pro čtečku vyloučen, aby se
+            // nesléval do hodnoty samostatného uzlu výsledku
+            // ([_buildResultA11yNode]) ani netvořil zastávku navíc.
+            // Informaci o exponentu nese řeč výsledku sama.
+            ExcludeSemantics(
+              child: Text(
+                'x10',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 10 * scale * fitScale,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             CustomSegmentDisplay(
@@ -14441,43 +14466,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               width: 3 * s.clamp(1.0, 1.3),
                             ),
                           ),
-                          // Stabilní kořen displeje: vizuální sloupec + vždy
-                          // přítomná 1×1 a11y proxy jako překryv. Stack zde
-                          // (na rozdíl od _buildFractionViewToggleRow) layout
-                          // nemění — displej má velikost z Expanded a proxy
-                          // je 1×1 v rohu. Proxy záměrně NENÍ uvnitř
-                          // horizontálního scroll view vstupu: při prázdném
-                          // výrazu po výpočtu má vstup nulový viewport a při
-                          // dlouhém výrazu by odscrollování proxy ořezalo ze
-                          // Semantics stromu (ověřeno dump testem).
-                          child: Stack(
-                            children: [
-                              Semantics(
-                                liveRegion: true,
-                                // Jediný přístupný prvek displeje je ve všech
-                                // stavech proxy [_buildDisplayA11yProxy]
-                                // (RenderEditable: label + value + textSelection +
-                                // pohybové akce + tap v jednom uzlu, při prázdném
-                                // výrazu s hodnotou prázdného stavu). Vnější
-                                // obálka je proto trvale pass-through: NENÍ
-                                // popisek ani akce — jinak by TalkBack hlásil
-                                // displej dvakrát (nejdřív obálku, pak pole).
-                                // Zoom-hint (displayHint) zde záměrně NENÍ ani
-                                // v jednom stavu: zoom zůstává gestem, dvojitým
-                                // klepem a posuvníky v nastavení přístupnosti.
-                                label: null,
-                                // Hodnotu i aktivaci nese výhradně proxy
-                                // [_buildDisplayA11yProxy]: při editaci
-                                // (display != '') RenderEditable (value +
-                                // textSelection + pohybové akce), při prázdném
-                                // výrazu wrapper proxy (řeč výsledku / "Prázdno").
-                                // Vnější value zde NESMÍ konkurovat (jinak dvě
-                                // pole/hodnoty).
-                                // Výsledkové renderery jsou ExcludeSemantics/
-                                // CustomPaint a čtečka je odkázána na proxy
-                                // (kontrakty fraction/surd/result testů).
-                                value: null,
-                                onTap: null,
+                          // Stabilní kořen displeje: vizuální sloupec se DVĚMA
+                          // samostatnými přístupnými oblastmi — horní proxy
+                          // výrazu + dolní uzel výsledku (viz níže). Vnější
+                          // `Stack` zde layout nemění (displej má velikost
+                          // z Expanded); vnitřní `Stack` kolem horního
+                          // řádku se dimenzuje POUZE vizuálním vstupem
+                          // (`Positioned.fill` do velikosti nepřispívá),
+                          // takže rect proxy = rect horního řádku.
+                          child: Semantics(
+                            liveRegion: true,
+                            // Vnější obálka je trvale pass-through: NENÍ
+                            // popisek ani akce — jinak by TalkBack hlásil
+                            // displej dvakrát (nejdřív obálku, pak pole).
+                            // Zoom-hint (displayHint) zde záměrně NENÍ ani
+                            // v jednom stavu: zoom zůstává gestem, dvojitým
+                            // klepem a posuvníky v nastavení přístupnosti.
+                            label: null,
+                            // Hodnotu ani aktivaci vnější obálka nenese:
+                            // horní výraz patří proxy [_buildDisplayA11yProxy]
+                            // (RenderEditable: value + textSelection +
+                            // pohybové akce), výsledek patří dolnímu uzlu
+                            // [_buildResultA11yNode]. Vnější value zde NESMÍ
+                            // konkurovat (jinak duplicitní čtení).
+                            value: null,
+                            onTap: null,
                                 // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
                                 // a vše se přečte z tohoto Semantics widgetu. Textový matematický
                                 // renderer je navíc v ExcludeSemantics, takže displej zůstává
@@ -14572,40 +14585,99 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                                 ? CrossAxisAlignment.start
                                                 : CrossAxisAlignment.center,
                                             children: [
-                                              Align(
-                                                alignment: _alignInputLeft
-                                                    ? Alignment.centerLeft
-                                                    : Alignment.center,
-                                                child: SingleChildScrollView(
-                                                  controller: _scrollControllerH,
-                                                  scrollDirection: Axis.horizontal,
-                                                  // Čistě vizuální renderer vstupu
-                                                  // (pro čtečku vyloučen); jediná
-                                                  // přístupná reprezentace displeje
-                                                  // je stabilní proxy v kořenu
-                                                  // displeje (viz níže) — nikdy
-                                                  // uvnitř scrollovatelného obsahu,
-                                                  // aby ji nulový viewport
-                                                  // (prázdný výraz po výpočtu)
-                                                  // ani odscrollování nemohly
-                                                  // ořezat ze Semantics stromu.
-                                                  child: ExcludeSemantics(
-                                                    child:
-                                                        _buildDotMatrixDisplay(
-                                                          fitScale: fitScale,
-                                                        ),
+                                              // Horní výpočetní řádek: vizuál
+                                              // + překryvná a11y proxy PŘESNĚ
+                                              // přes jeho plochu. `Stack` se
+                                              // dimenzuje vizuálním vstupem
+                                              // (`Positioned.fill` velikost
+                                              // neurčuje), takže rect proxy =
+                                              // rect horního řádku. Proxy je
+                                              // záměrně MIMO horizontální
+                                              // scroll view: nulový viewport
+                                              // (prázdný výraz po výpočtu)
+                                              // ani odscrollování ji nemohou
+                                              // ořezat ze Semantics stromu.
+                                              // [_A11yHitTestTransparent]
+                                              // propouští dotyky na vnější
+                                              // `GestureDetector` (pinch-zoom,
+                                              // double-tap, tap) — proxy nikdy
+                                              // nekonzumuje gesta vidících
+                                              // uživatelů, TalkBack akce (tap,
+                                              // pohyb kurzoru) jdou přes
+                                              // Semantics a zůstávají funkční.
+                                              Stack(
+                                                children: [
+                                                  SizedBox(
+                                                    width: double.infinity,
+                                                    height: dotH * fitScale,
+                                                    child: Align(
+                                                      alignment:
+                                                          _alignInputLeft
+                                                              ? Alignment
+                                                                  .centerLeft
+                                                              : Alignment
+                                                                  .center,
+                                                      child:
+                                                          SingleChildScrollView(
+                                                            controller:
+                                                                _scrollControllerH,
+                                                            scrollDirection:
+                                                                Axis.horizontal,
+                                                            // Čistě vizuální
+                                                            // renderer vstupu
+                                                            // (pro čtečku
+                                                            // vyloučen);
+                                                            // přístupnou
+                                                            // reprezentací je
+                                                            // překryvná proxy
+                                                            // (viz níže).
+                                                            child:
+                                                                ExcludeSemantics(
+                                                                  child:
+                                                                      _buildDotMatrixDisplay(
+                                                                        fitScale:
+                                                                            fitScale,
+                                                                      ),
+                                                                ),
+                                                          ),
+                                                    ),
                                                   ),
-                                                ),
+                                                  Positioned.fill(
+                                                    child:
+                                                        _A11yHitTestTransparent(
+                                                      child:
+                                                          _buildDisplayA11yProxy(),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                               SizedBox(height: 12 * s * fitScale),
-                                              Align(
-                                                alignment: Alignment.center,
-                                                child: SingleChildScrollView(
-                                                  controller:
-                                                      _scrollControllerResultH,
-                                                  scrollDirection: Axis.horizontal,
-                                                  child: _buildMainResultDisplay(
-                                                    fitScale: fitScale,
+                                              // Dolní výsledkový řádek: vlastní
+                                              // samostatná přístupná oblast
+                                              // přes skutečnou plochu výsledku
+                                              // (viz [_buildResultA11yNode]).
+                                              // Renderery uvnitř jsou
+                                              // ExcludeSemantics/CustomPaint,
+                                              // takže nevzniká duplicitní
+                                              // čtení výsledku.
+                                              _buildResultA11yNode(
+                                                child: SizedBox(
+                                                  width: double.infinity,
+                                                  height: segH * fitScale,
+                                                  child: Align(
+                                                    alignment: Alignment.center,
+                                                    child:
+                                                        SingleChildScrollView(
+                                                          controller:
+                                                              _scrollControllerResultH,
+                                                          scrollDirection:
+                                                              Axis.horizontal,
+                                                          child:
+                                                              _buildMainResultDisplay(
+                                                                fitScale:
+                                                                    fitScale,
+                                                              ),
+                                                        ),
                                                   ),
                                                 ),
                                               ),
@@ -14632,16 +14704,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   ],
                                 ),
                               ),
-                              // Jediná přístupná reprezentace displeje ve všech
-                              // stavech (viz [_buildDisplayA11yProxy]): překryv
-                              // 1×1 bez dalšího Semantics wrapperu.
-                              Positioned(
-                                left: 0,
-                                top: 0,
-                                child: _buildDisplayA11yProxy(),
-                              ),
-                          ],
-                      ),
                     ),
                   ),
                 ),
@@ -14687,6 +14749,28 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       ),
     );
   }
+}
+
+/// Hit-test průhledný obal a11y proxy horního displeje (GATED BUILD SPIKE).
+/// Pro dotyková gesta se chová, jako by v hit-testu vůbec nebyl (pinch-zoom,
+/// double-tap i tap jdou na vnější `GestureDetector` displeje — stejné
+/// chování jako dřívější proxy 1×1, která nikdy žádné gesto nekonzumovala),
+/// ale sémantiku dítěte plně zachovává včetně `SemanticsAction.tap`
+/// a kurzorových akcí pro TalkBack.
+/// `IgnorePointer`/`AbsorbPointer` záměrně NEPOUŽITY: v aktuálním SDK
+/// odstraňují pointer-related akce ze sémantického podstromu
+/// (`isBlockingUserActions`), takže by TalkBack přišel o aktivaci proxy.
+class _A11yHitTestTransparent extends SingleChildRenderObjectWidget {
+  const _A11yHitTestTransparent({required super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderA11yHitTestTransparent();
+}
+
+class _RenderA11yHitTestTransparent extends RenderProxyBox {
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) => false;
 }
 
 enum _ManualBlockType { heading, paragraph, bullet }

@@ -56,8 +56,8 @@ void main() {
       matching: find.byWidgetPredicate(
         (w) =>
             w is Semantics &&
-            (w.properties.label == 'Displej' ||
-                w.properties.label == 'Display'),
+            (w.properties.label == 'Výsledek' ||
+                w.properties.label == 'Result'),
       ),
     );
     expect(finder, findsOneWidget);

@@ -220,6 +220,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displayLabel => 'Display';
 
   @override
+  String get resultLabel => 'Result';
+
+  @override
   String get displayHint => 'Pinch to zoom, drag to scroll';
 
   @override

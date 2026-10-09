@@ -67,6 +67,7 @@
   "welcomeMessage": "Welcome to the talking calculator, active mode is {mode}",
   "displayEmpty": "Empty",
   "displayLabel": "Display",
+  "resultLabel": "Result",
   "displayHint": "Pinch to zoom, drag to scroll",
   "cancel": "Cancel",
   "confirmAction": "Confirm",

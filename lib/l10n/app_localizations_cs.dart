@@ -220,6 +220,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get displayLabel => 'Displej';
 
   @override
+  String get resultLabel => 'Výsledek';
+
+  @override
   String get displayHint => 'Zoomujte dvěma prsty, posouvejte tahem';
 
   @override

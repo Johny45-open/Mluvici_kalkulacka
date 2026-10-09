@@ -308,7 +308,7 @@ void main() {
       }
     });
 
-    testWidgets('výsledek výpočtu: proxy nese řeč výsledku', (tester) async {
+    testWidgets('výsledek výpočtu: proxy nese řeč prázdna a výsledek je samostatný uzel', (tester) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
@@ -318,17 +318,27 @@ void main() {
         await tester.pumpAndSettle();
 
         // Po výpočtu je výraz prázdný → stabilní proxy je jediným uzlem
-        // Displej s řečí výsledku (stále textové pole, collapsed 0).
+        // Displej s hodnotou "Prázdno" (stále textové pole, collapsed 0).
         expect(find.byType(EditableText), findsOneWidget);
         expect(countTextFields(tester), 1);
         expect(displejNodes(tester), hasLength(1));
         final data = displejNodes(tester).single.getSemanticsData();
         expect(data.flagsCollection.isTextField, isTrue);
-        expect(data.value.isNotEmpty, isTrue);
+        expect(data.value, 'Prázdno');
         expect(
           data.textSelection,
           const TextSelection(baseOffset: 0, extentOffset: 0),
         );
+
+        // Dolní uzel Výsledek je samostatným uzlem s řečí výsledku.
+        final results = allNodes(tester).where((n) {
+          final lbl = n.getSemanticsData().label;
+          return lbl == 'Výsledek' || lbl == 'Result';
+        }).toList();
+        expect(results, hasLength(1));
+        final resData = results.single.getSemanticsData();
+        expect(resData.value.isNotEmpty, isTrue);
+        expect(resData.value, contains('0,75'));
       } finally {
         handle.dispose();
       }

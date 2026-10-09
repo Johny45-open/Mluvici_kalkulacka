@@ -497,6 +497,12 @@ abstract class AppLocalizations {
   /// **'Display'**
   String get displayLabel;
 
+  /// No description provided for @resultLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Result'**
+  String get resultLabel;
+
   /// No description provided for @displayHint.
   ///
   /// In en, this message translates to:
