@@ -31,10 +31,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     debugLabel: 'readingOrderButton',
   );
 
-  /// Skrytá accessibility proxy vstupního výrazu (gated BUILD spike).
-  /// Jediný standardní textový prvek displeje: publikuje do Semantics stromu
-  /// `value == display` + `textSelection == collapsed(_cursorPosition)` přes
-  /// `RenderEditable`. Vizuál zůstává `CustomDotMatrixDisplay` s `_` markerem.
+  /// Skrytá accessibility proxy vstupního výrazu (stabilní BUILD spike:
+  /// proxy je ve stromě vždy, i při prázdném výrazu).
+  /// Jediný standardní textový prvek displeje: při editaci publikuje do
+  /// Semantics stromu `value == display` + `textSelection ==
+  /// collapsed(_cursorPosition)` přes `RenderEditable`; při prázdném výrazu
+  /// nese wrapper hodnotu prázdného stavu (řeč výsledku / "Prázdno"). Vizuál zůstává `CustomDotMatrixDisplay` s `_` markerem.
   /// Controller je POUZE derivace `display`/`_cursorPosition` (viz
   /// [_syncA11yProxy]), nikdy zdroj pravdy. Proxy si nikdy sama nebere
   /// input focus (`autofocus: false`, `skipTraversal: true`); `readOnly: true`
@@ -4020,19 +4022,33 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// Záměrně 1×1 px s průhledným stylem (žádné `Opacity(0)` bez
   /// `alwaysIncludeSemantics`, žádné `Offstage`). `readOnly: true` +
   /// `TextInputType.none` = žádná soft klávesnice.
-  /// Obalující `Semantics` nese popisek displeje a aktivační `onTap`
-  /// (převzato z vnější obálky pro neprázdný stav): bez `container: true`
-  /// se slévá s `RenderEditable` do JEDINÉHO uzlu `textField`
-  /// (label + value + selection + pohybové akce + tap — ověřeno
-  /// `scratch_semantics_merge_test` V1/V4). Záměrně ŽÁDNÝ `hint`
-  /// s instrukcí zoomu — ta nesmí zdržovat při každém průchodu
-  /// (zoom zůstává gestem, dvojitým klepem a posuvníky v nastavení).
+  /// Proxy je ve stromě VŽDY (i při prázdném výrazu), aby byl displej
+  /// dosažitelný lineární navigací TalkBacku hned po startu bez nutnosti
+  /// nejprve navštívit tlačítko. Vnější obálka je proto trvale
+  /// pass-through (žádný vlastní label/value/onTap) a jediná reprezentace
+  /// displeje je tento uzel.
+  /// Obalující `Semantics` nese popisek displeje a aktivační `onTap`:
+  /// bez `container: true` se slévá s `RenderEditable` do JEDINÉHO uzlu
+  /// `textField` (label + value + selection + pohybové akce + tap —
+  /// ověřeno `scratch_semantics_merge_test` V1/V4). Při prázdném výrazu
+  /// nese wrapper hodnotu prázdného stavu (řeč výsledku / "Prázdno") —
+  /// `RenderEditable` má text `''` a nekonkuruje; při editaci je zdrojem
+  /// hodnoty i selection standardní mechanismus `RenderEditable`.
+  /// Záměrně ŽÁDNÝ `hint` s instrukcí zoomu — ta nesmí zdržovat při každém
+  /// průchodu (zoom zůstává gestem, dvojitým klepem a posuvníky v nastavení).
   Widget _buildDisplayA11yProxy() {
+    // Větev prázdného stavu kopíruje původní řeč vnější obálky, aby se
+    // nezměnilo ohlášení výsledku / "Prázdno" ani chování tapu.
+    final bool isEmpty = display.isEmpty;
+    final String emptySpeech = _hasResult
+        ? _currentResultSpeech()
+        : _l10n.displayEmpty;
     return Semantics(
       label: _l10n.displayLabel,
+      value: isEmpty ? emptySpeech : null,
       onTap: () {
         _mainFocusNode.requestFocus();
-        speak(_expressionToSpeech(display));
+        speak(isEmpty ? emptySpeech : _expressionToSpeech(display));
       },
       child: SizedBox(
         width: 1,
@@ -14425,213 +14441,210 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               width: 3 * s.clamp(1.0, 1.3),
                             ),
                           ),
-                          child: Semantics(
-                            liveRegion: true,
-                            // Jediný přístupný prvek displeje: při neprázdném
-                            // výrazu je jím proxy [_buildDisplayA11yProxy]
-                            // (RenderEditable: label + value + textSelection +
-                            // pohybové akce + tap v jednom uzlu). Vnější
-                            // obálka proto při editaci NENÍ popisek ani
-                            // akce — jinak by TalkBack hlásil displej dvakrát
-                            // (nejdřív obálku se zoom-hintem, pak pole).
-                            // Při prázdném výrazu proxy ve stromě není a
-                            // obálka dál nese řeč výsledku / "Prázdno".
-                            // Zoom-hint (displayHint) zde záměrně NENÍ ani
-                            // v jednom stavu: zoom zůstává gestem, dvojitým
-                            // klepem a posuvníky v nastavení přístupnosti.
-                            label: display.isEmpty ? l10n.displayLabel : null,
-                            // Dvě role hodnoty: při editaci (display != '')
-                            // je jedinou reprezentací proxy
-                            // [_buildDisplayA11yProxy] (RenderEditable:
-                            // value + textSelection + pohybové akce) a wrapper
-                            // value NESMÍ konkurovat (jinak dvě pole/hodnoty).
-                            // Při prázdném výrazu proxy není ve stromě a
-                            // wrapper dál nese řeč výsledku / "Prázdno" —
-                            // výsledkové renderery jsou ExcludeSemantics/
-                            // CustomPaint a čtečka je odkázána na tuto value
-                            // (kontrakty fraction/surd/result testů).
-                            value: display.isEmpty
-                                ? (_hasResult
-                                      ? _currentResultSpeech()
-                                      : l10n.displayEmpty)
-                                : null,
-                            onTap: display.isEmpty
-                                ? () {
-                                    _mainFocusNode.requestFocus();
-                                    speak(
-                                      _hasResult
-                                          ? _currentResultSpeech()
-                                          : l10n.displayEmpty,
-                                    );
-                                  }
-                                : null,
-                            // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
-                            // a vše se přečte z tohoto Semantics widgetu. Textový matematický
-                            // renderer je navíc v ExcludeSemantics, takže displej zůstává
-                            // jeden logický prvek bez duplicitního čtení.
-                            // Displej je samostatny prvek hlavniho layoutu.
-                            // Ovladani zlomku (DEC <-> a/b) je presunuto do
-                            // _buildFractionViewToggleRow() pod displejem:
-                            // bez Stack/Positioned overlaye, s normalnim
-                            // focus order pro TalkBack/NVDA/klavesnici.
-                            // Popisek zustava jednoradkovy jako driv.
-                            child: Column(
-                              children: [
-                                Align(
-                                  alignment: Alignment.topLeft,
-                                  // Dekorativní duplikát pro čtečky: režim je
-                                  // v sémantickém stromě zastoupen přepínačem
-                                  // režimů ( unfolded chips s `selected`).
-                                  // Bez vyloučení by se text slil do labelu
-                                  // displeje ("Displej\nVĚDECKÁ") a tvořil
-                                  // zastávku navíc před kurzorovým polem.
-                                  child: ExcludeSemantics(
-                                    child: Text(
-                                      _getModeName(_currentMode).toUpperCase(),
-                                      maxLines: 1,
-                                      softWrap: false,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.redAccent,
-                                        fontSize: 12 * s,
-                                        fontWeight: FontWeight.bold,
+                          // Stabilní kořen displeje: vizuální sloupec + vždy
+                          // přítomná 1×1 a11y proxy jako překryv. Stack zde
+                          // (na rozdíl od _buildFractionViewToggleRow) layout
+                          // nemění — displej má velikost z Expanded a proxy
+                          // je 1×1 v rohu. Proxy záměrně NENÍ uvnitř
+                          // horizontálního scroll view vstupu: při prázdném
+                          // výrazu po výpočtu má vstup nulový viewport a při
+                          // dlouhém výrazu by odscrollování proxy ořezalo ze
+                          // Semantics stromu (ověřeno dump testem).
+                          child: Stack(
+                            children: [
+                              Semantics(
+                                liveRegion: true,
+                                // Jediný přístupný prvek displeje je ve všech
+                                // stavech proxy [_buildDisplayA11yProxy]
+                                // (RenderEditable: label + value + textSelection +
+                                // pohybové akce + tap v jednom uzlu, při prázdném
+                                // výrazu s hodnotou prázdného stavu). Vnější
+                                // obálka je proto trvale pass-through: NENÍ
+                                // popisek ani akce — jinak by TalkBack hlásil
+                                // displej dvakrát (nejdřív obálku, pak pole).
+                                // Zoom-hint (displayHint) zde záměrně NENÍ ani
+                                // v jednom stavu: zoom zůstává gestem, dvojitým
+                                // klepem a posuvníky v nastavení přístupnosti.
+                                label: null,
+                                // Hodnotu i aktivaci nese výhradně proxy
+                                // [_buildDisplayA11yProxy]: při editaci
+                                // (display != '') RenderEditable (value +
+                                // textSelection + pohybové akce), při prázdném
+                                // výrazu wrapper proxy (řeč výsledku / "Prázdno").
+                                // Vnější value zde NESMÍ konkurovat (jinak dvě
+                                // pole/hodnoty).
+                                // Výsledkové renderery jsou ExcludeSemantics/
+                                // CustomPaint a čtečka je odkázána na proxy
+                                // (kontrakty fraction/surd/result testů).
+                                value: null,
+                                onTap: null,
+                                // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
+                                // a vše se přečte z tohoto Semantics widgetu. Textový matematický
+                                // renderer je navíc v ExcludeSemantics, takže displej zůstává
+                                // jeden logický prvek bez duplicitního čtení.
+                                // Displej je samostatny prvek hlavniho layoutu.
+                                // Ovladani zlomku (DEC <-> a/b) je presunuto do
+                                // _buildFractionViewToggleRow() pod displejem:
+                                // bez Stack/Positioned overlaye, s normalnim
+                                // focus order pro TalkBack/NVDA/klavesnici.
+                                // Popisek zustava jednoradkovy jako driv.
+                                child: Column(
+                                  children: [
+                                    Align(
+                                      alignment: Alignment.topLeft,
+                                      // Dekorativní duplikát pro čtečky: režim je
+                                      // v sémantickém stromě zastoupen přepínačem
+                                      // režimů ( unfolded chips s `selected`).
+                                      // Bez vyloučení by se text slil do labelu
+                                      // displeje ("Displej\nVĚDECKÁ") a tvořil
+                                      // zastávku navíc před kurzorovým polem.
+                                      child: ExcludeSemantics(
+                                        child: Text(
+                                          _getModeName(_currentMode).toUpperCase(),
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                            fontSize: 12 * s,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                                SizedBox(height: 4 * s),
-                                Expanded(
-                                  child: LayoutBuilder(
-                                    builder: (context, displayConstraints) {
-                                      // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
-                                      // Konstanty musí odpovídat _buildDotMatrixDisplay
-                                      // (rozestup 1.15 × systémový faktor) a rezervě
-                                      // pro periodickou čáru v CustomSegmentDisplay.
-                                      final fitSysFactor =
-                                          MediaQuery.textScalerOf(
-                                            context,
-                                          ).scale(1.0).clamp(1.0, 1.5);
-                                      final dotLedSize =
-                                          3.0 * _dotMatrixZoom * s;
-                                      final dotSpacing =
-                                          1.15 *
-                                          _dotMatrixZoom *
-                                          s *
-                                          fitSysFactor;
-                                      final dotH =
-                                          dotLedSize * 8 + dotSpacing * 7;
-                                      final segSize = 16 * _resultZoom * s;
-                                      var segH = segSize * 1.8;
-                                      if (_toBarNotation(
-                                        _lastResult.isEmpty
-                                            ? '0.'
-                                            : _lastResult,
-                                      ).contains('\u0305')) {
-                                        final segThick = segSize * 0.15;
-                                        segH +=
-                                            segThick * 2.0 +
-                                            6.0 +
-                                            segThick *
-                                                0.75 *
-                                                _overlineThickness /
-                                                2 +
-                                            2.0;
-                                      }
-                                      final gapH = 12 * s;
-                                      final neededH = dotH + segH + gapH;
-                                      final availableH =
-                                          displayConstraints.maxHeight;
-                                      double fitScale = 1.0;
-                                      if (availableH > 0 &&
-                                          neededH > availableH) {
-                                        fitScale = (availableH / neededH).clamp(
-                                          0.35,
-                                          1.0,
-                                        );
-                                      }
-                                      final needsFallbackScroll =
-                                          fitScale <= 0.36;
+                                    SizedBox(height: 4 * s),
+                                    Expanded(
+                                      child: LayoutBuilder(
+                                        builder: (context, displayConstraints) {
+                                          // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
+                                          // Konstanty musí odpovídat _buildDotMatrixDisplay
+                                          // (rozestup 1.15 × systémový faktor) a rezervě
+                                          // pro periodickou čáru v CustomSegmentDisplay.
+                                          final fitSysFactor =
+                                              MediaQuery.textScalerOf(
+                                                context,
+                                              ).scale(1.0).clamp(1.0, 1.5);
+                                          final dotLedSize =
+                                              3.0 * _dotMatrixZoom * s;
+                                          final dotSpacing =
+                                              1.15 *
+                                              _dotMatrixZoom *
+                                              s *
+                                              fitSysFactor;
+                                          final dotH =
+                                              dotLedSize * 8 + dotSpacing * 7;
+                                          final segSize = 16 * _resultZoom * s;
+                                          var segH = segSize * 1.8;
+                                          if (_toBarNotation(
+                                            _lastResult.isEmpty
+                                                ? '0.'
+                                                : _lastResult,
+                                          ).contains('\u0305')) {
+                                            final segThick = segSize * 0.15;
+                                            segH +=
+                                                segThick * 2.0 +
+                                                6.0 +
+                                                segThick *
+                                                    0.75 *
+                                                    _overlineThickness /
+                                                    2 +
+                                                2.0;
+                                          }
+                                          final gapH = 12 * s;
+                                          final neededH = dotH + segH + gapH;
+                                          final availableH =
+                                              displayConstraints.maxHeight;
+                                          double fitScale = 1.0;
+                                          if (availableH > 0 &&
+                                              neededH > availableH) {
+                                            fitScale = (availableH / neededH).clamp(
+                                              0.35,
+                                              1.0,
+                                            );
+                                          }
+                                          final needsFallbackScroll =
+                                              fitScale <= 0.36;
 
-                                      Widget content = Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment: _alignInputLeft
-                                            ? CrossAxisAlignment.start
-                                            : CrossAxisAlignment.center,
-                                        children: [
-                                          Align(
-                                            alignment: _alignInputLeft
-                                                ? Alignment.centerLeft
-                                                : Alignment.center,
-                                            child: SingleChildScrollView(
-                                              controller: _scrollControllerH,
-                                              scrollDirection: Axis.horizontal,
-                                              // Vizuální renderer je při editaci pro
-                                              // čtečku nahrazen proxy (jeden
-                                              // zdroj pravdy, viz
-                                              // _syncA11yProxy). Při prázdném
-                                              // výrazu proxy ve stromě není
-                                              // (stav beze změny: wrapper nese
-                                              // řeč výsledku / "Prázdno").
-                                              // Stack/Positioned nemění layout
-                                              // ani vzhled (proxy je 1×1).
-                                              child: Stack(
-                                                children: [
-                                                  ExcludeSemantics(
+                                          Widget content = Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment: _alignInputLeft
+                                                ? CrossAxisAlignment.start
+                                                : CrossAxisAlignment.center,
+                                            children: [
+                                              Align(
+                                                alignment: _alignInputLeft
+                                                    ? Alignment.centerLeft
+                                                    : Alignment.center,
+                                                child: SingleChildScrollView(
+                                                  controller: _scrollControllerH,
+                                                  scrollDirection: Axis.horizontal,
+                                                  // Čistě vizuální renderer vstupu
+                                                  // (pro čtečku vyloučen); jediná
+                                                  // přístupná reprezentace displeje
+                                                  // je stabilní proxy v kořenu
+                                                  // displeje (viz níže) — nikdy
+                                                  // uvnitř scrollovatelného obsahu,
+                                                  // aby ji nulový viewport
+                                                  // (prázdný výraz po výpočtu)
+                                                  // ani odscrollování nemohly
+                                                  // ořezat ze Semantics stromu.
+                                                  child: ExcludeSemantics(
                                                     child:
                                                         _buildDotMatrixDisplay(
                                                           fitScale: fitScale,
                                                         ),
                                                   ),
-                                                  if (display.isNotEmpty)
-                                                    Positioned(
-                                                      left: 0,
-                                                      top: 0,
-                                                      child:
-                                                          _buildDisplayA11yProxy(),
-                                                    ),
-                                                ],
+                                                ),
                                               ),
-                                            ),
-                                          ),
-                                          SizedBox(height: 12 * s * fitScale),
-                                          Align(
-                                            alignment: Alignment.center,
-                                            child: SingleChildScrollView(
-                                              controller:
-                                                  _scrollControllerResultH,
-                                              scrollDirection: Axis.horizontal,
-                                              child: _buildMainResultDisplay(
-                                                fitScale: fitScale,
+                                              SizedBox(height: 12 * s * fitScale),
+                                              Align(
+                                                alignment: Alignment.center,
+                                                child: SingleChildScrollView(
+                                                  controller:
+                                                      _scrollControllerResultH,
+                                                  scrollDirection: Axis.horizontal,
+                                                  child: _buildMainResultDisplay(
+                                                    fitScale: fitScale,
+                                                  ),
+                                                ),
                                               ),
-                                            ),
-                                          ),
-                                        ],
-                                      );
+                                            ],
+                                          );
 
-                                      if (needsFallbackScroll) {
-                                        // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
-                                        return Scrollbar(
-                                          controller: _scrollControllerV,
-                                          thumbVisibility: true,
-                                          child: SingleChildScrollView(
-                                            controller: _scrollControllerV,
-                                            scrollDirection: Axis.vertical,
-                                            child: content,
-                                          ),
-                                        );
-                                      }
-                                      // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
-                                      return Center(child: content);
-                                    },
-                                  ),
+                                          if (needsFallbackScroll) {
+                                            // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
+                                            return Scrollbar(
+                                              controller: _scrollControllerV,
+                                              thumbVisibility: true,
+                                              child: SingleChildScrollView(
+                                                controller: _scrollControllerV,
+                                                scrollDirection: Axis.vertical,
+                                                child: content,
+                                              ),
+                                            );
+                                          }
+                                          // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
+                                          return Center(child: content);
+                                        },
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
+                              ),
+                              // Jediná přístupná reprezentace displeje ve všech
+                              // stavech (viz [_buildDisplayA11yProxy]): překryv
+                              // 1×1 bez dalšího Semantics wrapperu.
+                              Positioned(
+                                left: 0,
+                                top: 0,
+                                child: _buildDisplayA11yProxy(),
+                              ),
+                          ],
                       ),
                     ),
+                  ),
+                ),
                     // Ovládání zobrazení výsledku DEC <-> a/b: samostatný
                     // prvek hlavního layoutu mimo displej i mimo keypad.
                     _buildFractionViewToggleRow(),

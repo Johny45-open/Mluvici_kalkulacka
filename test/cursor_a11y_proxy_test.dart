@@ -122,19 +122,25 @@ void main() {
   }
 
   group('A11y proxy displeje', () {
-    testWidgets('1. prazdny stav bez pole, editace s prave jednim polem', (
+    testWidgets('1. prazdny stav se stabilni proxy, editace s prave jednim polem', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
 
-        // Prázdný výraz: proxy ve stromě není (stav beze změny — wrapper
-        // nese "Prázdno" / řeč výsledku), žádné textové pole.
+        // Prázdný výraz: proxy je ve stromě trvale (stabilní BUILD spike).
+        // Jediné textové pole nese hodnotu prázdného stavu ("Prázdno" /
+        // řeč výsledku) a collapsed selection na 0.
         state.setDisplayForTest('', 0);
         await tester.pumpAndSettle();
-        expect(find.byType(EditableText), findsNothing);
-        expect(countTextFields(tester), 0);
+        expect(find.byType(EditableText), findsOneWidget);
+        expect(countTextFields(tester), 1);
+        expect(state.a11yProxyValueForTest.text, '');
+        expect(
+          state.a11yProxyValueForTest.selection,
+          const TextSelection.collapsed(offset: 0),
+        );
 
         // Při editaci je proxy jediným textovým polem displeje.
         state.setDisplayForTest('12+3', 2);

@@ -383,23 +383,24 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('prazdny displej: zadne pole, wrapper nese stav', (
+    testWidgets('prazdny displej: stabilni proxy s Prázdnem', (
       tester,
     ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('', 0);
       await tester.pumpAndSettle();
 
-      // Vnější popisný uzel zůstává netextový a nese "Prázdno".
+      // Proxy je ve stromě trvale (i při prázdném výrazu): jediný uzel
+      // Displej, wrapper nese "Prázdno", RenderEditable text '' + collapsed(0).
       final sem = displaySemanticsByLabel(tester);
-      expect(
-        sem.properties.textField,
-        isNot(true),
-        reason: 'Popisný wrapper nesmí být druhé textové pole',
-      );
+      expect(sem.properties.label, 'Displej');
       expect(sem.properties.value, 'Prázdno');
-      // Proxy se montuje až s prvním znakem výrazu.
-      expect(find.byType(EditableText), findsNothing);
+      expect(find.byType(EditableText), findsOneWidget);
+      expect(state.a11yProxyValueForTest.text, '');
+      expect(
+        state.a11yProxyValueForTest.selection,
+        const TextSelection.collapsed(offset: 0),
+      );
       await tester.pump(const Duration(seconds: 3));
     });
   });
