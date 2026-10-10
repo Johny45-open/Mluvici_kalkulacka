@@ -14,6 +14,13 @@ class CalculatorScreen extends StatefulWidget {
   State<CalculatorScreen> createState() => _CalculatorScreenState();
 }
 
+/// Z1-dokončení: důvod vypnutí režimu ovládání výrazu. Určuje, zda smí
+/// první stisk šipky/Home/End po návratu primárního fokusu režim znovu
+/// aktivovat (`traversal`), nebo je vyžadován výslovný tap na displej
+/// (`dialog`). `none` = režim aktivní nebo výchozí stav. Není zdrojem
+/// pozice kurzoru (tou zůstává `_cursorPosition`).
+enum _ExpressionControlOffReason { none, traversal, dialog }
+
 class _CalculatorScreenState extends State<CalculatorScreen>
     with WidgetsBindingObserver {
   static const int _kKeypadColumns = 4;
@@ -27,6 +34,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   final FlutterTts tts = FlutterTts();
   final FocusNode _mainFocusNode = FocusNode();
+
+  /// Režim ovládání výrazu (Z1): zda smějí fyzické šipky/Home/End měnit
+  /// [_cursorPosition]. NENÍ druhým zdrojem pozice kurzoru — pouze brána
+  /// klávesového handleru. Platí společně s
+  /// `_mainFocusNode.hasPrimaryFocus` (samotné `hasFocus` by pouštělo šipky
+  /// i při fokusovaném potomkovi, např. tlačítku klávesnice). Výchozí `true`
+  /// odpovídá počátečnímu `_mainFocusNode.requestFocus()` ve
+  /// [_initAppVersion]; explicitní aktivace je vyžadována až po každé
+  /// deaktivaci (odchod primárního fokusu, otevření dialogu, ztráta
+  /// přístupného fokusu proxy). Listener režim nikdy sám nezapíná.
+  bool _expressionControlActive = true;
+
+  /// Z1-dokončení: proč je režim momentálně vypnutý (viz
+  /// [_ExpressionControlOffReason]). Diagnostická hodnota; samotnou
+  /// reaktivaci řídí [_dialogDepth] spolu s primárním fokusem (viz
+  /// [_tryReactivateExpressionControl]).
+  _ExpressionControlOffReason _expressionControlOffReason =
+      _ExpressionControlOffReason.none;
+
+  /// Z1-reaktivace-po-dialogu: počet právě otevřených dialogů (vnořené se
+  /// sčítají). Dokud je > 0, nesmí žádná klávesa obejít dialog ani armovat
+  /// ovládání výrazu za ním; reaktivace je možná až po úplném zavření
+  /// (spolu s obnoveným primárním fokusem, viz [_tryReactivateExpressionControl]).
+  /// Není zdrojem pravdy o fokusu ani kurzoru — pouze strážce.
+  int _dialogDepth = 0;
   late final FocusNode _readingOrderFocusNode = FocusNode(
     debugLabel: 'readingOrderButton',
   );
@@ -58,6 +90,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _mainFocusNode.requestFocus();
       }
     });
+  }
+
+  /// Z1: odchod primárního fokusu z [_mainFocusNode] vypíná režim ovládání
+  /// výrazu. Pouze vypíná, nikdy nezapíná (opětovné zapnutí patří výhradně
+  /// aktivační cestě displeje nebo reaktivaci šipkou). Návrat fokusu
+  /// z dialogu proto režim sám neaktivuje. Listener čte čerstvý
+  /// `FocusManager.instance.primaryFocus` při každém oznámení — reaguje
+  /// tedy na změnu primárního fokusu, nikoli pouze na `hasFocus` (to je
+  /// pravdivé i pro předka fokusovaného potomka). Dialogový důvod se zde
+  /// nikdy nepřepisuje traversálovým (`showAppDialog` jej nastavil dřív,
+  /// než route přesune fokus do dialogu). Registrováno v [initState],
+  /// odregistrováno v [dispose].
+  void _handlePrimaryFocusChanged() {
+    if (!mounted) return;
+    if (FocusManager.instance.primaryFocus == _mainFocusNode) return;
+    if (!_expressionControlActive) return;
+    _expressionControlActive = false;
+    if (_expressionControlOffReason != _ExpressionControlOffReason.dialog) {
+      _expressionControlOffReason = _ExpressionControlOffReason.traversal;
+    }
   }
 
   String display = '';
@@ -2542,6 +2594,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    FocusManager.instance.addListener(_handlePrimaryFocusChanged);
     _refreshAccessibilityState();
     _initTts();
     _initAppVersion();
@@ -2567,6 +2620,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _currentAppVersion = '${info.version}+${info.buildNumber}';
     if (mounted) {
       _mainFocusNode.requestFocus();
+      // Z1: jednoznačný počáteční okamžik režimu ovládání výrazu — až PO
+      // úvodním requestFocus, takže listener fokusu jej nemůže předčasně
+      // vypnout (při rovnosti s _mainFocusNode nic neshazuje).
+      _expressionControlActive = true;
+      _expressionControlOffReason = _ExpressionControlOffReason.none;
       _checkForUpdates();
       _checkForNews();
       _maybeRunDevAutodiagnostics();
@@ -2671,6 +2729,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    FocusManager.instance.removeListener(_handlePrimaryFocusChanged);
     _quickSetupTimer?.cancel();
     _devTapTimer?.cancel();
     _voiceCreationSession?.dispose();
@@ -3547,7 +3606,44 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  void _handleKeyboardInput(KeyEvent event) {
+  /// Z1-dokončení: reaktivace režimu prvním stiskem šipky/Home/End po
+  /// návratu primárního fokusu (po Tab-navigaci i po úplném zavření
+  /// dialogů). Proběhne pouze, když není otevřený žádný dialog
+  /// (`_dialogDepth == 0`) — za otevřeným dialogem se ovládání výrazu
+  /// armovat nesmí (požadavek: klávesa nesmí dialog obejít). Návrat fokusu
+  /// sám nic nezapíná; zapíná až tento výslovný stisk. Při reaktivaci se
+  /// kurzor NEPOSOUVÁ, režim se oznámí právě jednou
+  /// ([_announceExpressionControl]); volající vrátí `handled`.
+  /// V NVDA Browse Mode šipky do aplikace nedorazí, takže běžná navigace
+  /// odečítače zůstává nedotčena. Nemění `_cursorPosition`, fokus ani
+  /// traversál; nespouští softwarovou klávesnici.
+  /// Vrací true, právě když reaktivace proběhla.
+  bool _tryReactivateExpressionControl() {
+    if (_expressionControlActive || !_mainFocusNode.hasPrimaryFocus) {
+      return false;
+    }
+    if (_dialogDepth > 0) {
+      return false;
+    }
+    _expressionControlActive = true;
+    _expressionControlOffReason = _ExpressionControlOffReason.none;
+    _announceExpressionControl();
+    return true;
+  }
+
+  /// Z1: klávesový handler s konzumací (`Focus.onKeyEvent`). `handled` vrací
+  /// VÝHRADNĚ za šipky/Home/End, jimiž aplikace v režimu ovládání výrazu
+  /// skutečně pohnula kurzorem. Všechny ostatní cesty vracejí `ignored`
+  /// (tedy propagaci shodnou s předchozím `void` handlerem): kořenový uzel
+  /// je PŘEDKEM tlačítek, a konzumace např. Enteru by spolkla aktivační
+  /// intent fokusovaného potomka (zpracovává jej až Shortcuts nad kořenem —
+  /// viz fraction_toggle testy K/J). Šipky/Home/End navíc vyžadují režim
+  /// ovládání výrazu (`_expressionControlActive`) a primární fokus na
+  /// [_mainFocusNode] — samotné `hasFocus` by pouštělo šipky i při
+  /// fokusovaném tlačítku klávesnice (předek ve stromu).
+  /// Zpracovává pouze `KeyDownEvent`; `KeyRepeatEvent`/`KeyUpEvent` kurzor
+  /// neposouvají (držení klávesy dnes nic neopakovalo — zachováno).
+  KeyEventResult _handleKeyboardInput(FocusNode node, KeyEvent event) {
     if (event is KeyDownEvent) {
       final char = event.character;
       final isControl = HardwareKeyboard.instance.isControlPressed;
@@ -3556,23 +3652,53 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // Pohyb kurzoru ve výrazu — musí fungovat i při aktivním screen
       // readeru, proto před SR filtrem níže (šípky/Home/End nenesou znak).
       // Shift/Ctrl modifikátory se prozatím ignorují (žádný výběr textu).
+      // Brána režimu (Z1): mimo režim ovládání výrazu nebo bez primárního
+      // fokusu patří šipky odečítači/traversálu (ignored), kurzor se nemění.
       if (!isControl &&
           event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        _moveCursorBy(-1);
-        return;
+        if (_expressionControlActive && _mainFocusNode.hasPrimaryFocus) {
+          _moveCursorBy(-1);
+          return KeyEventResult.handled;
+        }
+        // Z1-dokončení: reaktivace po Tab-návratu (bez pohybu kurzoru).
+        if (_tryReactivateExpressionControl()) {
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
       }
       if (!isControl &&
           event.logicalKey == LogicalKeyboardKey.arrowRight) {
-        _moveCursorBy(1);
-        return;
+        if (_expressionControlActive && _mainFocusNode.hasPrimaryFocus) {
+          _moveCursorBy(1);
+          return KeyEventResult.handled;
+        }
+        // Z1-dokončení: reaktivace po Tab-návratu (bez pohybu kurzoru).
+        if (_tryReactivateExpressionControl()) {
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
       }
       if (!isControl && event.logicalKey == LogicalKeyboardKey.home) {
-        _moveCursorTo(0);
-        return;
+        if (_expressionControlActive && _mainFocusNode.hasPrimaryFocus) {
+          _moveCursorTo(0);
+          return KeyEventResult.handled;
+        }
+        // Z1-dokončení: reaktivace po Tab-návratu (bez pohybu kurzoru).
+        if (_tryReactivateExpressionControl()) {
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
       }
       if (!isControl && event.logicalKey == LogicalKeyboardKey.end) {
-        _moveCursorTo(display.length);
-        return;
+        if (_expressionControlActive && _mainFocusNode.hasPrimaryFocus) {
+          _moveCursorTo(display.length);
+          return KeyEventResult.handled;
+        }
+        // Z1-dokončení: reaktivace po Tab-návratu (bez pohybu kurzoru).
+        if (_tryReactivateExpressionControl()) {
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
       }
 
       // Když je aktivní screen reader (NVDA, JAWS, TalkBack),
@@ -3581,26 +3707,29 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (_isScreenReaderActive == true && char != null && !isControl) {
         if (char == '±') {
           _handleNegativeButton();
-          return;
+          return KeyEventResult.ignored;
         }
         final String singleChar = char.toUpperCase();
         // Povolit číslice, desetinnou tečku a operátory + - * / ^ %
         if (RegExp(r'^[0-9.+\-*/^%]$').hasMatch(singleChar)) {
           _handleButtonPressed(singleChar, silent: true);
-          return;
+          return KeyEventResult.ignored;
         }
         // Všechny ostatní jednoznakové klávesy nechat projít do screen readeru
-        return;
+        return KeyEventResult.ignored;
       }
 
       if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.numpadEnter) {
         calculateResult();
+        return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.backspace) {
         backspace();
+        return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.escape ||
           event.logicalKey == LogicalKeyboardKey.delete) {
         clear();
+        return KeyEventResult.ignored;
       } else if (isControl &&
           isShift &&
           event.logicalKey == LogicalKeyboardKey.keyD) {
@@ -3610,81 +3739,108 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         } else {
           _handleButtonPressed("'→°");
         }
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.keyD) {
         _handleButtonPressed("°→'");
+        return KeyEventResult.ignored;
       } else if (isControl &&
           isShift &&
           event.logicalKey == LogicalKeyboardKey.keyJ) {
         _handleDevShortcut();
+        return KeyEventResult.ignored;
       } else if (!isControl && event.logicalKey == LogicalKeyboardKey.keyS) {
         _handleButtonPressed(isShift ? "ASIN" : "SIN");
+        return KeyEventResult.ignored;
       } else if (!isControl && event.logicalKey == LogicalKeyboardKey.keyC) {
         _handleButtonPressed(isShift ? "ACOS" : "COS");
+        return KeyEventResult.ignored;
       } else if (!isControl && event.logicalKey == LogicalKeyboardKey.keyT) {
         _handleButtonPressed(isShift ? "ATAN" : "TAN");
+        return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.keyQ) {
         _handleButtonPressed("√");
+        return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.keyA) {
         _handleButtonPressed("ABS");
+        return KeyEventResult.ignored;
       } else if (isControl &&
           isShift &&
           event.logicalKey == LogicalKeyboardKey.keyP) {
         _togglePeriod();
+        return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.keyP) {
         _handleButtonPressed("\u03C0");
       } else if (event.logicalKey == LogicalKeyboardKey.keyR) {
         _handleButtonPressed("ANS");
+        return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.keyD) {
         _insertDegree();
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.keyM) {
         if (_currentMode == CalculatorMode.statistics) {
           _handleMultipleStatisticsAddition();
         } else {
           _handleButtonPressed('M+');
         }
+        return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
         if (_currentMode == CalculatorMode.statistics) {
           _addSingleValueToStats();
         } else {
           _insertMinute();
         }
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit1) {
         _changeMode(CalculatorMode.basic);
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit2) {
         _changeMode(CalculatorMode.scientific);
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit3) {
         _changeMode(CalculatorMode.statistics);
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit4) {
         _changeMode(CalculatorMode.electrician);
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit5) {
         _changeMode(CalculatorMode.unitConversion);
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit6) {
         _changeMode(CalculatorMode.time);
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.digit7) {
         _changeMode(CalculatorMode.currency);
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.comma) {
         _showAccessibilityDialog();
+        return KeyEventResult.ignored;
       } else if (isControl && event.logicalKey == LogicalKeyboardKey.tab) {
         if (isShift) {
           _cycleMode(-1);
         } else {
           _cycleMode(1);
         }
+        return KeyEventResult.ignored;
       } else if (isControl &&
           (event.logicalKey == LogicalKeyboardKey.pageDown ||
               event.logicalKey == LogicalKeyboardKey.pageUp)) {
         if (_currentMode == CalculatorMode.scientific) {
           _toggleScientificFunctionsPage();
+          return KeyEventResult.ignored;
         }
       } else if (char == '±') {
         _handleNegativeButton();
+        return KeyEventResult.ignored;
       } else if (char != null) {
         String toAppend = char == ',' ? '.' : char;
         if (RegExp(r'''[0-9.+\-*/^%()eE°'":;a-zA-Z]''').hasMatch(toAppend)) {
           _handleButtonPressed(toAppend.toUpperCase(), silent: true);
+          return KeyEventResult.ignored;
         }
       }
+      return KeyEventResult.ignored;
     }
+    return KeyEventResult.ignored;
   }
 
   void _insertDegree() {
@@ -4018,6 +4174,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  /// Z1-dokončení: jednorázové oznámení reaktivace režimu ovládání výrazu.
+  /// Voláno výhradně při přechodu OFF→ON prvním stiskem (viz
+  /// [_tryReactivateExpressionControl]) — nikdy opakovaně, jedním kanálem
+  /// ([announceEvent], žádný paralelní TTS ani SnackBar).
+  void _announceExpressionControl() {
+    unawaited(
+      announceEvent(
+        _s(
+          'Režim ovládání výrazu zapnut. Šipky nyní pohybují kurzorem.',
+          'Expression control mode on. Arrows now move the cursor.',
+        ),
+        category: SpeechCategory.actionConfirm,
+      ),
+    );
+  }
+
   /// Vizuálně neviditelná, sémanticky přítomná proxy vstupního výrazu.
   /// Proxy sama o sobě neurčuje svou velikost: rodič ji vkládá jako
   /// `Positioned.fill` překryv POUZE horního vstupního řádku (viz displej
@@ -4045,8 +4217,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       label: _l10n.displayLabel,
       value: isEmpty ? _l10n.displayEmpty : null,
       onTap: () {
+        // Z1: explicitní aktivace režimu ovládání výrazu (před fokusem).
+        _expressionControlActive = true;
+        _expressionControlOffReason = _ExpressionControlOffReason.none;
         _mainFocusNode.requestFocus();
         speak(isEmpty ? _l10n.displayEmpty : _expressionToSpeech(display));
+      },
+      // Z1: doplňkový signál — odchod přístupného fokusu z proxy vypíná
+      // režim. Není jediným mechanismem (TalkBack ano, NVDA/Windows
+      // neprokázáno); autoritativní zůstává primární fokus + dialogy.
+      // Nemění kurzor, selection ani fokus.
+      onDidLoseAccessibilityFocus: () {
+        _expressionControlActive = false;
       },
       // Velikost dává výhradně rodič (`Positioned.fill` přes horní řádek):
       // expanduje na celou překryvou plochu, nic sama nezmenšuje na 1×1.
@@ -7188,6 +7370,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     RouteSettings? routeSettings,
     required WidgetBuilder builder,
   }) {
+    // Z1: otevření dialogu vypíná režim ovládání výrazu (jediný škrticí
+    // bod všech dialogů). Návrat fokusu po zavření jej zpětně nezapíná —
+    // vyžaduje se výslovná aktivace displeje nebo reaktivace šipkou až po
+    // úplném zavření (viz [_tryReactivateExpressionControl]). Důvod `dialog`
+    // se zde zapisuje dřív, než route přesune fokus do dialogu, aby jej
+    // listener nemohl přepsat traversálovým. Čítač kryje i vnořené dialogy.
+    _expressionControlActive = false;
+    _expressionControlOffReason = _ExpressionControlOffReason.dialog;
+    _dialogDepth++;
     return showDialog<T>(
       context: context,
       barrierDismissible: barrierDismissible,
@@ -7200,7 +7391,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: routeSettings,
       builder: (dialogContext) =>
           _wrapWithDialogFontScale(dialogContext, builder(dialogContext)),
-    );
+    ).whenComplete(() {
+      // Dialog (i vnořený) je pryč: reaktivace je opět dovolena, jakmile se
+      // primární fokus skutečně vrátí do kalkulačky. Samotné zavření režim
+      // nezapíná. Prostý čítač bez setState — žádný rebuild, žádný cyklus.
+      if (_dialogDepth > 0) _dialogDepth--;
+    });
   }
 
   void _toggleTts() {
@@ -12841,6 +13037,35 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @visibleForTesting
   FocusNode get a11yProxyFocusNodeForTest => _displayA11yFocusNode;
 
+  /// Z1: stav režimu ovládání výrazu.
+  @visibleForTesting
+  bool get expressionControlActiveForTest => _expressionControlActive;
+
+  /// Z1: přímé nastavení režimu (pro test deaktivovaného stavu).
+  @visibleForTesting
+  void setExpressionControlActiveForTest(bool value) {
+    _expressionControlActive = value;
+  }
+
+  /// Z1-dokončení: důvod vypnutí režimu pro testy (`none/traversal/dialog`).
+  @visibleForTesting
+  String get expressionControlOffReasonForTest =>
+      _expressionControlOffReason.name;
+
+  /// Z1-reaktivace-po-dialogu: hloubka otevřených dialogů pro testy.
+  @visibleForTesting
+  int get dialogDepthForTest => _dialogDepth;
+
+  /// Z1: přímé volání klávesového handleru včetně návratové hodnoty
+  /// (`handled`/`ignored`) pro testy konzumace.
+  @visibleForTesting
+  KeyEventResult handleKeyEventForTest(KeyEvent event) =>
+      _handleKeyboardInput(_mainFocusNode, event);
+
+  /// Z1: kořenový fokusový uzel klávesnice.
+  @visibleForTesting
+  FocusNode get mainFocusNodeForTest => _mainFocusNode;
+
   /// Lidská věta o pozici kurzoru (viz [_cursorPositionSpeech]).
   @visibleForTesting
   String cursorSpeechForTest() => _cursorPositionSpeech();
@@ -14382,7 +14607,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // Post-frame derivace a11y proxy (guardovaná, viz [_scheduleA11yProxySync]).
     _scheduleA11yProxySync();
 
-    return KeyboardListener(
+    // Z1: `Focus` místo `KeyboardListener` — stejný uzel i pozice ve stromě,
+    // navíc konzumace kláves (`handled`/`ignored`) pro odečítač a traversál.
+    return Focus(
       focusNode: _mainFocusNode,
       onKeyEvent: _handleKeyboardInput,
       child: Scaffold(
@@ -14487,7 +14714,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 s.copyWith(dotMatrixZoom: 1.0, resultZoom: 1.0),
                           );
                         },
-                        onTap: () => _mainFocusNode.requestFocus(),
+                        onTap: () {
+                          // Z1: dotyk na displej je explicitní aktivace
+                          // režimu ovládání výrazu (viz proxy onTap).
+                          _expressionControlActive = true;
+                          _expressionControlOffReason =
+                              _ExpressionControlOffReason.none;
+                          _mainFocusNode.requestFocus();
+                        },
                         child: Container(
                           margin: EdgeInsets.all(8 * s),
                           padding: EdgeInsets.symmetric(

@@ -60,10 +60,7 @@ void main() {
     await tester.pumpWidget(ScientificCalculatorApp(locale: locale));
     await tester.pumpAndSettle();
     final state = tester.state(find.byType(CalculatorScreen)) as dynamic;
-    final keys = tester.widget<KeyboardListener>(
-      find.byType(KeyboardListener).first,
-    );
-    keys.focusNode.requestFocus();
+    (state.mainFocusNodeForTest as FocusNode).requestFocus();
     await tester.pumpAndSettle();
     return state;
   }
@@ -374,10 +371,8 @@ void main() {
       expect(proxyFocus.canRequestFocus, isTrue);
       expect(proxyFocus.hasFocus, isFalse);
       // Klávesnicový focus zůstává na hlavním uzlu.
-      final keys = tester.widget<KeyboardListener>(
-        find.byType(KeyboardListener).first,
-      );
-      expect(keys.focusNode.hasFocus, isTrue);
+      final FocusNode mainFocus = state.mainFocusNodeForTest as FocusNode;
+      expect(mainFocus.hasFocus, isTrue);
       // Proxy je read-only → žádný input connection, žádná klávesnice.
       final EditableText proxy = tester.widget<EditableText>(
         find.byType(EditableText),

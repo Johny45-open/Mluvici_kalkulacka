@@ -61,11 +61,8 @@ void main() {
     await tester.pumpWidget(ScientificCalculatorApp(locale: locale));
     await tester.pumpAndSettle();
     final state = tester.state(find.byType(CalculatorScreen)) as dynamic;
-    // Klávesové testy potřebují fokus na _mainFocusNode (KeyboardListener).
-    final keys = tester.widget<KeyboardListener>(
-      find.byType(KeyboardListener).first,
-    );
-    keys.focusNode.requestFocus();
+    // Klávesové testy potřebují fokus na _mainFocusNode (Z1: Focus).
+    (state.mainFocusNodeForTest as FocusNode).requestFocus();
     await tester.pumpAndSettle();
     return state;
   }
@@ -359,21 +356,35 @@ void main() {
       state.setDisplayForTest('12+3', 2);
       await tester.pumpAndSettle();
 
-      final keys = tester.widget<KeyboardListener>(
-        find.byType(KeyboardListener).first,
-      );
-      expect(keys.focusNode.hasFocus, isTrue);
+      final FocusNode mainFocus = state.mainFocusNodeForTest as FocusNode;
+      expect(mainFocus.hasFocus, isTrue);
 
       state.showHistoryDialogForTest();
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsWidgets);
+      // Z1: otevření dialogu vypíná režim ovládání výrazu.
+      expect(state.expressionControlActiveForTest, isFalse);
 
       Navigator.of(state.contextForTest as BuildContext).pop();
       await tester.pumpAndSettle();
       // Focus restore observer vrací focus openeru se zpožděním 150 ms.
       await tester.pump(const Duration(milliseconds: 300));
-      expect(keys.focusNode.hasFocus, isTrue);
+      expect(mainFocus.hasFocus, isTrue);
+      // Z1-reaktivace-po-dialogu: návrat fokusu režim sám neaktivuje —
+      // první šipka armuje bez pohybu kurzoru (handled).
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(state.cursorForTest, 2);
+      expect(state.expressionControlActiveForTest, isTrue);
 
+      // Po výslovné aktivaci displeje šipky opět fungují (produkční onTap).
+      final displayTap = find.byWidgetPredicate(
+        (w) => w is GestureDetector && w.onDoubleTap != null,
+      );
+      expect(displayTap, findsOneWidget);
+      tester.widget<GestureDetector>(displayTap).onTap!();
+      await tester.pumpAndSettle();
+      expect(state.expressionControlActiveForTest, isTrue);
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
       await tester.pumpAndSettle();
       expect(state.cursorForTest, 1);

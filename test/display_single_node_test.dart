@@ -65,10 +65,7 @@ void main() {
     await tester.pumpWidget(ScientificCalculatorApp(locale: locale));
     await tester.pumpAndSettle();
     final state = tester.state(find.byType(CalculatorScreen)) as dynamic;
-    final keys = tester.widget<KeyboardListener>(
-      find.byType(KeyboardListener).first,
-    );
-    keys.focusNode.requestFocus();
+    (state.mainFocusNodeForTest as FocusNode).requestFocus();
     await tester.pumpAndSettle();
     return state;
   }
@@ -420,10 +417,10 @@ void main() {
       await tester.tap(find.byType(EditableText));
       await tester.pumpAndSettle();
 
-      final keys = tester.widget<KeyboardListener>(
-        find.byType(KeyboardListener).first,
-      );
-      expect(keys.focusNode.hasFocus, isTrue);
+      final FocusNode mainFocus = state.mainFocusNodeForTest as FocusNode;
+      expect(mainFocus.hasFocus, isTrue);
+      // Z1: tap na displej je explicitní aktivace režimu ovládání výrazu.
+      expect(state.expressionControlActiveForTest, isTrue);
       // Výraz zůstal nedotčen, kurzor také.
       expect(state.displayForTest, '12+3');
       expect(state.cursorForTest, 2);
