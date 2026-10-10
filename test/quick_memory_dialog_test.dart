@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mluvici_kalkulacka/main.dart';
@@ -23,7 +25,11 @@ void main() {
 
   const memoryVars = ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'];
 
+  /// Zachycené vlastní TTS promluvy (Z2-10).
+  final List<String> ttsLog = [];
+
   setUp(() {
+    ttsLog.clear();
     SharedPreferences.setMockInitialValues(<String, Object>{
       'accessibilityType': 0,
       'modeQuestionAsked': true,
@@ -55,7 +61,12 @@ void main() {
 
     messenger.setMockMethodCallHandler(
       const MethodChannel('flutter_tts'),
-      (MethodCall call) async => null,
+      (MethodCall call) async {
+        if (call.method == 'speak') {
+          ttsLog.add(call.arguments as String? ?? '');
+        }
+        return null;
+      },
     );
 
     messenger.setMockMethodCallHandler(
@@ -499,6 +510,322 @@ void main() {
       state.calculateForTest();
       await tester.pumpAndSettle();
       expect(state.lastNumericForTest, 50.0);
+    });
+  });
+
+  group('Z2 dialog Pamet: rezim, kontext a fokus', () {
+    /// Všechny uzly Semantics stromu v DFS pořadí.
+    List<SemanticsNode> allSemanticsNodes(WidgetTester tester) {
+      final owner = tester.binding.pipelineOwner.semanticsOwner;
+      expect(owner, isNotNull, reason: 'Vyžaduje ensureSemantics()');
+      final out = <SemanticsNode>[];
+      void visit(SemanticsNode node) {
+        out.add(node);
+        node.visitChildren((child) {
+          visit(child);
+          return true;
+        });
+      }
+
+      visit(owner!.rootSemanticsNode!);
+      return out;
+    }
+
+    /// Segmentové popisky přepínače režimů (cs/en podle locale testu).
+    const insertLabels = {'Vložit proměnnou', 'Insert variable'};
+    const storeLabels = {'Uložit hodnotu', 'Store value'};
+    const recallLabels = {'Vyvolat proměnnou', 'Recall variable'};
+
+    /// Primární fokus leží uvnitř otevřeného dialogu.
+    bool primaryFocusInsideDialog() {
+      final primary = FocusManager.instance.primaryFocus;
+      if (primary == null || primary.context == null) return false;
+      try {
+        return primary.context!.findAncestorWidgetOfExactType<AlertDialog>() !=
+            null;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    bool memoryIsEmpty(dynamic state) =>
+        memoryVars.every((v) => (state.memoryForTest[v] as double) == 0.0);
+
+    testWidgets('Z2-1. vychozi rezim insert, otevreni nic nemeni',
+        (tester) async {
+      final state = await pumpApp(tester);
+      state.setDisplayForTest('', 0);
+      await tester.pump();
+      await openQuickMemory(tester);
+      // Nadpis + heading vložení, instrukce o neškodném otevření.
+      expect(textAny(['Paměť', 'Memory']), findsWidgets);
+      expect(
+        textAny([
+          'Vložit proměnnou do výrazu:',
+          'Insert variable into expression:',
+        ]),
+        findsOneWidget,
+      );
+      expect(
+        textAny([
+          'Vyberte operaci s pamětí. Samotné otevření dialogu nic nemění.',
+          'Choose a memory operation. Opening the dialog changes nothing.',
+        ]),
+        findsOneWidget,
+      );
+      expect(memoryIsEmpty(state), isTrue);
+      expect(state.displayForTest, '');
+      // SegmentedButton nese vybraný insert (typový parametr je privátní,
+      // proto raw predicate + toString enum hodnoty).
+      final segFinder = find.byWidgetPredicate((w) => w is SegmentedButton);
+      expect(segFinder, findsOneWidget);
+      final seg = tester.widget<SegmentedButton<dynamic>>(segFinder);
+      expect(seg.selected, hasLength(1));
+      expect(seg.selected.single.toString(), contains('insert'));
+    });
+
+    testWidgets('Z2-2. vybrany rezim je selected, ne disabled', (tester) async {
+      final handle = tester.ensureSemantics();
+      try {
+        await pumpApp(tester);
+        await openQuickMemory(tester);
+        // Skupinové uzly (mutex): label + selected + enabled na jednom uzlu.
+        // Pozn.: isSelected/isEnabled jsou Tristate (dart:ui).
+        final mutexNodes = allSemanticsNodes(tester).where((n) {
+          final d = n.getSemanticsData();
+          return d.flagsCollection.isInMutuallyExclusiveGroup &&
+              (insertLabels.contains(d.label) ||
+                  storeLabels.contains(d.label) ||
+                  recallLabels.contains(d.label));
+        }).toList();
+        expect(mutexNodes, hasLength(3), reason: 'Tři režimy ve skupině');
+        bool isSel(SemanticsNode n) =>
+            n.getSemanticsData().flagsCollection.isSelected ==
+            Tristate.isTrue;
+        for (final s in mutexNodes) {
+          // Žádný režim nesmí být prezentován jako zakázaný.
+          expect(
+            s.getSemanticsData().flagsCollection.isEnabled == Tristate.isTrue,
+            isTrue,
+          );
+        }
+        bool isInsert(SemanticsNode n) =>
+            insertLabels.contains(n.getSemanticsData().label);
+        expect(mutexNodes.where(isSel), hasLength(1));
+        expect(isInsert(mutexNodes.singleWhere(isSel)), isTrue);
+        // Tlačítkové uzly režimů existují s přesnými popisky, všechny enabled.
+        final buttonLabels = allSemanticsNodes(tester)
+            .where(
+              (n) =>
+                  n.getSemanticsData().flagsCollection.isButton == true &&
+                  (insertLabels.contains(n.getSemanticsData().label) ||
+                      storeLabels.contains(n.getSemanticsData().label) ||
+                      recallLabels.contains(n.getSemanticsData().label)),
+            )
+            .map((n) => n.getSemanticsData().label)
+            .toSet();
+        expect(buttonLabels.length, 3);
+      } finally {
+        handle.dispose();
+      }
+    });
+
+    testWidgets('Z2-3. prepnuti rezimu meni obsah, neprovadi operaci',
+        (tester) async {
+      final state = await pumpApp(tester);
+      state.setDisplayForTest('', 0);
+      await tester.pump();
+      await openQuickMemory(tester);
+
+      await tester.tap(textAny(['Uložit hodnotu', 'Store value']));
+      await tester.pumpAndSettle();
+      expect(
+        textAny(['Uložit aktuální hodnotu do:', 'Save current value to:']),
+        findsOneWidget,
+      );
+      expect(memoryIsEmpty(state), isTrue);
+      expect(state.displayForTest, '');
+
+      await tester.tap(textAny(['Vyvolat proměnnou', 'Recall variable']));
+      await tester.pumpAndSettle();
+      expect(
+        textAny(['Vyvolat proměnnou:', 'Recall variable:']),
+        findsOneWidget,
+      );
+      expect(memoryIsEmpty(state), isTrue);
+      expect(state.displayForTest, '');
+
+      await tester.tap(textAny(['Vložit proměnnou', 'Insert variable']));
+      await tester.pumpAndSettle();
+      expect(
+        textAny([
+          'Vložit proměnnou do výrazu:',
+          'Insert variable into expression:',
+        ]),
+        findsOneWidget,
+      );
+      expect(memoryIsEmpty(state), isTrue);
+      // Dialog je stále otevřený — přepnutí nic nezavřelo ani neuložilo.
+      expect(find.byType(AlertDialog), findsOneWidget);
+    });
+
+    testWidgets('Z2-4. titulek a instrukce v semantickem stromu',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      try {
+        await pumpApp(tester);
+        await openQuickMemory(tester);
+        final nodes = allSemanticsNodes(tester);
+        final titles = nodes.where(
+          (n) =>
+              n.getSemanticsData().label == 'Paměť' ||
+              n.getSemanticsData().label == 'Memory',
+        );
+        expect(titles, hasLength(1));
+        expect(
+          titles.single.getSemanticsData().flagsCollection.isHeader,
+          isTrue,
+        );
+        final instructions = nodes.where(
+          (n) =>
+              n.getSemanticsData().label.contains('Samotné otevření') ||
+              n.getSemanticsData().label.contains('changes nothing'),
+        );
+        expect(instructions, hasLength(1));
+      } finally {
+        handle.dispose();
+      }
+    });
+
+    testWidgets('Z2-5. prvni fokus je deterministicky, nic se nespusti',
+        (tester) async {
+      final state = await pumpApp(tester);
+      state.setDisplayForTest('', 0);
+      await tester.pump();
+      await openQuickMemory(tester);
+      // Standardní cesta AlertDialogu: primární fokus drží scope dialogu
+      // (nikoli hlavní klávesnice), první Tab vede dovnitř obsahu.
+      final primary = FocusManager.instance.primaryFocus;
+      expect(primary, isNotNull);
+      expect(
+        primary,
+        isNot(state.mainFocusNodeForTest as FocusNode),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(primaryFocusInsideDialog(), isTrue);
+      // Žádná operace se automaticky nespustila.
+      expect(
+        memoryVars.every((v) => (state.memoryForTest[v] as double) == 0.0),
+        isTrue,
+      );
+      expect(state.displayForTest, '');
+      expect(find.byType(AlertDialog), findsOneWidget);
+    });
+
+    testWidgets('Z2-7. zavreni vrati fokus dle mechanismu', (tester) async {
+      final state = await pumpApp(tester);
+      await openQuickMemory(tester);
+      await tester.tap(textAny(['ZAVŘÍT', 'CLOSE']));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      // Obnova fokusu (observer 150 ms + _returnFocusToKeyboard).
+      await tester.pump(const Duration(milliseconds: 300));
+      final FocusNode main = state.mainFocusNodeForTest as FocusNode;
+      expect(
+        FocusManager.instance.primaryFocus,
+        main,
+        reason: 'Fokus se vrátil na hlavní uzel klávesnice',
+      );
+    });
+
+    testWidgets('Z2-8. vnorene dialogy a _dialogDepth ze Z1', (tester) async {
+      final state = await pumpApp(tester);
+      state.setMemoryForTest('A', 10.0);
+      await tester.pump();
+      await openQuickMemory(tester);
+      expect(state.dialogDepthForTest, 1);
+      // Vnořený potvrzovací dialog vymazání.
+      await tester.tap(textAny(['Vymazat paměť', 'Clear memory']));
+      await tester.pumpAndSettle();
+      expect(state.dialogDepthForTest, 2);
+      expect(find.byType(AlertDialog), findsWidgets);
+      // Zavřít jen vnořený…
+      Navigator.of(state.contextForTest as BuildContext).pop();
+      await tester.pumpAndSettle();
+      expect(state.dialogDepthForTest, 1);
+      // …pak i vnější, fokus se obnoví.
+      Navigator.of(state.contextForTest as BuildContext).pop();
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(state.dialogDepthForTest, 0);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('Z2-9. otevreni negeneruje duplicitni oznameni', (tester) async {
+      final state = await pumpApp(tester);
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
+      );
+      await tester.pumpAndSettle();
+      expect(state.isScreenReaderActiveForTest, isTrue);
+      final before = state.lastAnnouncementForTest as String;
+      await openQuickMemory(tester);
+      // Aplikační kanál při otevření nic nepublikuje (žádný speak/announce).
+      expect(state.lastAnnouncementForTest as String, before);
+      // Přepnutí režimu je při aktivní čtečce rovněž tiché (segment oznámí
+      // sama čtečka skrze selected sémantiku).
+      await tester.tap(textAny(['Uložit hodnotu', 'Store value']));
+      await tester.pumpAndSettle();
+      expect(state.lastAnnouncementForTest as String, before);
+      expect(ttsLog, isEmpty);
+      // Opakovaný tap aktivního segmentu: ticho.
+      await tester.tap(textAny(['Uložit hodnotu', 'Store value']));
+      await tester.pumpAndSettle();
+      expect(state.lastAnnouncementForTest as String, before);
+      expect(ttsLog, isEmpty);
+    });
+
+    testWidgets('Z2-10. zmena rezimu bez ctecky oznami prave jednou',
+        (tester) async {
+      final state = await pumpApp(tester);
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(screenReaderMode: ScreenReaderMode.off),
+      );
+      await tester.pumpAndSettle();
+      expect(state.isScreenReaderActiveForTest, isFalse);
+      await openQuickMemory(tester);
+      // Otevření s neaktivní čtečkou oznámí hlas kalkulačky právě jednou
+      // (titul + instrukce + výchozí režim).
+      expect(ttsLog, hasLength(1));
+      expect(
+        ttsLog.single.contains('Paměť') || ttsLog.single.contains('Memory'),
+        isTrue,
+      );
+
+      // Přepnutí insert → store: právě jedna další TTS promluva s nadpisem.
+      await tester.tap(textAny(['Uložit hodnotu', 'Store value']));
+      await tester.pumpAndSettle();
+      expect(ttsLog, hasLength(2));
+      expect(
+        ttsLog.last.contains('Uložit') || ttsLog.last.contains('Save'),
+        isTrue,
+      );
+      // Semantics kanál mlčí (žádná čtečka).
+      final announced = state.lastAnnouncementForTest as String;
+      // Opakovaný tap aktivního segmentu: ticho, žádná operace.
+      await tester.tap(textAny(['Uložit hodnotu', 'Store value']));
+      await tester.pumpAndSettle();
+      expect(ttsLog, hasLength(2));
+      expect(state.lastAnnouncementForTest as String, announced);
+      // Přepnutí na recall: opět právě jedna nová promluva.
+      await tester.tap(textAny(['Vyvolat proměnnou', 'Recall variable']));
+      await tester.pumpAndSettle();
+      expect(ttsLog, hasLength(3));
+      expect(
+        ttsLog.last.contains('Vyvolat') || ttsLog.last.contains('Recall'),
+        isTrue,
+      );
     });
   });
 }

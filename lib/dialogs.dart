@@ -1189,6 +1189,30 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
   _QuickMemAction _action = _QuickMemAction.insert;
   bool _showOverview = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Hlas kalkulačky oznámí kontext dialogu (titul + instrukce + aktuální
+    // režim) JEN bez aktivní čtečky — ta dialog ohlásí sama a duplicitní
+    // promluva by rušila. Jednotný kanál announceEvent, žádné přímé TTS.
+    final parent = widget.parent;
+    if (parent._isScreenReaderActive != true) {
+      parent.announceEvent(
+        '${parent._l10n.sectionMemory}. '
+        '${parent._s(
+          'Vyberte operaci s pamětí. Samotné otevření dialogu nic nemění.',
+          'Choose a memory operation. Opening the dialog changes nothing.',
+        )} '
+        '${switch (_action) {
+          _QuickMemAction.insert => parent._l10n.quickMemoryInsertTitle,
+          _QuickMemAction.store => parent._l10n.quickMemorySaveTo,
+          _QuickMemAction.recall => parent._l10n.quickMemoryRecallTitle,
+        }}',
+        category: SpeechCategory.actionConfirm,
+      );
+    }
+  }
+
   Widget _variableGrid(
     BuildContext ctx, {
     required String Function(String) semanticLabelFor,
@@ -1304,6 +1328,13 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
       content = [_overviewList()];
     } else {
       content = [
+        Text(
+          parent._s(
+            'Vyberte operaci s pamětí. Samotné otevření dialogu nic nemění.',
+            'Choose a memory operation. Opening the dialog changes nothing.',
+          ),
+        ),
+        const SizedBox(height: 8),
         _modeSwitch(parent),
         const SizedBox(height: 8),
         _modeContent(context, parent),
@@ -1326,35 +1357,58 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
     );
   }
 
-  /// Přepínač tří jasně rozlišených operací (standardní tlačítka, žádná
-  /// nová Semantics). Výchozí je vložení symbolu.
+  /// Výběr právě jednoho ze tří režimů standardním `SegmentedButton`
+  /// (stejný vzor jako přepínače v Quick Setup / nastavení přístupnosti).
+  /// Vybraný režim nese v Semantics `selected` (nikoli `disabled`), takže
+  /// čtečka oznámí stav i pořadí. Výběr pouze přepíná obsah dialogu —
+  /// nikdy sám neukládá, nevyvolává ani nevkládá. Výchozí je vložení symbolu.
   Widget _modeSwitch(_CalculatorScreenState parent) {
-    Widget tab(_QuickMemAction value, String label) {
-      final selected = _action == value;
-      return Expanded(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: selected
-              ? ElevatedButton(
-                  onPressed: null,
-                  child: Text(label),
-                )
-              : TextButton(
-                  onPressed: () => setState(() {
-                    _action = value;
-                  }),
-                  child: Text(label),
-                ),
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        tab(_QuickMemAction.insert, parent._l10n.memoryInsertAction),
-        tab(_QuickMemAction.store, parent._l10n.memoryStoreAction),
-        tab(_QuickMemAction.recall, parent._l10n.memoryRecallAction),
-      ],
+    return Semantics(
+      label: parent._s('Operace s pamětí', 'Memory operation'),
+      container: true,
+      explicitChildNodes: true,
+      child: SegmentedButton<_QuickMemAction>(
+        segments: [
+          ButtonSegment(
+            value: _QuickMemAction.insert,
+            label: Text(parent._l10n.memoryInsertAction),
+          ),
+          ButtonSegment(
+            value: _QuickMemAction.store,
+            label: Text(parent._l10n.memoryStoreAction),
+          ),
+          ButtonSegment(
+            value: _QuickMemAction.recall,
+            label: Text(parent._l10n.memoryRecallAction),
+          ),
+        ],
+        selected: {_action},
+        showSelectedIcon: false,
+        onSelectionChanged: (sel) {
+          if (sel.isEmpty) return;
+          final next = sel.first;
+          // Opakovaný tap aktivního segmentu: žádná změna, žádné oznámení.
+          if (next == _action) return;
+          setState(() {
+            _action = next;
+          });
+          // Z2-oznámení: změnu režimu slyší jen uživatel bez aktivní čtečky
+          // (vlastní TTS jedním kanálem). Při aktivní čtečce mlčíme — ta sama
+          // oznámí vybraný segment (viz selected sémantika). Text = existující
+          // nadpis režimu, žádné nové lokalizační řetězce.
+          if (parent._isScreenReaderActive != true) {
+            parent.announceEvent(
+              switch (next) {
+                _QuickMemAction.insert =>
+                  parent._l10n.quickMemoryInsertTitle,
+                _QuickMemAction.store => parent._l10n.quickMemorySaveTo,
+                _QuickMemAction.recall => parent._l10n.quickMemoryRecallTitle,
+              },
+              category: SpeechCategory.actionConfirm,
+            );
+          }
+        },
+      ),
     );
   }
 

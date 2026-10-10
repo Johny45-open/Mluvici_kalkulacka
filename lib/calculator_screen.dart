@@ -10285,7 +10285,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _showQuickMemoryDialog() {
     showAppDialog(
       context: context,
-      routeSettings: const RouteSettings(name: 'Rychlá paměť'),
+      // Z2: lokalizovaný název routy (dříve natvrdo česky).
+      routeSettings: RouteSettings(
+        name: _s('Rychlá paměť', 'Quick memory'),
+      ),
       builder: (context) => _QuickMemoryDialog(parent: this),
     ).then((_) => _returnFocusToKeyboard());
   }
