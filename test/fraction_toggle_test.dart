@@ -262,12 +262,14 @@ void main() {
       await tester.pumpAndSettle();
       final text = tester.widget<Text>(find.text('3/4'));
       expect(text.style?.fontFamily, 'MathText');
+      // Z4: text kryjí dvě ExcludeSemantics (renderer + výsledkový scroller),
+      // vlastní sémantiku tedy nemá o to jistěji.
       expect(
         find.ancestor(
           of: find.text('3/4'),
           matching: find.byType(ExcludeSemantics),
         ),
-        findsOneWidget,
+        findsWidgets,
       );
       // Globalni rezim se nezmenil.
       expect(state.resultDisplayModeForTest.toString(), contains('segment'));

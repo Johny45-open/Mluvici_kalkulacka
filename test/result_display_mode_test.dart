@@ -231,12 +231,14 @@ void main() {
       // Surd text je ve fontu MathText a bez vlastní semantics.
       final text = tester.widget<Text>(find.text('6√2'));
       expect(text.style?.fontFamily, 'MathText');
+      // Z4: text kryjí dvě ExcludeSemantics (renderer + výsledkový scroller),
+      // vlastní sémantiku tedy nemá o to jistěji.
       expect(
         find.ancestor(
           of: find.text('6√2'),
           matching: find.byType(ExcludeSemantics),
         ),
-        findsOneWidget,
+        findsWidgets,
       );
       expect(tester.takeException(), isNull);
     });

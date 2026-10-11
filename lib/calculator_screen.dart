@@ -14928,25 +14928,36 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                               // Renderery uvnitř jsou
                                               // ExcludeSemantics/CustomPaint,
                                               // takže nevzniká duplicitní
-                                              // čtení výsledku.
+                                              // čtení výsledku. Vnitřní
+                                              // horizontální scroller je čistě
+                                              // vizuální: ExcludeSemantics z něj
+                                              // odstraní i scroll-uzel s akcemi,
+                                              // který by jinak tvořil němou
+                                              // zastávku mezi výsledkem a dalším
+                                              // prvkem (Z4). Vizuální posouvání,
+                                              // controller ani onTap tím nejsou
+                                              // dotčeny; plnou hodnotu nese
+                                              // value vnějšího uzlu.
                                               _buildResultA11yNode(
                                                 child: SizedBox(
                                                   width: double.infinity,
                                                   height: segH * fitScale,
                                                   child: Align(
                                                     alignment: Alignment.center,
-                                                    child:
-                                                        SingleChildScrollView(
-                                                          controller:
-                                                              _scrollControllerResultH,
-                                                          scrollDirection:
-                                                              Axis.horizontal,
-                                                          child:
-                                                              _buildMainResultDisplay(
-                                                                fitScale:
-                                                                    fitScale,
-                                                              ),
-                                                        ),
+                                                    child: ExcludeSemantics(
+                                                      child:
+                                                          SingleChildScrollView(
+                                                            controller:
+                                                                _scrollControllerResultH,
+                                                            scrollDirection: Axis
+                                                                .horizontal,
+                                                            child:
+                                                                _buildMainResultDisplay(
+                                                                  fitScale:
+                                                                      fitScale,
+                                                                ),
+                                                          ),
+                                                    ),
                                                   ),
                                                 ),
                                               ),
