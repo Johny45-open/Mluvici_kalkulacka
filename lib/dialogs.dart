@@ -1192,12 +1192,14 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
   @override
   void initState() {
     super.initState();
-    // Hlas kalkulačky oznámí kontext dialogu (titul + instrukce + aktuální
-    // režim) JEN bez aktivní čtečky — ta dialog ohlásí sama a duplicitní
-    // promluva by rušila. Jednotný kanál announceEvent, žádné přímé TTS.
+    // Vstupní kontext dialogu (titul + instrukce + aktuální režim) se ohlašuje
+    // právě jednou, vždy přes centrální announceEvent — ten sám zvolí kanál
+    // podle režimu čtečky (aktivní → přístupnostní kanál, neaktivní → vlastní
+    // TTS, UNKNOWN/auto → ticho). Žádný paralelní speak(), žádné přímé
+    // SemanticsService volání. Post-frame + mounted: zpráva odejde až po
+    // připojení dialogu a nikdy po jeho zániku.
     final parent = widget.parent;
-    if (parent._isScreenReaderActive != true) {
-      parent.announceEvent(
+    final message =
         '${parent._l10n.sectionMemory}. '
         '${parent._s(
           'Vyberte operaci s pamětí. Samotné otevření dialogu nic nemění.',
@@ -1207,10 +1209,11 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
           _QuickMemAction.insert => parent._l10n.quickMemoryInsertTitle,
           _QuickMemAction.store => parent._l10n.quickMemorySaveTo,
           _QuickMemAction.recall => parent._l10n.quickMemoryRecallTitle,
-        }}',
-        category: SpeechCategory.actionConfirm,
-      );
-    }
+        }}';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      parent.announceEvent(message, category: SpeechCategory.actionConfirm);
+    });
   }
 
   Widget _variableGrid(

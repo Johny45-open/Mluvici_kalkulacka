@@ -762,28 +762,89 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
     });
 
-    testWidgets('Z2-9. otevreni negeneruje duplicitni oznameni', (tester) async {
+    testWidgets('Z2-9. otevreni s aktivni cteckou jde pristupnostnim kanalem',
+        (tester) async {
       final state = await pumpApp(tester);
       state.updateActiveSettingsForTest(
         (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
       );
       await tester.pumpAndSettle();
       expect(state.isScreenReaderActiveForTest, isTrue);
-      final before = state.lastAnnouncementForTest as String;
       await openQuickMemory(tester);
-      // Aplikační kanál při otevření nic nepublikuje (žádný speak/announce).
-      expect(state.lastAnnouncementForTest as String, before);
-      // Přepnutí režimu je při aktivní čtečce rovněž tiché (segment oznámí
+      // Vstupní zpráva (titul + instrukce + výchozí operace) přes kanál
+      // čtečky, nikoli přes vlastní TTS.
+      final announced = state.lastAnnouncementForTest as String;
+      expect(announced.contains('Paměť') || announced.contains('Memory'),
+          isTrue);
+      expect(
+          announced.contains('Samotné otevření') ||
+              announced.contains('Choose a memory operation'),
+          isTrue);
+      expect(
+          announced.contains('Vložit proměnnou') ||
+              announced.contains('Insert variable'),
+          isTrue);
+      expect(ttsLog, isEmpty);
+      // Přepnutí režimu je při aktivní čtečce nadále tiché (segment oznámí
       // sama čtečka skrze selected sémantiku).
       await tester.tap(textAny(['Uložit hodnotu', 'Store value']));
       await tester.pumpAndSettle();
-      expect(state.lastAnnouncementForTest as String, before);
+      expect(state.lastAnnouncementForTest as String, announced);
       expect(ttsLog, isEmpty);
       // Opakovaný tap aktivního segmentu: ticho.
       await tester.tap(textAny(['Uložit hodnotu', 'Store value']));
       await tester.pumpAndSettle();
-      expect(state.lastAnnouncementForTest as String, before);
+      expect(state.lastAnnouncementForTest as String, announced);
       expect(ttsLog, isEmpty);
+    });
+
+    testWidgets('Z2-11. auto s detekovanou cteckou bez interniho TTS',
+        (tester) async {
+      // Detekce hlásí aktivní odečítač ještě před startem aplikace.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
+        (MethodCall call) async => true,
+      );
+      final state = await pumpApp(tester);
+      await tester.pumpAndSettle();
+      // Výchozí režim je auto → detekce rozhoduje.
+      expect(state.isScreenReaderActiveForTest, isTrue);
+      state.setDisplayForTest('', 0);
+      await tester.pump();
+      await openQuickMemory(tester);
+      final announced = state.lastAnnouncementForTest as String;
+      expect(announced.contains('Paměť') || announced.contains('Memory'),
+          isTrue);
+      expect(
+          announced.contains('Samotné otevření') ||
+              announced.contains('Choose a memory operation'),
+          isTrue);
+      expect(
+          announced.contains('Vložit proměnnou') ||
+              announced.contains('Insert variable'),
+          isTrue);
+      expect(ttsLog, isEmpty);
+      // Bez vedlejších účinků na výraz a paměť.
+      expect(state.displayForTest, '');
+    });
+
+    testWidgets('Z2-12. rebuild vstupni zpravu neposle podruhe',
+        (tester) async {
+      final state = await pumpApp(tester);
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(screenReaderMode: ScreenReaderMode.off),
+      );
+      await tester.pumpAndSettle();
+      await openQuickMemory(tester);
+      expect(ttsLog, hasLength(1));
+      // Opakované rebuildy bez změny stavu: žádné další oznámení.
+      for (var i = 0; i < 5; i++) {
+        state.updateActiveSettingsForTest((s) => s);
+        await tester.pumpAndSettle();
+      }
+      expect(ttsLog, hasLength(1));
+      expect(find.byType(AlertDialog), findsOneWidget);
     });
 
     testWidgets('Z2-10. zmena rezimu bez ctecky oznami prave jednou',
