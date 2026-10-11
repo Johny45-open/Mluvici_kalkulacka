@@ -627,6 +627,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// Poslední publikované oznámení bez ohledu na kanál (i pro testy).
   String _lastPublishedAnnouncement = '';
 
+  /// Počet publikování Semantics kanálem (Z3-krok 0, pouze pro testy).
+  /// Inkrementuje se při každém zveřejnění v [_publishSemanticsAnnouncement],
+  /// včetně opakovaného zveřejnění stejného textu. Nemá vliv na výběr
+  /// kanálu, obsah zpráv ani chování čtečky — měří publikování na straně
+  /// aplikace, nikoli skutečný počet vyslovení NVDA/TalkBack.
+  int _publishedAnnouncementCount = 0;
+
   bool _scientificFunctionsPage = false;
   String? _scientificPageAnnouncement;
 
@@ -2818,7 +2825,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (release != null) {
       await _showUpdateDialog(release);
     } else {
-      speak(_l10n.appIsCurrent);
+      // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
       _showAccessibleSnackBar(_l10n.appIsCurrent);
     }
   }
@@ -3488,6 +3495,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _publishSemanticsAnnouncement(String formatted) {
     if (formatted.isEmpty || !mounted) return;
     _lastPublishedAnnouncement = formatted;
+    _publishedAnnouncementCount++;
     if (!Platform.isWindows) {
       setState(() {
         _lastAnnouncement = formatted;
@@ -7102,7 +7110,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     _applyActiveProfileToState();
                     _saveProfilesV2();
                     Navigator.pop(ctx);
-                    speak(_s('Profil $name vytvořen', 'Profile $name created'));
+                    // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
                     _showAccessibleSnackBar(
                       _s('Profil $name vytvořen', 'Profile $name created'),
                     );
@@ -7133,7 +7141,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final active = _getActiveAccessibilityProfile();
     resetProfile(active.id);
     final name = _displayProfileName(active);
-    speak(_s('Profil $name obnoven', 'Profile $name reset'));
+    // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
     _showAccessibleSnackBar(_s('Profil $name obnoven', 'Profile $name reset'));
   }
 
@@ -7888,12 +7896,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _handleDevTap() {
     if (_devPinLockUntil != null &&
         DateTime.now().isBefore(_devPinLockUntil!)) {
-      speak(
-        _s(
-          'Příliš mnoho pokusů, zkuste za chvíli.',
-          'Too many attempts, try later.',
-        ),
-      );
+      // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
       if (mounted) {
         _showAccessibleSnackBar(
           _s(
@@ -7926,7 +7929,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         onSuccess: () {
           setState(() => _devModeEnabled = true);
           _saveSettings();
-          speak(_s('Vývojářský režim aktivován', 'Developer mode activated'));
+          // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
           if (mounted) {
             _showAccessibleSnackBar(
               _s('Vývojářský režim aktivován', 'Developer mode activated'),
@@ -8011,12 +8014,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   onSuccess: () {
                     setState(() => _devModeEnabled = false);
                     _saveSettings();
-                    speak(
-                      _s(
-                        'Vývojářský režim deaktivován',
-                        'Developer mode deactivated',
-                      ),
-                    );
+                    // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
                     if (mounted) {
                       _showAccessibleSnackBar(
                         _s(
@@ -9030,7 +9028,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } else if (label == 'MC') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
           if (mounted) {
             _showAccessibleSnackBar(
               _s('Není vytvořena žádná sada.', 'No set created.'),
@@ -9043,12 +9041,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         });
         _saveStatsData();
         final setName = _statsSets[_currentStatsSetIndex].name;
-        speak(
-          _s(
-            'Paměť sady $setName byla smazána.',
-            'Memory of set $setName was cleared.',
-          ),
-        );
+        // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
         if (mounted) {
           _showAccessibleSnackBar(
             _s(
@@ -9068,7 +9061,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } else if (label == 'MR') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
           if (mounted) {
             _showAccessibleSnackBar(
               _s('Není vytvořena žádná sada.', 'No set created.'),
@@ -9077,7 +9070,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           return;
         }
         if (_statsMemory.isEmpty) {
-          speak(_statsEmptyMessage());
+          // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
           if (mounted) {
             _showAccessibleSnackBar(_statsEmptyMessage());
           }
@@ -9095,7 +9088,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } else if (label == 'STATS') {
       if (_currentMode == CalculatorMode.statistics) {
         if (!_hasStatsSet) {
-          speak(_s('Není vytvořena žádná sada.', 'No set created.'));
+          // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
           if (mounted) {
             _showAccessibleSnackBar(
               _s('Není vytvořena žádná sada.', 'No set created.'),
@@ -9104,7 +9097,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           return;
         }
         if (_statsMemory.isEmpty) {
-          speak(_statsEmptyMessage());
+          // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
           if (mounted) {
             _showAccessibleSnackBar(_statsEmptyMessage());
           }
@@ -10450,7 +10443,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           'Záznam ${recordIndex + 1} upraven',
                           'Record ${recordIndex + 1} edited',
                         );
-                  speak(editedMsg);
+                  // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
                   if (mounted) {
                     _showAccessibleSnackBar(editedMsg);
                   }
@@ -13215,6 +13208,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @visibleForTesting
   String get lastAnnouncementForTest => _lastPublishedAnnouncement;
 
+  /// Počet publikování Semantics kanálem (Z3-krok 0, pouze pro testy).
+  @visibleForTesting
+  int get publishedAnnouncementCountForTest => _publishedAnnouncementCount;
+
   @visibleForTesting
   bool? get isScreenReaderActiveForTest => _isScreenReaderActive;
 
@@ -13519,7 +13516,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (value == null) {
       final err = resolved.error;
       final msg = err == null ? l10n.infoNoResult : _messageForCalcError(err);
-      speak(msg);
+      // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
       if (mounted) {
         _showAccessibleSnackBar(msg);
       }
@@ -13841,7 +13838,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 _history.clear();
                 _saveHistory();
               });
-              speak(_l10n.historyCleared);
+              // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
               if (mounted) {
                 _showAccessibleSnackBar(_l10n.historyCleared);
               }
@@ -13894,7 +13891,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final hasData = _memory.values.any((v) => v != 0);
     if (!hasData) {
       final msg = _s('Paměť je již prázdná.', 'Memory is already empty.');
-      speak(msg);
+      // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
       if (mounted) {
         _showAccessibleSnackBar(msg);
       }
@@ -13927,7 +13924,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               });
               _saveStatsData();
               final clearedMsg = _memoryClearedMessage(cleared);
-              speak(clearedMsg);
+              // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
               if (mounted) {
                 _showAccessibleSnackBar(clearedMsg);
               }
@@ -13996,7 +13993,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         'Added $valuesStr$countPartEn to set $setName. Memory now contains ${_statsMemory.length} $countForm.',
       );
     }
-    speak(spoken);
+    // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
     if (mounted) {
       _showAccessibleSnackBar(spoken);
     }

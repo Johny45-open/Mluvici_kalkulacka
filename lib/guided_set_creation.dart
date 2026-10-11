@@ -563,13 +563,7 @@ extension on _CalculatorScreenState {
                       if (step == 1) {
                         final parsed = _parseNumberAnswer(countController.text);
                         if (parsed == null || parsed < 1 || parsed > 10) {
-                          speak(
-                            _s(
-                              'Zadejte číslo 1 až 10.',
-                              'Enter a number 1 to 10.',
-                            ),
-                            force: true,
-                          );
+                          // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
                           _showAccessibleSnackBar(
                             _s(
                               'Zadejte číslo 1 až 10.',
