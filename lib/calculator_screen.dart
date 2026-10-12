@@ -81,6 +81,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     skipTraversal: true,
   );
 
+  /// Z5: klávesnicový fokus dolního výsledkového řádku (Tab/Shift+Tab).
+  /// Dlouhodobě spravovaný uzel (stejně jako [_mainFocusNode]): `skipTraversal`
+  /// záměrně false, aby byl výsledek dosažitelný Tabem; `canRequestFocus`
+  /// true, aby šel fokusovat. Žádný `autofocus` — počáteční fokus drží
+  /// [_mainFocusNode]. Vlastní `onKeyEvent` NENÍ: události propadnou
+  /// kořenovému [_handleKeyboardInput] (předek), viz [_buildResultA11yNode].
+  final FocusNode _resultFocusNode = FocusNode(
+    debugLabel: 'resultDisplay',
+    skipTraversal: false,
+    canRequestFocus: true,
+  );
+
+  /// Z5: zda má [_resultFocusNode] právě klávesnicový fokus. Zdroj pravdy je
+  /// fokusový strom (`onFocusChange`); tato hodnota pouze řídí publikaci
+  /// `focused:` na existujícím sémantickém uzlu výsledku a viditelnou
+  /// indikaci (viz [_buildResultA11yNode]).
+  bool _resultHasFocus = false;
+
   /// Zda je naplánován post-frame sync proxy (ochrana před frontou duplicit).
   bool _a11ySyncScheduled = false;
 
@@ -2742,6 +2760,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _voiceCreationSession?.dispose();
     _mainFocusNode.dispose();
     _displayA11yFocusNode.dispose();
+    _resultFocusNode.dispose();
     _displayA11yController.dispose();
     _readingOrderFocusNode.dispose();
     _scrollControllerH.dispose();
@@ -4272,17 +4291,78 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// řádku, takže TalkBack ho najde dotykovým průzkumem i swipem nezávisle
   /// na horním kurzorovém poli. Výsledek je VŽDY viditelný (minimálně
   /// `0.`), proto je uzel ve stromě trvale — nikdy prázdný.
+  /// Z5: uzel je zároveň zastávkou klávesnicového traversálu (Tab/Shift+Tab)
+  /// přes [_resultFocusNode]. `Focus(includeSemantics: false)` sem nepřidává
+  /// žádný vlastní sémantický uzel — stav fokusu publikuje tento existující
+  /// uzel přes `focused: _resultHasFocus` (žádné zastaralé
+  /// `Semantics.focusable`). Vlastní `onKeyEvent` záměrně NENÍ: událost
+  /// nejprve dostane fokusovaný [_resultFocusNode] (nic nekonzumuje) a pak
+  /// propadne kořenovému [_handleKeyboardInput] na [_mainFocusNode] (předek
+  /// celého stromu). Důsledky ověřené auditem handleru: číslice/operátory
+  /// dál píší do vstupního displeje i při fokusu výsledku; šipky/Home/End
+  /// vyžadují `_mainFocusNode.hasPrimaryFocus`, takže při fokusu výsledku
+  /// kurzorem výrazu nehýbou; mezerník handler ignoruje; Enter globálně
+  /// přepočítá stejně jako při fokusu kteréhokoli tlačítka (výraz ani kurzor
+  /// nemění), proto se zde neošetřuje.
   Widget _buildResultA11yNode({required Widget child}) {
     final String speech = _currentResultSpeech();
-    return Semantics(
-      container: true,
-      label: _l10n.resultLabel,
-      value: speech,
-      onTap: () {
-        _mainFocusNode.requestFocus();
-        speak(speech);
+    return Focus(
+      focusNode: _resultFocusNode,
+      includeSemantics: false,
+      onFocusChange: (hasFocus) {
+        if (!mounted) return;
+        setState(() => _resultHasFocus = hasFocus);
+        // Konvence tlačítek (viz buildButton): při neaktivní čtečce ohlásí
+        // fokus TTS; při aktivní čtečce čte NVDA/TalkBack ze sémantiky sám.
+        if (hasFocus && _isScreenReaderActive != true) speak(speech);
       },
-      child: child,
+      child: Semantics(
+        container: true,
+        label: _l10n.resultLabel,
+        value: speech,
+        focused: _resultHasFocus,
+        onTap: () {
+          // Z5: aktivace při klávesnicovém fokusu výsledku nesmí krást fokus
+          // zpět na vstup (jinak by Tab-zastávka ztrácela smysl). Dotyk
+          // a TalkBack (fokus jinde) dál vracejí řízení klávesnici.
+          if (!_resultFocusNode.hasPrimaryFocus) {
+            _mainFocusNode.requestFocus();
+          }
+          speak(speech);
+        },
+        // Viditelná indikace klávesnicového fokusu tvarem (vznik rámečku),
+        // ne pouze barvou. Překryv přes `Stack` + `Positioned.fill` NEMĚNÍ
+        // layout (velikost určuje výhradně vizuální potomek) — obyčejný
+        // obalový `Container` s rámečkem by přidal 4 px na výšku a rozbil
+        // napjaté layoutové/viewportové testy. Rámeček se maluje přes okraj
+        // plochy výsledku (pozadí, ne glyfy — ty jsou centrované s rezervou),
+        // obsah ani horizontální scroll nezakrývá. `IgnorePointer` propouští
+        // dotyky i táhnutí na scroller a `GestureDetector` pod ním;
+        // `ExcludeSemantics` garantuje, že překryv netvoří sémantickou
+        // zastávku (nese žádné akce, sourozenecký uzel výsledku nedotčen —
+        // na rozdíl od proxy se zde `IgnorePointer` smí použít).
+        child: Stack(
+          children: [
+            child,
+            Positioned.fill(
+              child: ExcludeSemantics(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _resultHasFocus
+                            ? Colors.white
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -13061,6 +13141,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// Z1: kořenový fokusový uzel klávesnice.
   @visibleForTesting
   FocusNode get mainFocusNodeForTest => _mainFocusNode;
+
+  /// Z5: fokusový uzel výsledkového řádku (Tab/Shift+Tab).
+  @visibleForTesting
+  FocusNode get resultFocusNodeForTest => _resultFocusNode;
+
+  /// Z5: zda má výsledkový řádek právě klávesnicový fokus.
+  @visibleForTesting
+  bool get resultHasFocusForTest => _resultHasFocus;
 
   /// Lidská věta o pozici kurzoru (viz [_cursorPositionSpeech]).
   @visibleForTesting
