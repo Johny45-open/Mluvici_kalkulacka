@@ -5335,6 +5335,79 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
+  /// Strukturální expanze `_CBRT_(...)`: od markeru skenuje s čítačem
+  /// hloubky k párové závorce, takže zvládne vnořené závorky (na rozdíl
+  /// od plochého regexu `[^()]+`), které zaručeně vznikají substitucí
+  /// `ANS` (vždy zabaleno do vlastních závorek).
+  ///
+  /// Matematika: `math_expressions` počítá `^(1/3)` přes
+  /// `math.pow(zápor, 1/3)` = NaN. Vnitřní markery se proto nejprve
+  /// rekurzivně expandují zevnitř ven (např. ∛(∛(729))) a argument se pak
+  /// rekurzivně vyčíslí (deterministické, bez vedlejších efektů — stejný postup jako
+  /// expanze tangens ve stupních) a podle prokázaného znaménka se emituje
+  /// původní argument v kladné (`((A)^(1/3))`), nulové (`(0.0)`), nebo
+  /// záporné (`(-((-(A))^(1/3)))`) formě. Chyby uvnitř argumentu (např.
+  /// dělení nulou) se propagují z rekurze beze změny; nefinite sonda
+  /// (Infinity/NaN) zachovává původní text kvůli vnější klasifikaci.
+  String _expandCbrtMarkers(String processed) {
+    const marker = '_CBRT_';
+    final out = StringBuffer();
+    int i = 0;
+    while (true) {
+      final idx = processed.indexOf(marker, i);
+      if (idx < 0) {
+        out.write(processed.substring(i));
+        break;
+      }
+      out.write(processed.substring(i, idx));
+      final j = idx + marker.length;
+      if (j >= processed.length || processed[j] != '(') {
+        // Holý marker bez závorky (neúplný vstup, např. samotné `∛`).
+        // Historické chování `(`; druhá kontrola závorek to odmítne
+        // jako syntaxParens.
+        out.write('(');
+        i = j;
+        continue;
+      }
+      int depth = 0;
+      int k = j;
+      for (; k < processed.length; k++) {
+        if (processed[k] == '(') {
+          depth++;
+        } else if (processed[k] == ')') {
+          depth--;
+          if (depth == 0) break;
+        }
+      }
+      if (depth != 0) {
+        // Neuzavřená závorka — text se nechá nedotčený, druhá kontrola
+        // závorek to odmítne jako syntaxParens.
+        out.write(processed.substring(idx));
+        break;
+      }
+      final arg = processed.substring(j + 1, k);
+      if (arg.isEmpty) {
+        // Prázdný argument ∛() — ponechá se markeru, pozdější kontrola
+        // zbytkových markerů to odmítne jako syntaxGeneral (stejně jako SIN()).
+        out.write(processed.substring(idx));
+        break;
+      }
+      // Vnořené ∛ zevnitř ven (např. ∛(∛(729))): nejprve se expandují
+      // vnitřní markery, sonda i emise pak pracují s textem bez _CBRT_.
+      final expandedArg = _expandCbrtMarkers(arg);
+      final v = _evaluateExpression(expandedArg);
+      if (v == 0) {
+        out.write('(0.0)');
+      } else if (v.isNaN || v > 0) {
+        out.write('(($expandedArg)^(1/3))');
+      } else {
+        out.write('(-((-( $expandedArg))^(1/3)))');
+      }
+      i = k + 1;
+    }
+    return out.toString();
+  }
+
   double _evaluateExpression(String expr) {
     debugPrint("Evaluating expression: '$expr'");
     String ansValue = _lastNumericValue?.toString() ?? '0';
@@ -5557,12 +5630,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     processed = processed.replaceAll('_SQRT_', 'sqrt');
     processed = processed.replaceAll('_LN_', 'ln');
 
-    // Vyčištění speciálních funkcí
-    processed = processed.replaceAllMapped(
-      RegExp(r'_CBRT_\(([^()]+)\)'),
-      (m) => '(${m[1]})^(1/3)',
-    );
-    processed = processed.replaceAll('_CBRT_', '(');
+    // Vyčištění speciálních funkcí.
+    // Třetí odmocnina: strukturální expanze markeru (zvládne vnořené
+    // závorky, např. ∛(ANS) po substituci) se znaménkově správným
+    // výpočtem pro záporné základy (viz _expandCbrtMarkers).
+    processed = _expandCbrtMarkers(processed);
     processed = processed.replaceAll('_LOG_(', 'log(10,');
 
     // KROK B: Nyní zpracujeme goniometrické funkce podle zvoleného režimu úhlů

@@ -4,7 +4,9 @@ part of 'main.dart';
 /// zeptá se na název sady, poté postupně na názvy polí a sadu uloží.
 /// Během celého rozhovoru fungují příkazy „zrušit" a „zopakuj".
 class _VoiceSetCreationSession {
-  _VoiceSetCreationSession(this.parent);
+  _VoiceSetCreationSession(this.parent) {
+    _rounds.onGraceExpired = _expireRound;
+  }
 
   final _CalculatorScreenState parent;
 
@@ -17,6 +19,11 @@ class _VoiceSetCreationSession {
   final List<String> _fields = <String>[];
   int _attempts = 0;
   Completer<String?>? _resultCompleter;
+
+  /// Životní cyklus poslechových kol (aktivní/neaktivní, finále, milost).
+  /// Generace je značka našich kol a časovačů — nikdy identifikátor původu
+  /// platformní události (ten API neposkytuje, viz VoiceRoundTracker).
+  final VoiceRoundTracker _rounds = VoiceRoundTracker();
 
   static const int _maxFields = 10;
   static const int _maxAttempts = 3;
@@ -42,13 +49,14 @@ class _VoiceSetCreationSession {
     if (stt.isAvailable) return true;
     try {
       return await stt.initialize(
-        onError: (error) => _completeResult(null),
+        // Globální callbacky jsou pouze NÁPOVĚDY, nikdy důkaz o stavu
+        // aktivního kola: nikdy přímo nedokončují, pouze nabíjejí milost
+        // (viz VoiceRoundTracker). Původ události API nerozliší.
+        onError: (_) => _hintRound(),
         onStatus: (status) {
           // Některá zařízení ukončí poslech bez doručení výsledku.
           if (status == 'done' || status == 'notListening') {
-            Future<void>.delayed(const Duration(milliseconds: 400), () {
-              _completeResult(null);
-            });
+            _hintRound();
           }
         },
         debugLogging: false,
@@ -63,6 +71,26 @@ class _VoiceSetCreationSession {
     if (completer != null && !completer.isCompleted) {
       completer.complete(value);
     }
+  }
+
+  /// Hint z globálního callbacku: předá se trackeru; ten ho buď ignoruje
+  /// (neaktivní/ukončené kolo, přijaté finále, již nabitá milost), nebo
+  /// nabije jednorázovou milost aktuálního kola.
+  void _hintRound() {
+    final completer = _resultCompleter;
+    _rounds.armHint(
+      _rounds.generation,
+      pending: completer != null && !completer.isCompleted,
+    );
+  }
+
+  /// Vypršení milosti: `null` pouze pro stále stejné, aktivní kolo bez
+  /// finále. Opožděný hint předchozího kola sem nikdy neprojde (jiná
+  /// generace nebo neaktivní kolo).
+  void _expireRound(int generation) {
+    if (generation != _rounds.generation || !_rounds.isActive) return;
+    if (_rounds.gotFinal) return;
+    _completeResult(null);
   }
 
   void _announceUnavailable() {
@@ -117,18 +145,26 @@ class _VoiceSetCreationSession {
   }
 
   Future<String?> _listenOnce(String prompt) async {
+    // Nové kolo zneplatní časovače předchozího JEŠTĚ PŘED TTS mezerou,
+    // aby opožděný hint padl do neaktivního kola a byl ignorován.
+    final int generation = _rounds.beginRound();
     await _speakAndWait(prompt);
     if (!mounted) return null;
 
     final completer = Completer<String?>();
     _resultCompleter = completer;
+    _rounds.activate(generation);
     _setListening(true);
     try {
       await _stt!.listen(
         onResult: (result) {
-          if (result.finalResult && !completer.isCompleted) {
-            completer.complete(result.recognizedWords.trim());
-          }
+          // Jediný důvěryhodný zdroj hodnoty: vlastní finální výsledek.
+          // (Cizí finále doručené do aktivního kola API nerozliší —
+          // viz audit; brány kryjí TTS-okno, duplicitu a ukončení.)
+          if (!result.finalResult) return;
+          if (!_rounds.acceptFinal(generation)) return;
+          if (completer.isCompleted) return;
+          completer.complete(result.recognizedWords.trim());
         },
         listenOptions: SpeechListenOptions(
           partialResults: false,
@@ -140,7 +176,11 @@ class _VoiceSetCreationSession {
         ),
       );
     } catch (_) {
-      if (!completer.isCompleted) completer.complete(null);
+      if (generation == _rounds.generation &&
+          _rounds.isActive &&
+          !completer.isCompleted) {
+        completer.complete(null);
+      }
     }
 
     String? heard;
@@ -149,6 +189,9 @@ class _VoiceSetCreationSession {
     } on TimeoutException {
       heard = null;
     }
+    // Uzavři kolo PŘED stop(): vlastní stop→done pak padne do neaktivního
+    // kola a je ignorován místo otrávení následujícího kola.
+    _rounds.closeRound(generation);
     await _stopListening();
     _setListening(false);
     if (!mounted) return null;
@@ -360,6 +403,9 @@ class _VoiceSetCreationSession {
 
   void _abortWithMessage(String message) {
     finished = true;
+    // Záměrné ukončení (nikoli nejednoznačná událost rozpoznávače):
+    // kolo se deaktivuje a čekání se probudí přímo.
+    _rounds.shutdown();
     _completeResult(null);
     unawaited(_stopListening());
     listening = false;
@@ -385,6 +431,7 @@ class _VoiceSetCreationSession {
 
   void dispose() {
     finished = true;
+    _rounds.shutdown();
     _completeResult(null);
     unawaited(_stopListening());
   }
