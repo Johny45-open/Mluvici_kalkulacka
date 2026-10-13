@@ -2813,6 +2813,54 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 ),
               ),
             ),
+            const Divider(),
+            // Řádek verze: jediný aktivovatelný prvek, dynamický popisek
+            // včetně čísla sestavení. Vnitřní Text je z přístupnosti
+            // vyloučen, aby se verze neohlašovala duplicitně (popisek +
+            // textový uzel). ValueListenableBuilder překreslí vizuál
+            // i popisek již otevřeného dialogu po dokončení async loadu.
+            // Aktivace (tap i TalkBack) jde jedinou obsluhou _handleDevTap.
+            ValueListenableBuilder<String>(
+              valueListenable: widget.parent._appVersionNotifier,
+              builder: (context, version, _) {
+                final versionTag = version.isEmpty ? null : 'v$version';
+                final label = versionTag == null
+                    ? widget.parent._s(
+                        'Verze aplikace se načítá, 7× klepněte pro vývojářský režim',
+                        'App version loading, tap 7 times for developer mode',
+                      )
+                    : widget.parent._s(
+                        'Verze aplikace $versionTag, 7× klepněte pro vývojářský režim',
+                        'App version $versionTag, tap 7 times for developer mode',
+                      );
+                return Semantics(
+                  label: label,
+                  button: true,
+                  child: InkWell(
+                    onTap: () => widget.parent._handleDevTap(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Center(
+                        child: ExcludeSemantics(
+                          child: Text(
+                            versionTag ??
+                                widget.parent._s(
+                                  'Načítání verze…',
+                                  'Loading version…',
+                                ),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),

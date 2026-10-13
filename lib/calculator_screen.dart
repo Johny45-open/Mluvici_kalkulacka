@@ -27,7 +27,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   static const int _kKeypadReferenceRows = 7;
   static const int _kKeypadCellCount = _kKeypadColumns * _kKeypadReferenceRows;
 
-  late final String _currentAppVersion;
+  /// Jediné autoritativní úložiště verze aplikace (formát
+  /// 'version+buildNumber' z PackageInfo). Notifier, aby se již otevřený
+  /// dialog Nastavení přístupnosti překreslil po dokončení async načtení.
+  /// Počáteční '' = ještě nenačteno (žádný odhad, žádné hardcoded číslo).
+  final ValueNotifier<String> _appVersionNotifier = ValueNotifier<String>('');
+  String get _currentAppVersion => _appVersionNotifier.value;
   static const MethodChannel _accessibilityChannel = MethodChannel(
     'com.example.mluvici_kalkulacka/accessibility',
   );
@@ -2642,7 +2647,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _initAppVersion() async {
     final info = await PackageInfo.fromPlatform();
-    _currentAppVersion = '${info.version}+${info.buildNumber}';
+    // Jediný zápis verze (notifier je zdroj pravdy; getter ji jen čte).
+    _appVersionNotifier.value = '${info.version}+${info.buildNumber}';
     if (mounted) {
       _mainFocusNode.requestFocus();
       // Z1: jednoznačný počáteční okamžik režimu ovládání výrazu — až PO
@@ -2660,11 +2666,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (_devAutoDiagShown) return;
     if (!_devModeEnabled || !_devAutoDiagnosticEnabled) return;
     if (!mounted) return;
-    // Vyžaduje načtenou verzi (late final) – pokud ještě není, odloží se
-    try {
-      // ignore: unnecessary_statements
-      _currentAppVersion;
-    } catch (_) {
+    // Vyžaduje načtenou verzi – pokud ještě není, odloží se
+    // (voláno znovu po dokončení _initAppVersion i po načtení nastavení).
+    if (_currentAppVersion.isEmpty) {
       return;
     }
     _devAutoDiagShown = true;
@@ -2681,6 +2685,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _checkForNews() async {
     if (!mounted || _updateDialogShown) {
+      return;
+    }
+    // Bez načtené verze nelze porovnávat – odloží se na dokončení loadu.
+    if (_currentAppVersion.isEmpty) {
       return;
     }
     if (_lastSeenNewsVersion == null) {
@@ -2767,6 +2775,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _scrollControllerResultH.dispose();
     _scrollControllerV.dispose();
     _dialogFontScaleNotifier.dispose();
+    _appVersionNotifier.dispose();
     super.dispose();
   }
 
@@ -2816,6 +2825,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (_updateDialogShown || !mounted) {
       return;
     }
+    // Bez načtené verze nelze porovnávat (prázdná by se jevila starší
+    // než jakákoli release). Auto-cesta běží až po loadu; guard pro jistotu.
+    if (_currentAppVersion.isEmpty) {
+      return;
+    }
 
     final checker = GitHubReleaseChecker();
     final release = await checker.checkForUpdates(
@@ -2833,6 +2847,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _checkForUpdatesManually() async {
     if (!mounted) return;
+    // Ruční kontrola před dokončením loadu: dříve LateInitializationError,
+    // s prázdnou verzí falešný update dialog – proto slušné odmítnutí
+    // jediným standardním kanálem.
+    if (_currentAppVersion.isEmpty) {
+      _showAccessibleSnackBar(
+        _s(
+          'Verze se ještě načítá, zkuste to za chvíli.',
+          'Version is still loading, please try again in a moment.',
+        ),
+      );
+      return;
+    }
     final checker = GitHubReleaseChecker();
     final release = await checker.checkForUpdates(
       owner: 'Johny45-open',
