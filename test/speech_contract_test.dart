@@ -562,7 +562,7 @@ void main() {
       return state;
     }
 
-    testWidgets('M+ -> právě jedna hláška "Připravena 1 hodnota"', (
+    testWidgets('M+ -> právě jedna hláška kontroly před uložením', (
       tester,
     ) async {
       final state = await pumpStats(tester);
@@ -573,11 +573,16 @@ void main() {
       await tester.pumpAndSettle();
       final ready = ttsLog.where((t) => t.contains('Připraven')).toList();
       expect(ready, hasLength(1), reason: 'TTS log: $ttsLog');
-      expect(ready.single, contains('Připravena 1 hodnota'));
+      expect(ready.single, contains('Připraveno 1 záznam'));
       expect(
         ttsLog.any((t) => t == 'Přidat do statistické paměti'),
         isFalse,
         reason: 'TTS log: $ttsLog',
+      );
+      expect(
+        find.text('Kontrola dat před uložením').evaluate().isNotEmpty ||
+            find.text('Review data before saving').evaluate().isNotEmpty,
+        isTrue,
       );
       expect(tester.takeException(), isNull);
     });

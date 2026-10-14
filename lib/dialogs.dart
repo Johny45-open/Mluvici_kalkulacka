@@ -301,21 +301,9 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                         .toList(),
                     onChanged: (val) {
                       if (val == null) return;
-                      // ignore: invalid_use_of_protected_member
-                      parent.setState(() {
-                        parent._selectedUnitCategory = val;
-                        parent._unitFrom =
-                            parent._unitCategories[val]!.keys.first;
-                        parent._unitTo = parent._unitCategories[val]!.keys
-                            .elementAt(1);
-                      });
+                      // Sdílená logika s panelem na hlavní obrazovce.
+                      parent._selectUnitCategory(val);
                       setState(() {});
-                      parent.speak(
-                        parent._s(
-                          'Kategorie ${parent._getCategorySpeech(val)}',
-                          'Category ${parent._getCategorySpeech(val)}',
-                        ),
-                      );
                     },
                   ),
                   Row(
@@ -411,7 +399,7 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                     child: ElevatedButton.icon(
                       onPressed: parent._convertUnits,
                       icon: const Icon(Icons.sync),
-                      label: Text(parent._s('PŘEVÉST', 'CONVERT')),
+                      label: Text(parent._l10n.convertButton),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.all(16),
                       ),
@@ -548,68 +536,76 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                   Row(
                     children: [
                       Expanded(
-                        child: Semantics(
-                          label: parent._l10n.currencyFromLabel,
-                          child: DropdownButtonFormField<String>(
-                            initialValue: parent._currencyFrom,
-                            isExpanded: true,
-                            isDense: true,
-                            decoration: InputDecoration(
-                              labelText: parent._l10n.currencyFromLabel,
-                            ),
-                            items: parent._currencyRates.keys
-                                .map(
-                                  (c) => DropdownMenuItem(
-                                    value: c,
-                                    child: Text(
-                                      c,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) {
-                              if (v == null) return;
-                              parent.setState(() => parent._currencyFrom = v);
-                              parent._saveCurrencyRates();
-                              parent.speak(parent._s('Z měny $v', 'From $v'));
-                              setState(() {});
-                            },
+                        // Bez vnějšího Semantics: labelText níže je jediný
+                        // popisek (vnější identický label by se četl 2×).
+                        child: DropdownButtonFormField<String>(
+                          initialValue: parent._currencyFrom,
+                          isExpanded: true,
+                          isDense: true,
+                          decoration: InputDecoration(
+                            labelText: parent._l10n.currencyFromLabel,
                           ),
+                          items: parent._currencyRates.keys
+                              .map(
+                                (c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(
+                                    parent._currencyDisplayName(c),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            parent.setState(() => parent._currencyFrom = v);
+                            parent._saveCurrencyRates();
+                            parent.speak(
+                              parent._s(
+                                'Z měny ${parent._currencyDisplayName(v)}',
+                                'From ${parent._currencyDisplayName(v)}',
+                              ),
+                            );
+                            setState(() {});
+                          },
                         ),
                       ),
                       const Icon(Icons.arrow_forward),
                       Expanded(
-                        child: Semantics(
-                          label: parent._l10n.currencyToLabel,
-                          child: DropdownButtonFormField<String>(
-                            initialValue: parent._currencyTo,
-                            isExpanded: true,
-                            isDense: true,
-                            decoration: InputDecoration(
-                              labelText: parent._l10n.currencyToLabel,
-                            ),
-                            items: parent._currencyRates.keys
-                                .map(
-                                  (c) => DropdownMenuItem(
-                                    value: c,
-                                    child: Text(
-                                      c,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) {
-                              if (v == null) return;
-                              parent.setState(() => parent._currencyTo = v);
-                              parent._saveCurrencyRates();
-                              parent.speak(parent._s('Na měnu $v', 'To $v'));
-                              setState(() {});
-                            },
+                        // Bez vnějšího Semantics: labelText níže je jediný
+                        // popisek (vnější identický label by se četl 2×).
+                        child: DropdownButtonFormField<String>(
+                          initialValue: parent._currencyTo,
+                          isExpanded: true,
+                          isDense: true,
+                          decoration: InputDecoration(
+                            labelText: parent._l10n.currencyToLabel,
                           ),
+                          items: parent._currencyRates.keys
+                              .map(
+                                (c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(
+                                    parent._currencyDisplayName(c),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            parent.setState(() => parent._currencyTo = v);
+                            parent._saveCurrencyRates();
+                            parent.speak(
+                              parent._s(
+                                'Na měnu ${parent._currencyDisplayName(v)}',
+                                'To ${parent._currencyDisplayName(v)}',
+                              ),
+                            );
+                            setState(() {});
+                          },
                         ),
                       ),
                     ],
@@ -641,7 +637,7 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                     child: ElevatedButton.icon(
                       onPressed: parent._convertCurrency,
                       icon: const Icon(Icons.sync),
-                      label: Text(parent._s('PŘEVÉST', 'CONVERT')),
+                      label: Text(parent._l10n.convertButton),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.all(16),
                       ),

@@ -27,6 +27,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   static const int _kKeypadReferenceRows = 7;
   static const int _kKeypadCellCount = _kKeypadColumns * _kKeypadReferenceRows;
 
+  /// Maximální počet opakování v dialogu počtu vložení (M+ dlouhý stisk).
+  /// Chrání před neúměrnou dávkou záznamů (překlep typu 1000000 by jinak
+  /// synchronně zablokoval UI a nafoukl perzistovaná data). 1000 je
+  /// velkorysé pro legitimní hromadné vkládání (typicky desítky) a drží
+  /// jednu dávku hluboko pod prahem zrcadlení do SharedPreferences.
+  static const int kMaxStatsRepeatCount = 1000;
+
   /// Jediné autoritativní úložiště verze aplikace (formát
   /// 'version+buildNumber' z PackageInfo). Notifier, aby se již otevřený
   /// dialog Nastavení přístupnosti překreslil po dokončení async načtení.
@@ -4960,6 +4967,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         } on _TimeInputException catch (e) {
           throw _TimeInputException(e.message);
         }
+      } else if (_currentMode == CalculatorMode.unitConversion) {
+        // Stejná výpočetní logika jako tlačítko PŘEVÉST (žádná duplicita).
+        _convertUnits();
+        return;
       } else if (_currentMode == CalculatorMode.currency) {
         _convertCurrency();
         return;
@@ -6059,12 +6070,41 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _convertUnits() {
     try {
-      double value = display.isNotEmpty
-          ? _evaluateExpression(display)
-          : double.parse(_lastResult.replaceAll(',', '.'));
-      double fromFactor = _unitCategories[_selectedUnitCategory]![_unitFrom]!;
-      double toFactor = _unitCategories[_selectedUnitCategory]![_unitTo]!;
+      // Zdroj hodnoty jako u měny: displej, jinak poslední výsledek pouze
+      // při platném _hasResult. Prázdný displej bez výsledku = chyba, nikdy
+      // tichá nula (clear() nechává _lastResult '0.' s _hasResult false).
+      // Desetinná čárka v _lastResult se převádí na tečku (defenzivně,
+      // _formatNumber běžně vydává tečku).
+      double value;
+      if (display.trim().isNotEmpty) {
+        value = _evaluateExpression(display.trim());
+      } else if (_hasResult && _lastResult.toLowerCase() != 'error') {
+        final parsed = double.tryParse(
+          _lastResult.replaceAll(',', '.'),
+        );
+        if (parsed == null) throw Exception('no value');
+        value = parsed;
+      } else {
+        throw Exception('no value');
+      }
+      final factors = _unitCategories[_selectedUnitCategory];
+      if (factors == null) throw Exception('invalid category');
+      final double? fromFactor = factors[_unitFrom];
+      final double? toFactor = factors[_unitTo];
+      if (fromFactor == null || toFactor == null) {
+        throw Exception('invalid unit');
+      }
+      // Oba faktory musí být konečné a nenulové (jako nulové kurzy u měny).
+      // Aktuální konstanty to splňují, kontrola je obrana proti nekonzistenci.
+      if (!fromFactor.isFinite ||
+          !toFactor.isFinite ||
+          fromFactor == 0 ||
+          toFactor == 0) {
+        throw Exception('invalid factor');
+      }
       double result = value * (fromFactor / toFactor);
+      // Platná vstupní nula dává platnou nulu; neplatný je jen NaN/nekonečno.
+      if (result.isNaN || result.isInfinite) throw Exception('invalid result');
       String resStr = _formatNumber(result);
       setState(() {
         _lastResult = resStr;
@@ -6097,6 +6137,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
       );
     } catch (e) {
+      // Sjednoceno s měnou: oznámení + vizuální SnackBar bez duplicity.
       unawaited(
         announceEvent(
           _l10n.conversionError,
@@ -6104,7 +6145,318 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           interruptCurrentSpeech: true,
         ),
       );
+      _showAccessibleSnackBar(_l10n.conversionError, announce: false);
     }
+  }
+
+  /// Sdílená změna kategorie jednotek: nastaví platné výchozí jednotky
+  /// (první dvě v kategorii) a ohlásí změnu. Používá panel na hlavní
+  /// obrazovce i dialog Pokročilých funkcí – jediná implementace.
+  void _selectUnitCategory(String category) {
+    final units = _unitCategories[category];
+    if (units == null || units.length < 2) return;
+    setState(() {
+      _selectedUnitCategory = category;
+      _unitFrom = units.keys.first;
+      _unitTo = units.keys.elementAt(1);
+    });
+    speak(
+      _s(
+        'Kategorie ${_getCategorySpeech(category)}',
+        'Category ${_getCategorySpeech(category)}',
+      ),
+    );
+  }
+
+  /// Lokalizovaný název měny pro zobrazení. Neznámé kódy (vlastní měny
+  /// ze Správy kurzů) vrací holý kód – nikdy visící pomlčku.
+  String _localizedCurrencyName(String code) {
+    final l10n = _l10n;
+    switch (code) {
+      case 'CZK':
+        return l10n.currencyNameCZK;
+      case 'EUR':
+        return l10n.currencyNameEUR;
+      case 'USD':
+        return l10n.currencyNameUSD;
+      case 'GBP':
+        return l10n.currencyNameGBP;
+      case 'PLN':
+        return l10n.currencyNamePLN;
+      case 'HUF':
+        return l10n.currencyNameHUF;
+      case 'CHF':
+        return l10n.currencyNameCHF;
+      case 'JPY':
+        return l10n.currencyNameJPY;
+      default:
+        return code;
+    }
+  }
+
+  /// Popisek „KÓD — název" pro výběrové seznamy a hlášky. Interní kód
+  /// (value dropdownů, výpočty, kurzy, perzistence) zůstává vždy holý kód.
+  String _currencyDisplayName(String code) {
+    final name = _localizedCurrencyName(code);
+    return name == code ? code : '$code — $name';
+  }
+
+  /// Panel převodu jednotek přímo na hlavní obrazovce (mimo 7×4 rastr,
+  /// v běžné fokusové cestě). Stejná logika jako Pokročilé funkce.
+  Widget _buildUnitConversionPanel() {
+    final s = _responsiveScale(context);
+    final l10n = _l10n;
+    // Izolace od systémového škálování textu (stejný vzor jako klávesnice
+    // a přepínač zlomku): zavřené pole a tlačítko drží kompaktní velikost,
+    // aby se panel vešel i na malé displeje. Rozbalený seznam (overlay)
+    // systémové škálování respektuje – výběr zůstává čitelný.
+    final sysFactor = MediaQuery.textScalerOf(
+      context,
+    ).scale(1.0).clamp(1.0, 1.6);
+    final fieldFontSize = (15.0 * s * sysFactor).clamp(13.0, 16.0);
+    final fieldStyle = TextStyle(fontSize: fieldFontSize);
+    const fieldPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 2);
+    final units = _unitCategories[_selectedUnitCategory]!.keys.toList();
+    List<DropdownMenuItem<String>> unitItems() => units
+        .map(
+          (u) => DropdownMenuItem(
+            value: u,
+            child: Text(
+              _getUnitSpeech(u),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        )
+        .toList();
+    Widget fromField = Semantics(
+      label: _s('Převod z jednotky', 'Convert from unit'),
+      child: DropdownButtonFormField<String>(
+        key: const ValueKey('unit_from_dropdown'),
+        initialValue: _unitFrom,
+        isExpanded: true,
+        isDense: true,
+        style: fieldStyle,
+        decoration: InputDecoration(
+          labelText: l10n.fromLabel,
+          contentPadding: fieldPadding,
+        ),
+        items: unitItems(),
+        onChanged: (val) {
+          if (val == null) return;
+          setState(() => _unitFrom = val);
+          speak(
+            _s(
+              'Z jednotky ${_getUnitSpeech(val)}',
+              'From unit ${_getUnitSpeech(val)}',
+            ),
+          );
+        },
+      ),
+    );
+    Widget toField = Semantics(
+      label: _s('Převod na jednotku', 'Convert to unit'),
+      child: DropdownButtonFormField<String>(
+        key: const ValueKey('unit_to_dropdown'),
+        initialValue: _unitTo,
+        isExpanded: true,
+        isDense: true,
+        style: fieldStyle,
+        decoration: InputDecoration(
+          labelText: l10n.toLabel,
+          contentPadding: fieldPadding,
+        ),
+        items: unitItems(),
+        onChanged: (val) {
+          if (val == null) return;
+          setState(() => _unitTo = val);
+          speak(
+            _s(
+              'Na jednotku ${_getUnitSpeech(val)}',
+              'To unit ${_getUnitSpeech(val)}',
+            ),
+          );
+        },
+      ),
+    );
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8 * s),
+      child: MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.noScaling),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              key: const ValueKey('unit_category_dropdown'),
+              initialValue: _selectedUnitCategory,
+              isExpanded: true,
+              isDense: true,
+              style: fieldStyle,
+              decoration: InputDecoration(
+                labelText: l10n.categoryLabel,
+                contentPadding: fieldPadding,
+              ),
+              items: _unitCategories.keys
+                  .map(
+                    (cat) => DropdownMenuItem(
+                      value: cat,
+                      child: Text(
+                        _getCategorySpeech(cat),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (val) {
+                if (val == null) return;
+                _selectUnitCategory(val);
+              },
+            ),
+            const SizedBox(height: 4),
+            LayoutBuilder(
+              builder: (ctx, constraints) {
+                if (constraints.maxWidth < 360) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [fromField, const SizedBox(height: 4), toField],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: fromField),
+                    const ExcludeSemantics(child: Icon(Icons.arrow_forward)),
+                    Expanded(child: toField),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                key: const ValueKey('unit_convert_button'),
+                onPressed: _convertUnits,
+                icon: const Icon(Icons.sync),
+                label: Text(l10n.convertButton, style: fieldStyle),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Panel převodu měn přímo na hlavní obrazovce (mimo 7×4 rastr,
+  /// v běžné fokusové cestě). Správa kurzů zůstává v Pokročilých funkcích.
+  Widget _buildCurrencyPanel() {
+    final s = _responsiveScale(context);
+    final l10n = _l10n;
+    // Izolace od systémového škálování textu (viz panel jednotek):
+    // zavřená pole a tlačítko drží kompaktní velikost, rozbalený seznam
+    // systémové škálování respektuje.
+    final sysFactor = MediaQuery.textScalerOf(
+      context,
+    ).scale(1.0).clamp(1.0, 1.6);
+    final fieldFontSize = (15.0 * s * sysFactor).clamp(13.0, 16.0);
+    final fieldStyle = TextStyle(fontSize: fieldFontSize);
+    const fieldPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 2);
+    List<DropdownMenuItem<String>> currencyItems() => _currencyRates.keys
+        .map(
+          (c) => DropdownMenuItem(
+            value: c,
+            child: Text(
+              _currencyDisplayName(c),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        )
+        .toList();
+    Widget fromField = DropdownButtonFormField<String>(
+      key: const ValueKey('currency_from_dropdown'),
+      initialValue: _currencyFrom,
+      isExpanded: true,
+      isDense: true,
+      style: fieldStyle,
+      decoration: InputDecoration(
+        labelText: l10n.currencyFromLabel,
+        contentPadding: fieldPadding,
+      ),
+      items: currencyItems(),
+      onChanged: (v) {
+        if (v == null) return;
+        setState(() => _currencyFrom = v);
+        _saveCurrencyRates();
+        speak(_s('Z měny ${_currencyDisplayName(v)}', 'From ${_currencyDisplayName(v)}'));
+      },
+    );
+    Widget toField = DropdownButtonFormField<String>(
+      key: const ValueKey('currency_to_dropdown'),
+      initialValue: _currencyTo,
+      isExpanded: true,
+      isDense: true,
+      style: fieldStyle,
+      decoration: InputDecoration(
+        labelText: l10n.currencyToLabel,
+        contentPadding: fieldPadding,
+      ),
+      items: currencyItems(),
+      onChanged: (v) {
+        if (v == null) return;
+        setState(() => _currencyTo = v);
+        _saveCurrencyRates();
+        speak(_s('Na měnu ${_currencyDisplayName(v)}', 'To ${_currencyDisplayName(v)}'));
+      },
+    );
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8 * s),
+      child: MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.noScaling),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LayoutBuilder(
+              builder: (ctx, constraints) {
+                if (constraints.maxWidth < 360) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [fromField, const SizedBox(height: 4), toField],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: fromField),
+                    const ExcludeSemantics(child: Icon(Icons.arrow_forward)),
+                    Expanded(child: toField),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                key: const ValueKey('currency_convert_button'),
+                onPressed: () => _convertCurrency(),
+                icon: const Icon(Icons.sync),
+                label: Text(l10n.convertButton, style: fieldStyle),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _getUnitSpeech(
@@ -8856,8 +9208,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String descriptiveName = semanticLabel ?? _getButtonName(label);
     if (label == 'M+' && _currentMode == CalculatorMode.statistics) {
       descriptiveName += _isEnglish()
-          ? ', tap to add value, long press to set repetition'
-          : ', krátký stisk pro přidání hodnoty, dlouhý stisk pro zadání opakování';
+          ? ', tap to review and save, long press to set repetition'
+          : ', krátký stisk pro kontrolu a uložení, dlouhý stisk pro zadání opakování';
       if (Platform.isWindows) {
         descriptiveName += _isEnglish()
             ? '. Press M to add, Ctrl+M for repetition'
@@ -9068,27 +9420,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return;
       }
 
-      final count = recordsToAdd.length;
-      final form = _getStatsCountForm(count);
-      String msg;
-      if (_isEnglish()) {
-        msg = count == 1
-            ? '1 $form ready to save to statistics set.'
-            : '$count $form ready to save to statistics set.';
-      } else {
-        if (count == 1) {
-          msg = 'Připravena 1 $form k uložení do statistické sady.';
-        } else if (count >= 2 && count <= 4) {
-          msg = 'Připraveny $count $form k uložení do statistické sady.';
-        } else {
-          msg = 'Připraveno $count $form k uložení do statistické sady.';
-        }
-      }
-      // R9: oznamuje pouze SnackBar (dříve speak + snackbar = duplicita).
-      if (mounted) {
-        _showAccessibleSnackBar(msg);
-      }
-      _showRepeatDialog(recordsToAdd, suppressInitialAnnounce: true);
+      // Krátký stisk: vždy kontrolní dialog bez pole pro počet opakování.
+      // Jediné oznámení obstará samotný dialog (souhrn) – žádné předběžné
+      // hlášení o připravených hodnotách (R9: žádná duplicita).
+      _showStatsSaveReviewDialog(recordsToAdd);
     } catch (e) {
       final msg = e is FormatException
           ? e.message
@@ -12088,12 +12423,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         if (saveRecords != null && saveRecords.isNotEmpty) {
                           Future.delayed(const Duration(milliseconds: 200), () {
                             if (!mounted) return;
-                            if (saveRecords.length >= 2) {
-                              _showStatsSaveReviewDialog(saveRecords);
-                            } else {
-                              _addValuesToStats(saveRecords, 1);
-                              _returnFocusToKeyboard();
-                            }
+                            // Krátký stisk: kontrola proběhne vždy, i pro
+                            // jediný záznam (dříve se 1 záznam uložil bez
+                            // kontroly). Uložení až po Uložit (×1).
+                            _showStatsSaveReviewDialog(saveRecords);
                           });
                         } else {
                           speak(l10n.statsSetCreatedAnnouncement(newName));
@@ -13267,6 +13600,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String get lastResultForTest => _lastResult;
 
   @visibleForTesting
+  void setLastResultForTest(String v) {
+    _lastResult = v;
+  }
+
+  @visibleForTesting
+  void setHasResultForTest(bool v) {
+    _hasResult = v;
+  }
+
+  @visibleForTesting
   String get displayedResultForTest => _displayedResultString;
 
   @visibleForTesting
@@ -13433,6 +13776,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   Future<void> addSingleValueToStatsForTest() => _addSingleValueToStats();
+
+  @visibleForTesting
+  Future<void> handleMultipleStatisticsAdditionForTest() =>
+      _handleMultipleStatisticsAddition();
 
   @visibleForTesting
   String getStatsCountFormForTest(int count) => _getStatsCountForm(count);
@@ -14324,7 +14671,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ? _addValuesToStats(editableRecords, 1)
                     : onConfirm(),
               ),
-              child: Text(l10n.confirmAction),
+              child: Text(l10n.statsSaveAction),
             ),
           ],
         ),
@@ -14446,9 +14793,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         .map((r) => StatisticsRecord(values: List.from(r.values)))
         .toList();
     final summary = l10n.statsReviewSummary(editableRecords.length, setName);
-    TextEditingController controller = TextEditingController(text: '1');
+    final TextEditingController controller = TextEditingController(text: '1');
+    final FocusNode countFocusNode = FocusNode(debugLabel: 'statsRepeatCount');
+    String? countError;
 
-    showAppDialog(
+    final dialogFuture = showAppDialog(
       context: context,
       routeSettings: RouteSettings(name: l10n.statsRepeatTitle),
       builder: (dialogContext) => StatefulBuilder(
@@ -14530,10 +14879,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         const SizedBox(height: 8),
                         TextField(
                           controller: controller,
+                          focusNode: countFocusNode,
                           keyboardType: TextInputType.number,
                           autofocus: true,
                           decoration: InputDecoration(
                             labelText: l10n.statsRepeatLabel,
+                            errorText: countError,
                           ),
                         ),
                       ],
@@ -14551,7 +14902,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
               TextButton(
                 onPressed: () {
-                  int count = int.tryParse(controller.text) ?? 1;
+                  final int? count = int.tryParse(controller.text.trim());
+                  if (count == null ||
+                      count < 1 ||
+                      count > kMaxStatsRepeatCount) {
+                    // Neplatný počet: nic se neuloží, displej se nevymaže
+                    // a dialog zůstává otevřený pro opravu. Viditelná chyba
+                    // v poli + jedno oznámení (speak je při aktivní čtečce
+                    // tichý; přesun fokusu na pole chybu přečte i se čtečkou).
+                    final msg = l10n.statsRepeatInvalidRange(
+                      kMaxStatsRepeatCount,
+                    );
+                    setStateDialog(() {
+                      countError = msg;
+                    });
+                    countFocusNode.requestFocus();
+                    unawaited(speak(msg));
+                    return;
+                  }
                   _addValuesToStats(editableRecords, count);
                   Navigator.pop(dialogContext);
                   _returnFocusToKeyboard();
@@ -14563,6 +14931,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         },
       ),
     );
+    dialogFuture.then((_) => countFocusNode.dispose());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted &&
           _isScreenReaderActive != true &&
@@ -14574,12 +14943,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _handleMultipleStatisticsAddition() async {
     if (!_hasStatsSet) {
-      speak(
-        _s(
-          'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
-          'No statistics set created. Enter a name for a new set first.',
-        ),
-      );
+      // R9: jednotný kanál jako krátký stisk (dříve přímé speak).
+      if (mounted) {
+        _showAccessibleSnackBar(
+          _s(
+            'Není vytvořena žádná statistická sada. Nejprve zadejte název pro novou sadu.',
+            'No statistics set created. Enter a name for a new set first.',
+          ),
+        );
+      }
 
       List<StatisticsRecord>? recordsToRepeat;
       if (display.isNotEmpty) {
@@ -14592,34 +14964,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return;
     }
     if (display.isEmpty) {
-      speak(
-        _s(
-          'Displej je prázdný. Zadejte číslo k uložení.',
-          'Display is empty. Enter a number to store.',
-        ),
-      );
+      // R9: jednotný kanál jako krátký stisk (dříve přímé speak).
+      if (mounted) {
+        _showAccessibleSnackBar(
+          _s(
+            'Displej je prázdný. Zadejte číslo k uložení.',
+            'Display is empty. Enter a number to store.',
+          ),
+        );
+      }
       return;
     }
     try {
       final recordsToAdd = _parseDisplayToRecords(display);
 
       if (recordsToAdd.isEmpty) {
-        speak(
-          _s('Žádná platná čísla k uložení.', 'No valid numbers to store.'),
-        );
+        // R9: jednotný kanál jako krátký stisk (dříve přímé speak).
+        if (mounted) {
+          _showAccessibleSnackBar(
+            _s('Žádná platná čísla k uložení.', 'No valid numbers to store.'),
+          );
+        }
         return;
       }
 
       _showRepeatDialog(recordsToAdd);
     } catch (e) {
-      speak(
-        e is FormatException
-            ? e.message
-            : _s(
-                'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
-                'Error storing to statistics memory. Check the data format.',
-              ),
-      );
+      final msg = e is FormatException
+          ? e.message
+          : _s(
+              'Chyba při ukládání do statistické paměti. Zkontrolujte formát dat.',
+              'Error storing to statistics memory. Check the data format.',
+            );
+      // R9: jednotný kanál jako krátký stisk (dříve přímé speak).
+      if (mounted) {
+        _showAccessibleSnackBar(msg);
+      }
     }
   }
 
@@ -14868,7 +15248,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 // zůstala na stropu standardRowH a řádky byly stejně vysoké.
                 // Displej má auto-fit (zmenší obsah), klávesnice strop ne.
                 final double displayFlex = (totalHeight < 600) ? 1.0 : 1.2;
-                final double keyboardFlex = 3.0;
+                double keyboardFlex = 3.0;
+                if (_currentMode == CalculatorMode.unitConversion ||
+                    _currentMode == CalculatorMode.currency) {
+                  // Panely převodů (~200 px) jsou součástí sloupce pouze
+                  // v těchto dvou režimech: klávesnice ustoupí, aby displej
+                  // (primární výstup) měl dost místa a sloupec nepřetekl
+                  // ani na malých displejích. Rastr 7×4, mechanismus
+                  // fitScale ani ostatní režimy se nemění.
+                  keyboardFlex = 2.0;
+                }
                 final double s = _responsiveScale(context);
                 if (_alignInputLeft) _scheduleInputAutoscroll();
 
@@ -15183,6 +15572,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     // Mimo 4×7 rastr klávesnice (focus order klávesnice se
                     // nemění), bez nového vertikálního řádku.
                     _buildMemoryAndModeRow(),
+                    // Panely převodů přímo na hlavní obrazovce (mimo 7×4
+                    // rastr klávesnice, v běžné fokusové cestě před ní).
+                    if (_currentMode == CalculatorMode.unitConversion)
+                      _buildUnitConversionPanel(),
+                    if (_currentMode == CalculatorMode.currency)
+                      _buildCurrencyPanel(),
                     if (_currentMode == CalculatorMode.scientific) ...[
                       _buildScientificPageToggle(),
                       Semantics(

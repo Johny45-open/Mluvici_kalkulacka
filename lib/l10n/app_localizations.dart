@@ -266,7 +266,7 @@ abstract class AppLocalizations {
   /// No description provided for @tutorialStatistics.
   ///
   /// In en, this message translates to:
-  /// **'Statistics mode – data sets.\n\nButtons: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: manage sets and folders – see Sets & Reading tab.\nM+ short: stores display numbers (separator ;) to active set. M+ long / Ctrl+M: enter repeat count. With ≥2 records a Review before saving dialog appears for confirmation.\nMC: clear set. MR: view/edit data (grouped values with occurrence counts, delete records).\nSTATS: summary for selected field – field switcher at top (if multiple fields), checkbox Read values in memory (hides/shows All values section and affects speech), table of computed statistics (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN) and Reading order button for customization.\nAdvanced: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/MIN/MAX + read last batch. Multiple fields: enter as e.g. 80;2 for WMEAN (value;weight). Field units can be set when creating/editing a set and appear in the summary.'**
+  /// **'Statistics mode – data sets.\n\nButtons: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: manage sets and folders – see Sets & Reading tab.\nM+ short: stores display numbers (separator ;) to the active set. A Review before saving dialog always appears, letting you check, edit and save the values with the Save button. M+ long / Ctrl+M: enter a repeat count for bulk insertion.\nMC: clear set. MR: view/edit data (grouped values with occurrence counts, delete records).\nSTATS: summary for selected field – field switcher at top (if multiple fields), checkbox Read values in memory (hides/shows All values section and affects speech), table of computed statistics (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN) and Reading order button for customization.\nAdvanced: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/MIN/MAX + read last batch. Multiple fields: enter as e.g. 80;2 for WMEAN (value;weight). Field units can be set when creating/editing a set and appear in the summary.'**
   String get tutorialStatistics;
 
   /// No description provided for @tutorialElectrician.
@@ -278,7 +278,7 @@ abstract class AppLocalizations {
   /// No description provided for @tutorialUnit.
   ///
   /// In en, this message translates to:
-  /// **'Unit conversion mode.\n\nCategories: Length, Mass, Area, Volume, Pressure, Time, Voltage, Current, Resistance, Power.\nIn Advanced functions pick category, From and To units (e.g. m → km), enter number and CONVERT. Result is announced and added to history (\"Converted from … to …\").\nKeyboard is numeric only (C 0-9 . DEL =).'**
+  /// **'Unit conversion mode.\n\nCategories: Length, Mass, Area, Volume, Pressure, Time, Voltage, Current, Resistance, Power.\nOn the main screen pick category, From and To units (e.g. m → km), enter a number and press CONVERT or =. Result is announced and added to history (\"Converted from … to …\").\nKeyboard is numeric only (C 0-9 . DEL =).'**
   String get tutorialUnit;
 
   /// No description provided for @tutorialTime.
@@ -290,7 +290,7 @@ abstract class AppLocalizations {
   /// No description provided for @tutorialCurrency.
   ///
   /// In en, this message translates to:
-  /// **'Currency mode – rates relative to CZK.\n\nNumeric keyboard, pick From / To currency in Advanced functions, CONVERT. Buttons MANAGE RATES (edit/add/delete, CZK=1 fixed) and UPDATE RATES (online CNB, announces \"Updating…\" / \"Rates updated\" / offline error). Last update is shown. Result: \"Converted X EUR to Y USD. Result …\". Rates are persisted.'**
+  /// **'Currency mode – rates relative to CZK.\n\nNumeric keyboard, pick From / To currency with full names right on the main screen, CONVERT or =. Buttons MANAGE RATES (edit/add/delete, CZK=1 fixed) and UPDATE RATES (online CNB, announces \"Updating…\" / \"Rates updated\" / offline error). Last update is shown. Result: \"Converted X EUR to Y USD. Result …\". Rates are persisted.'**
   String get tutorialCurrency;
 
   /// No description provided for @tutorialStatsManagement.
@@ -521,6 +521,12 @@ abstract class AppLocalizations {
   /// **'Confirm'**
   String get confirmAction;
 
+  /// No description provided for @statsSaveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get statsSaveAction;
+
   /// No description provided for @statsMemoryTitle.
   ///
   /// In en, this message translates to:
@@ -580,6 +586,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Insert count'**
   String get statsRepeatLabel;
+
+  /// No description provided for @statsRepeatInvalidRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat count must be a whole number from 1 to {max}.'**
+  String statsRepeatInvalidRange(int max);
 
   /// No description provided for @statsReviewTitle.
   ///
@@ -788,7 +800,7 @@ abstract class AppLocalizations {
   /// No description provided for @statsHelpText.
   ///
   /// In en, this message translates to:
-  /// **'=== STATISTICS HELP ===\n\nKEYBOARD BUTTONS:\n\nSETS – Manage statistics sets and folders. Create, rename, delete, switch, duplicate, pin, archive and move sets between folders. Includes search, sort (Last used/Name/Count), filter All/No folder/folder and Show archived toggle. More menu: Quick create, Guided wizard, Voice creation. Folders via Folders button (New folder / Manage folders – color and icon; sets remain in No folder after deletion).\n\nM+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set. With ≥2 records a Review before saving dialog appears.\n\nM+ (long press / Ctrl+M) – Add values and specify a repeat count for bulk insertion.\n\nMC – Clear all data in the active set.\n\nMR – Show all stored data in an editable list (grouped values with occurrence counts, delete records, Manage sets button).\n\nSTATS – Show the statistics summary: header with set name and field switcher, checkbox Read values in memory, section All values in memory (sorted, with unit) and Computed statistics (table N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN in custom order). Reading order button opens the reading settings. Field switcher cycles on tap and is announced via voice and screen reader.\n\n; (semicolon) – Separator for multiple values (e.g. 5;10;15 or 80;2 for two fields).\n\nADVANCED FUNCTIONS (available from the list button in the top bar):\n\nMEAN – Arithmetic mean of all values.\nSD – Standard deviation (measure of dispersion around the mean).\nVAR – Variance (average squared deviation from the mean).\nSUM – Sum of all values.\nMED – Median (middle value of sorted data).\nMODE – Mode (most frequent value).\nMIN – Minimum of all values.\nMAX – Maximum of all values.\nCV – Coefficient of variation (SD as percentage of the mean).\nWMEAN – Weighted mean (requires 2 fields: values and weights).\n\nREADING ORDER (Reading order button in STATS dialog):\nTop sets order of Summary header / Values in memory / Computed statistics (read top to bottom, Move up/down, Restore default). Bottom sets order inside Computed statistics (MEAN, SUM, VAR, SD, MED, MIN, MAX, MODE, CV, WMEAN) synced with the table. Changes are announced via voice and screen reader. Previously in Accessibility settings, now directly in the summary.\n\nFIELDS IN A SET:\n\nEach set can have multiple fields (e.g. \"Value\" and \"Weight\") with optional unit (categories Length…Power). When creating a set (SETS → Create new set or More → Quick/Guided/Voice) add fields with \"Add field\" and pick a unit. Units appear in the summary and spoken output. Switch fields in the STATS dialog or Advanced Functions. Each set has color (8) and icon (8), can be pinned (always on top) or archived.\n\nWEIGHTED MEAN (WMEAN):\n\nRequires a set with at least 2 fields. Field 0 = values, field 1 = weights. Steps: 1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\"). 2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2). 3) After entering all data, tap WMEAN in Advanced Functions. 4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).\n\nTIPS:\n- Create multiple sets for different data groups and organize them into folders.\n- Each set can have multiple fields with units (e.g. values, weights).\n- A new set is created automatically on first data entry.\n- Data, reading order and Read values setting are saved automatically.\n- All important announcements go via voice and screen reader according to Screen reader mode.'**
+  /// **'=== STATISTICS HELP ===\n\nKEYBOARD BUTTONS:\n\nSETS – Manage statistics sets and folders. Create, rename, delete, switch, duplicate, pin, archive and move sets between folders. Includes search, sort (Last used/Name/Count), filter All/No folder/folder and Show archived toggle. More menu: Quick create, Guided wizard, Voice creation. Folders via Folders button (New folder / Manage folders – color and icon; sets remain in No folder after deletion).\n\nM+ (short press) – Add the entered value (or multiple values separated by semicolons) to the active set. A Review before saving dialog always appears, letting you check, edit and save the values.\n\nM+ (long press / Ctrl+M) – Add values and specify a repeat count for bulk insertion (a whole number from 1 to 1000).\n\nMC – Clear all data in the active set.\n\nMR – Show all stored data in an editable list (grouped values with occurrence counts, delete records, Manage sets button).\n\nSTATS – Show the statistics summary: header with set name and field switcher, checkbox Read values in memory, section All values in memory (sorted, with unit) and Computed statistics (table N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN in custom order). Reading order button opens the reading settings. Field switcher cycles on tap and is announced via voice and screen reader.\n\n; (semicolon) – Separator for multiple values (e.g. 5;10;15 or 80;2 for two fields).\n\nADVANCED FUNCTIONS (available from the list button in the top bar):\n\nMEAN – Arithmetic mean of all values.\nSD – Standard deviation (measure of dispersion around the mean).\nVAR – Variance (average squared deviation from the mean).\nSUM – Sum of all values.\nMED – Median (middle value of sorted data).\nMODE – Mode (most frequent value).\nMIN – Minimum of all values.\nMAX – Maximum of all values.\nCV – Coefficient of variation (SD as percentage of the mean).\nWMEAN – Weighted mean (requires 2 fields: values and weights).\n\nREADING ORDER (Reading order button in STATS dialog):\nTop sets order of Summary header / Values in memory / Computed statistics (read top to bottom, Move up/down, Restore default). Bottom sets order inside Computed statistics (MEAN, SUM, VAR, SD, MED, MIN, MAX, MODE, CV, WMEAN) synced with the table. Changes are announced via voice and screen reader. Previously in Accessibility settings, now directly in the summary.\n\nFIELDS IN A SET:\n\nEach set can have multiple fields (e.g. \"Value\" and \"Weight\") with optional unit (categories Length…Power). When creating a set (SETS → Create new set or More → Quick/Guided/Voice) add fields with \"Add field\" and pick a unit. Units appear in the summary and spoken output. Switch fields in the STATS dialog or Advanced Functions. Each set has color (8) and icon (8), can be pinned (always on top) or archived.\n\nWEIGHTED MEAN (WMEAN):\n\nRequires a set with at least 2 fields. Field 0 = values, field 1 = weights. Steps: 1) Create a set with 2 fields (e.g. \"Value\" and \"Weight\"). 2) Enter values and weights separated by a semicolon, e.g. \"80;2\" (value 80 with weight 2). 3) After entering all data, tap WMEAN in Advanced Functions. 4) The app calculates: (value1 × weight1 + value2 × weight2 + ...) / (weight1 + weight2 + ...).\n\nTIPS:\n- Create multiple sets for different data groups and organize them into folders.\n- Each set can have multiple fields with units (e.g. values, weights).\n- A new set is created automatically on first data entry.\n- Data, reading order and Read values setting are saved automatically.\n- All important announcements go via voice and screen reader according to Screen reader mode.'**
   String get statsHelpText;
 
   /// No description provided for @statsHelpKeyboardSection.
@@ -830,7 +842,7 @@ abstract class AppLocalizations {
   /// No description provided for @statsHelpKeyboardMPlus.
   ///
   /// In en, this message translates to:
-  /// **'M+ (short) – Add values to active set. With ≥2 records shows Review before saving. Long press / Ctrl+M – enter repeat count for bulk insertion.'**
+  /// **'M+ (short) – Add values to the active set and always show Review before saving. Long press / Ctrl+M – enter a repeat count for bulk insertion (1 to 1000).'**
   String get statsHelpKeyboardMPlus;
 
   /// No description provided for @statsHelpKeyboardMc.
@@ -1094,7 +1106,7 @@ abstract class AppLocalizations {
   /// No description provided for @cleared.
   ///
   /// In en, this message translates to:
-  /// **'Clear'**
+  /// **'Cleared'**
   String get cleared;
 
   /// No description provided for @deleted.
@@ -2110,6 +2122,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'ADD'**
   String get currencyAddButton;
+
+  /// No description provided for @currencyNameCZK.
+  ///
+  /// In en, this message translates to:
+  /// **'Czech koruna'**
+  String get currencyNameCZK;
+
+  /// No description provided for @currencyNameEUR.
+  ///
+  /// In en, this message translates to:
+  /// **'euro'**
+  String get currencyNameEUR;
+
+  /// No description provided for @currencyNameUSD.
+  ///
+  /// In en, this message translates to:
+  /// **'US dollar'**
+  String get currencyNameUSD;
+
+  /// No description provided for @currencyNameGBP.
+  ///
+  /// In en, this message translates to:
+  /// **'British pound'**
+  String get currencyNameGBP;
+
+  /// No description provided for @currencyNamePLN.
+  ///
+  /// In en, this message translates to:
+  /// **'Polish zloty'**
+  String get currencyNamePLN;
+
+  /// No description provided for @currencyNameHUF.
+  ///
+  /// In en, this message translates to:
+  /// **'Hungarian forint'**
+  String get currencyNameHUF;
+
+  /// No description provided for @currencyNameCHF.
+  ///
+  /// In en, this message translates to:
+  /// **'Swiss franc'**
+  String get currencyNameCHF;
+
+  /// No description provided for @currencyNameJPY.
+  ///
+  /// In en, this message translates to:
+  /// **'Japanese yen'**
+  String get currencyNameJPY;
 
   /// No description provided for @timeNow.
   ///

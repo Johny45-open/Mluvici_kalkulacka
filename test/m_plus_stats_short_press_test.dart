@@ -85,6 +85,17 @@ void main() {
         find.text('Repeat count').evaluate().isNotEmpty;
   }
 
+  bool hasReviewDialog() {
+    return find.text('Kontrola dat před uložením').evaluate().isNotEmpty ||
+        find.text('Review data before saving').evaluate().isNotEmpty;
+  }
+
+  Finder findSaveButton() {
+    var f = find.widgetWithText(TextButton, 'Uložit');
+    if (f.evaluate().isEmpty) f = find.widgetWithText(TextButton, 'Save');
+    return f;
+  }
+
   Finder findConfirmButton() {
     var f = find.widgetWithText(TextButton, 'Potvrdit');
     if (f.evaluate().isEmpty) f = find.widgetWithText(TextButton, 'Confirm');
@@ -98,7 +109,7 @@ void main() {
   }
 
   group('M+ kratky stisk ve Statistickem rezimu', () {
-    testWidgets('M+ s jednou hodnotou oznami Připravena 1 hodnota', (
+    testWidgets('M+ s jednou hodnotou otevre kontrolni dialog bez pole poctu', (
       tester,
     ) async {
       final state = await pumpApp(tester);
@@ -112,34 +123,34 @@ void main() {
       await tester.pump();
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      // musi oznamit pocet pripravenych hodnot ceskou hlaskou
+      // kontrolni dialog je zobrazen, repeat dialog nikoli
+      expect(hasReviewDialog(), isTrue);
+      expect(hasRepeatDialog(), isFalse);
+      // zadne pole pro pocet opakovani
+      expect(find.byType(TextField), findsNothing);
+      // souhrn se jednou ohlasi
       expect(
-        ttsLog.any((t) => t.contains('Připravena 1 hodnota')),
+        ttsLog.any((t) => t.contains('Připraveno 1 záznam')),
         isTrue,
         reason: 'TTS log: $ttsLog',
       );
-      // nesmi spustit nesouvisejici obecnou hlasku "Přidat do statistické paměti" jako samostatny speak
-      // (ta je jen semantics label, ne speak pri tapu)
-      // overit ze se nehlasi jako duplicitni – povoleno max 1 speak s count
-      // a zadny speak nesmi byt presne "Přidat do statistické paměti"
+      // nesmi spustit nesouvisejici obecnou hlasku jako samostatny speak
       expect(
         ttsLog.any((t) => t == 'Přidat do statistické paměti'),
         isFalse,
         reason: 'Nesmi se spustit obecna hlaska tlacitka: $ttsLog',
       );
-      // hodnota se opravdu dostane do sady az v dialogu – zatim prazdne
+      // hodnota se opravdu dostane do sady az po Ulozit – zatim prazdne
       expect(state.statsMemoryForTest.length, 0);
-      // dialog pro pocet opakovani je zobrazen
-      expect(hasRepeatDialog(), isTrue);
-      // potvrdit 1x
-      await tester.tap(findConfirmButton());
+      // ulozit prave jednou
+      await tester.tap(findSaveButton());
       await tester.pumpAndSettle();
       expect(state.statsMemoryForTest.length, 1);
       expect(state.displayForTest, '');
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('M+ se dvema hodnotami oznami Připraveny 2 hodnoty', (
+    testWidgets('M+ se dvema hodnotami zobrazi obe a Zrusit nic neulozi', (
       tester,
     ) async {
       final state = await pumpApp(tester);
@@ -153,13 +164,10 @@ void main() {
       await tester.pump();
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(
-        ttsLog.any((t) => t.contains('Připraveny 2 hodnoty')),
-        isTrue,
-        reason: 'TTS log: $ttsLog',
-      );
+      expect(hasReviewDialog(), isTrue);
+      expect(hasRepeatDialog(), isFalse);
+      expect(find.byType(TextField), findsNothing);
       expect(state.statsMemoryForTest.length, 0);
-      expect(hasRepeatDialog(), isTrue);
       // zrusit
       await tester.tap(findCancelButton());
       await tester.pumpAndSettle();
@@ -167,7 +175,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('M+ s peti hodnotami oznami Připraveno 5 hodnot', (
+    testWidgets('M+ s peti hodnotami ulozi kazdou prave jednou', (
       tester,
     ) async {
       final state = await pumpApp(tester);
@@ -181,14 +189,10 @@ void main() {
       await tester.pump();
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(
-        ttsLog.any((t) => t.contains('Připraveno 5 hodnot')),
-        isTrue,
-        reason: 'TTS log: $ttsLog',
-      );
-      expect(hasRepeatDialog(), isTrue);
-      await tester.tap(findCancelButton());
+      expect(hasReviewDialog(), isTrue);
+      await tester.tap(findSaveButton());
       await tester.pumpAndSettle();
+      expect(state.statsMemoryForTest.length, 5);
       await tester.pump(const Duration(seconds: 1));
     });
 
@@ -210,6 +214,7 @@ void main() {
         reason: 'TTS log: $ttsLog',
       );
       expect(hasRepeatDialog(), isFalse);
+      expect(hasReviewDialog(), isFalse);
       await tester.pump(const Duration(seconds: 1));
     });
 
@@ -236,7 +241,9 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('existujici sada projde do repeat dialogu', (tester) async {
+    testWidgets('existujici sada zobrazi kontrolu s nazvem sady', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await switchToStatistics(tester);
       state.addStatsSetForTest(
@@ -254,8 +261,8 @@ void main() {
       await tester.pump();
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(ttsLog.any((t) => t.contains('Připravena 1 hodnota')), isTrue);
-      expect(hasRepeatDialog(), isTrue);
+      expect(ttsLog.any((t) => t.contains('Připraveno 1 záznam')), isTrue);
+      expect(hasReviewDialog(), isTrue);
       // overit ze summary v dialogu obsahuje nazev sady
       expect(find.textContaining('MojeSada'), findsOneWidget);
       await tester.pump(const Duration(seconds: 1));
@@ -270,35 +277,24 @@ void main() {
       expect(state.getStatsCountFormForTest(5), 'hodnot');
       expect(state.getStatsCountFormForTest(11), 'hodnot');
       expect(state.getStatsCountFormForTest(21), 'hodnot');
-      // dale overit ze M+ pouziva spravny tvar v TTS
+      // kratky stisk pro 2 hodnoty otevre kontrolu (bez pole poctu)
       await switchToStatistics(tester);
       state.addStatsSetForTest(
         StatisticsSet(name: 'Test', fieldNames: const ['Value'], records: []),
       );
       await tester.pumpAndSettle();
-      // 2 hodnoty -> hodnoty
-      ttsLog.clear();
       state.setDisplayForTest('1;2', 3);
       await state.addSingleValueToStatsForTest();
       await tester.pumpAndSettle();
-      expect(ttsLog.any((t) => t.contains('hodnoty')), isTrue);
+      expect(hasReviewDialog(), isTrue);
+      expect(find.byType(TextField), findsNothing);
       await tester.tap(findCancelButton());
       await tester.pumpAndSettle();
-      // 5 hodnot -> hodnot
-      ttsLog.clear();
-      state.setDisplayForTest('1;2;3;4;5', 9);
-      await state.addSingleValueToStatsForTest();
-      await tester.pumpAndSettle();
-      expect(
-        ttsLog.any((t) => t.contains('hodnot') && t.contains('5')),
-        isTrue,
-      );
-      await tester.tap(findCancelButton());
-      await tester.pumpAndSettle();
+      expect(state.statsMemoryForTest.length, 0);
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('hodnota se dostane do sady az po potvrzeni repeat dialogu', (
+    testWidgets('hodnota se dostane do sady az po Ulozit v kontrole', (
       tester,
     ) async {
       final state = await pumpApp(tester);
@@ -316,15 +312,10 @@ void main() {
         before,
         reason: 'Pred potvrzenim nesmi byt ulozeno',
       );
-      // zmenit pocet opakovani na 2
-      final textField = find.byType(TextField);
-      expect(textField, findsOneWidget);
-      await tester.enterText(textField, '2');
-      await tester.pump();
-      await tester.tap(findConfirmButton());
+      await tester.tap(findSaveButton());
       await tester.pumpAndSettle();
-      // 2 zaznamy *2 =4
-      expect(state.statsMemoryForTest.length, 4);
+      // 2 zaznamy, kazdy prave jednou (bez nasobeni)
+      expect(state.statsMemoryForTest.length, 2);
       await tester.pump(const Duration(seconds: 1));
     });
 
@@ -352,6 +343,55 @@ void main() {
         isFalse,
         reason: 'TTS log nesmi obsahovat obecnou hlasku vysledku: $ttsLog',
       );
+      await tester.pump(const Duration(seconds: 1));
+    });
+  });
+
+  group('M+ dlouhy stisk ve Statistickem rezimu', () {
+    testWidgets('dlouhy stisk zachova pole pro pocet opakovani', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await switchToStatistics(tester);
+      state.addStatsSetForTest(
+        StatisticsSet(name: 'Test', fieldNames: const ['Value'], records: []),
+      );
+      await tester.pumpAndSettle();
+      state.setDisplayForTest('7;8', 3);
+      await tester.pump();
+      await state.handleMultipleStatisticsAdditionForTest();
+      await tester.pumpAndSettle();
+      expect(hasRepeatDialog(), isTrue);
+      expect(hasReviewDialog(), isFalse);
+      // pole pro pocet je pritomno
+      expect(find.byType(TextField), findsOneWidget);
+      // zmenit pocet opakovani na 2
+      await tester.enterText(find.byType(TextField), '2');
+      await tester.pump();
+      await tester.tap(findConfirmButton());
+      await tester.pumpAndSettle();
+      // 2 zaznamy * 2 = 4
+      expect(state.statsMemoryForTest.length, 4);
+      await tester.pump(const Duration(seconds: 1));
+    });
+
+    testWidgets('dlouhy stisk gestem na tlacitku M+ otevre repeat dialog', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await switchToStatistics(tester);
+      state.addStatsSetForTest(
+        StatisticsSet(name: 'Test', fieldNames: const ['Value'], records: []),
+      );
+      await tester.pumpAndSettle();
+      state.setDisplayForTest('9', 1);
+      await tester.pump();
+      await tester.longPress(find.text('M+'));
+      await tester.pumpAndSettle();
+      expect(hasRepeatDialog(), isTrue);
+      await tester.tap(findCancelButton());
+      await tester.pumpAndSettle();
+      expect(state.statsMemoryForTest.length, 0);
       await tester.pump(const Duration(seconds: 1));
     });
   });

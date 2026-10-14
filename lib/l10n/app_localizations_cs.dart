@@ -93,19 +93,19 @@ class AppLocalizationsCs extends AppLocalizations {
   String get tutorialScientific => 'Režim Vědecká – dvě stránky.\n\nČíselná stránka: C ( ), / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL =.\nFunkční stránka (FUNKCE): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nPřepínač ČÍSLA/FUNKCE dole, klávesově Ctrl+PageUp/PageDown. Tl. DEG/RAD přepíná stupně/radiány (oznamuje se). Paměť STO/RCL/CLR + proměnné A-F,X,Y,M a Pokročilé funkce (Goniometrie, Funkce, Paměť, Perioda, Zobrazení NORM/FIX/SCI/ENG).';
 
   @override
-  String get tutorialStatistics => 'Režim Statistika – práce se sadami.\n\nTlačítka: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: správa sad a složek – viz záložka Sady & čtení.\nM+ krátce: uloží čísla z displeje (oddělovač ;) do aktivní sady. M+ dlouze / Ctrl+M: zadá počet opakování. Při ≥2 záznamech se zobrazí Kontrola dat před uložením s možností potvrdit.\nMC: vymaže sadu. MR: přehled/editace dat (seskupené hodnoty s počtem výskytů, mazání záznamů).\nSTATS: souhrn pro vybrané pole – nahoře přepínač pole (je-li více polí), zaškrtávátko Číst hodnoty v paměti (skryje/přidá sekci Všechny hodnoty v paměti a ovlivní hlasové čtení), tabulka vypočtených statistik (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN) a tlačítko Pořadí čtení pro přizpůsobení čtení.\nPokročilé funkce: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/MIN/MAX + čtení poslední dávky. Více polí: hodnoty zadávej jako např. 80;2 pro WMEAN (hodnota;váha). Jednotky polí lze nastavit při vytváření/editaci sady a zobrazují se v souhrnu.';
+  String get tutorialStatistics => 'Režim Statistika – práce se sadami.\n\nTlačítka: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: správa sad a složek – viz záložka Sady & čtení.\nM+ krátce: uloží čísla z displeje (oddělovač ;) do aktivní sady. Vždy se zobrazí Kontrola dat před uložením s možností hodnoty zkontrolovat, upravit a uložit tlačítkem Uložit. M+ dlouze / Ctrl+M: zadá počet opakování pro hromadné vložení.\nMC: vymaže sadu. MR: přehled/editace dat (seskupené hodnoty s počtem výskytů, mazání záznamů).\nSTATS: souhrn pro vybrané pole – nahoře přepínač pole (je-li více polí), zaškrtávátko Číst hodnoty v paměti (skryje/přidá sekci Všechny hodnoty v paměti a ovlivní hlasové čtení), tabulka vypočtených statistik (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN) a tlačítko Pořadí čtení pro přizpůsobení čtení.\nPokročilé funkce: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/MIN/MAX + čtení poslední dávky. Více polí: hodnoty zadávej jako např. 80;2 pro WMEAN (hodnota;váha). Jednotky polí lze nastavit při vytváření/editaci sady a zobrazují se v souhrnu.';
 
   @override
   String get tutorialElectrician => 'Režim Elektro – Ohmův zákon a výkon.\n\nTlačítka: OHM_V (U) OHM_I (I) OHM_R (R) C ; 7 8 9 / 4 5 6 * 1 2 3 - 0 . DEL + ANS =.\nNejprve zvolte co počítat (OHM_V/I/R, zvýrazní se), pak zadejte dvě hodnoty oddělené ; např. 12;4 a =.\nU = I×R, I = U/R, R = U/I. Výsledek se ohlásí s jednotkou a prefixem (mili/kilo/mega). Chyba dělení nulou se ohlásí.';
 
   @override
-  String get tutorialUnit => 'Režim Převody jednotek.\n\nKategorie: Délka, Hmotnost, Plocha, Objem, Tlak, Čas, Napětí, Proud, Odpor, Výkon.\nV Pokročilých funkcích vyberte kategorii, jednotku Z a Na (např. m → km), zadejte číslo a PŘEVÉST. Výsledek se ohlásí i zapíše do historie (\"Převedeno z … na …\").\nKlávesnice v tomto režimu jen číselná (C 0-9 . DEL =).';
+  String get tutorialUnit => 'Režim Převody jednotek.\n\nKategorie: Délka, Hmotnost, Plocha, Objem, Tlak, Čas, Napětí, Proud, Odpor, Výkon.\nNa hlavní obrazovce vyberte kategorii, jednotku Z a Na (např. m → km), zadejte číslo a stiskněte PŘEVÉST nebo =. Výsledek se ohlásí i zapíše do historie (\"Převedeno z … na …\").\nKlávesnice v tomto režimu jen číselná (C 0-9 . DEL =).';
 
   @override
   String get tutorialTime => 'Režim Čas – práce s HH:MM[:SS].\n\nTlačítka: C : DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 ; NOW =.\nFormát: 12:34 nebo 12:34:56. Operátory + - přičítají/odečítají časy, ; = ROZDÍL (absolutní rozdíl). NOW/TEĎ vloží aktuální čas. Pokročilé: TO_SEC (čas→sekundy), TO_HMS/NA ČAS (sekundy→čas), DIFF. Příklad: 02:30 + 01:45 = 04:15:00.';
 
   @override
-  String get tutorialCurrency => 'Režim Měna – kurzy vztažené k CZK.\n\nKlávesnice číselná, volba Z měny / Na měnu v Pokročilých funkcích, PŘEVÉST. Tlačítka SPRÁVA KURZŮ (editace/přidání/smazání, CZK=1 pevně) a AKTUALIZOVAT KURZY (online ČNB, hlásí \"Aktualizuji…\" / \"Kurzy aktualizovány\" / offline chybu). Poslední aktualizace se zobrazuje. Výsledek: \"Převedeno X EUR na Y USD. Výsledek …\". Kurzy se ukládají.';
+  String get tutorialCurrency => 'Režim Měna – kurzy vztažené k CZK.\n\nKlávesnice číselná, volba Z měny / Na měnu s úplnými názvy měn přímo na hlavní obrazovce, PŘEVÉST nebo =. Tlačítka SPRÁVA KURZŮ (editace/přidání/smazání, CZK=1 pevně) a AKTUALIZOVAT KURZY (online ČNB, hlásí \"Aktualizuji…\" / \"Kurzy aktualizovány\" / offline chybu). Poslední aktualizace se zobrazuje. Výsledek: \"Převedeno X EUR na Y USD. Výsledek …\". Kurzy se ukládají.';
 
   @override
   String get tutorialStatsManagement => 'Správa statistických sad a čtení souhrnu.\n\nDialog SETS:\n- Hledání podle názvu, řazení Poslední použití / Název / Počet, filtr Vše / Bez složky / konkrétní složka, přepínač Zobrazit archivované.\n- Každá sada má kartu s barvou (8 barev) a ikonou (8 ikon), odznak připnuto/archivováno, počet hodnot a název složky.\n- Menu ⋮ u sady: Vybrat, Přejmenovat, Upravit pole (+jednotky), Barva a ikona, Přesunout do složky, Kopírovat do složky, Duplikovat, Připnout/Odepnout (připnuté jsou vždy nahoře), Archivovat/Obnovit, Smazat (s potvrzením).\n- Tlačítka: Vytvořit novou sadu a Více (Rychlé vytvoření, Průvodce, Hlasové vytvoření) a Složky (Nová složka / Správa složek – přejmenovat/smazat, barva+ikona složky, sady zůstanou v Bez složky).\n- Vytvoření sady: název, počet polí, názvy polí a volitelné jednotky (kategorie Délka…Výkon). Jednotky se zobrazují v souhrnu a při hlasovém čtení.\n\nDialog STATS – Statistický souhrn:\n- Hlavička s názvem aktivní sady a přepínačem pole (klepnutím cykluje, ohlásí se hlasem i pro čtečku).\n- Zaškrtávátko Číst hodnoty v paměti – vypnutím se skryje sekce Všechny hodnoty v paměti a nečte se.\n- Sekce Všechny hodnoty v paměti (seřazené, s jednotkou) a Vypočtené statistiky (tabulka N + položky podle nastaveného pořadí).\n- Tlačítko Pořadí čtení (ikona reorder) otevře samostatný dialog pro nastavení pořadí čtení. Dříve bylo v Nastavení přístupnosti, nyní je přímo v souhrnu.\n\nDialog Pořadí čtení statistického souhrnu:\n- Nahoře: Rychlé presety (Výchozí / Hodnoty první / Statistiky první) – 1 Tab na celou skupinu, šipky a Enter vyberou preset a nastaví vše jedním klikem bez šipek.\n- Střed: Seznam Pořadí čtení – 3 položky (Hlavička / Hodnoty / Vypočtené), 1 Tab na celý seznam, šipky mění výběr, Alt+šipka nahoru/dolů přesune, Home/End na kraj, tlačítka Výše/Níže fungují myší i jako akce čtečky (Posunout výše/níže). Tlačítka Obnovit výchozí a Přehrát náhled.\n- Dole: Seznam uvnitř Vypočtené statistiky – 10 položek MEAN, SUM, VAR, SD, MED, MIN, MAX, MODE, CV, WMEAN, stejný princip 1 Tab + šipky + Alt+šipka, synchronizováno s tabulkou.\n- Změny se ukládají automaticky a oznamují hlasem i pro čtečku obrazovky (včetně pozice X z Y).\n\nPřístupnost: Všechna důležitá oznámení (uložení, smazání, změna pořadí) se oznamují hlasem kalkulačky i přes čtečku (liveRegion/announce), podle Režimu čtečky obrazovky.';
@@ -232,6 +232,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get confirmAction => 'Potvrdit';
 
   @override
+  String get statsSaveAction => 'Uložit';
+
+  @override
   String get statsMemoryTitle => 'Statistická paměť';
 
   @override
@@ -264,6 +267,11 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get statsRepeatLabel => 'Počet vložení';
+
+  @override
+  String statsRepeatInvalidRange(int max) {
+    return 'Počet opakování musí být celé číslo od 1 do $max.';
+  }
 
   @override
   String get statsReviewTitle => 'Kontrola dat před uložením';
@@ -386,7 +394,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsHelpButton => 'Nápověda k ovládání';
 
   @override
-  String get statsHelpText => '=== NÁPOVĚDA KE STATISTICE ===\n\nTLAČÍTKA NA KLÁVESNICI:\n\nSETS – Správa statistických sad a složek. Umožňuje vytvořit, přejmenovat, smazat, přepínat, duplikovat, připnout, archivovat a přesouvat sady mezi složkami. Obsahuje hledání, řazení (Poslední použití/Název/Počet), filtr Vše/Bez složky/složka a přepínač archivovaných. V menu Více: Rychlé vytvoření, Průvodce a Hlasové vytvoření. Složky se spravují tlačítkem Složky (Nová složka / Správa složek – barva a ikona, sady zůstanou v Bez složky po smazání).\n\nM+ (krátké stisknutí) – Přidá zadanou hodnotu (nebo více hodnot oddělených středníkem) do aktivní sady. Při ≥2 záznamech se zobrazí Kontrola dat před uložením.\n\nM+ (dlouhé stisknutí / Ctrl+M) – Přidá hodnoty a umožní zadat počet opakování pro hromadné vložení.\n\nMC – Smaže všechna data v aktivní sadě.\n\nMR – Zobrazí všechna uložená data v editovatelném seznamu (seskupené hodnoty s počtem výskytů, možnost mazat záznamy, tlačítko Správa sad).\n\nSTATS – Zobrazí statistický souhrn: hlavička s názvem sady a přepínačem pole, zaškrtávátko Číst hodnoty v paměti, sekce Všechny hodnoty v paměti (seřazené, s jednotkou) a Vypočtené statistiky (tabulka N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN podle nastaveného pořadí). Tlačítko Pořadí čtení otevře nastavení čtení. Přepínač pole cykluje klepnutím a oznamuje se hlasem i pro čtečku.\n\n; (středník) – Oddělovač hodnot při zadávání více hodnot najednou (např. 5;10;15 nebo 80;2 pro dvě pole).\n\nPOKROČILÉ FUNKCE (dostupné z tlačítka se seznamem v horní liště):\n\nMEAN – Aritmetický průměr všech hodnot.\nSD – Směrodatná odchylka (míra rozptylu hodnot kolem průměru).\nVAR – Rozptyl (průměrná čtvercová odchylka od průměru).\nSUM – Součet všech hodnot.\nMED – Medián (prostřední hodnota seřazených dat).\nMODE – Modus (nejčastější hodnota).\nMIN – Minimální hodnota všech hodnot.\nMAX – Maximální hodnota všech hodnot.\nCV – Variační koeficient (SD v procentech průměru).\nWMEAN – Vážený průměr (vyžaduje 2 pole: hodnoty a váhy).\n\nPOŘADÍ ČTENÍ SOUHRNU (tlačítko Pořadí čtení v dialogu STATS):\nHorní část nastavuje pořadí sekcí Hlavička souhrnu / Hodnoty v paměti / Vypočtené statistiky (čte se shora dolů, tlačítka Posunout výše/níže, Obnovit výchozí). Dolní část nastavuje pořadí položek uvnitř Vypočtené statistiky (MEAN, SUM, VAR, SD, MED, MIN, MAX, MODE, CV, WMEAN) synchronizované s tabulkou. Změny se oznamují hlasem i pro čtečku. Dříve bylo v Nastavení přístupnosti, nyní přímo v souhrnu.\n\nPOLÍ V SADĚ:\n\nKaždá sada může mít více polí (např. \"Hodnota\" a \"Váha\") s volitelnou jednotkou (kategorie Délka…Výkon). Při vytváření sady (SETS → Vytvořit novou sadu nebo Více → Rychlé/Průvodce/Hlasem) přidáš pole tlačítkem \"Přidat pole\" a vybereš jednotku. Jednotky se zobrazují v souhrnu a při hlasovém čtení. Přepínat pole lze v dialogu STATS nebo v Pokročilých funkcích. Každá sada má barvu (8) a ikonu (8), lze ji připnout (vždy nahoře) nebo archivovat.\n\nVÁŽENÝ PRŮMĚR (WMEAN):\n\nVyžaduje sadu s alespoň 2 poli. Pole 0 = hodnoty, pole 1 = váhy. Postup: 1) Vytvoř sadu se 2 poli (např. \"Hodnota\" a \"Váha\"). 2) Zadávej hodnoty a váhy oddělené středníkem, např. \"80;2\" (hodnota 80 s váhou 2). 3) Po zadání všech dat klepni v Pokročilých funkcích na WMEAN. 4) Aplikace vypočte: (hodnota1 × váha1 + hodnota2 × váha2 + ...) / (váha1 + váha2 + ...).\n\nTIPY:\n- Lze vytvářet více sad pro různé skupiny dat a organizovat je do složek.\n- Každá sada může mít více polí (např. hodnoty, váhy) s jednotkami.\n- Nová sada se vytvoří automaticky při prvním vložení dat.\n- Data, pořadí čtení a nastavení Číst hodnoty v paměti se automaticky ukládají.\n- Všechna důležitá oznámení se oznamují hlasem i přes čtečku obrazovky podle Režimu čtečky.';
+  String get statsHelpText => '=== NÁPOVĚDA KE STATISTICE ===\n\nTLAČÍTKA NA KLÁVESNICI:\n\nSETS – Správa statistických sad a složek. Umožňuje vytvořit, přejmenovat, smazat, přepínat, duplikovat, připnout, archivovat a přesouvat sady mezi složkami. Obsahuje hledání, řazení (Poslední použití/Název/Počet), filtr Vše/Bez složky/složka a přepínač archivovaných. V menu Více: Rychlé vytvoření, Průvodce a Hlasové vytvoření. Složky se spravují tlačítkem Složky (Nová složka / Správa složek – barva a ikona, sady zůstanou v Bez složky po smazání).\n\nM+ (krátké stisknutí) – Přidá zadanou hodnotu (nebo více hodnot oddělených středníkem) do aktivní sady. Vždy se zobrazí Kontrola dat před uložením s možností hodnoty zkontrolovat, upravit a uložit.\n\nM+ (dlouhé stisknutí / Ctrl+M) – Přidá hodnoty a umožní zadat počet opakování pro hromadné vložení (celé číslo od 1 do 1000).\n\nMC – Smaže všechna data v aktivní sadě.\n\nMR – Zobrazí všechna uložená data v editovatelném seznamu (seskupené hodnoty s počtem výskytů, možnost mazat záznamy, tlačítko Správa sad).\n\nSTATS – Zobrazí statistický souhrn: hlavička s názvem sady a přepínačem pole, zaškrtávátko Číst hodnoty v paměti, sekce Všechny hodnoty v paměti (seřazené, s jednotkou) a Vypočtené statistiky (tabulka N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN podle nastaveného pořadí). Tlačítko Pořadí čtení otevře nastavení čtení. Přepínač pole cykluje klepnutím a oznamuje se hlasem i pro čtečku.\n\n; (středník) – Oddělovač hodnot při zadávání více hodnot najednou (např. 5;10;15 nebo 80;2 pro dvě pole).\n\nPOKROČILÉ FUNKCE (dostupné z tlačítka se seznamem v horní liště):\n\nMEAN – Aritmetický průměr všech hodnot.\nSD – Směrodatná odchylka (míra rozptylu hodnot kolem průměru).\nVAR – Rozptyl (průměrná čtvercová odchylka od průměru).\nSUM – Součet všech hodnot.\nMED – Medián (prostřední hodnota seřazených dat).\nMODE – Modus (nejčastější hodnota).\nMIN – Minimální hodnota všech hodnot.\nMAX – Maximální hodnota všech hodnot.\nCV – Variační koeficient (SD v procentech průměru).\nWMEAN – Vážený průměr (vyžaduje 2 pole: hodnoty a váhy).\n\nPOŘADÍ ČTENÍ SOUHRNU (tlačítko Pořadí čtení v dialogu STATS):\nHorní část nastavuje pořadí sekcí Hlavička souhrnu / Hodnoty v paměti / Vypočtené statistiky (čte se shora dolů, tlačítka Posunout výše/níže, Obnovit výchozí). Dolní část nastavuje pořadí položek uvnitř Vypočtené statistiky (MEAN, SUM, VAR, SD, MED, MIN, MAX, MODE, CV, WMEAN) synchronizované s tabulkou. Změny se oznamují hlasem i pro čtečku. Dříve bylo v Nastavení přístupnosti, nyní přímo v souhrnu.\n\nPOLÍ V SADĚ:\n\nKaždá sada může mít více polí (např. \"Hodnota\" a \"Váha\") s volitelnou jednotkou (kategorie Délka…Výkon). Při vytváření sady (SETS → Vytvořit novou sadu nebo Více → Rychlé/Průvodce/Hlasem) přidáš pole tlačítkem \"Přidat pole\" a vybereš jednotku. Jednotky se zobrazují v souhrnu a při hlasovém čtení. Přepínat pole lze v dialogu STATS nebo v Pokročilých funkcích. Každá sada má barvu (8) a ikonu (8), lze ji připnout (vždy nahoře) nebo archivovat.\n\nVÁŽENÝ PRŮMĚR (WMEAN):\n\nVyžaduje sadu s alespoň 2 poli. Pole 0 = hodnoty, pole 1 = váhy. Postup: 1) Vytvoř sadu se 2 poli (např. \"Hodnota\" a \"Váha\"). 2) Zadávej hodnoty a váhy oddělené středníkem, např. \"80;2\" (hodnota 80 s váhou 2). 3) Po zadání všech dat klepni v Pokročilých funkcích na WMEAN. 4) Aplikace vypočte: (hodnota1 × váha1 + hodnota2 × váha2 + ...) / (váha1 + váha2 + ...).\n\nTIPY:\n- Lze vytvářet více sad pro různé skupiny dat a organizovat je do složek.\n- Každá sada může mít více polí (např. hodnoty, váhy) s jednotkami.\n- Nová sada se vytvoří automaticky při prvním vložení dat.\n- Data, pořadí čtení a nastavení Číst hodnoty v paměti se automaticky ukládají.\n- Všechna důležitá oznámení se oznamují hlasem i přes čtečku obrazovky podle Režimu čtečky.';
 
   @override
   String get statsHelpKeyboardSection => 'Tlačítka na klávesnici';
@@ -407,7 +415,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get statsHelpKeyboardSets => 'SETS – Správa statistických sad a složek. Hledání, řazení, filtr, barva/ikona, připnutí/archiv, přesun/kopie/duplikace, složky a 3 způsoby vytvoření (Rychlé, Průvodce, Hlasem).';
 
   @override
-  String get statsHelpKeyboardMPlus => 'M+ (krátké stisknutí) – Přidá hodnoty do aktivní sady. Při ≥2 záznamech zobrazí Kontrolu dat před uložením. Dlouhé stisknutí / Ctrl+M – zadá počet opakování pro hromadné vložení.';
+  String get statsHelpKeyboardMPlus => 'M+ (krátké stisknutí) – Přidá hodnoty do aktivní sady a vždy zobrazí Kontrolu dat před uložením. Dlouhé stisknutí / Ctrl+M – zadá počet opakování pro hromadné vložení (1 až 1000).';
 
   @override
   String get statsHelpKeyboardMc => 'MC – Smaže všechna data v aktivní sadě.';
@@ -578,23 +586,19 @@ class AppLocalizationsCs extends AppLocalizations {
   String get valueOutOfRange => 'Hodnota je mimo povolený rozsah funkce';
 
   @override
-  String get negativeSqrtArgument =>
-      'Odmocnina ze záporného čísla není v oboru reálných čísel.';
+  String get negativeSqrtArgument => 'Odmocnina ze záporného čísla není v oboru reálných čísel.';
 
   @override
   String get logArgumentMustBePositive => 'Argument logaritmu musí být kladný.';
 
   @override
-  String get logBaseInvalid =>
-      'Základ logaritmu musí být kladný a různý od jedné.';
+  String get logBaseInvalid => 'Základ logaritmu musí být kladný a různý od jedné.';
 
   @override
-  String get asinArgumentOutOfRange =>
-      'Argument funkce asin musí být v rozsahu od minus jedna do jedna.';
+  String get asinArgumentOutOfRange => 'Argument funkce asin musí být v rozsahu od minus jedna do jedna.';
 
   @override
-  String get acosArgumentOutOfRange =>
-      'Argument funkce acos musí být v rozsahu od minus jedna do jedna.';
+  String get acosArgumentOutOfRange => 'Argument funkce acos musí být v rozsahu od minus jedna do jedna.';
 
   @override
   String get calculationOverflow => 'Výsledek je příliš velký.';
@@ -1119,6 +1123,30 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get currencyAddButton => 'PŘIDAT';
+
+  @override
+  String get currencyNameCZK => 'česká koruna';
+
+  @override
+  String get currencyNameEUR => 'euro';
+
+  @override
+  String get currencyNameUSD => 'americký dolar';
+
+  @override
+  String get currencyNameGBP => 'britská libra';
+
+  @override
+  String get currencyNamePLN => 'polský zlotý';
+
+  @override
+  String get currencyNameHUF => 'maďarský forint';
+
+  @override
+  String get currencyNameCHF => 'švýcarský frank';
+
+  @override
+  String get currencyNameJPY => 'japonský jen';
 
   @override
   String get timeNow => 'TEĎ';
