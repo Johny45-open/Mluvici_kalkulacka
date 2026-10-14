@@ -210,7 +210,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('casovy vysledek neni zpusobily, toggle je disabled', (
+    testWidgets('casovy vysledek neni zpusobily, toggle je dosazitelny', (
       tester,
     ) async {
       final state = await pumpApp(tester);
@@ -219,11 +219,12 @@ void main() {
       await calculate(tester, state, '12:30');
       expect(state.fractionEligibleForTest, isFalse);
       expect(state.fractionViewForTest, isFalse);
-      // Tlacitko zustava na miste jako disabled.
+      // Tlacitko zustava na miste dosazitelne (nikdy disabled): stisk nic
+      // neprepne a jednou oznami duvod.
       final toggle = find.byKey(const ValueKey('fraction_toggle'));
       expect(toggle, findsOneWidget);
       final btn = tester.widget<TextButton>(toggle);
-      expect(btn.onPressed, isNull);
+      expect(btn.onPressed, isNotNull);
       // Aktivace bez zpusobilosti nic nezapne.
       state.toggleFractionForTest();
       await tester.pumpAndSettle();
@@ -503,7 +504,8 @@ void main() {
       expect(state.fractionViewForTest, isFalse);
       final toggle = find.byKey(const ValueKey('fraction_toggle'));
       expect(toggle, findsOneWidget);
-      expect(tester.widget<TextButton>(toggle).onPressed, isNull);
+      // Dosazitelne i pri nezpusobilosti (oznami duvod, nic neprepne).
+      expect(tester.widget<TextButton>(toggle).onPressed, isNotNull);
       state.toggleFractionForTest();
       await tester.pumpAndSettle();
       expect(state.fractionViewForTest, isFalse);
@@ -708,13 +710,14 @@ void main() {
       String toggleLabel(WidgetTester tester) =>
           (toggleSemantics(tester).properties.label ?? '').toLowerCase();
 
-      testWidgets('A. bez vysledku: nedostupne + disabled', (tester) async {
+      testWidgets('A. bez vysledku: nedostupne + dosazitelne', (tester) async {
         final state = await pumpApp(tester);
         expect(state.fractionEligibleForTest, isFalse);
         expect(state.fractionViewForTest, isFalse);
         final toggle = find.byKey(const ValueKey('fraction_toggle'));
         expect(toggle, findsOneWidget);
-        expect(tester.widget<TextButton>(toggle).onPressed, isNull);
+        // Nikdy disabled: dosazitelne, stisk oznami duvod.
+        expect(tester.widget<TextButton>(toggle).onPressed, isNotNull);
         final text = visualText(tester).toLowerCase();
         expect(
           text.contains('nedostupné') || text.contains('unavailable'),
@@ -723,7 +726,7 @@ void main() {
         // Nedostupny stav nesmi ukazovat zadny konkretni zlomek.
         expect(text.contains('/'), isFalse);
         final sem = toggleSemantics(tester);
-        expect(sem.properties.enabled, isFalse);
+        expect(sem.properties.enabled, isTrue);
         expect(sem.properties.toggled, isFalse);
         expect(tester.takeException(), isNull);
       });

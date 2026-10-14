@@ -22,6 +22,7 @@ import 'currency_service.dart';
 import 'thousand_grouping.dart';
 import 'config_validator.dart';
 import 'surd.dart';
+import 'rational.dart';
 import 'fraction.dart';
 import 'voice_round_tracker.dart';
 

@@ -3,6 +3,8 @@
 // a nesmí záviset na konkrétním vizuálním rendereru (segment vs. text).
 import 'dart:math' as math;
 
+import 'rational.dart';
+
 // Režim vykreslování výsledkového displeje. Význam je nezávislý na
 // existujícím DisplayFormat (standard/fix/sci/eng), který se nemění:
 // - segment: vždy současný segmentový displej (původní vzhled),
@@ -51,6 +53,25 @@ class SurdValue extends CalcValue {
   @override
   String toString() =>
       'SurdValue($coefficient, $radicand, $index) = ${formatSurd(this)}';
+}
+
+// Exaktní racionální výsledek, např. 1/2 + 1/3 = 5/6.
+// Stejný protokol jako SurdValue: strukturovaná přesná metadata vedle
+// numerického výsledku, nikdy odvozená zpětnou aproximací double.
+// Hodnota žije v [_lastExact], platnost hlídá klíč + generace výsledku.
+class RationalValue extends CalcValue {
+  final Rational value;
+  const RationalValue(this.value);
+
+  @override
+  bool operator ==(Object other) =>
+      other is RationalValue && other.value == value;
+
+  @override
+  int get hashCode => value.hashCode;
+
+  @override
+  String toString() => 'RationalValue(${value.toDisplayString()})';
 }
 
 // Horní mez radikandu pro bezpečný rozklad na prvočinitele.
@@ -187,6 +208,7 @@ enum CalcDisplayKind { segment, mathText }
 // DMS (°), E-notace, periodická čára (U+0305) a znaménka jsou segment-safe.
 CalcDisplayKind chooseDisplayRenderer(CalcValue value, String fallbackResult) {
   if (value is SurdValue) return CalcDisplayKind.mathText;
+  if (value is RationalValue) return CalcDisplayKind.mathText;
   if (fallbackResult.contains('√') ||
       fallbackResult.contains('∛') ||
       fallbackResult.contains('ⁿ') ||

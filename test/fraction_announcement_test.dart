@@ -153,9 +153,11 @@ void main() {
       final speeches = resultSpeeches('Výsledek je', 'The result is');
       expect(speeches, isEmpty, reason: 'TTS log: $ttsLog');
       // ... výsledek jde jednotným Semantics kanálem, právě jednou.
+      // 3/4 je přesný výsledek (RationalValue), proto se oznamuje přímo
+      // jako zlomek — stejně jako exaktní surd tvary.
       final announced = state.lastAnnouncementForTest as String;
       expect(announced, contains('Výsledek je'));
-      expect(announced.contains('lomeno'), isFalse);
+      expect(announced, contains('3 lomeno 4'));
       expect(announced.contains('dostupný'), isFalse);
       expect(announced.contains('is available'), isFalse);
       // Toggle Semantics dál obsahuje konkrétní zlomek.

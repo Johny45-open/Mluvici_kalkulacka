@@ -414,8 +414,10 @@ enum HistoryExactFormat { numeric, exact }
 
 // Jeden záznam historie výpočtů. Ukládá VÝHRADNĚ strukturovaná data,
 // nikdy předformátovaný text — vizuální tvar vzniká až při renderu
-// voláním formatSurd(). numericResult je zdrojem pravdy pro ANS,
-// vkládání i další výpočty; exact* je nullable metadata.
+// voláním formatSurd(), resp. Rational.toDisplayString(). numericResult je
+// zdrojem pravdy pro ANS, vkládání i další výpočty; exact* i rational*
+// jsou nullable metadata. Starý záznam bez metadat nikdy nedostává
+// dodatečný přesný tvar odvozený z double.
 class CalculationHistoryEntry {
   final String expression;
   final String numericResult;
@@ -423,6 +425,9 @@ class CalculationHistoryEntry {
   final int? exactCoef;
   final int? exactRadicand;
   final int? exactIndex;
+  // Přesná racionální hodnota jako desetinné řetězce BigInt (JSON-safe).
+  final String? rationalNum;
+  final String? rationalDen;
 
   const CalculationHistoryEntry({
     required this.expression,
@@ -431,6 +436,8 @@ class CalculationHistoryEntry {
     this.exactCoef,
     this.exactRadicand,
     this.exactIndex,
+    this.rationalNum,
+    this.rationalDen,
   });
 
   /// Exaktní tvar jako SurdValue, nebo null pokud neexistuje.
@@ -442,15 +449,22 @@ class CalculationHistoryEntry {
     return SurdValue(coefficient: c, radicand: r, index: i);
   }
 
-  /// Nový záznam je autoritativní (exact explicitně rozhodnut).
-  /// Starý záznam (legacy exp|res) má resultDouble null a exact null —
+  /// Exaktní racionální tvar, nebo null pokud neexistuje.
+  /// Nikdy se neodvozuje z resultDouble ani z textu výsledku.
+  Rational? get rational =>
+      Rational.tryParseStorage(rationalNum, rationalDen);
+
+  /// Nový záznam je autoritativní (exact/rational explicitně rozhodnut).
+  /// Starý záznam (legacy exp|res) má resultDouble null a metadata null —
   /// pouze pro něj se smí použít trySurdFromExpression() jako fallback.
-  bool get isLegacyExactUnknown => resultDouble == null && exact == null;
+  bool get isLegacyExactUnknown =>
+      resultDouble == null && exact == null && rational == null;
 
   factory CalculationHistoryEntry.fromSurd(
     String expression,
     String numericResult, {
     SurdValue? surd,
+    Rational? rational,
     double? numericValue,
   }) {
     return CalculationHistoryEntry(
@@ -460,6 +474,8 @@ class CalculationHistoryEntry {
       exactCoef: surd?.coefficient,
       exactRadicand: surd?.radicand,
       exactIndex: surd?.index,
+      rationalNum: rational?.numerator.toString(),
+      rationalDen: rational?.denominator.toString(),
     );
   }
 
@@ -471,6 +487,8 @@ class CalculationHistoryEntry {
     if (exactCoef != null) 'c': exactCoef,
     if (exactRadicand != null) 'r': exactRadicand,
     if (exactIndex != null) 'i': exactIndex,
+    if (rationalNum != null) 'rn': rationalNum,
+    if (rationalDen != null) 'rd': rationalDen,
   };
 
   factory CalculationHistoryEntry.fromJson(Map<String, dynamic> json) {
@@ -478,6 +496,7 @@ class CalculationHistoryEntry {
         v is int ? v : (v is num ? v.toInt() : int.tryParse('$v'));
     double? asDouble(dynamic v) =>
         v is double ? v : (v is num ? v.toDouble() : double.tryParse('$v'));
+    String? asString(dynamic v) => v?.toString();
     return CalculationHistoryEntry(
       expression: json['exp'] as String? ?? '',
       numericResult: json['res'] as String? ?? '',
@@ -485,6 +504,8 @@ class CalculationHistoryEntry {
       exactCoef: asInt(json['c']),
       exactRadicand: asInt(json['r']),
       exactIndex: asInt(json['i']),
+      rationalNum: asString(json['rn']),
+      rationalDen: asString(json['rd']),
     );
   }
 
@@ -492,7 +513,7 @@ class CalculationHistoryEntry {
   String toStorageString() {
     // Záznam s metadaty (nebo číselnou hodnotou) -> JSON; čistý
     // textový záznam bez metadat -> legacy exp|res pro čitelnost zálohy.
-    if (resultDouble != null || exact != null) {
+    if (resultDouble != null || exact != null || rational != null) {
       return jsonEncode(toJson());
     }
     return '$expression|$numericResult';

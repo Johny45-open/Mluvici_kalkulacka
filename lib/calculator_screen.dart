@@ -21,6 +21,13 @@ class CalculatorScreen extends StatefulWidget {
 /// pozice kurzoru (tou zůstává `_cursorPosition`).
 enum _ExpressionControlOffReason { none, traversal, dialog }
 
+/// Cíl příštího stisku zlomkového přepínače (jediný autoritativní zdroj pro
+/// popisek, přístupný stav i hlas; žádná část UI cíl neodhaduje samostatně).
+/// - fraction: po stisku se ukáže zlomek.
+/// - numeric: po stisku se ukáže desetinná numerika.
+/// - surd: po stisku se ukáže exaktní surd tvar základu.
+enum _FractionTargetKind { fraction, numeric, surd }
+
 class _CalculatorScreenState extends State<CalculatorScreen>
     with WidgetsBindingObserver {
   static const int _kKeypadColumns = 4;
@@ -154,29 +161,33 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   CalcValue? _lastExact;
   String _lastExactKey = '';
   // Vrací text skutečně zobrazený na výsledkovém displeji: exaktní surd
-  // tvar, pokud patří k aktuálnímu _lastResult, jinak numerický _lastResult.
+  // či racionální tvar, pokud patří k aktuálnímu výsledku (klíč + generace),
+  // jinak numerický _lastResult. Přesnost se nikdy neodvozuje parsováním
+  // numerického řetězce.
   String get _displayedResultString {
     final exact = _lastExact;
-    if (exact is SurdValue &&
-        _lastExactKey == _lastResult &&
-        _lastResult.isNotEmpty) {
-      return formatSurd(exact);
+    if (_isLastExactValid && _lastResult.isNotEmpty) {
+      if (exact is SurdValue) return formatSurd(exact);
+      final r = _validRationalNonTrivial;
+      if (r != null) return r.toDisplayString();
     }
     return _lastResult.isEmpty ? '0.' : _lastResult;
   }
 
   // Aktivní reprezentace výsledku mimo zlomkový pohled podle skutečně
   // zvoleného ResultDisplayMode. Jediná mode-aware pravda pro displej
-  // i hlas: text -> surd pokud validní, auto -> surd pokud validní,
-  // segment -> vždy numerika. Nemění _lastResult/_lastNumericValue/
+  // i hlas: text -> exaktní tvar pokud validní, auto -> exaktní tvar pokud
+  // validní, segment -> vždy numerika. Nemění _lastResult/_lastNumericValue/
   // _lastExact/_lastExactKey, nic nepřepočítává, neřeší TTS ani focus.
   // Fraction view má vyšší prioritu a řeší se v místě použití.
+  // Vynucené desetinné (override false při platném RationalValue) základ
+  // obchází ve vykreslovací cestě — nikdy zde.
   String _activeResultString() {
     switch (_globalResultDisplayMode) {
       case ResultDisplayMode.text:
         return _displayedResultString;
       case ResultDisplayMode.auto:
-        if (_lastExact is SurdValue && _lastExactKey == _lastResult) {
+        if (_isSurdValid || _validRationalNonTrivial != null) {
           return _displayedResultString;
         }
         return _lastResult.isEmpty ? '0.' : _lastResult;
@@ -185,19 +196,51 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  // Čistě prezentační helper pro Semantics zlomkového přepínače: říká, zda
-  // je skutečným základním zobrazením (po vypnutí zlomku) exaktní surd tvar.
-  // Kopíruje podmínku _activeResultString()/_displayedResultString, nic
-  // nepřepočítává, nemění _lastResult/_lastExact/_lastExactKey. Záměrně
-  // vyžaduje platný SurdValue i v režimu text (např. 25 v text režimu je
-  // číselné zobrazení, ne exaktní).
+  // Platnost exaktních metadat: vyžaduje shodu klíče i generace výsledku.
+  // Samotný řetězec nestačí — dva různé výpočty (např. 1/3 racionálně
+  // a 0.3333333333 numericky) mohou vytvořit stejný _lastResult.
+  bool get _isLastExactValid =>
+      _lastExact != null &&
+      _lastExactKey == _lastResult &&
+      _lastExactGeneration == _resultGeneration;
+
+  bool get _isSurdValid =>
+      _isLastExactValid &&
+      _lastExact is SurdValue &&
+      _lastResult.isNotEmpty;
+
+  // Platný přesný racionální výsledek pro matematiku (ANS, paměť).
+  // Bez ohledu na zobrazovací způsobilost (plain-numeric) — matematika
+  // není závislá na formátu displeje.
+  Rational? get _validRational =>
+      (_isLastExactValid && _lastExact is RationalValue)
+          ? (_lastExact as RationalValue).value
+          : null;
+
+  // Platný netriviální racionální tvar pro zobrazení (d != 1, plain-numeric
+  // kontext). Triviální n/1 (včetně 0/1) není zlomek a vrací null.
+  Rational? get _validRationalNonTrivial {
+    final r = _validRational;
+    if (r == null) return null;
+    if (!_lastResultIsPlainNumeric) return null;
+    if (r.denominator == BigInt.one) return null;
+    return r;
+  }
+
+  // Čistě prezentační helper: říká, zda se právě teď (bez zlomkového
+  // překryvu) zobrazuje exaktní surd tvar v režimu text/auto. Kopíruje
+  // podmínku _activeResultString()/_displayedResultString pro surd,
+  // nic nepřepočítává, nemění _lastResult/_lastExact/_lastExactKey.
+  // Záměrně pouze surd: racionální základ se v text/auto sice ukazuje jako
+  // n/d automaticky, ale popisek přepínače se ve všech větvích odvozuje
+  // od cíle příštího stisku (_fractionTargetKindAfterNextPress), nikdy
+  // odsud. Tato funkce nikdy nerozhoduje o cíli akce.
   bool get _fractionBaseIsExact {
-    final exact = _lastExact;
-    return (_globalResultDisplayMode == ResultDisplayMode.text ||
-            _globalResultDisplayMode == ResultDisplayMode.auto) &&
-        exact is SurdValue &&
-        _lastExactKey == _lastResult &&
-        _lastResult.isNotEmpty;
+    if (_globalResultDisplayMode != ResultDisplayMode.text &&
+        _globalResultDisplayMode != ResultDisplayMode.auto) {
+      return false;
+    }
+    return _isSurdValid;
   }
 
   // Stack pozic '(' vložených tlačítkem NEG (±) – pro auto-uzavření
@@ -733,14 +776,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _usePeriodicNotation = true;
   int _precision = 2;
   double? _lastNumericValue;
+  // Monotónní generace výsledku: razítko platnosti _lastExact a zlomkového
+  // override. NENÍ zdrojem hodnoty — hodnota žije v _lastExact, resp.
+  // v _lastNumericValue. Každý zápis nového výsledku/chyby/vymazání generaci
+  // inkrementuje; čistě formátová změna (dialog přesnosti) ji nemění a pouze
+  // překlíčuje _lastExactKey.
+  int _resultGeneration = 0;
+  int _lastExactGeneration = -1;
   // --- Prezentační zlomkový náhled (DEC <-> a/b) ---
-  // Čistě prezentační stav: _fractionResultView nikdy nepřepisuje _lastResult,
-  // _lastNumericValue, ANS, historii ani exact/surd metadata. Numerická hodnota
-  // zůstává autoritativním zdrojem pravdy. _fractionViewKey váže pohled ke
-  // konkrétnímu _lastResult, takže jakýkoliv nový výsledek pohled automaticky
-  // zneplatní (není potřeba nulovat na desítkách míst).
-  bool _fractionResultView = false;
+  // Čistě prezentační stav: _fractionOverride nikdy nepřepisuje _lastResult,
+  // _lastNumericValue, ANS, historii ani exact metadata. Význam:
+  // null = řídit se základem režimu (segment vždy desetinně, text/auto
+  // ukazují platný netriviální RationalValue jako n/d), true = vynutit
+  // zlomek, false = vynutit desetinné. Zastaralý override (jiný klíč nebo
+  // generace výsledku) se chová jako null — samotné false bez platného
+  // klíče nikdy nevynucuje zastaralou reprezentaci.
+  // _fractionViewKey + _fractionViewGeneration vážou override ke konkrétnímu
+  // výsledku, takže jakýkoliv nový výsledek záměr automaticky zneplatní.
+  bool? _fractionOverride;
   String _fractionViewKey = '';
+  int _fractionViewGeneration = -1;
   // Stavový příznak způsobilosti: true pouze pro běžný numerický výsledek
   // (basic/scientific, standardní formát, bez DMS/jednotek/měny/času).
   // Nikdy se neodvozuje parsováním textu _lastResult.
@@ -823,6 +878,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     'Y': 0,
     'M': 0,
   };
+
+  // Paralelní racionální vazba paměťových proměnných (pouze pro hodnoty
+  // uložené z platného exaktního výsledku). _memory zůstává jediným
+  // persistovaným úložištěm (double); tato mapa je runtime-only a po
+  // restartu se bezpečně chová jako prázdná (fallback na double).
+  // Mazána společně s _memory, klíčována jménem proměnné (nepřetrvává
+  // napříč přepsáním hodnoty jiným zdrojem).
+  final Map<String, Rational> _rationalMemory = {};
 
   final List<StatisticsSet> _statsSets = [];
   final List<StatisticsFolder> _statsFolders = [];
@@ -2528,7 +2591,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastNumericValue = result;
         // Měnový výsledek je speciální kontext: zlomek nevhodný.
         _lastResultIsPlainNumeric = false;
-        _fractionResultView = false;
+        _fractionOverride = null;
+        // Nový výsledek ruší přesná metadata (klíč + generace).
+        _lastExact = null;
+        _lastExactKey = '';
+        _resultGeneration++;
+        _lastExactGeneration = _resultGeneration;
       });
       _addToHistory(
         '${value.toString()} $_currencyFrom → $_currencyTo',
@@ -3935,7 +4003,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _hasResult = false;
       _pendingNegOpens.clear();
       _lastResultIsPlainNumeric = false;
-      _fractionResultView = false;
+      _fractionOverride = null;
+      // Vymazání ruší přesná metadata (klíč + generace).
+      _lastExact = null;
+      _lastExactKey = '';
+      _resultGeneration++;
+      _lastExactGeneration = _resultGeneration;
     });
     speak(_l10n.cleared);
   }
@@ -4007,9 +4080,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     final String valStrVis = _formatNumberSmart(val).replaceAll('.', ',');
     final String valStrSpoken = _formatSpokenNumber(val);
+    // Racionální vazba: exaktní výraz z displeje, jinak platný RationalValue
+    // posledního výsledku, jinak nic (vazba se maže — nikdy zastaralá).
+    Rational? storedRational;
+    if (display.isNotEmpty) {
+      final expanded = _expandAnsForRational(display);
+      if (expanded != null) {
+        final rr = tryEvaluateRational(expanded);
+        if (rr is RationalOk) storedRational = rr.value;
+      }
+    } else {
+      storedRational = _validRational;
+    }
     setState(() {
       _memory[name] = val;
       _isStoreMode = false;
+      if (storedRational != null) {
+        _rationalMemory[name] = storedRational;
+      } else {
+        _rationalMemory.remove(name);
+      }
     });
     _saveStatsData();
     // R9: jedno potvrzení (dříve speak + announce SnackBaru).
@@ -4041,7 +4131,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _memory[name]!,
     ).replaceAll('.', ',');
     String valStrSpoken = _formatSpokenNumber(_memory[name]!);
-    append(_formatNumber(_memory[name]!), silent: true);
+    // Exaktní vazba (závorkovaný tvar pro správnou prioritu), jinak číselně.
+    final rat = _rationalMemory[name];
+    if (rat != null && rat.denominator != BigInt.one) {
+      append('(${rat.numerator}/${rat.denominator})', silent: true);
+    } else {
+      append(_formatNumber(_memory[name]!), silent: true);
+    }
     // R9: jedno potvrzení (dříve speak + announce SnackBaru).
     unawaited(
       announceEvent(
@@ -4879,9 +4975,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       String resStr = '0';
       String spoken = '';
       // Exaktní metadata pro historii: vyplní pouze větev běžného
-      // výpočtu (trySurdFromExpression); ostatní větve nechají null
-      // = autoritativní "žádný exaktní tvar".
+      // výpočtu (RationalValue nebo trySurdFromExpression); ostatní větve
+      // nechají null = autoritativní "žádný exaktní tvar".
       SurdValue? historyExact;
+      Rational? historyRational;
       // Stavová způsobilost pro zlomkový náhled: true pouze pro běžný
       // numerický výsledek (basic/scientific, standard, bez DMS). Nikdy
       // se neodvozuje parsováním textu výsledku.
@@ -4989,7 +5086,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           isInverse = true;
         }
 
-        double result = _evaluateExpression(display);
+        // Přesná racionální větev (V1): pouze basic/scientific ve standardním
+        // formátu, jinak beze změny numerická cesta. Úspěch dává strukturovaný
+        // Rational (nikdy aproximaci double); nepodporovaný výraz padá do
+        // _evaluateExpression; chyba vyhazuje mapovaný CalcError.
+        Rational? exactRational;
+        if ((_currentMode == CalculatorMode.basic ||
+                _currentMode == CalculatorMode.scientific) &&
+            _displayFormat == DisplayFormat.standard) {
+          final rationalInput = _expandAnsForRational(display);
+          if (rationalInput != null) {
+            final rationalEval = tryEvaluateRational(rationalInput);
+            if (rationalEval is RationalOk) {
+              exactRational = rationalEval.value;
+            } else if (rationalEval is RationalFailure) {
+              throw _mapRationalFailure(rationalEval.kind);
+            }
+          }
+        }
+
+        double result =
+            exactRational?.toDouble() ?? _evaluateExpression(display);
         // Strukturální kontrola už proběhla uvnitř _evaluateExpression:
         // každé prokázané dělení nulou vyhodilo CalcError(divisionByZero).
         // Zbytkový non-finite výsledek bez takového důkazu proto nikdy
@@ -5018,21 +5135,40 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             !resStr.contains('°') &&
             result.isFinite;
 
-        // Částečné odmocňování: bezpečně detekuj jednoduchou odmocninu
-        // celého čísla (např. "√72" -> 6√2, "∛54" -> 3∛2, "4ⁿ√48" -> 2⁴√3).
-        // Numerický resStr, _lastNumericValue i historie zůstávají zdrojem
-        // pravdy; surd je pouze exaktní prezentační metadata platná pro
-        // tento resStr (klíč _lastExactKey). Záporné/desetinné vstupy,
-        // perfektní mocniny a prvočísla vrací null -> dnešní chování.
-        final surd = trySurdFromExpression(display);
-        if (surd != null) {
-          _lastExact = surd;
-          _lastExactKey = resStr;
-          historyExact = surd;
+      // Exaktní metadata výsledku: RationalValue pro racionální výpočet,
+        // jinak částečně odmocněný surd pro jednoduchou odmocninu celého
+        // čísla (např. "√72" -> 6√2). _lastResult zůstává VŽDY numerický
+        // string; přesnost žije strukturovaně v _lastExact s platností
+        // klíč + generace. Ostatní větve nechávají null = autoritativní
+        // "žádný exaktní tvar". Vzájemně se vylučují.
+        SurdValue? spokenSurd;
+        if (exactRational != null) {
+          historyRational = exactRational;
+        } else {
+          // Částečné odmocňování: bezpečně detekuj jednoduchou odmocninu
+          // celého čísla (např. "√72" -> 6√2, "∛54" -> 3∛2, "4ⁿ√48" -> 2⁴√3).
+          // Numerický resStr, _lastNumericValue i historie zůstávají zdrojem
+          // pravdy; surd je pouze exaktní prezentační metadata. Záporné/
+          // desetinné vstupy, perfektní mocniny a prvočísla vrací null ->
+          // dnešní chování. Zápis metadat probíhá až ve společném commitu
+          // níže (jednotná invalidace pro všechny větve).
+          final surd = trySurdFromExpression(display);
+          if (surd != null) {
+            historyExact = surd;
+            spokenSurd = surd;
+          }
         }
 
-        if (surd != null) {
-          spoken = _l10n.resultIs(_spokenForDisplay(formatSurd(surd)));
+        if (exactRational != null &&
+            exactRational.denominator != BigInt.one) {
+          // Přesný zlomek se oznamuje přímo (stejný precedens jako surd);
+          // věta o dostupnosti se pak nepřipojuje (žádná duplicita).
+          final spokenFraction = exactRational
+              .toDisplayString()
+              .replaceAll('/', _s(' lomeno ', ' over '));
+          spoken = _l10n.resultIs(spokenFraction);
+        } else if (spokenSurd != null) {
+          spoken = _l10n.resultIs(_spokenForDisplay(formatSurd(spokenSurd)));
         } else if (resStr.contains('°')) {
           spoken = _l10n.resultIs(_formatDmsSpeech(resStr));
         } else {
@@ -5055,10 +5191,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         display = '';
         _cursorPosition = 0;
         _pendingNegOpens.clear();
-        // Nový výpočet začíná v normálním zobrazení; klíč pohledu se tím
-        // zneplatní i kdyby bool zůstal (viz _isFractionViewActive).
+        // Nový výpočet začíná bez vynuceného pohledu (override null).
+        // Generace se inkrementuje vždy: platnost exaktních metadat hlídá
+        // klíč + generace (viz _isLastExactValid a _isShowingFraction).
+        // Větve bez vlastních metadat (statistika, elektro, čas) tím
+        // zastaralý RationalValue/SurdValue automaticky zneplatní.
+        _resultGeneration++;
+        _lastExactGeneration = _resultGeneration;
+        if (historyRational != null) {
+          _lastExact = RationalValue(historyRational);
+          _lastExactKey = resStr;
+        } else if (historyExact != null) {
+          _lastExact = historyExact;
+          _lastExactKey = resStr;
+        } else {
+          _lastExact = null;
+          _lastExactKey = '';
+        }
         _lastResultIsPlainNumeric = plainResult;
-        _fractionResultView = false;
+        _fractionOverride = null;
       });
 
       // Automatické oznámení dostupnosti zlomku: pouze součást existující
@@ -5066,8 +5217,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // již komitnutý (_lastResult, _lastNumericValue,
       // _lastResultIsPlainNumeric, _hasResult), takže _fractionString je
       // finální. Při screen readeru ON vrací helper null a speech zůstává
-      // beze změny.
-      final fractionSuffix = _fractionAvailabilitySuffix();
+      // beze změny. Je-li primární hláška již přesný zlomek, věta se
+      // nepřipojuje (žádná duplicita).
+      final bool exactAlreadySpoken = historyRational != null &&
+          historyRational.denominator != BigInt.one;
+      final fractionSuffix =
+          exactAlreadySpoken ? null : _fractionAvailabilitySuffix();
       if (fractionSuffix != null && fractionSuffix.isNotEmpty) {
         spoken = '$spoken $fractionSuffix';
       }
@@ -5086,6 +5241,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         currentExpression,
         resStr,
         exact: historyExact,
+        rational: historyRational,
         numericValue: _lastNumericValue,
       );
     } catch (e) {
@@ -5114,7 +5270,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastResult = 'Error';
         _hasResult = true;
         _lastResultIsPlainNumeric = false;
-        _fractionResultView = false;
+        _fractionOverride = null;
+        // Chyba ruší přesná metadata: generace se inkrementuje, takže ani
+        // textově shodný starší výsledek nedostane zastaralý RationalValue.
+        _lastExact = null;
+        _lastExactKey = '';
+        _resultGeneration++;
+        _lastExactGeneration = _resultGeneration;
         // Nech pending pro opravu, ale pokud byl prázdný, vyčisti
       });
       // R4: chyba jednou, jejím kanálem (při SR liveRegion, jinak TTS).
@@ -5447,10 +5609,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   double _evaluateExpression(String expr) {
     debugPrint("Evaluating expression: '$expr'");
-    String ansValue = _lastNumericValue?.toString() ?? '0';
-    String processed = expr
-        .replaceAll('ANS', '($ansValue)')
-        .replaceAll(' ', '');
+    // ANS se rozvíjí z platného RationalValue strukturovaně ((n/d)),
+    // jinak dosavadní numericky. Stejnou expanzi používá exaktní pokus,
+    // takže řetězení zůstává přesné.
+    String processed =
+        expr.replaceAll('ANS', _ansExpansion()).replaceAll(' ', '');
 
     // 1. PŘÍPRAVA SYMBOLŮ
     processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3');
@@ -5893,28 +6056,129 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   // Zlomkový řetězec aktuálního výsledku, nebo null když není způsobilý.
-  // Čistě odvozeno ze stavu (_lastNumericValue + _lastResultIsPlainNumeric),
-  // nikdy parsováním textu _lastResult. Zdrojem pravdy pro uživatelskou
-  // dostupnost je netriviální zlomek (jmenovatel != 1): celá čísla (n/1,
-  // včetně 0/1) vrací null.
+  // Priorita: platný netriviální RationalValue (strukturovaná přesnost),
+  // jinak dosavadní aproximace z _lastNumericValue. Nikdy parsováním textu
+  // _lastResult a nikdy zpětnou aproximací double jako zdrojem přesnosti:
+  // aproximace slouží pouze výsledkům bez exaktních metadat.
+  // Triviální n/1 (včetně 0/1) vrací null.
   String? get _fractionString {
-    final v = _lastNumericValue;
-    if (!_hasResult || v == null || !v.isFinite) return null;
+    if (!_hasResult || _lastNumericValue == null) return null;
+    if (!_lastNumericValue!.isFinite) return null;
     if (!_lastResultIsPlainNumeric) return null;
     if (_lastResult.toLowerCase() == 'error') return null;
+    final r = _validRationalNonTrivial;
+    if (r != null) return r.toDisplayString();
+    final v = _lastNumericValue!;
     final f = decimalToNonTrivialFraction(v);
     if (f == null) return null;
     return formatFraction(f);
   }
 
-  // Aktivní zlomkový pohled: vyžaduje zapnutý toggle, shodný klíč výsledku
-  // a způsobilý zlomek. Nový výsledek (jiný _lastResult) pohled zneplatní.
-  bool get _isFractionViewActive =>
-      _fractionResultView &&
+  // Shoda uloženého override s aktuálním výsledkem (klíč + generace).
+  // Samotné true/false bez platného klíče nikdy nic nevynucuje.
+  bool get _isFractionOverrideKeyValid =>
+      _fractionOverride != null &&
       _fractionViewKey == _lastResult &&
-      _fractionString != null;
+      _fractionViewGeneration == _resultGeneration;
+
+  // Skutečně zobrazovaná reprezentace (jediný zdroj pro displej, tlačítko
+  // i hlas). override null = základ režimu (segment vždy desetinně,
+  // text/auto ukazují platný netriviální RationalValue jako n/d);
+  // explicitní override platí jen s platným klíčem, zastaralý se chová
+  // jako null. Aproximace se v základu nikdy sama neukazuje.
+  bool _isShowingFraction() {
+    if (!_isFractionEligible) return false;
+    final o = _fractionOverride;
+    if (o == null || !_isFractionOverrideKeyValid) {
+      if (_globalResultDisplayMode == ResultDisplayMode.segment) {
+        return false;
+      }
+      return _validRationalNonTrivial != null;
+    }
+    return o;
+  }
+
+  // Vynucené desetinné při platném RationalValue: obchází racionální větev
+  // _activeResultString(), aby vypnutí v text/auto skutečně ukázalo
+  // numerický _lastResult. Používáno rendererem i hlasem, vždy s kontrolou
+  // platnosti klíče — nikdy samotné `_fractionOverride == false`.
+  bool get _isForceDecimalActive =>
+      _fractionOverride == false &&
+      _isFractionOverrideKeyValid &&
+      _validRationalNonTrivial != null;
 
   bool get _isFractionEligible => _fractionString != null;
+
+  // Cíl příštího stisku přepínače (jediný autoritativní zdroj pro popisek,
+  // přístupný stav i hlasové oznámení; žádná část UI cíl neodhaduje
+  // samostatně). Simuluje skutečné následné vykreslení: stisk uloží
+  // override = !_isShowingFraction(), takže cíl fraction znamená budoucí
+  // override true a cíle numeric/surd budoucí override false se základem
+  // bez zlomkového překryvu (surd pouze pro surd-základ v text/auto).
+  _FractionTargetKind? _fractionTargetKindAfterNextPress() {
+    if (!_isFractionEligible) return null;
+    if (!_isShowingFraction()) return _FractionTargetKind.fraction;
+    if ((_globalResultDisplayMode == ResultDisplayMode.text ||
+            _globalResultDisplayMode == ResultDisplayMode.auto) &&
+        _isSurdValid) {
+      return _FractionTargetKind.surd;
+    }
+    return _FractionTargetKind.numeric;
+  }
+
+  // Přesný operand ANS: platný RationalValue (strukturovaně, nikdy
+  // z double), jinak dosavadní numerická hodnota. Stejnou expanzi používají
+  // exaktní i numerická vyhodnocovací cesta, takže řetězení (např.
+  // 5/6 + 1/6) zůstává přesné.
+  String _ansExpansion() {
+    final r = _validRational;
+    if (r != null) {
+      if (r.denominator == BigInt.one) return '(${r.numerator})';
+      return '(${r.numerator}/${r.denominator})';
+    }
+    return '(${_lastNumericValue?.toString() ?? '0'})';
+  }
+
+  // Expanze ANS pro exaktní pokus: null = nelze exaktně (neplatný Rational
+  // při výskytu ANS) → volat stávající numerickou cestu beze změny.
+  String? _expandAnsForRational(String expr) {
+    if (!expr.contains('ANS')) return expr;
+    final r = _validRational;
+    if (r == null) return null;
+    if (r.denominator == BigInt.one) {
+      return expr.replaceAll('ANS', '(${r.numerator})');
+    }
+    return expr.replaceAll('ANS', '(${r.numerator}/${r.denominator})');
+  }
+
+  // Mapování vrstevnaté chyby do stávajícího CalcError (jediné místo).
+  // Překročení limitu je chyba implementace (invalidOperation), nikdy
+  // matematický výsleden ani důvod k tichému fallbacku do double.
+  CalcError _mapRationalFailure(RationalFailureKind kind) {
+    switch (kind) {
+      case RationalFailureKind.divisionByZero:
+        return const CalcError(
+          CalcErrorKind.divisionByZero,
+          CalcErrorReason.zeroDenominator,
+        );
+      case RationalFailureKind.unbalancedParens:
+        return const CalcError(
+          CalcErrorKind.syntax,
+          CalcErrorReason.syntaxParens,
+        );
+      case RationalFailureKind.syntax:
+        return const CalcError(
+          CalcErrorKind.syntax,
+          CalcErrorReason.syntaxGeneral,
+        );
+      case RationalFailureKind.limitExceeded:
+        return const CalcError(
+          CalcErrorKind.invalidOperation,
+          CalcErrorReason.unknown,
+          'rational-limit',
+        );
+    }
+  }
 
   // Automatická věta o dostupnosti zlomku pro výsledkovou speech.
   // Pure helper: pouze čte stav a rozhoduje, jakou doplňující větu (pokud
@@ -5931,6 +6195,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return null;
     }
     if (!_hasResult || !_lastResultIsPlainNumeric) return null;
+    // Již zobrazený zlomek se znovu neavizuje (žádná duplicita).
+    if (_isShowingFraction()) return null;
     final fracStr = _fractionString;
     if (fracStr != null) {
       final spokenFraction = fracStr.replaceAll('/', _s(' lomeno ', ' over '));
@@ -5948,15 +6214,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   // Řeč aktuálního výsledku pro Semantics.value a onTap: zlomek při
-  // aktivním pohledu, jinak reprezentace podle skutečně zvoleného
-  // ResultDisplayMode (segment -> numerika, text/auto -> surd pokud validní).
+  // skutečně zobrazeném zlomkovém pohledu (racionální metadata přednostně,
+  // jinak aproximace), jinak reprezentace podle skutečně zvoleného
+  // ResultDisplayMode (segment -> numerika, text/auto -> exaktní tvar
+  // pokud validní). Zrcadlí renderer — displej a hlas se nerozcházejí.
   String _currentResultSpeech() {
-    if (_isFractionViewActive) {
+    if (_isShowingFraction()) {
+      final r = _validRationalNonTrivial;
+      if (r != null) {
+        if (_isEnglish()) {
+          return '${r.numerator} over ${r.denominator}';
+        }
+        return '${r.numerator} lomeno ${r.denominator}';
+      }
       final v = _lastNumericValue;
       final f = v == null ? null : decimalToNonTrivialFraction(v);
       if (f != null) return _spokenFraction(f);
       final s = _fractionString;
       if (s != null) return s.replaceAll('/', _s(' lomeno ', ' over '));
+    }
+    if (_isForceDecimalActive) {
+      if (_lastResult == 'Error') return _s('Chyba', 'Error');
+      return _spokenForDisplay(
+        _lastResult.isEmpty ? '0.' : _lastResult,
+      );
     }
     final active = _activeResultString();
     // R7: chybový stav číst lokalizovaně ("Chyba"/"Error"),
@@ -5966,39 +6247,61 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   // Prezentační přepínač DEC <-> a/b. Nemění _lastResult, _lastNumericValue,
-  // ANS, historii ani exact metadata. Oznámení jde přes say() (announce XOR
-  // TTS), nikdy duplicitně.
+  // ANS, historii ani exact metadata. Vždy dosažitelný (i při
+  // nezpůsobilosti): jedna aktivace = právě jedno oznámení stávající
+  // infrastrukturou (say), nikdy paralelní TTS ani debounce. Oznámení
+  // vždy odpovídá cíli stisku z _fractionTargetKindAfterNextPress.
   void toggleFractionResultView() {
-    final fracStr = _fractionString;
-    if (fracStr == null) {
+    final target = _fractionTargetKindAfterNextPress();
+    if (target == null) {
       say(_l10n.fractionUnavailable);
       return;
     }
-    final turningOn = !_isFractionViewActive;
+    final showingAfter = target == _FractionTargetKind.fraction;
     setState(() {
-      _fractionResultView = turningOn;
+      _fractionOverride = showingAfter;
       _fractionViewKey = _lastResult;
+      _fractionViewGeneration = _resultGeneration;
     });
-    if (turningOn) {
-      final v = _lastNumericValue;
-      final f = v == null ? null : decimalToNonTrivialFraction(v);
-      if (f != null) {
-        say(_l10n.fractionAnnounced(f.numerator, f.denominator));
+    if (showingAfter) {
+      final r = _validRationalNonTrivial;
+      if (r != null) {
+        say(_l10n.fractionAnnounced(r.numerator, r.denominator));
       } else {
-        say(
-          _s(
-            'Zlomek $fracStr.',
-            'Fraction $fracStr.',
-          ).replaceAll('/', _s(' lomeno ', ' over ')),
-        );
+        final v = _lastNumericValue;
+        final f = v == null ? null : decimalToNonTrivialFraction(v);
+        if (f != null) {
+          say(_l10n.fractionAnnounced(f.numerator, f.denominator));
+        } else {
+          final fracStr = _fractionString;
+          say(
+            _s(
+              'Zlomek $fracStr.',
+              'Fraction $fracStr.',
+            ).replaceAll('/', _s(' lomeno ', ' over ')),
+          );
+        }
       }
     } else {
       // Návrat ze zlomkového pohledu: oznámit reprezentaci, která je po
-      // vypnutí skutečně aktivní podle ResultDisplayMode (segment ->
-      // numerika, text/auto -> surd pokud validní). Neměnit _lastResult,
-      // _lastNumericValue, _lastExact ani _lastExactKey.
-      final active = _activeResultString();
-      say(_l10n.resultIs(_spokenForDisplay(active)));
+      // stisku skutečně aktivní (cíl z target-funkce, ne odhad).
+      // Neměnit _lastResult, _lastNumericValue, _lastExact ani generace.
+      if (target == _FractionTargetKind.surd &&
+          _lastExact is SurdValue) {
+        say(
+          _l10n.resultIs(
+            _spokenForDisplay(formatSurd(_lastExact as SurdValue)),
+          ),
+        );
+      } else {
+        say(
+          _l10n.resultIs(
+            _spokenForDisplay(
+              _lastResult.isEmpty ? '0.' : _lastResult,
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -6112,10 +6415,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _hasResult = true;
         // Převod jednotek je speciální prezentační kontext: zlomek nevhodný.
         _lastResultIsPlainNumeric = false;
-        _fractionResultView = false;
+        _fractionOverride = null;
         // R10: synchronizace stavu – ANS a historie jako u měny.
         // (Matematika se nemění, pouze se ukládá již vypočtená hodnota.)
         _lastNumericValue = result;
+        // Nový výsledek ruší přesná metadata (klíč + generace).
+        _lastExact = null;
+        _lastExactKey = '';
+        _resultGeneration++;
+        _lastExactGeneration = _resultGeneration;
       });
       _addToHistory(
         '${value.toString()} $_unitFrom → $_unitTo',
@@ -6526,10 +6834,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Widget _buildMainResultDisplay({double fitScale = 1.0}) {
     // Zlomkový náhled má přednost před globálním ResultDisplayMode, ale NEMĚNÍ
-    // ho: vždy matematický text se zlomkem (3/4), návrat obnoví původní větev.
+    // ho: vždy matematický text se zlomkem, návrat obnoví skutečnou větev.
+    // Vynucené desetinné (override false při platném RationalValue) základ
+    // obchází a padá na numerický _lastResult (viz _isForceDecimalActive).
     final fracStr = _fractionString;
-    if (_isFractionViewActive && fracStr != null) {
+    if (_isShowingFraction() && fracStr != null) {
       return _buildMathTextDisplay(fracStr, fitScale: fitScale);
+    }
+    if (_isForceDecimalActive) {
+      final String numericRes = _lastResult.isEmpty ? '0.' : _lastResult;
+      if (numericRes.contains('°')) {
+        return _buildDmsDisplay(numericRes, fitScale: fitScale);
+      }
+      return _buildNumericResultDisplay(numericRes, fitScale: fitScale);
     }
     String res = _lastResult.isEmpty ? '0.' : _lastResult;
     // Nový režim vzhledu výsledku (default segment = původní chování).
@@ -6541,10 +6858,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return _buildMathTextDisplay(_activeResultString(), fitScale: fitScale);
       }
       if (mode == ResultDisplayMode.auto) {
-        final CalcValue value =
-            (_lastExact is SurdValue && _lastExactKey == _lastResult)
+        final CalcValue value = _isSurdValid
             ? _lastExact!
-            : const NumericValue(0);
+            : (_validRationalNonTrivial != null
+                ? _lastExact!
+                : const NumericValue(0));
         if (chooseDisplayRenderer(value, res) == CalcDisplayKind.mathText) {
           return _buildMathTextDisplay(
             _activeResultString(),
@@ -6556,6 +6874,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (res.contains('°')) {
       return _buildDmsDisplay(res, fitScale: fitScale);
     }
+    return _buildNumericResultDisplay(res, fitScale: fitScale);
+  }
+
+  // Čistě numerické vykreslení _lastResult (DMS / vědecké / segmentové),
+  // bez text/auto exaktních větví. Používáno pro vynucené desetinné
+  // (override false při platném RationalValue); matematika ani metadata
+  // se nemění, pouze se obchází základ s n/d.
+  Widget _buildNumericResultDisplay(String res, {double fitScale = 1.0}) {
     // Auto-exponenciální prezentace ve standard režimu (obsahuje 'E') používá stejný vědecký displej
     final isAutoExp =
         res.contains('E') && RegExp(r'^-?\dE[+-]\d+$').hasMatch(res);
@@ -6714,10 +7040,220 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final s = _responsiveScale(context);
     // Nulový vnější svislý padding: výšku řádku určuje pouze kompaktní
     // tlačítko (viz _buildFractionToggle). I tak zůstává řádek stabilní
-    // a nerozbije malé displeje ani vysoký zoom.
+    // a nerozbije malé displeje ani vysoký zoom. Vedle přepínače stojí
+    // tlačítko vložení zlomku (dialog Čitatel/Jmenovatel) — stále mimo
+    // displej, Stack i 7×4 rastr klávesnice.
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 8 * s),
-      child: Center(child: _buildFractionToggle(s)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          // Přepínač se smí zúžit (Text má ellipsis), vkládací tlačítko
+          // drží plný popisek pro odečítače.
+          Flexible(child: _buildFractionToggle(s)),
+          SizedBox(width: 8 * s),
+          _buildFractionInsertButton(s),
+        ],
+      ),
+    );
+  }
+
+  // Tlačítko vložení zlomku: otevírá přístupný dialog Čitatel/Jmenovatel,
+  // potvrzení vloží hotový tvar "(n/d)" výhradně přes _insertAtCursor()
+  // na zapamatované pozici kurzoru. Zrušení nic nemění. Po aktivaci fokus
+  // zůstává na tlačítku, dialog řeší centrální správa fokusu.
+  Widget _buildFractionInsertButton(double s) {
+    final sysFactor = MediaQuery.textScalerOf(
+      context,
+    ).scale(1.0).clamp(1.0, 1.6);
+    final insertFontSize = (13.0 * s * sysFactor).clamp(12.0, 16.0);
+    final String label = _s('Vložit zlomek', 'Insert fraction');
+    return Semantics(
+      label: label,
+      button: true,
+      enabled: true,
+      child: ExcludeSemantics(
+        child: TextButton(
+          key: const ValueKey('fraction_insert'),
+          onPressed: _showFractionInputDialog,
+          style: TextButton.styleFrom(
+            minimumSize: const Size(48, 28),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+            foregroundColor: Colors.redAccent,
+          ),
+          child: MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.noScaling),
+            child: Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: insertFontSize,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Přístupný dialog Čitatel/Jmenovatel. Sbírá pouze n/d (max. 12 číslic,
+  // čitatel smí mít úvodní '-', jmenovatel kladný a nenulový, 1 se odmítá),
+  // validuje s lokalizovanými chybami a po potvrzení vloží "(n/d)" přes
+  // _insertAtCursor. Evaluátor přijatý vstup na limitu neodmítne (dialogové
+  // limity ≤ limitům Rational). Jediné hlasové potvrzení stávajícím kanálem.
+  Future<void> _showFractionInputDialog() {
+    final int insertPos = _cursorPosition;
+    final bool startFresh = _hasResult;
+    final numCtrl = TextEditingController();
+    final denCtrl = TextEditingController();
+    // Chyby validace žijí mimo builder, aby je rebuild dialogu nezahodil.
+    String? numError;
+    String? denError;
+    return showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(
+        name: _s('Vložit zlomek', 'Insert fraction'),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setStateDialog) {
+          InputDecoration decoration(String label, String? error) =>
+              InputDecoration(
+                labelText: label,
+                errorText: error,
+                helperText: _s(
+                  'Povolené znaky: číslice, čitatel smí mít mínus, max. 12',
+                  'Allowed: digits, numerator may start with minus, max. 12',
+                ),
+              );
+          return AlertDialog(
+            scrollable: false,
+            insetPadding: _dialogInsetPadding(),
+            title: Semantics(
+              header: true,
+              child: Text(_s('Vložit zlomek', 'Insert fraction')),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Semantics(
+                    label: _s('Čitatel', 'Numerator'),
+                    child: TextField(
+                      controller: numCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(signed: true),
+                      autofocus: true,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[-\d]')),
+                        LengthLimitingTextInputFormatter(13),
+                      ],
+                      decoration: decoration(
+                        _s('Čitatel', 'Numerator'),
+                        numError,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Semantics(
+                    label: _s('Jmenovatel', 'Denominator'),
+                    child: TextField(
+                      controller: denCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(12),
+                      ],
+                      decoration: decoration(
+                        _s(
+                          'Jmenovatel (nesmí být nula)',
+                          'Denominator (must not be zero)',
+                        ),
+                        denError,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(_l10n.cancel.toUpperCase()),
+              ),
+              TextButton(
+                onPressed: () {
+                  final nText = numCtrl.text.trim();
+                  final dText = denCtrl.text.trim();
+                  String? nErr;
+                  String? dErr;
+                  if (!RegExp(r'^-?\d{1,12}$').hasMatch(nText)) {
+                    nErr = _s(
+                      'Čitatel musí být celé číslo, nejvýše 12 číslic.',
+                      'Numerator must be an integer with up to 12 digits.',
+                    );
+                  }
+                  if (!RegExp(r'^\d{1,12}$').hasMatch(dText)) {
+                    dErr = _s(
+                      'Jmenovatel musí být kladné celé číslo, nejvýše 12 číslic.',
+                      'Denominator must be a positive integer with up to 12 digits.',
+                    );
+                  } else if (int.parse(dText) == 0) {
+                    dErr = _s(
+                      'Jmenovatel nesmí být nula.',
+                      'Denominator must not be zero.',
+                    );
+                  } else if (int.parse(dText) == 1) {
+                    dErr = _s(
+                      'Jmenovatel 1 netvoří zlomek, zadejte číslo přímo.',
+                      'Denominator 1 is not a fraction, enter the number directly.',
+                    );
+                  }
+                  if (nErr != null || dErr != null) {
+                    // Dialog zůstává otevřený, chyby se ukážou v polích
+                    // (errorText čte čtečka při fokusu pole).
+                    setStateDialog(() {
+                      numError = nErr;
+                      denError = dErr;
+                    });
+                    return;
+                  }
+                  Navigator.pop(ctx);
+                  final n = BigInt.parse(nText);
+                  final d = BigInt.parse(dText);
+                  setState(() {
+                    if (startFresh) {
+                      display = '';
+                      _cursorPosition = 0;
+                      _hasResult = false;
+                      _pendingNegOpens.clear();
+                      _fractionOverride = null;
+                    } else {
+                      _cursorPosition =
+                          insertPos.clamp(0, display.length);
+                    }
+                  });
+                  _insertAtCursor('($n/$d)');
+                  speak(
+                    _s(
+                      'Vloženo $n lomeno $d',
+                      'Inserted $n over $d',
+                    ),
+                  );
+                },
+                child: Text(_l10n.confirmAction.toUpperCase()),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -6725,33 +7261,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // (nikoli overlay displeje ani součást 7×4 rastru klávesnice). Stabilní
   // místo, plný význam v Semantics labelu (stav i akce bez použití barvy)
   // + toggled příznak. Vizuální stav je textový ("Zlomek: {fraction} ·
-  // zapnuto/vypnuto/nedostupné"), tedy rozlišitelný i bez barvy. Nezpůsobilý výsledek:
-  // disabled + důvod, focus order se nemění. Po aktivaci se fokus
+  // zapnuto/vypnuto/nedostupné"), tedy rozlišitelný i bez barvy. Přepínač je
+  // vždy dosažitelný (nikdy disabled): nezpůsobilý stisk nic nepřepne
+  // a jednou oznámí důvod. Focus order se nemění. Po aktivaci se fokus
   // nepřesouvá (žádný _mainFocusNode.requestFocus), zůstává na tlačítku.
   Widget _buildFractionToggle(double s) {
+    // Přepínač je VŽDY přístupně dosažitelný (nikdy disabled): při
+    // nezpůsobilosti stisk nic nepřepne a právě jednou oznámí důvod
+    // stávající infrastrukturou (say). Popisek i stav se odvozují od
+    // skutečně zobrazené reprezentace a cíle příštího stisku
+    // (_fractionTargetKindAfterNextPress); žádná větev cíl neodhaduje.
     final bool eligible = _isFractionEligible;
-    final bool active = _isFractionViewActive;
-    final bool baseExact = _fractionBaseIsExact;
+    final bool showing = _isShowingFraction();
+    final _FractionTargetKind? target =
+        _fractionTargetKindAfterNextPress();
 
     String semanticLabel;
     String visualText;
     if (!eligible) {
       visualText = _l10n.fractionVisualUnavailable;
       semanticLabel = '$visualText. ${_l10n.fractionUnavailable}';
-    } else if (active) {
+    } else if (showing) {
       final String fracStr = _fractionString!;
       visualText = _l10n.fractionVisualOn(fracStr);
-      final String base = baseExact
+      // Zpět vede stisk na základ bez překryvu (cíl z target-funkce).
+      final bool backExact = target == _FractionTargetKind.surd;
+      final String base = backExact
           ? _l10n.fractionBaseExact
           : _l10n.fractionBaseNumeric;
-      final String back = baseExact
+      final String back = backExact
           ? _l10n.fractionSwitchToBaseExact
           : _l10n.fractionSwitchToBaseNumeric;
       semanticLabel = '$visualText. $base. $back';
     } else {
       final String fracStr = _fractionString!;
       visualText = _l10n.fractionVisualOff(fracStr);
-      final String base = baseExact
+      final String base = _fractionBaseIsExact
           ? _l10n.fractionBaseExact
           : _l10n.fractionBaseNumeric;
       semanticLabel = '$visualText. $base. ${_l10n.fractionSwitchToFraction}';
@@ -6767,13 +7312,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return Semantics(
       label: semanticLabel,
       button: true,
-      enabled: eligible,
-      toggled: active,
-      onTap: eligible ? toggleFractionResultView : null,
+      enabled: true,
+      toggled: showing,
+      onTap: toggleFractionResultView,
       child: ExcludeSemantics(
         child: TextButton(
           key: const ValueKey('fraction_toggle'),
-          onPressed: eligible ? toggleFractionResultView : null,
+          onPressed: toggleFractionResultView,
           style: TextButton.styleFrom(
             minimumSize: const Size(48, 28),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -8019,6 +8564,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String exp,
     String res, {
     SurdValue? exact,
+    Rational? rational,
     double? numericValue,
   }) {
     setState(() {
@@ -8028,6 +8574,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           exp,
           res,
           surd: exact,
+          rational: rational,
           numericValue: numericValue,
         ),
       );
@@ -8038,8 +8585,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   /// Vizuální výsledek záznamu podle globálního ResultDisplayMode
   /// (jediná autorita pro aktivní vykreslování historie).
-  /// Nové záznamy používají autoritativní e.exact; trySurdFromExpression()
-  /// pouze jako fallback pro starou historii (isLegacyExactUnknown).
+  /// Nové záznamy používají autoritativní e.exact / e.rational;
+  /// trySurdFromExpression() pouze jako fallback pro starou historii
+  /// (isLegacyExactUnknown). Racionální tvar se nikdy neodvozuje z double.
   /// _historyExactFormat je legacy persistovaný údaj a aktivní renderer
   /// ho nečte.
   String _historyDisplayResult(CalculationHistoryEntry e) {
@@ -8050,6 +8598,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       case ResultDisplayMode.auto:
         final ex = e.exact;
         if (ex != null) return formatSurd(ex);
+        final ra = e.rational;
+        // Jmenovatel 1 se zobrazuje jako celé číslo, nikdy jako n/1
+        // (Rational.toDisplayString to garantuje).
+        if (ra != null) return ra.toDisplayString();
         if (e.isLegacyExactUnknown) {
           final fb = trySurdFromExpression(e.expression);
           if (fb != null) return formatSurd(fb);
@@ -9147,6 +9699,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   _precision = i;
                   if (_lastNumericValue != null) {
                     _lastResult = _formatNumber(_lastNumericValue!);
+                    // Čistě formátový přepis stejné matematické hodnoty:
+                    // generace se nemění, platná metadata se pouze překlíčují.
+                    _lastExactKey = _lastResult;
                   }
                 });
                 speak(_l10n.decimalPlacesSet(i));
@@ -9501,7 +10056,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _pendingNegOpens.clear();
         // Pokračování v práci s výsledkem (ANS) používá numerickou hodnotu;
         // zlomkový pohled se konzistentně vypíná.
-        _fractionResultView = false;
+        _fractionOverride = null;
       });
       if (alreadyHandled) {
         // R1: tichý přepis ⁿ√ by byl bez SR němý – jediné potvrzení.
@@ -9708,7 +10263,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               _lastNumericValue = wmean;
               // R10: statistický kontext – zlomek nevhodný (stale flag fix).
               _lastResultIsPlainNumeric = false;
-              _fractionResultView = false;
+              _fractionOverride = null;
+              // Nový výsledek ruší přesná metadata (klíč + generace).
+              _lastExact = null;
+              _lastExactKey = '';
+              _resultGeneration++;
+              _lastExactGeneration = _resultGeneration;
             });
             // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
             unawaited(
@@ -9851,7 +10411,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = numericResult;
             // R10: statistický kontext – zlomek nevhodný (stale flag fix).
             _lastResultIsPlainNumeric = false;
-            _fractionResultView = false;
+            _fractionOverride = null;
+            // Nový výsledek ruší přesná metadata (klíč + generace).
+            _lastExact = null;
+            _lastExactKey = '';
+            _resultGeneration++;
+            _lastExactGeneration = _resultGeneration;
           });
           // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
           unawaited(
@@ -9991,7 +10556,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = val;
             // R10: DMS kontext – zlomek nevhodný (stale flag fix).
             _lastResultIsPlainNumeric = false;
-            _fractionResultView = false;
+            _fractionOverride = null;
+            // Nový výsledek ruší přesná metadata (klíč + generace).
+            _lastExact = null;
+            _lastExactKey = '';
+            _resultGeneration++;
+            _lastExactGeneration = _resultGeneration;
           });
           // Formátování pro TTS: "12°34'5\"" -> "12 stupňů, 34 minut a 5 sekund"
           String spokenDms = _formatDmsSpeech(dmsStr);
@@ -10018,7 +10588,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = val;
             // R10: DMS kontext – zlomek nevhodný (stale flag fix).
             _lastResultIsPlainNumeric = false;
-            _fractionResultView = false;
+            _fractionOverride = null;
+            // Nový výsledek ruší přesná metadata (klíč + generace).
+            _lastExact = null;
+            _lastExactKey = '';
+            _resultGeneration++;
+            _lastExactGeneration = _resultGeneration;
           });
           // R4/R6: jedna hláška jednotným kanálem, oddělovač podle jazyka.
           unawaited(
@@ -10050,7 +10625,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = converted;
             // R10: kontext převodu – zlomek nevhodný (stale flag fix).
             _lastResultIsPlainNumeric = false;
-            _fractionResultView = false;
+            _fractionOverride = null;
+            // Nový výsledek ruší přesná metadata (klíč + generace).
+            _lastExact = null;
+            _lastExactKey = '';
+            _resultGeneration++;
+            _lastExactGeneration = _resultGeneration;
           });
           // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
           unawaited(
@@ -10108,6 +10688,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             display = '';
             _hasResult = true;
             _lastNumericValue = sec.toDouble();
+            // Nový výsledek ruší přesná metadata (klíč + generace).
+            _lastExact = null;
+            _lastExactKey = '';
+            _resultGeneration++;
+            _lastExactGeneration = _resultGeneration;
           });
           // R4/R6: jedna hláška jednotným kanálem, oddělovač podle jazyka.
           unawaited(
@@ -10155,6 +10740,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             display = '';
             _hasResult = true;
             _lastNumericValue = v;
+            // Nový výsledek ruší přesná metadata (klíč + generace).
+            _lastExact = null;
+            _lastExactKey = '';
+            _resultGeneration++;
+            _lastExactGeneration = _resultGeneration;
           });
           // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
           unawaited(
@@ -10336,7 +10926,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastNumericValue = percent;
         // R10: kontext procent – zlomek nevhodný (stale flag fix).
         _lastResultIsPlainNumeric = false;
-        _fractionResultView = false;
+        _fractionOverride = null;
+        // Nový výsledek ruší přesná metadata (klíč + generace).
+        _lastExact = null;
+        _lastExactKey = '';
+        _resultGeneration++;
+        _lastExactGeneration = _resultGeneration;
       });
       // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
       unawaited(
@@ -13625,7 +14220,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void toggleFractionForTest() => toggleFractionResultView();
 
   @visibleForTesting
-  bool get fractionViewForTest => _isFractionViewActive;
+  bool get fractionViewForTest => _isShowingFraction();
 
   @visibleForTesting
   bool get fractionEligibleForTest => _isFractionEligible;
@@ -13635,6 +14230,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   String get fractionViewKeyForTest => _fractionViewKey;
+
+  @visibleForTesting
+  Rational? get lastRationalForTest => _validRational;
+
+  @visibleForTesting
+  String? fractionTargetKindForTest() =>
+      _fractionTargetKindAfterNextPress()?.name;
+
+  @visibleForTesting
+  bool get showingFractionForTest => _isShowingFraction();
 
   @visibleForTesting
   String currentResultSpeechForTest() => _currentResultSpeech();
@@ -14290,15 +14895,36 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       final entry = _history[index];
                       final expression = entry.expression;
                       // Vizuální výsledek podle globální volby; vkládání
-                      // vždy používá numerickou pravdu (nikdy "6√2").
+                      // používá strukturovanou pravdu: racionální metadata
+                      // jako (n/d) v závorkách (priorita), jinak numeriku
+                      // (nikdy "6√2" ani aproximaci).
                       final displayResult = _historyDisplayResult(entry);
-                      final insertResult = entry.numericResult.isNotEmpty
-                          ? entry.numericResult
-                          : expression;
+                      final entryRational = entry.rational;
+                      final insertResult =
+                          (entryRational != null &&
+                                  entryRational.denominator != BigInt.one &&
+                                  entry.numericResult.isNotEmpty)
+                              ? '(${entryRational.numerator}/${entryRational.denominator})'
+                              : (entry.numericResult.isNotEmpty
+                                  ? entry.numericResult
+                                  : expression);
 
+                      // Hlas řádku: racionální tvar jako "n lomeno d",
+                      // jinak dosavadní řeč zobrazeného tvaru.
+                      final String spokenResult;
+                      if (entryRational != null &&
+                          entryRational.denominator != BigInt.one) {
+                        spokenResult = _s(
+                          '${entryRational.numerator} lomeno ${entryRational.denominator}',
+                          '${entryRational.numerator} over ${entryRational.denominator}',
+                        );
+                      } else {
+                        spokenResult =
+                            _spokenForDisplay(displayResult);
+                      }
                       String semanticDescription = _s(
-                        "Výpočet: ${_spokenForDisplay(expression)}, výsledek: ${_spokenForDisplay(displayResult)}. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
-                        "Calculation: ${_spokenForDisplay(expression)}, result: ${_spokenForDisplay(displayResult)}. Tap to insert the result, hold to insert the whole calculation.",
+                        "Výpočet: ${_spokenForDisplay(expression)}, výsledek: $spokenResult. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
+                        "Calculation: ${_spokenForDisplay(expression)}, result: $spokenResult. Tap to insert the result, hold to insert the whole calculation.",
                       );
 
                       return Semantics(
@@ -14454,6 +15080,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               final cleared = _nonZeroMemoryVariableNames();
               setState(() {
                 _memory.updateAll((key, value) => 0);
+                // Racionální vazby se mažou společně s pamětí.
+                _rationalMemory.clear();
               });
               _saveStatsData();
               final clearedMsg = _memoryClearedMessage(cleared);
