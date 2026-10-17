@@ -107,7 +107,7 @@ void main() {
   }
 
   double responsiveScaleFor(Size size) =>
-      (size.shortestSide / 360.0).clamp(1.0, 1.7);
+      (size.shortestSide / 360.0).clamp(1.0, 1.15);
 
   double standardRowHFor(Size size) {
     final scale = responsiveScaleFor(size);
@@ -195,7 +195,8 @@ void main() {
       final desktopFont = keyboardFontSize(tester, '7');
 
       // Fitted font presne podle jednoducheho meritka (pozadavek: zadne
-      // dvoji zmenseni). Desktop shortest 800 -> scale 1.7.
+      // dvoji zmenseni). Desktop shortest 800 -> scale 1.15 (kap pro
+      // desktopova okna, viz _responsiveScale).
       expect(
         desktopFont,
         closeTo(expectedFittedFont(tester, desktopSize), 1.5),

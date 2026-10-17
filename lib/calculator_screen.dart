@@ -726,7 +726,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   double _responsiveScale(BuildContext context) {
     final shortest = MediaQuery.of(context).size.shortestSide;
     final s = shortest / 360.0;
-    return s.clamp(1.0, 1.7);
+    // Horní mez 1.15 (dříve 1.7): na desktopovém okně je nejmenší strana
+    // VÝŠKA okna (685+), takže starý clamp 1.7 inflated rám displeje
+    // (margin 8*s + padding 8*s + border + název 12*s + mezera 4*s ≈ 93 log)
+    // nad skutečný slot displeje ≈ 92,5 log -> availableH ≈ 0 a obsah
+    // displeje (bodová mřížka + segmentový výsledek) se nevykreslil.
+    // Telefony se stranou <= 414 dp (414/360 = 1.15) zůstávají beze změny.
+    return s.clamp(1.0, 1.15);
   }
 
   void _scheduleInputAutoscroll() {
@@ -16045,10 +16051,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           _mainFocusNode.requestFocus();
                         },
                         child: Container(
-                          margin: EdgeInsets.all(8 * s),
+                          // E3: svisly margin i svisly padding 4*s (dříve
+                          // 8*s). Na nízkém okně (800x600, totalHeight 544)
+                          // kůžový prostor rámu sežel 83 % slotu displeje
+                          // (68,2 z 81,9 log) -> availableH 13,7 i při
+                          // podlaze fitScale 0,35 nestacilo na obsah 29,3
+                          // a vědecký displej byl svisle oříznutý (nouzový
+                          // scroll). Úspora 2*4*s + 2*4*s = 18,4 log jde
+                          // 1:1 do availableH; slot displeje ani prostor
+                          // klávesnice se NEMĚNÍ (kůžový prostor je uvnitř
+                          // Expanded slotu). Vodorovně beze změny.
+                          margin: EdgeInsets.only(
+                            left: 8 * s,
+                            right: 8 * s,
+                            top: 4 * s,
+                            bottom: 4 * s,
+                          ),
                           padding: EdgeInsets.symmetric(
                             horizontal: 8 * s,
-                            vertical: 8 * s,
+                            vertical: 4 * s,
                           ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF121212),

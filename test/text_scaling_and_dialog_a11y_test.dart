@@ -203,12 +203,13 @@ void main() {
       // Po oprave fitScale: font = 20 * scale * (rowH / standard), kde
       // rowH se pri nedostatku vysky zmensi misto vertikalniho scrollu.
       // 412px: scale 412/360=1.144, fit 1 → ≈22.88.
-      // Desktop 1280x800: scale 1.7, radky fitted (800px na vysku pro
-      // 7 radku pri standardu 91.8 nestaci) → mensi nez plnych 34,
+      // Desktop 1280x800: scale 1.15 (kap _responsiveScale pro desktop),
+      // radky fitted (800px na vysku pro
+      // 7 radku pri standardu 62 nestaci) → mensi nez plnych 23,
       // ale presne podle jednoducheho meritka, bez pretekani a scrollu.
       expect(phone, greaterThan(20.0));
       expect(phone, lessThan(26.0));
-      final desktopScale = (800 / 360.0).clamp(1.0, 1.7);
+      final desktopScale = (800 / 360.0).clamp(1.0, 1.15);
       final desktopStandard = (54.0 * desktopScale).clamp(
         48.0 * desktopScale,
         80.0 * desktopScale,
