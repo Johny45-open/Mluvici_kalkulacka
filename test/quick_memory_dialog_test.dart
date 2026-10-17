@@ -383,9 +383,7 @@ void main() {
 
     testWidgets('Prazdna pamet zachova stavajici chovani', (tester) async {
       final state = await pumpApp(tester);
-      for (final v in memoryVars) {
-        state.setMemoryForTest(v, 0.0);
-      }
+      state.clearMemoryStateForTest();
       await tester.pump();
       await openQuickMemory(tester);
       await tester.tap(textAny(['Vymazat paměť', 'Clear memory']));

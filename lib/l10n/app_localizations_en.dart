@@ -675,6 +675,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get memoryAlreadyEmpty => 'Memory is already empty.';
+
+  @override
+  String get memoryClearedAll => 'All memory variable values have been cleared.';
+
+  @override
+  String memoryClearedSingle(String name) {
+    return 'Cleared value of variable $name.';
+  }
+
+  @override
+  String memoryClearedPartial(String list) {
+    return 'Cleared values of variables $list.';
+  }
+
+  @override
   String get quickMemorySaveTo => 'Save current value to:';
 
   @override

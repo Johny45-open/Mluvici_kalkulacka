@@ -675,6 +675,22 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
+  String get memoryAlreadyEmpty => 'Paměť je již prázdná.';
+
+  @override
+  String get memoryClearedAll => 'Hodnoty všech paměťových proměnných byly smazány.';
+
+  @override
+  String memoryClearedSingle(String name) {
+    return 'Smazána byla hodnota proměnné $name.';
+  }
+
+  @override
+  String memoryClearedPartial(String list) {
+    return 'Smazány byly hodnoty proměnných $list.';
+  }
+
+  @override
   String get quickMemorySaveTo => 'Uložit aktuální hodnotu do:';
 
   @override

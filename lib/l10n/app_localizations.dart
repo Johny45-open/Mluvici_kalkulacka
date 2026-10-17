@@ -1331,6 +1331,30 @@ abstract class AppLocalizations {
   /// **'Memory cleared. Cleared variables {list}.'**
   String memoryClearedWithVariables(String list);
 
+  /// No description provided for @memoryAlreadyEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory is already empty.'**
+  String get memoryAlreadyEmpty;
+
+  /// No description provided for @memoryClearedAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All memory variable values have been cleared.'**
+  String get memoryClearedAll;
+
+  /// No description provided for @memoryClearedSingle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared value of variable {name}.'**
+  String memoryClearedSingle(String name);
+
+  /// No description provided for @memoryClearedPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared values of variables {list}.'**
+  String memoryClearedPartial(String list);
+
   /// Heading in the quick memory dialog above the variable grid.
   ///
   /// In en, this message translates to:

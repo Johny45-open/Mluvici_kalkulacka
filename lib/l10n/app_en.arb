@@ -331,6 +331,24 @@
       }
     }
   },
+  "memoryAlreadyEmpty": "Memory is already empty.",
+  "memoryClearedAll": "All memory variable values have been cleared.",
+  "memoryClearedSingle": "Cleared value of variable {name}.",
+  "@memoryClearedSingle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "memoryClearedPartial": "Cleared values of variables {list}.",
+  "@memoryClearedPartial": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
   "quickMemorySaveTo": "Save current value to:",
   "@quickMemorySaveTo": {
     "description": "Heading in the quick memory dialog above the variable grid."

@@ -879,6 +879,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     'M': 0,
   };
 
+  /// Evidence obsazenosti paměťových proměnných (včetně explicitně uložené 0).
+  /// Samotná číselná hodnota v [_memory] prázdnou proměnnou od uložené nuly
+  /// nerozliší, proto se při každém úspěšném uložení přidá jméno proměnné sem.
+  /// Maže se společně s [_memory]. Persistuje se samostatným klíčem
+  /// 'memoryOccupied' (formát `memoryVariables` se nemění).
+  final Set<String> _memoryOccupied = {};
+
+  /// Kanonické pořadí paměťových proměnných A,B,C,D,E,F,X,Y,M.
+  static const List<String> _memoryOrder = [
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'X',
+    'Y',
+    'M',
+  ];
+
   // Paralelní racionální vazba paměťových proměnných (pouze pro hodnoty
   // uložené z platného exaktního výsledku). _memory zůstává jediným
   // persistovaným úložištěm (double); tato mapa je runtime-only a po
@@ -4094,6 +4114,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     setState(() {
       _memory[name] = val;
+      _memoryOccupied.add(name);
       _isStoreMode = false;
       if (storedRational != null) {
         _rationalMemory[name] = storedRational;
@@ -8499,6 +8520,48 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  /// Společné načtení paměťových proměnných z prefs (synchronní, prefs
+  /// přednačtené volajícím). Musí běžet uvnitř setState volajícího.
+  /// Sdílí [_loadStatsData] (startup) i testovací hook pro reload —
+  /// testuje se tedy stejný produkční kód, nikoli duplicitní logika.
+  void _applyMemoryPrefs(SharedPreferences prefs) {
+    _memory.updateAll((key, value) => 0);
+    _memoryOccupied.clear();
+    final memJson = prefs.getString('memoryVariables');
+    if (memJson != null) {
+      try {
+        final decoded = jsonDecode(memJson) as Map<String, dynamic>;
+        decoded.forEach(
+          (key, value) => _memory[key] = (value as num).toDouble(),
+        );
+      } catch (_) {}
+    }
+    // Evidence obsazenosti (nový klíč 'memoryOccupied', zpětně kompatibilní).
+    // Pravidla: berou se pouze známé názvy proměnných; každá známá proměnná
+    // s nenulovou číselnou hodnotou se považuje za obsazenou vždy (pojistka
+    // proti nekonzistenci dvou klíčů); u nulových hodnot respektujeme uložený
+    // údaj. Chybí-li klíč úplně (stará data), obsazené = nenulové hodnoty;
+    // historicky uložená nula je pak nerozlišitelná od prázdné (neopravitelné,
+    // viz release notes) — číselné hodnoty zůstávají zachovány.
+    try {
+      final occList = prefs.getStringList('memoryOccupied');
+      if (occList != null) {
+        for (final k in occList) {
+          if (_memoryOrder.contains(k)) _memoryOccupied.add(k);
+        }
+      } else {
+        // Migrace starých dat bez údaje o obsazenosti.
+        for (final k in _memoryOrder) {
+          if ((_memory[k] ?? 0) != 0) _memoryOccupied.add(k);
+        }
+      }
+      // Pojistka: nenulová hodnota = obsazená, i kdyby údaj chyběl/neseděl.
+      for (final k in _memoryOrder) {
+        if ((_memory[k] ?? 0) != 0) _memoryOccupied.add(k);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadStatsData() async {
     final res = await StatsStorage.load();
     final prefs = await SharedPreferences.getInstance();
@@ -8512,15 +8575,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (_statsSets.isNotEmpty && _currentStatsSetIndex >= _statsSets.length) {
         _currentStatsSetIndex = 0;
       }
-      final memJson = prefs.getString('memoryVariables');
-      if (memJson != null) {
-        try {
-          final decoded = jsonDecode(memJson) as Map<String, dynamic>;
-          decoded.forEach(
-            (key, value) => _memory[key] = (value as num).toDouble(),
-          );
-        } catch (_) {}
-      }
+      _applyMemoryPrefs(prefs);
     });
   }
 
@@ -8528,10 +8583,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// Formát dat se nemění. Oddělení od ukládání statistických sad znamená,
   /// že pomalé či visící file I/O statistiky nikdy neblokuje persistenci
   /// paměti – _saveStatsData() ji volá vždy jako první.
+  /// Společně se zapisuje i evidence obsazenosti (klíč 'memoryOccupied',
+  /// StringList známých jmen). Chyba jednoho zápisu neruší druhý.
   Future<void> _saveMemoryVariables() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('memoryVariables', jsonEncode(_memory));
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final occ = _memoryOccupied
+          .where((k) => _memoryOrder.contains(k))
+          .toList()
+        ..sort();
+      await prefs.setStringList('memoryOccupied', occ);
     } catch (_) {}
   }
 
@@ -10456,9 +10521,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _showAccessibleSnackBar(_l10n.selectMemoryRecall);
       }
     } else if (label == 'CLR') {
-      final cleared = _nonZeroMemoryVariableNames();
+      final cleared = _occupiedMemoryVariableNames();
       setState(() {
         _memory.updateAll((key, value) => 0);
+        // Racionální vazby se mažou společně s číselnou pamětí (jinak by
+        // zastaralý záznam v _rationalMemory obnovil smazanou hodnotu přes RCL).
+        _rationalMemory.clear();
+        _memoryOccupied.clear();
       });
       _saveStatsData();
       final clearedMsg = _memoryClearedMessage(cleared);
@@ -14354,11 +14423,47 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   void setMemoryForTest(String key, double value) {
-    setState(() => _memory[key] = value);
+    // Odpovídá reálnému uložení (STO): zápis hodnoty + příznak obsazenosti
+    // (i pro explicitní 0). Pro přípravu prázdné paměti použít
+    // clearMemoryStateForTest(), ne nuly přes tento helper.
+    setState(() {
+      _memory[key] = value;
+      _memoryOccupied.add(key);
+    });
+  }
+
+  /// Explicitní reset paměti pro testy: vynuluje hodnoty a vyčistí obsazenost
+  /// i racionální vazby. Jediná správná cesta, jak připravit prázdnou paměť.
+  @visibleForTesting
+  void clearMemoryStateForTest() {
+    setState(() {
+      _memory.updateAll((key, value) => 0);
+      _memoryOccupied.clear();
+      _rationalMemory.clear();
+    });
+  }
+
+  /// Znovu načte paměť z prefs stejným produkčním kódem jako startup
+  /// ([_applyMemoryPrefs]). Slouží testům persistence bez spoléhání na
+  /// načasování úvodního preloadu.
+  @visibleForTesting
+  Future<void> reloadMemoryForTest() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _applyMemoryPrefs(prefs));
   }
 
   @visibleForTesting
   Map<String, double> get memoryForTest => Map.unmodifiable(_memory);
+
+  /// Obsazené proměnné pro testy (včetně explicitně uložené 0).
+  @visibleForTesting
+  Set<String> get occupiedMemoryForTest => Set.unmodifiable(_memoryOccupied);
+
+  /// Racionální vazby pro testy (runtime-only, klíčováno jménem proměnné).
+  @visibleForTesting
+  Map<String, Rational> get rationalMemoryForTest =>
+      Map.unmodifiable(_rationalMemory);
 
   @visibleForTesting
   bool get isStoreModeForTest => _isStoreMode;
@@ -14368,6 +14473,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   void showQuickMemoryDialogForTest() => _showQuickMemoryDialog();
+
+  @visibleForTesting
+  void showClearMemoryConfirmationForTest({BuildContext? dialogContext}) =>
+      _showClearMemoryConfirmation(dialogContext: dialogContext);
 
   @visibleForTesting
   void setDisplayFormatForTest(DisplayFormat f) {
@@ -15021,12 +15130,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     speak(question);
   }
 
-  /// Názvy nenulových paměťových proměnných v kanonickém pořadí
-  /// A,B,C,D,E,F,X,Y,M. Zjišťuje se PŘED vynulováním (confirmation flow).
-  /// Žádný nový datový model, pouze odvození z existujícího `_memory`.
-  List<String> _nonZeroMemoryVariableNames() {
-    const order = ['A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'M'];
-    return [for (final k in order) if ((_memory[k] ?? 0) != 0) k];
+  /// Názvy obsazených paměťových proměnných v kanonickém pořadí
+  /// A,B,C,D,E,F,X,Y,M (včetně explicitně uložené nuly).
+  /// Zjišťuje se PŘED vynulováním. Jediný zdroj pro obě cesty mazání;
+  /// čistě numerický výběr (value != 0) už žádný volající nepotřebuje.
+  List<String> _occupiedMemoryVariableNames() {
+    return [for (final k in _memoryOrder) if (_memoryOccupied.contains(k)) k];
   }
 
   /// Lokalizovaný seznam „A, C a M" / „A, C and M".
@@ -15038,33 +15147,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   /// Potvrzení po smazání: které proměnné byly smazány.
-  /// Prázdný seznam → existující obecná hláška (chování pro prázdnou paměť).
+  /// - prázdný seznam → paměť už byla prázdná (netvrdí smazání),
+  /// - všech 9 obsazených → krátký souhrn bez vyjmenování,
+  /// - 1 proměnná → singulár, jinak plurál s lokalizovaným seznamem.
   String _memoryClearedMessage(List<String> clearedNames) {
-    if (clearedNames.isEmpty) return _l10n.memoryCleared;
-    return _l10n.memoryClearedWithVariables(
+    if (clearedNames.isEmpty) return _l10n.memoryAlreadyEmpty;
+    if (clearedNames.length >= _memoryOrder.length) {
+      return _l10n.memoryClearedAll;
+    }
+    if (clearedNames.length == 1) {
+      return _l10n.memoryClearedSingle(clearedNames.first);
+    }
+    return _l10n.memoryClearedPartial(
       _formatVariableNameList(clearedNames),
     );
   }
 
   void _showClearMemoryConfirmation({BuildContext? dialogContext}) {
-    final hasData = _memory.values.any((v) => v != 0);
-    if (!hasData) {
-      final msg = _s('Paměť je již prázdná.', 'Memory is already empty.');
+    final occupied = _occupiedMemoryVariableNames();
+    if (occupied.isEmpty) {
+      final msg = _l10n.memoryAlreadyEmpty;
       // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
       if (mounted) {
         _showAccessibleSnackBar(msg);
       }
       return;
     }
-    final nonZero = _memory.entries
-        .where((e) => e.value != 0)
+    final preview = _memoryOrder
+        .where((k) => _memoryOccupied.contains(k))
         .map(
-          (e) => '${e.key}=${_formatNumberSmart(e.value).replaceAll('.', ',')}',
+          (k) =>
+              '$k=${_formatNumberSmart(_memory[k] ?? 0).replaceAll('.', ',')}',
         )
         .join(', ');
     final question = _s(
-      'Opravdu chcete smazat všechny proměnné paměti? Aktuálně: $nonZero.',
-      'Really clear all memory variables? Currently: $nonZero.',
+      'Opravdu chcete smazat všechny proměnné paměti? Aktuálně: $preview.',
+      'Really clear all memory variables? Currently: $preview.',
     );
     showAppDialog<void>(
       context: context,
@@ -15077,11 +15195,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           TextButton(
             onPressed: () {
               // Seznam smazaných proměnných zjistit PŘED vynulováním.
-              final cleared = _nonZeroMemoryVariableNames();
+              final cleared = _occupiedMemoryVariableNames();
               setState(() {
                 _memory.updateAll((key, value) => 0);
                 // Racionální vazby se mažou společně s pamětí.
                 _rationalMemory.clear();
+                _memoryOccupied.clear();
               });
               _saveStatsData();
               final clearedMsg = _memoryClearedMessage(cleared);

@@ -403,6 +403,24 @@
       }
     }
   },
+  "memoryAlreadyEmpty": "Paměť je již prázdná.",
+  "memoryClearedAll": "Hodnoty všech paměťových proměnných byly smazány.",
+  "memoryClearedSingle": "Smazána byla hodnota proměnné {name}.",
+  "@memoryClearedSingle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "memoryClearedPartial": "Smazány byly hodnoty proměnných {list}.",
+  "@memoryClearedPartial": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
   "quickMemorySaveTo": "Uložit aktuální hodnotu do:",
   "@quickMemorySaveTo": {
     "description": "Nadpis v rychlém dialogu paměti nad mřížkou proměnných."
