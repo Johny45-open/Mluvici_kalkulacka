@@ -60,7 +60,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// `_mainFocusNode.hasPrimaryFocus` (samotné `hasFocus` by pouštělo šipky
   /// i při fokusovaném potomkovi, např. tlačítku klávesnice). Výchozí `true`
   /// odpovídá počátečnímu `_mainFocusNode.requestFocus()` ve
-  /// [_initAppVersion]; explicitní aktivace je vyžadována až po každé
+  /// [_initPrimaryFocus]; explicitní aktivace je vyžadována až po každé
   /// deaktivaci (odchod primárního fokusu, otevření dialogu, ztráta
   /// přístupného fokusu proxy). Listener režim nikdy sám nezapíná.
   bool _expressionControlActive = true;
@@ -2726,6 +2726,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     FocusManager.instance.addListener(_handlePrimaryFocusChanged);
+    // Počáteční fokus + režim Z1 nezávisí na načtení verze (dříve visely na
+    // dokončení PackageInfo v _initAppVersion). Viz [_initPrimaryFocus].
+    _initPrimaryFocus();
     _refreshAccessibilityState();
     _initTts();
     _initAppVersion();
@@ -2746,17 +2749,38 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
+  /// Jediné místo počátečního nastavení klávesnicového fokusu a režimu
+  /// ovládání výrazu (Z1). Volá se synchronně z [initState], NEZÁVISLE na
+  /// načtení verze ([_initAppVersion]): `requestFocus()` na ještě
+  /// nepřipojeném uzlu SDK odloží a udělí fokus při prvním buildu
+  /// (`FocusNode._doRequestFocus` → `_requestFocusWhenReparented`,
+  /// focus_manager.dart), takže fokus je nastaven hned při prvním attachi —
+  /// nejčasnější bezpečný okamžik a bez závislosti na platform kanálu.
+  /// Opakované volání je zbytečné (requestFocus je idempotentní); protože
+  /// jde o jediné volací místo, nemůže vzniknout duplicitní inicializace.
+  void _initPrimaryFocus() {
+    // Z1: requestFocus PŘED zapnutím režimu, aby jej listener fokusu
+    // nemohl předčasně vypnout (při rovnosti s _mainFocusNode nic
+    // neshazuje — viz _handlePrimaryFocusChanged).
+    _mainFocusNode.requestFocus();
+    _expressionControlActive = true;
+    _expressionControlOffReason = _ExpressionControlOffReason.none;
+  }
+
+  /// Načtení verze aplikace. Pouze verze — počáteční fokus ani Z1 zde NEJSOU
+  /// (viz [_initPrimaryFocus], volané z [initState]). Chyba načtení verze
+  /// nesmí bránit běžnému používání kalkulačky: zůstane prázdná verze a
+  /// guardy v [_checkForUpdates], [_checkForNews] i
+  /// [_maybeRunDevAutodiagnostics] ji bezpečně přeskočí.
   Future<void> _initAppVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    // Jediný zápis verze (notifier je zdroj pravdy; getter ji jen čte).
-    _appVersionNotifier.value = '${info.version}+${info.buildNumber}';
+    try {
+      final info = await PackageInfo.fromPlatform();
+      // Jediný zápis verze (notifier je zdroj pravdy; getter ji jen čte).
+      _appVersionNotifier.value = '${info.version}+${info.buildNumber}';
+    } catch (_) {
+      // Verze se nepodařila načíst — kalkulačka pokračuje bez verze.
+    }
     if (mounted) {
-      _mainFocusNode.requestFocus();
-      // Z1: jednoznačný počáteční okamžik režimu ovládání výrazu — až PO
-      // úvodním requestFocus, takže listener fokusu jej nemůže předčasně
-      // vypnout (při rovnosti s _mainFocusNode nic neshazuje).
-      _expressionControlActive = true;
-      _expressionControlOffReason = _ExpressionControlOffReason.none;
       _checkForUpdates();
       _checkForNews();
       _maybeRunDevAutodiagnostics();
@@ -15928,9 +15952,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     // Z1: `Focus` místo `KeyboardListener` — stejný uzel i pozice ve stromě,
     // navíc konzumace kláves (`handled`/`ignored`) pro odečítač a traversál.
+    // `includeSemantics: false`: výchozí `true` by obalilo celý Scaffold
+    // bezjmenným `Semantics(focusable/focused)` uzlem (viz `_FocusState.build`
+    // ve flutter/widgets), který Windows mapa na UIA prvek klávesnicového
+    // fokusu a NVDA jej ohlašoval jako „seskupení". Klávesový handler ani
+    // focus tree tímto nejsou dotčeny — mizí pouze sémantický uzel obálky
+    // (stejný vzor jako `_buildResultA11yNode`); potomci si svoji
+    // sémantiku (tlačítka, displej, výsledek) nesou dál.
     return Focus(
       focusNode: _mainFocusNode,
       onKeyEvent: _handleKeyboardInput,
+      includeSemantics: false,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
