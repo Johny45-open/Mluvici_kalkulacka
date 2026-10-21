@@ -90,14 +90,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// nese wrapper hodnotu prázdného stavu (řeč výsledku / "Prázdno"). Vizuál zůstává `CustomDotMatrixDisplay` s `_` markerem.
   /// Controller je POUZE derivace `display`/`_cursorPosition` (viz
   /// [_syncA11yProxy]), nikdy zdroj pravdy. Proxy si nikdy sama nebere
-  /// input focus (`autofocus: false`, `skipTraversal: true`); `readOnly: true`
+  /// input focus (`autofocus: false`); `readOnly: true`
   /// brání otevření softwarové klávesnice (`_shouldCreateInputConnection`).
   /// `canRequestFocus` zůstává záměrně true — s false by `RenderEditable`
   /// nikdy nepublikoval `onSetSelection` (ověřeno v SDK).
+  ///
+  /// Z6: `skipTraversal: false` — vstupní řádek je skutečnou zastávkou
+  /// klávesnicového traversálu (Tab/Shift+Tab) ještě PŘED výsledkem.
+  /// Důvod (oprava NVDA): NVDA na Windows sleduje klávesnicový fokus přes
+  /// UIA stav `focused`; uzel, který Flutterův traversál přeskakuje, nemůže
+  /// zaměření získat, a NVDA proto při Tab-navigaci přeskakovalo horní
+  /// vstupní řádek a dosahovalo pouze na výsledek. Při získání fokusu
+  /// `RenderEditable` sám publikuje skutečné `isFocused` i akci
+  /// `onSetSelection` (ověřeno v SDK — `rendering/editable.dart`), takže
+  /// žádný fokusový stav se nepředstírá. Pohyb virtuálního kurzoru NVDA
+  /// v Browse Mode fokusový uzel nemění — obrys ani `focused` se tím
+  /// nespustí. Vzor zrcadlí [_resultFocusNode] (Z5).
   final TextEditingController _displayA11yController = TextEditingController();
   late final FocusNode _displayA11yFocusNode = FocusNode(
     debugLabel: 'displayA11yProxy',
-    skipTraversal: true,
+    skipTraversal: false,
   );
 
   /// Z5: klávesnicový fokus dolního výsledkového řádku (Tab/Shift+Tab).
@@ -2747,6 +2759,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _readingOrderFocusNode.addListener(() {
       if (mounted) setState(() {});
     });
+    // Z6: rebuild při změně klávesnicového fokusu vstupní proxy. SDK při
+    // ZÍSKÁNÍ fokusu samo `setState` nevolá
+    // (`EditableTextState._handleFocusChanged` volá `setState` jen při
+    // ztrátě fokusu), takže by `RenderEditable` nikdy nedostal
+    // `hasFocus: true` a do sémantiky by se nedostal skutečný `isFocused`
+    // ani akce `setSelection` (oba se publikují POUZE při fokusu, viz
+    // `rendering/editable.dart`). Listener pouze zajistí překreslení;
+    // hodnotu fokusu stále čte framework z [_displayA11yFocusNode] —
+    // žádný fokusový stav se nepředstírá. Stejný vzor jako výše u
+    // [_readingOrderFocusNode]; uzel je vlastní a dispozuje se v [dispose].
+    _displayA11yFocusNode.addListener(_handleA11yProxyFocusChanged);
+  }
+
+  /// Z6: viz poznámka v [initState] — pouze rebuild, aby `RenderEditable`
+  /// publikoval skutečné `isFocused`/`setSelection` po získání fokusu.
+  void _handleA11yProxyFocusChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   /// Jediné místo počátečního nastavení klávesnicového fokusu a režimu
@@ -4418,6 +4448,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// ověřeno `scratch_semantics_merge_test` V1/V4).
   /// Záměrně ŽÁDNÝ `hint` s instrukcí zoomu — ta nesmí zdržovat při každém
   /// průchodu (zoom zůstává gestem, dvojitým klepem a posuvníky v nastavení).
+  /// Z6: viditelná indikace klávesnicového fokusu vstupního řádku bílým
+  /// obrysem — stejný vzor jako u výsledku (viz [_buildResultA11yNode]):
+  /// `Stack` + překryv přes celou plochu NEMĚNÍ layout (velikost určuje
+  /// `SizedBox.expand` s těsnými konstrainty, EditableText dostává stejné
+  /// jako dřív); obrys se maluje přes okraj plochy. Zdrojem stavu je
+  /// VÝHRADNĚ skutečný `_displayA11yFocusNode.hasFocus` přes
+  /// `ListenableBuilder` (žádné umělé `Semantics(focused:)`, žádný druhý
+  /// zdroj pravdy). `ExcludeSemantics` + `IgnorePointer` zaručují, že
+  /// překryv netvoří sémantickou zastávku ani nekonzumuje doteky (celá
+  /// proxy je navíc hit-test transparentní přes `_A11yHitTestTransparent`).
+  /// Průhledný rámeček je ve stromu trvale — stejná geometrie při zapnutém
+  /// i vypnutém fokusu, žádný skok layoutu.
   Widget _buildDisplayA11yProxy() {
     final bool isEmpty = display.isEmpty;
     return Semantics(
@@ -4439,25 +4481,52 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       },
       // Velikost dává výhradně rodič (`Positioned.fill` přes horní řádek):
       // expanduje na celou překryvou plochu, nic sama nezmenšuje na 1×1.
+      // Z6: `StackFit.expand` zachová těsné konstrainty pro EditableText
+      // (stejné jako dřívější přímé `SizedBox.expand`), překryv obrysu je
+      // čistě vizuální sourozenec bez vlivu na layout i sémantiku.
       child: SizedBox.expand(
-        child: EditableText(
-          controller: _displayA11yController,
-          focusNode: _displayA11yFocusNode,
-          style: const TextStyle(fontSize: 1, color: Colors.transparent),
-          cursorColor: Colors.transparent,
-          backgroundCursorColor: Colors.transparent,
-          selectionColor: Colors.transparent,
-          readOnly: true,
-          showCursor: false,
-          showSelectionHandles: false,
-          enableInteractiveSelection: true,
-          enableIMEPersonalizedLearning: false,
-          autocorrect: false,
-          autofocus: false,
-          minLines: 1,
-          maxLines: 1,
-          keyboardType: TextInputType.none,
-          onSelectionChanged: _handleA11ySelectionChanged,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            EditableText(
+              controller: _displayA11yController,
+              focusNode: _displayA11yFocusNode,
+              style: const TextStyle(fontSize: 1, color: Colors.transparent),
+              cursorColor: Colors.transparent,
+              backgroundCursorColor: Colors.transparent,
+              selectionColor: Colors.transparent,
+              readOnly: true,
+              showCursor: false,
+              showSelectionHandles: false,
+              enableInteractiveSelection: true,
+              enableIMEPersonalizedLearning: false,
+              autocorrect: false,
+              autofocus: false,
+              minLines: 1,
+              maxLines: 1,
+              keyboardType: TextInputType.none,
+              onSelectionChanged: _handleA11ySelectionChanged,
+            ),
+            // Z6: obrys klávesnicového fokusu vstupního řádku (viz doc
+            // výše). Stav čte přímo z fokusového uzlu proxy.
+            ListenableBuilder(
+              listenable: _displayA11yFocusNode,
+              builder: (context, _) => ExcludeSemantics(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _displayA11yFocusNode.hasFocus
+                            ? Colors.white
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -367,7 +367,9 @@ void main() {
       state.setDisplayForTest('12+3', 2);
       await tester.pumpAndSettle();
       final FocusNode proxyFocus = state.a11yProxyFocusNodeForTest as FocusNode;
-      expect(proxyFocus.skipTraversal, isTrue);
+      // Z6: vstupní proxy je nově zastávkou traversálu (Tab/Shift+Tab),
+      // aby NVDA/klávesnice dosáhly na horní vstupní řádek.
+      expect(proxyFocus.skipTraversal, isFalse);
       expect(proxyFocus.canRequestFocus, isTrue);
       expect(proxyFocus.hasFocus, isFalse);
       // Klávesnicový focus zůstává na hlavním uzlu.

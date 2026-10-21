@@ -194,7 +194,7 @@ void main() {
         final FocusNode mainNode = state.mainFocusNodeForTest as FocusNode;
         await calculate(tester, state, '3/4');
 
-        // Fokus prokazatelně jinde (a11y proxy mimo traversál).
+        // Fokus prokazatelně jinde (mimo primární fokus kořenového uzlu).
         // Přímé vyvolání onTap uzlu = cesta NVDA (Invoke) / TalkBacku
         // (double-tap). Fyzický dotyk se ve widgetovém testu na displeji
         // nedá věrně simulovat (proxy je hit-test transparentní, plochu

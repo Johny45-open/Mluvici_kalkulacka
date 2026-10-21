@@ -411,7 +411,9 @@ void main() {
       await tester.pumpAndSettle();
 
       final FocusNode proxyFocus = state.a11yProxyFocusNodeForTest as FocusNode;
-      expect(proxyFocus.skipTraversal, isTrue);
+      // Z6: proxy je zastávkou traversálu (Tab), fokus si však sama
+      // nebere (`autofocus: false`) — po tapu drží klávesnici kořenový uzel.
+      expect(proxyFocus.skipTraversal, isFalse);
       expect(proxyFocus.hasFocus, isFalse);
 
       await tester.tap(find.byType(EditableText));
