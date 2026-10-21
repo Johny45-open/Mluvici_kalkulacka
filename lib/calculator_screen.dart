@@ -3857,6 +3857,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final isControl = HardwareKeyboard.instance.isControlPressed;
       final isShift = HardwareKeyboard.instance.isShiftPressed;
 
+      // Desetinná čárka -> interní tečka. Normalizuje se TU, ještě před
+      // jakýmkoli filtrem (před filtrou pro aktivní odečítač níže i před
+      // obecnou filtrací znaků). Na českém rozložení Windows vydá fyzická
+      // desetinná klávesa znak ','; ten by jinak odmítl filtr pro aktivní
+      // odečítač a znak by se zahodil dřív, než se dostal k
+      // _handleButtonPressed. Bez odečítače stejnou normalizaci už dělala
+      // spodní větev — chování obou cest se tím sjednocuje, nemění.
+      String? effectiveChar = char == ',' ? '.' : char;
+
+      // Numerická desetinná klávesa (numpadDecimal). Windows posílá znak
+      // přes WM_CHAR podle aktivního rozložení (','/'.') — ten se normalizuje
+      // výše. Android/Google klávesnice však numerické klávesy často posílají
+      // BEZ znaku; pak rozhoduje logická klávesa. S Ctrl/Shift se chování
+      // záměrně nemění, aby se nezachytila žádná dosud nezpracovaná kombinace
+      // (Ctrl+NumpadDesetinná dosud nedělá nic) a aby AltGr fake-Ctrl
+      // nevypadl. Protože fallback běží jen při char == null, nikdy se
+      // tentýž stisk nezpracuje dvakrát.
+      if (char == null &&
+          !isControl &&
+          !isShift &&
+          event.logicalKey == LogicalKeyboardKey.numpadDecimal) {
+        effectiveChar = '.';
+      }
+
       // Pohyb kurzoru ve výrazu — musí fungovat i při aktivním screen
       // readeru, proto před SR filtrem níže (šípky/Home/End nenesou znak).
       // Shift/Ctrl modifikátory se prozatím ignorují (žádný výběr textu).
@@ -3912,12 +3936,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // Když je aktivní screen reader (NVDA, JAWS, TalkBack),
       // jednoznakové klávesy (S, C, T, A, P, atd.) se předávají čtečce.
       // Zpracovávají se pouze Ctrl+ kombinace, čísla, operátory a navigační klávesy.
-      if (_isScreenReaderActive == true && char != null && !isControl) {
-        if (char == '±') {
+      if (_isScreenReaderActive == true && effectiveChar != null && !isControl) {
+        if (effectiveChar == '±') {
           _handleNegativeButton();
           return KeyEventResult.ignored;
         }
-        final String singleChar = char.toUpperCase();
+        // effectiveChar už nese interní tečku (čárka byla normalizována
+        // na začátku handleru), takže čárka projde stejně jako tečka.
+        final String singleChar = effectiveChar.toUpperCase();
         // Povolit číslice, desetinnou tečku a operátory + - * / ^ %
         if (RegExp(r'^[0-9.+\-*/^%]$').hasMatch(singleChar)) {
           _handleButtonPressed(singleChar, silent: true);
@@ -4039,8 +4065,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } else if (char == '±') {
         _handleNegativeButton();
         return KeyEventResult.ignored;
-      } else if (char != null) {
-        String toAppend = char == ',' ? '.' : char;
+      } else if (effectiveChar != null) {
+        // effectiveChar už nese interní tečku (čárka normalizovaná na
+        // začátku handleru) a případnou zálohu numpadDecimal, takže tato
+        // větev nemusí normalizovat znovu.
+        String toAppend = effectiveChar;
         if (RegExp(r'''[0-9.+\-*/^%()eE°'":;a-zA-Z]''').hasMatch(toAppend)) {
           _handleButtonPressed(toAppend.toUpperCase(), silent: true);
           return KeyEventResult.ignored;
