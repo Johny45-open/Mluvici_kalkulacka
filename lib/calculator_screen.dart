@@ -5138,7 +5138,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           speak(_statsEmptyMessage());
           return;
         }
-        List<double> data = List.from(_statsMemory);
+        List<double> data = List<double>.from(
+          _getFieldValues(_selectedFieldIndex),
+        );
 
         double sum = data.reduce((a, b) => a + b);
         double mean = sum / data.length;
@@ -5890,20 +5892,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       searchFrom = tokenStart + key.length;
     }
 
-    // 3. NAHRAZENÍ PROMĚNNÝCH (E uvnitř chráněné notace již není v textu)
-    _memory.forEach((key, value) {
-      processed = processed.replaceAll(
-        RegExp('\\b$key\\b'),
-        '(${value.toString()})',
-      );
-    });
-
-    // 3b. EXPANZE E-NOTACE z placeholderů
+    // 3. EXPANZE E-NOTACE z placeholderů — musí předcházet implicitnímu
+    // násobení, aby se nepracovalo nad dočasnými názvy __EXP_n__:
+    // podtržítko by bránilo vložení '*' (lookahead (?![^_]*_)), např.
+    // u 2(10E5) by chybělo vnější násobení. Rozbalený text je čistě
+    // číselný, takže jej krok 5 (dosazování) nemůže poškodit.
     expPlaceholders.forEach((k, v) {
       processed = processed.replaceAll(k, v);
     });
 
-    // 5. ROBUSTNÍ IMPLICITNÍ NÁSOBENÍ
+    // 4. ROBUSTNÍ IMPLICITNÍ NÁSOBENÍ — musí proběhnout PŘED dosazením
+    // paměťových proměnných: \b v kroku 5 vyžaduje oboustrannou hranici,
+    // takže sousedící proměnné (4AC, 2A, AC) by se samy o sobě nedosadily.
+    // Po vložení '*' mezi sousedící tokeny mají proměnné oboustrannou
+    // hranici a krok 5 je spolehlivě nahradí hodnotami. Markery funkcí
+    // chrání lookahead (?![^_]*_).
     processed = processed.replaceAllMapped(
       RegExp(r'(\d|[A-Z])(?=[A-Z\(])(?![^_]*_)'),
       (m) => '${m[1]}*',
@@ -5913,6 +5916,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       (m) => '${m[1]}*',
     );
     processed = processed.replaceAll(')(', ')*(');
+
+    // 5. NAHRAZENÍ PROMĚNNÝCH (E-notation už je rozbalena na čísla;
+    // žádné E z chráněné notace v textu není)
+    _memory.forEach((key, value) {
+      processed = processed.replaceAll(
+        RegExp('\\b$key\\b'),
+        '(${value.toString()})',
+      );
+    });
 
     // DMS ZPRACOVÁNÍ
     processed = processed.replaceAllMapped(
@@ -14629,6 +14641,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @visibleForTesting
   List<StatisticsRecord> get statsMemoryForTest =>
       List.unmodifiable(_statsMemory);
+
+  @visibleForTesting
+  double? memoryValueForTest(String name) => _memory[name];
 
   @visibleForTesting
   int get statsSetsCountForTest => _statsSets.length;
