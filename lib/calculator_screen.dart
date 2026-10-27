@@ -10046,8 +10046,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ? (20.0 * 1.4 * _keyboardFontScale * sysFactor * scale).clamp(14.0, 72.0)
         : (20.0 * _keyboardFontScale * sysFactor * gs).clamp(14.0, 72.0);
 
+    final EdgeInsetsGeometry keypadMargin = (isKeypadKey && isWindowsLandscape)
+        ? EdgeInsets.symmetric(horizontal: 1 * gs, vertical: 1 * gs)
+        : EdgeInsets.all(3 * gs);
+    final EdgeInsetsGeometry keypadPadding = (isKeypadKey && isWindowsLandscape)
+        ? EdgeInsets.symmetric(horizontal: 2 * gs, vertical: 2 * gs)
+        : EdgeInsets.symmetric(horizontal: 4 * gs, vertical: 6 * gs);
+
     Widget buttonBody = Container(
-      margin: EdgeInsets.all(3 * gs),
+      margin: keypadMargin,
       constraints: fit < 1.0
           ? const BoxConstraints()
           : BoxConstraints(minHeight: 48.0 * scale, minWidth: 48.0 * scale),
@@ -10057,7 +10064,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         border: Border.all(color: Colors.black54, width: 0.5),
       ),
       alignment: Alignment.center,
-      padding: EdgeInsets.symmetric(horizontal: 4 * gs, vertical: 6 * gs),
+      padding: keypadPadding,
       child: LayoutBuilder(
         builder: (innerContext, innerConstraints) {
           final double keyboardFontSize = baseFontForScale;
@@ -11523,9 +11530,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return LayoutBuilder(
       builder: (ctx, constraints) {
         final scale = _responsiveScale(ctx);
-        final double standardRowH = (54.0 * scale)
-            .clamp(48.0 * scale, 80.0 * scale)
-            .toDouble();
+        final bool isWindowsLandscape = Platform.isWindows && MediaQuery.orientationOf(ctx) == Orientation.landscape;
+        final double standardRowH = isWindowsLandscape
+            ? (64.0 * scale).clamp(56.0 * scale, 90.0 * scale).toDouble()
+            : (54.0 * scale)
+                .clamp(48.0 * scale, 80.0 * scale)
+                .toDouble();
         const double spacing = 2.0;
         const double pad = 4.0;
         // Fit: pokud je místa dost, standardní výška (strop, tlačítka nejsou

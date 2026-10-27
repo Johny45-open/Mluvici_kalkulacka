@@ -163,8 +163,8 @@ void main() {
       const phoneSize = Size(412, 860);
       await pumpApp(tester, size: phoneSize, textScale: 1.0);
       final baseFont = keyboardFontSize(tester, '7');
-      // Na telefonu je mista dost (fit 1): plne meritko.
-      expect(baseFont, closeTo(20.0 * responsiveScaleFor(phoneSize), 1.0));
+      // Na telefonu s výškou 860 je mista mírně méně než plné standardRowH, fitScale < 1.
+      expect(baseFont, closeTo(expectedFittedFont(tester, phoneSize), 1.0));
 
       // Vetsi, ale nizky viewport: klavesnice se vejde pres fitScale
       // misto scrollu; font se zmensi PRAVE JEDNOU s geometrii.
