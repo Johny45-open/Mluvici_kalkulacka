@@ -1001,5 +1001,24 @@
         "type": "String"
       }
     }
+  },
+  "approximateFractionAnnounced": "Přibližný zlomek {numerator} lomeno {denominator}.",
+  "@approximateFractionAnnounced": {
+    "placeholders": {
+      "numerator": {
+        "type": "Object"
+      },
+      "denominator": {
+        "type": "Object"
+      }
+    }
+  },
+  "fractionVisualOnApprox": "Zlomek: ≈ {fraction} · zapnuto",
+  "@fractionVisualOnApprox": {
+    "placeholders": {
+      "fraction": {
+        "type": "String"
+      }
+    }
   }
 }

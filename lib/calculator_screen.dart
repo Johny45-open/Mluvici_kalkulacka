@@ -818,6 +818,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // (basic/scientific, standardní formát, bez DMS/jednotek/měny/času).
   // Nikdy se neodvozuje parsováním textu _lastResult.
   bool _lastResultIsPlainNumeric = false;
+  bool _lastResultIsApproxFractionStat = false;
+  bool _lastResultIsApproxStatFraction = false;
   ElectricianCalculation _selectedElectricianCalculation =
       ElectricianCalculation.resistance;
 
@@ -6225,14 +6227,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? get _fractionString {
     if (!_hasResult || _lastNumericValue == null) return null;
     if (!_lastNumericValue!.isFinite) return null;
-    if (!_lastResultIsPlainNumeric) return null;
+    if (!_lastResultIsPlainNumeric && !_lastResultIsApproxFractionStat) return null;
     if (_lastResult.toLowerCase() == 'error') return null;
     final r = _validRationalNonTrivial;
     if (r != null) return r.toDisplayString();
     final v = _lastNumericValue!;
     final f = decimalToNonTrivialFraction(v);
     if (f == null) return null;
-    return formatFraction(f);
+    final baseFrac = formatFraction(f);
+    if (_lastResultIsApproxFractionStat && _lastResultIsApproxStatFraction) {
+      return '≈ $baseFrac';
+    }
+    return baseFrac;
   }
 
   // Shoda uloženého override s aktuálním výsledkem (klíč + generace).
@@ -6390,7 +6396,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
       final v = _lastNumericValue;
       final f = v == null ? null : decimalToNonTrivialFraction(v);
-      if (f != null) return _spokenFraction(f);
+      if (f != null) {
+        if (_lastResultIsApproxFractionStat && _lastResultIsApproxStatFraction) {
+          return _isEnglish()
+              ? 'approximately ${f.numerator} over ${f.denominator}'
+              : 'přibližně ${f.numerator} lomeno ${f.denominator}';
+        }
+        return _spokenFraction(f);
+      }
       final s = _fractionString;
       if (s != null) return s.replaceAll('/', _s(' lomeno ', ' over '));
     }
@@ -6432,7 +6445,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         final v = _lastNumericValue;
         final f = v == null ? null : decimalToNonTrivialFraction(v);
         if (f != null) {
-          say(_l10n.fractionAnnounced(f.numerator, f.denominator));
+          if (_lastResultIsApproxFractionStat && _lastResultIsApproxStatFraction) {
+            say(_l10n.approximateFractionAnnounced(f.numerator, f.denominator));
+          } else {
+            say(_l10n.fractionAnnounced(f.numerator, f.denominator));
+          }
         } else {
           final fracStr = _fractionString;
           say(
@@ -7230,33 +7247,35 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     ).scale(1.0).clamp(1.0, 1.6);
     final insertFontSize = (13.0 * s * sysFactor).clamp(12.0, 16.0);
     final String label = _s('Vložit zlomek', 'Insert fraction');
+    // Bez excludeSemantics: TextButton si musí uchovat vlastní Semantics
+    // akci tap, jinak uzel nemá aktivaci pro odečítač (viz níže). Label se
+    // neslučuje dvakrát — ověřeno widget testem (vnitřní Text i vnější
+    // label jsou shodné, výsledek je právě jeden label).
     return Semantics(
       label: label,
       button: true,
       enabled: true,
-      child: ExcludeSemantics(
-        child: TextButton(
-          key: const ValueKey('fraction_insert'),
-          onPressed: _showFractionInputDialog,
-          style: TextButton.styleFrom(
-            minimumSize: const Size(48, 28),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-            foregroundColor: Colors.redAccent,
-          ),
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.noScaling),
-            child: Text(
-              label,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: insertFontSize,
-                fontWeight: FontWeight.bold,
-              ),
+      child: TextButton(
+        key: const ValueKey('fraction_insert'),
+        onPressed: _showFractionInputDialog,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(48, 28),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          foregroundColor: Colors.redAccent,
+        ),
+        child: MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.noScaling),
+          child: Text(
+            label,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: insertFontSize,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),
@@ -7444,7 +7463,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       semanticLabel = '$visualText. ${_l10n.fractionUnavailable}';
     } else if (showing) {
       final String fracStr = _fractionString!;
-      visualText = _l10n.fractionVisualOn(fracStr);
+      final bool isApprox = _lastResultIsApproxFractionStat && _lastResultIsApproxStatFraction;
+      visualText = isApprox
+          ? _l10n.fractionVisualOnApprox(fracStr.replaceFirst('≈ ', ''))
+          : _l10n.fractionVisualOn(fracStr);
       // Zpět vede stisk na základ bez překryvu (cíl z target-funkce).
       final bool backExact = target == _FractionTargetKind.surd;
       final String base = backExact
@@ -7475,30 +7497,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       button: true,
       enabled: true,
       toggled: showing,
-      onTap: toggleFractionResultView,
-      child: ExcludeSemantics(
-        child: TextButton(
-          key: const ValueKey('fraction_toggle'),
-          onPressed: toggleFractionResultView,
-          style: TextButton.styleFrom(
-            minimumSize: const Size(48, 28),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-            foregroundColor: Colors.redAccent,
-          ),
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.noScaling),
-            child: Text(
-              visualText,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: toggleFontSize,
-                fontWeight: FontWeight.bold,
-              ),
+      child: TextButton(
+        key: const ValueKey('fraction_toggle'),
+        onPressed: toggleFractionResultView,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(48, 28),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          foregroundColor: Colors.redAccent,
+        ),
+        child: MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.noScaling),
+          child: Text(
+            visualText,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: toggleFontSize,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),
@@ -9964,6 +9983,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     bool expanded = true,
     double fitScale = 1.0,
     IconData? icon,
+    bool isKeypadKey = false,
   }) {
     String descriptiveName = semanticLabel ?? _getButtonName(label);
     if (label == 'M+' && _currentMode == CalculatorMode.statistics) {
@@ -9995,10 +10015,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final sysFactor = MediaQuery.textScalerOf(
       context,
     ).scale(1.0).clamp(1.0, 1.6);
-    final baseFontForScale = (20.0 * _keyboardFontScale * sysFactor * gs).clamp(
-      14.0,
-      72.0,
-    );
+    
+    final bool isWindowsLandscape = Platform.isWindows && MediaQuery.orientationOf(context) == Orientation.landscape;
+    final double baseFontForScale = (isKeypadKey && isWindowsLandscape)
+        ? (20.0 * 1.4 * _keyboardFontScale * sysFactor * scale).clamp(14.0, 72.0)
+        : (20.0 * _keyboardFontScale * sysFactor * gs).clamp(14.0, 72.0);
 
     Widget buttonBody = Container(
       margin: EdgeInsets.all(3 * gs),
@@ -10454,6 +10475,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             }
             final wmean = sumVW / sumW;
             final resStr = _formatNumberSmart(wmean);
+            final fracW = decimalToNonTrivialFraction(wmean);
+            final bool wmeanEligible = fracW != null;
             final spoken = _s(
               'Vážený průměr z paměti je ${_formatSpokenNumber(wmean)} '
                   '(pole ${fieldNames[0]} váženo polem ${fieldNames[1]})',
@@ -10466,10 +10489,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               display = resStr;
               _cursorPosition = display.length;
               _lastNumericValue = wmean;
-              // R10: statistický kontext – zlomek nevhodný (stale flag fix).
               _lastResultIsPlainNumeric = false;
+              _lastResultIsApproxFractionStat = wmeanEligible;
+              _lastResultIsApproxStatFraction = wmeanEligible;
               _fractionOverride = null;
-              // Nový výsledek ruší přesná metadata (klíč + generace).
               _lastExact = null;
               _lastExactKey = '';
               _resultGeneration++;
@@ -10493,6 +10516,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           String resStr = '0';
           String spoken = '';
           double? numericResult;
+          bool isMeanExact = false;
+          Rational? meanExactRat;
+          bool meanEligible = false;
+
           final fieldUnit =
               _statsSets.isNotEmpty &&
                   _selectedFieldIndex <
@@ -10516,6 +10543,29 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           if (label == 'MEAN') {
             resStr = _formatNumberSmart(snapshot.mean);
             numericResult = snapshot.mean;
+            final valList = _getFieldValues(_selectedFieldIndex);
+            if (valList.isNotEmpty) {
+              bool allExact = true;
+              Rational sumRat = Rational(BigInt.zero, BigInt.one);
+              for (final x in valList) {
+                final f = decimalToFraction(x);
+                if (f == null || ((f.numerator / f.denominator) - x).abs() > 1e-12) {
+                  allExact = false;
+                  break;
+                }
+                sumRat = sumRat + Rational(BigInt.from(f.numerator), BigInt.from(f.denominator));
+              }
+              if (allExact) {
+                try {
+                  meanExactRat = sumRat / Rational(BigInt.from(valList.length), BigInt.one);
+                  if ((meanExactRat.toDouble() - snapshot.mean).abs() < 1e-12 && meanExactRat.denominator != BigInt.one) {
+                    isMeanExact = true;
+                  }
+                } catch (_) {}
+              }
+            }
+            final fracMean = decimalToNonTrivialFraction(snapshot.mean);
+            meanEligible = fracMean != null;
             spoken = _s(
               'Průměr${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.mean)}',
               'Mean${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.mean)}',
@@ -10614,12 +10664,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             display = resStr;
             _cursorPosition = display.length;
             _lastNumericValue = numericResult;
-            // R10: statistický kontext – zlomek nevhodný (stale flag fix).
-            _lastResultIsPlainNumeric = false;
+            if (label == 'MEAN' && isMeanExact && meanExactRat != null) {
+              _lastExact = RationalValue(meanExactRat);
+              _lastExactKey = resStr;
+              _lastResultIsPlainNumeric = true;
+              _lastResultIsApproxFractionStat = false;
+              _lastResultIsApproxStatFraction = false;
+            } else if (label == 'MEAN') {
+              _lastResultIsPlainNumeric = false;
+              _lastResultIsApproxFractionStat = meanEligible;
+              _lastResultIsApproxStatFraction = meanEligible;
+              _lastExact = null;
+              _lastExactKey = '';
+            } else {
+              _lastResultIsPlainNumeric = false;
+              _lastResultIsApproxFractionStat = false;
+              _lastResultIsApproxStatFraction = false;
+              _lastExact = null;
+              _lastExactKey = '';
+            }
             _fractionOverride = null;
-            // Nový výsledek ruší přesná metadata (klíč + generace).
-            _lastExact = null;
-            _lastExactKey = '';
             _resultGeneration++;
             _lastExactGeneration = _resultGeneration;
           });
@@ -11407,6 +11471,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         semanticLabel: _getElectricianButtonSemanticLabel(b),
         expanded: false,
         fitScale: fitScale,
+        isKeypadKey: true,
         onPressed: () async {
           if (b == 'M+' && _currentMode == CalculatorMode.statistics) {
             await _addSingleValueToStats();
@@ -16930,6 +16995,11 @@ class _TutorialDialogState extends State<_TutorialDialog>
                                 inMutuallyExclusiveGroup: true,
                                 label: widget.tabs[i].label,
                                 excludeSemantics: true,
+                                // excludeSemantics výše zahazuje tap akci
+                                // z InkWell pod TabBar — bez této explicitní
+                                // akce by NVDA na Windows nemohl kartu
+                                // aktivovat Enterem (UIA Invoke pattern).
+                                onTap: () => _tabController.animateTo(i),
                                 child: Tab(text: widget.tabs[i].label),
                               );
                             },

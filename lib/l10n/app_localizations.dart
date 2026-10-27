@@ -2542,6 +2542,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A fraction {fraction} is available for this result.'**
   String fractionAvailableAnnouncement(String fraction);
+
+  /// No description provided for @approximateFractionAnnounced.
+  ///
+  /// In en, this message translates to:
+  /// **'Approximate fraction {numerator} over {denominator}.'**
+  String approximateFractionAnnounced(Object numerator, Object denominator);
+
+  /// No description provided for @fractionVisualOnApprox.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraction: ≈ {fraction} · on'**
+  String fractionVisualOnApprox(String fraction);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

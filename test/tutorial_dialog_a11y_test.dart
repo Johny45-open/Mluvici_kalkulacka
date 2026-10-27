@@ -730,5 +730,38 @@ void main() {
       expect(tutorialBlockFocuses(), findsNothing);
       await tester.pump(const Duration(seconds: 2));
     });
+
+    testWidgets(
+      '16. Kazda zalozka ma semantickou akci tap (regrese NVDA/Windows)',
+      (tester) async {
+        final state = await pumpApp(tester);
+        await openTutorial(tester, state);
+        final handle = tester.ensureSemantics();
+        try {
+          final tabs = find.byType(Tab);
+          expect(tabCount(tester), 9);
+          final controller =
+              tester.widget<TabBar>(find.byType(TabBar)).controller!;
+          // Každá záložka musí nést SemanticsAction.tap (UIA Invoke pattern) —
+          // jinak odečítač kartu najde, ale neaktivuje ji Enterem.
+          for (int i = 0; i < 9; i++) {
+            final data = tester.getSemantics(tabs.at(i)).getSemanticsData();
+            expect(
+              data.hasAction(SemanticsAction.tap),
+              isTrue,
+              reason: 'Záložka $i musí mít tap akci pro aktivaci z odečítače',
+            );
+          }
+          // Aktivace přes semantickou akci (stejná cesta jako NVDA) přepne kartu.
+          expect(controller.index, 0);
+          final node = tester.semantics.find(tabs.at(2));
+          node.owner!.performAction(node.id, SemanticsAction.tap);
+          await tester.pumpAndSettle();
+          expect(controller.index, 2);
+        } finally {
+          handle.dispose();
+        }
+      },
+    );
   });
 }

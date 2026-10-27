@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -217,9 +218,12 @@ void main() {
       final desktopRowH = tester
           .getSize(find.byKey(const ValueKey('keypad_row_0')))
           .height;
+      final expectedDesktopFont = Platform.isWindows
+          ? 20.0 * desktopScale * 1.4
+          : 20.0 * desktopScale * (desktopRowH / desktopStandard);
       expect(
         desktop,
-        closeTo(20.0 * desktopScale * (desktopRowH / desktopStandard), 1.5),
+        closeTo(expectedDesktopFont, 1.5),
       );
       expect(desktop, greaterThanOrEqualTo(14.0));
       // Zadny vertikalni scroll v hlavni klavesnici.

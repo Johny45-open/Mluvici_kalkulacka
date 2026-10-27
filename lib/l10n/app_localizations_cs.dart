@@ -1377,4 +1377,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String fractionAvailableAnnouncement(String fraction) {
     return 'Pro tento výsledek je dostupný zlomek $fraction.';
   }
+
+  @override
+  String approximateFractionAnnounced(Object numerator, Object denominator) {
+    return 'Přibližný zlomek $numerator lomeno $denominator.';
+  }
+
+  @override
+  String fractionVisualOnApprox(String fraction) {
+    return 'Zlomek: ≈ $fraction · zapnuto';
+  }
 }

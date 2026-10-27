@@ -1377,4 +1377,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String fractionAvailableAnnouncement(String fraction) {
     return 'A fraction $fraction is available for this result.';
   }
+
+  @override
+  String approximateFractionAnnounced(Object numerator, Object denominator) {
+    return 'Approximate fraction $numerator over $denominator.';
+  }
+
+  @override
+  String fractionVisualOnApprox(String fraction) {
+    return 'Fraction: ≈ $fraction · on';
+  }
 }

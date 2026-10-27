@@ -929,5 +929,24 @@
         "type": "String"
       }
     }
+  },
+  "approximateFractionAnnounced": "Approximate fraction {numerator} over {denominator}.",
+  "@approximateFractionAnnounced": {
+    "placeholders": {
+      "numerator": {
+        "type": "Object"
+      },
+      "denominator": {
+        "type": "Object"
+      }
+    }
+  },
+  "fractionVisualOnApprox": "Fraction: ≈ {fraction} · on",
+  "@fractionVisualOnApprox": {
+    "placeholders": {
+      "fraction": {
+        "type": "String"
+      }
+    }
   }
 }

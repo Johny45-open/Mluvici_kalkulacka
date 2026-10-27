@@ -343,7 +343,7 @@ void main() {
     });
 
     testWidgets('9. vsechny rezimy stejnou vysku radku', (tester) async {
-      final state = await pumpApp(tester, size: const Size(412, 860));
+      final state = await pumpApp(tester, size: const Size(412, 1100));
       final Map<CalculatorMode, double> heights = {};
       for (final mode in CalculatorMode.values) {
         state.switchModeForTest(mode);
