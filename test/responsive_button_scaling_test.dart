@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -120,8 +122,13 @@ void main() {
   /// Ocekavany font kratkeho popisku pri jednoduchem (nikoli dvojim)
   /// zapocteni fitScale: 20 * scale * (rowH / standard).
   /// V testech je textScale 1.0 a fontScale 1.0, takze sysFactor odpadá.
+  /// Windows na šířku: buildButton přidává boost 1,4, který se nepočítá
+  /// s fitScale (stejná podmínka jako v aplikaci – viz text_scaling test).
   double expectedFittedFont(WidgetTester tester, Size size) {
     final scale = responsiveScaleFor(size);
+    if (Platform.isWindows && size.width > size.height) {
+      return 20.0 * scale * 1.4;
+    }
     final standard = standardRowHFor(size);
     final rowH = keypadRowH(tester);
     return 20.0 * scale * (rowH / standard);

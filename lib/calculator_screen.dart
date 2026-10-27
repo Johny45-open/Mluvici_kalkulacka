@@ -820,6 +820,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _lastResultIsPlainNumeric = false;
   bool _lastResultIsApproxFractionStat = false;
   bool _lastResultIsApproxStatFraction = false;
+
+  /// Nový (nestatistický) výsledek ruší příznaky přibližného zlomku ze
+  /// statistiky (MEAN/WMEAN). Bez tohoto volání by příznaky přežily na
+  /// dalším výsledku (stale flag): zlomek by byl chybně způsobilý u měny,
+  /// DMS, převodů či procent (tam, kde se záměrně nastavuje jen
+  /// _lastResultIsPlainNumeric = false) a _fractionString by prefixoval
+  /// pozdější výsledky znakem „≈“. Volá se vždy vedle zápisu
+  /// _lastResultIsPlainNumeric mimo statistický blok; ten si příznaky
+  /// nastavuje sám podle přesnosti výpočtu.
+  void _invalidateApproxStatFractionFlags() {
+    _lastResultIsApproxFractionStat = false;
+    _lastResultIsApproxStatFraction = false;
+  }
   ElectricianCalculation _selectedElectricianCalculation =
       ElectricianCalculation.resistance;
 
@@ -2631,6 +2644,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastNumericValue = result;
         // Měnový výsledek je speciální kontext: zlomek nevhodný.
         _lastResultIsPlainNumeric = false;
+        _invalidateApproxStatFractionFlags();
         _fractionOverride = null;
         // Nový výsledek ruší přesná metadata (klíč + generace).
         _lastExact = null;
@@ -4114,6 +4128,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _hasResult = false;
       _pendingNegOpens.clear();
       _lastResultIsPlainNumeric = false;
+      _invalidateApproxStatFractionFlags();
       _fractionOverride = null;
       // Vymazání ruší přesná metadata (klíč + generace).
       _lastExact = null;
@@ -5362,6 +5377,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           _lastExactKey = '';
         }
         _lastResultIsPlainNumeric = plainResult;
+        _invalidateApproxStatFractionFlags();
         _fractionOverride = null;
       });
 
@@ -5423,6 +5439,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastResult = 'Error';
         _hasResult = true;
         _lastResultIsPlainNumeric = false;
+        _invalidateApproxStatFractionFlags();
         _fractionOverride = null;
         // Chyba ruší přesná metadata: generace se inkrementuje, takže ani
         // textově shodný starší výsledek nedostane zastaralý RationalValue.
@@ -6593,6 +6610,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _hasResult = true;
         // Převod jednotek je speciální prezentační kontext: zlomek nevhodný.
         _lastResultIsPlainNumeric = false;
+        _invalidateApproxStatFractionFlags();
         _fractionOverride = null;
         // R10: synchronizace stavu – ANS a historie jako u měny.
         // (Matematika se nemění, pouze se ukládá již vypočtená hodnota.)
@@ -7248,35 +7266,36 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final insertFontSize = (13.0 * s * sysFactor).clamp(12.0, 16.0);
     final String label = _s('Vložit zlomek', 'Insert fraction');
     // Bez excludeSemantics: TextButton si musí uchovat vlastní Semantics
-    // akci tap, jinak uzel nemá aktivaci pro odečítač (viz níže). Label se
-    // neslučuje dvakrát — ověřeno widget testem (vnitřní Text i vnější
-    // label jsou shodné, výsledek je právě jeden label).
-    return Semantics(
-      label: label,
-      button: true,
-      enabled: true,
-      child: TextButton(
-        key: const ValueKey('fraction_insert'),
-        onPressed: _showFractionInputDialog,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(48, 28),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          foregroundColor: Colors.redAccent,
-        ),
-        child: MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.noScaling),
-          child: Text(
-            label,
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: insertFontSize,
-              fontWeight: FontWeight.bold,
-            ),
+    // akci tap, jinak uzel nemá aktivaci pro odečítač (viz níže). Přístupný
+    // název leží na Text.semanticsLabel UVNITŘ TextButtonu (ten je vlastní
+    // sémantická hranice), takže vzniká právě JEDEN uzel s button + tap +
+    // focusable. Dřívější vnější Semantics (bez container) vytvářel DRUHÝ
+    // parazitní uzel „button" bez akce tap (ověřeno průchodem stromem) –
+    // NVDA pak nabízel dvě tlačítkové položky a bohatý název nebyl na
+    // aktivovatelném uzlu. Label se neslučuje dvakrát – vnitřní Text i
+    // název jsou shodné, výsledek je právě jeden label (widget test).
+    return TextButton(
+      key: const ValueKey('fraction_insert'),
+      onPressed: _showFractionInputDialog,
+      style: TextButton.styleFrom(
+        minimumSize: const Size(48, 28),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        foregroundColor: Colors.redAccent,
+      ),
+      child: MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.noScaling),
+        child: Text(
+          label,
+          semanticsLabel: label,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: insertFontSize,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
@@ -7492,26 +7511,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       context,
     ).scale(1.0).clamp(1.0, 1.6);
     final toggleFontSize = (13.0 * s * sysFactor).clamp(12.0, 16.0);
-    return Semantics(
-      label: semanticLabel,
-      button: true,
-      enabled: true,
-      toggled: showing,
-      child: TextButton(
-        key: const ValueKey('fraction_toggle'),
-        onPressed: toggleFractionResultView,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(48, 28),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          foregroundColor: Colors.redAccent,
-        ),
-        child: MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.noScaling),
+    // Přístupný název se stavem je NA Text.semanticsLabel uvnitř TextButtonu –
+    // jen tak se slévá do JEDINÉHO aktivovatelného uzlu (button + tap +
+    // focusable). Vnější Semantics (bez container) by podle frameworku
+    // vytvořil druhý „button" uzel bez akce tap, kam by se stav a název
+    // přesunuly nahoru (ověřeno průchodem sémantickým stromem). Vnitřní
+    // nehraniční Semantics nese pouze přepínací stav a enabled – nemá vlastní
+    // label, aby nedošlo ke dvojímu oznámení (label + vizuální text).
+    return TextButton(
+      key: const ValueKey('fraction_toggle'),
+      onPressed: toggleFractionResultView,
+      style: TextButton.styleFrom(
+        minimumSize: const Size(48, 28),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        foregroundColor: Colors.redAccent,
+      ),
+      child: MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.noScaling),
+        child: Semantics(
+          toggled: showing,
+          enabled: true,
           child: Text(
             visualText,
+            semanticsLabel: semanticLabel,
             maxLines: 1,
             softWrap: false,
             overflow: TextOverflow.ellipsis,
@@ -10829,6 +10854,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = val;
             // R10: DMS kontext – zlomek nevhodný (stale flag fix).
             _lastResultIsPlainNumeric = false;
+            _invalidateApproxStatFractionFlags();
             _fractionOverride = null;
             // Nový výsledek ruší přesná metadata (klíč + generace).
             _lastExact = null;
@@ -10861,6 +10887,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = val;
             // R10: DMS kontext – zlomek nevhodný (stale flag fix).
             _lastResultIsPlainNumeric = false;
+            _invalidateApproxStatFractionFlags();
             _fractionOverride = null;
             // Nový výsledek ruší přesná metadata (klíč + generace).
             _lastExact = null;
@@ -10898,6 +10925,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _lastNumericValue = converted;
             // R10: kontext převodu – zlomek nevhodný (stale flag fix).
             _lastResultIsPlainNumeric = false;
+            _invalidateApproxStatFractionFlags();
             _fractionOverride = null;
             // Nový výsledek ruší přesná metadata (klíč + generace).
             _lastExact = null;
@@ -11199,6 +11227,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastNumericValue = percent;
         // R10: kontext procent – zlomek nevhodný (stale flag fix).
         _lastResultIsPlainNumeric = false;
+        _invalidateApproxStatFractionFlags();
         _fractionOverride = null;
         // Nový výsledek ruší přesná metadata (klíč + generace).
         _lastExact = null;

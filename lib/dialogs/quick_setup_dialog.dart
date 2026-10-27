@@ -318,7 +318,10 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
                     showSelectedIcon: false,
                     onSelectionChanged: (sel) => _updateSettings(
                       (x) => x.copyWith(accessibilityType: sel.first),
-                      _t('Typ přístupnosti', 'Accessibility type'),
+                      _t(
+                        'Typ přístupnosti: ${_accessibilityTypeName(sel.first)}',
+                        'Accessibility type: ${_accessibilityTypeName(sel.first)}',
+                      ),
                     ),
                   ),
                 ),
@@ -345,7 +348,10 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
                     showSelectedIcon: false,
                     onSelectionChanged: (sel) => _updateSettings(
                       (x) => x.copyWith(screenReaderMode: sel.first),
-                      _t('Režim čtečky', 'Screen reader mode'),
+                      _t(
+                        'Režim čtečky: ${_screenReaderModeName(sel.first)}',
+                        'Screen reader mode: ${_screenReaderModeName(sel.first)}',
+                      ),
                     ),
                   ),
                 ),
@@ -435,7 +441,10 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
                     showSelectedIcon: false,
                     onSelectionChanged: (sel) => _updateSettings(
                       (x) => x.copyWith(dialogSize: sel.first),
-                      _t('Velikost dialogů', 'Dialog size'),
+                      _t(
+                        'Velikost dialogů: ${_dialogSizeName(sel.first)}',
+                        'Dialog size: ${_dialogSizeName(sel.first)}',
+                      ),
                     ),
                   ),
                 ),
@@ -488,7 +497,10 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
                         inverseFormatPreference: sel.first,
                         clearInverseFormatPreference: sel.first == null,
                       ),
-                      _t('Formát inverzních funkcí', 'Inverse format'),
+                      _t(
+                        'Formát inverzních funkcí: ${_inverseFormatName(sel.first)}',
+                        'Inverse format: ${_inverseFormatName(sel.first)}',
+                      ),
                     ),
                   ),
                 ),
@@ -540,7 +552,10 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
                     showSelectedIcon: false,
                     onSelectionChanged: (sel) => _update(
                       _draft.copyWith(resultDisplayMode: sel.first),
-                      _t('Zobrazení výsledku', 'Result display'),
+                      _t(
+                        'Zobrazení výsledku: ${_resultDisplayModeName(sel.first)}',
+                        'Result display: ${_resultDisplayModeName(sel.first)}',
+                      ),
                     ),
                   ),
                 ),
@@ -642,6 +657,59 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
         return _t('Čas', 'Time');
       case CalculatorMode.currency:
         return _t('Měna', 'Currency');
+    }
+  }
+
+  String _accessibilityTypeName(AccessibilityType t) {
+    switch (t) {
+      case AccessibilityType.none:
+        return _t('Standardní', 'Standard');
+      case AccessibilityType.blind:
+        return _t('Nevidomý', 'Blind');
+      case AccessibilityType.visuallyImpaired:
+        return _t('Slabozraký', 'Low vision');
+    }
+  }
+
+  /// Přirozené hlasové označení (UI popisek segmentu zůstává „Auto").
+  String _screenReaderModeName(ScreenReaderMode m) {
+    switch (m) {
+      case ScreenReaderMode.auto:
+        return _t('Automaticky', 'Auto');
+      case ScreenReaderMode.on:
+        return _t('Zapnuto', 'On');
+      case ScreenReaderMode.off:
+        return _t('Vypnuto', 'Off');
+    }
+  }
+
+  String _dialogSizeName(DialogSize d) {
+    switch (d) {
+      case DialogSize.compact:
+        return _t('Kompaktní', 'Compact');
+      case DialogSize.wide:
+        return _t('Široký', 'Wide');
+      case DialogSize.fullscreen:
+        return _t('Celý', 'Full');
+    }
+  }
+
+  /// `null` = Auto (přirozeně „Automaticky"), `0` = DMS, `1` = Desetinný.
+  String _inverseFormatName(int? v) {
+    if (v == null) return _t('Automaticky', 'Auto');
+    if (v == 0) return 'DMS';
+    return _t('Desetinný', 'Decimal');
+  }
+
+  /// Přirozené hlasové označení (UI popisek segmentu zůstává „Auto").
+  String _resultDisplayModeName(ResultDisplayMode m) {
+    switch (m) {
+      case ResultDisplayMode.segment:
+        return _t('Segment', 'Segment');
+      case ResultDisplayMode.text:
+        return _t('Text', 'Text');
+      case ResultDisplayMode.auto:
+        return _t('Automaticky', 'Auto');
     }
   }
 }
