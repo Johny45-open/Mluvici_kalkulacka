@@ -217,17 +217,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _lastExactGeneration == _resultGeneration;
 
   bool get _isSurdValid =>
-      _isLastExactValid &&
-      _lastExact is SurdValue &&
-      _lastResult.isNotEmpty;
+      _isLastExactValid && _lastExact is SurdValue && _lastResult.isNotEmpty;
 
   // Platný přesný racionální výsledek pro matematiku (ANS, paměť).
   // Bez ohledu na zobrazovací způsobilost (plain-numeric) — matematika
   // není závislá na formátu displeje.
   Rational? get _validRational =>
       (_isLastExactValid && _lastExact is RationalValue)
-          ? (_lastExact as RationalValue).value
-          : null;
+      ? (_lastExact as RationalValue).value
+      : null;
 
   // Platný netriviální racionální tvar pro zobrazení (d != 1, plain-numeric
   // kontext). Triviální n/1 (včetně 0/1) není zlomek a vrací null.
@@ -679,9 +677,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// Tenká obálka nad [announceEvent] pro zpětnou kompatibilitu.
   void say(String message, [BuildContext? ctx]) {
     if (message.isEmpty || !mounted) return;
-    unawaited(
-      announceEvent(message, category: SpeechCategory.actionConfirm),
-    );
+    unawaited(announceEvent(message, category: SpeechCategory.actionConfirm));
   }
 
   bool get _announceExpression =>
@@ -833,6 +829,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _lastResultIsApproxFractionStat = false;
     _lastResultIsApproxStatFraction = false;
   }
+
   ElectricianCalculation _selectedElectricianCalculation =
       ElectricianCalculation.resistance;
 
@@ -1862,26 +1859,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // ... pak i surd vložený do delšího zápisu ("2+6√2", "Výsledek je 6√2").
     // Znaky √/∛ se v běžných větách nevyskytují, takže je to bezpečné.
     String result = _speakSurdsInSentence(text);
-    result = result.replaceAllMapped(
-      RegExp(r'(\d+)(?:[.,](\d*))?\((\d+)\)'),
-      (m) {
-        final intPart = m.group(1)!;
-        final nonRepeating = m.group(2) ?? '';
-        final period = m.group(3)!;
-        final suffix = _s('periodických', 'repeating');
-        if (nonRepeating.isEmpty) return '$intPart,$period $suffix';
-        return '$intPart,$nonRepeating, $period $suffix';
-      },
-    );
+    result = result.replaceAllMapped(RegExp(r'(\d+)(?:[.,](\d*))?\((\d+)\)'), (
+      m,
+    ) {
+      final intPart = m.group(1)!;
+      final nonRepeating = m.group(2) ?? '';
+      final period = m.group(3)!;
+      final suffix = _s('periodických', 'repeating');
+      if (nonRepeating.isEmpty) return '$intPart,$period $suffix';
+      return '$intPart,$nonRepeating, $period $suffix';
+    });
     // Centrální exponenciální převod (mantisa E±exponent) – používá ordinál
     // pro češtinu. Mantisa s tečkou i čárkou ("1.5E+03" i "1,5E+03").
-    result = result.replaceAllMapped(
-      RegExp(r"(\d+(?:[.,]\d+)?)E([+-])(\d+)"),
-      (m) {
-        final mantissa = _localizeDecimalSeparator(m.group(1)!);
-        return _speakExponentialPart(mantissa, m.group(2)!, m.group(3)!);
-      },
-    );
+    result = result.replaceAllMapped(RegExp(r"(\d+(?:[.,]\d+)?)E([+-])(\d+)"), (
+      m,
+    ) {
+      final mantissa = _localizeDecimalSeparator(m.group(1)!);
+      return _speakExponentialPart(mantissa, m.group(2)!, m.group(3)!);
+    });
     return _localizeDecimalSeparator(result);
   }
 
@@ -3770,9 +3765,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (message.isEmpty || !mounted) return;
     // R-architektura: jednotný kanál přes announceEvent.
     // (ctx se ignoruje – směr se čte z vlastního contextu.)
-    unawaited(
-      announceEvent(message, category: SpeechCategory.actionConfirm),
-    );
+    unawaited(announceEvent(message, category: SpeechCategory.actionConfirm));
   }
 
   void _showAccessibleSnackBar(
@@ -3902,8 +3895,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // Shift/Ctrl modifikátory se prozatím ignorují (žádný výběr textu).
       // Brána režimu (Z1): mimo režim ovládání výrazu nebo bez primárního
       // fokusu patří šipky odečítači/traversálu (ignored), kurzor se nemění.
-      if (!isControl &&
-          event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      if (!isControl && event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         if (_expressionControlActive && _mainFocusNode.hasPrimaryFocus) {
           _moveCursorBy(-1);
           return KeyEventResult.handled;
@@ -3914,8 +3906,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
         return KeyEventResult.ignored;
       }
-      if (!isControl &&
-          event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      if (!isControl && event.logicalKey == LogicalKeyboardKey.arrowRight) {
         if (_expressionControlActive && _mainFocusNode.hasPrimaryFocus) {
           _moveCursorBy(1);
           return KeyEventResult.handled;
@@ -3952,7 +3943,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // Když je aktivní screen reader (NVDA, JAWS, TalkBack),
       // jednoznakové klávesy (S, C, T, A, P, atd.) se předávají čtečce.
       // Zpracovávají se pouze Ctrl+ kombinace, čísla, operátory a navigační klávesy.
-      if (_isScreenReaderActive == true && effectiveChar != null && !isControl) {
+      if (_isScreenReaderActive == true &&
+          effectiveChar != null &&
+          !isControl) {
         if (effectiveChar == '±') {
           _handleNegativeButton();
           return KeyEventResult.ignored;
@@ -4254,9 +4247,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// vloží číselnou hodnotu do výrazu přes [_insertAtCursor],
   /// hlasově potvrdí, persistenci nemění.
   void recallMemoryVariable(String name) {
-    String valStrVis = _formatNumberSmart(
-      _memory[name]!,
-    ).replaceAll('.', ',');
+    String valStrVis = _formatNumberSmart(_memory[name]!).replaceAll('.', ',');
     String valStrSpoken = _formatSpokenNumber(_memory[name]!);
     // Exaktní vazba (závorkovaný tvar pro správnou prioritu), jinak číselně.
     final rat = _rationalMemory[name];
@@ -4976,9 +4967,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
         content: SingleChildScrollView(
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Semantics(
                 label: _s('Celá část', 'Integer part'),
                 child: TextFormField(
@@ -5150,6 +5141,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // se neodvozuje parsováním textu výsledku.
       bool plainResult = false;
 
+      bool statIsMeanExact = false;
+      bool statMeanEligible = false;
+
       if (_currentMode == CalculatorMode.statistics) {
         if (_statsMemory.isEmpty) {
           speak(_statsEmptyMessage());
@@ -5167,13 +5161,55 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         double sd = math.sqrt(variance);
 
         resStr = _formatNumberSmart(mean);
-        spoken = _s(
-          'Průměr z paměti je ${_formatSpokenNumber(mean)}, směrodatná odchylka je ${_formatSpokenNumber(sd)}',
-          'Mean from memory is ${_formatSpokenNumber(mean)}, standard deviation is ${_formatSpokenNumber(sd)}',
-        );
-        // R10: synchronizace stavu – ANS po statistickém výpočtu je průměr.
-        // (Matematika se nemění, pouze se ukládá již vypočtená hodnota.)
         _lastNumericValue = mean;
+
+        Rational? statMeanExactRat;
+        if (data.isNotEmpty) {
+          final bool allIntegers = data.every(
+            (x) =>
+                x.isFinite &&
+                x == x.roundToDouble() &&
+                x.abs() <= 9007199254740992.0,
+          );
+          if (allIntegers) {
+            try {
+              BigInt sumBig = BigInt.zero;
+              for (final x in data) {
+                sumBig += BigInt.from(x.round());
+              }
+              final countBig = BigInt.from(data.length);
+              final rat = Rational(sumBig, countBig);
+              if (rat.denominator != BigInt.one) {
+                statMeanExactRat = rat;
+                statIsMeanExact = true;
+              }
+            } catch (_) {}
+          }
+        }
+        final fracMean = decimalToNonTrivialFraction(mean);
+        statMeanEligible = statIsMeanExact || fracMean != null;
+
+        if (statIsMeanExact && statMeanExactRat != null) {
+          historyRational = statMeanExactRat;
+          plainResult = true;
+        }
+
+        final bool showFractionDirectly =
+            (_globalResultDisplayMode == ResultDisplayMode.text ||
+                _globalResultDisplayMode == ResultDisplayMode.auto) &&
+            statIsMeanExact &&
+            statMeanExactRat != null;
+        final spokenMean = showFractionDirectly
+            ? statMeanExactRat!.toDisplayString().replaceAll(
+                '/',
+                _s(' lomeno ', ' over '),
+              )
+            : _formatSpokenNumber(mean);
+
+        spoken = _s(
+          'Průměr z paměti je $spokenMean, směrodatná odchylka je ${_formatSpokenNumber(sd)}',
+          'Mean from memory is $spokenMean, standard deviation is ${_formatSpokenNumber(sd)}',
+        );
       } else if (_currentMode == CalculatorMode.electrician) {
         final result = _calculateElectricianResult(display);
         if (!result.isFinite) {
@@ -5303,7 +5339,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             !resStr.contains('°') &&
             result.isFinite;
 
-      // Exaktní metadata výsledku: RationalValue pro racionální výpočet,
+        // Exaktní metadata výsledku: RationalValue pro racionální výpočet,
         // jinak částečně odmocněný surd pro jednoduchou odmocninu celého
         // čísla (např. "√72" -> 6√2). _lastResult zůstává VŽDY numerický
         // string; přesnost žije strukturovaně v _lastExact s platností
@@ -5327,16 +5363,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           }
         }
 
-        if (exactRational != null &&
-            exactRational.denominator != BigInt.one) {
-          // Přesný zlomek se oznamuje přímo (stejný precedens jako surd);
-          // věta o dostupnosti se pak nepřipojuje (žádná duplicita).
-          final spokenFraction = exactRational
-              .toDisplayString()
-              .replaceAll('/', _s(' lomeno ', ' over '));
+        final bool showFractionDirectly =
+            (_globalResultDisplayMode == ResultDisplayMode.text ||
+                _globalResultDisplayMode == ResultDisplayMode.auto) &&
+            exactRational != null &&
+            exactRational.denominator != BigInt.one;
+        final bool showSurdDirectly =
+            (_globalResultDisplayMode == ResultDisplayMode.text ||
+                _globalResultDisplayMode == ResultDisplayMode.auto) &&
+            spokenSurd != null;
+        final bool speakSurdDirectly = spokenSurd != null;
+
+        if (showFractionDirectly) {
+          final spokenFraction = exactRational!.toDisplayString().replaceAll(
+            '/',
+            _s(' lomeno ', ' over '),
+          );
           spoken = _l10n.resultIs(spokenFraction);
-        } else if (spokenSurd != null) {
-          spoken = _l10n.resultIs(_spokenForDisplay(formatSurd(spokenSurd)));
+        } else if (speakSurdDirectly) {
+          spoken = _l10n.resultIs(_spokenForDisplay(formatSurd(spokenSurd!)));
         } else if (resStr.contains('°')) {
           spoken = _l10n.resultIs(_formatDmsSpeech(resStr));
         } else {
@@ -5377,7 +5422,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           _lastExactKey = '';
         }
         _lastResultIsPlainNumeric = plainResult;
-        _invalidateApproxStatFractionFlags();
+        if (_currentMode == CalculatorMode.statistics &&
+            !statIsMeanExact &&
+            statMeanEligible) {
+          _lastResultIsApproxFractionStat = true;
+          _lastResultIsApproxStatFraction = true;
+        } else {
+          _invalidateApproxStatFractionFlags();
+        }
         _fractionOverride = null;
       });
 
@@ -5388,10 +5440,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // finální. Při screen readeru ON vrací helper null a speech zůstává
       // beze změny. Je-li primární hláška již přesný zlomek, věta se
       // nepřipojuje (žádná duplicita).
-      final bool exactAlreadySpoken = historyRational != null &&
+      final bool exactAlreadySpoken =
+          (_globalResultDisplayMode == ResultDisplayMode.text ||
+              _globalResultDisplayMode == ResultDisplayMode.auto) &&
+          historyRational != null &&
           historyRational.denominator != BigInt.one;
-      final fractionSuffix =
-          exactAlreadySpoken ? null : _fractionAvailabilitySuffix();
+      final fractionSuffix = exactAlreadySpoken
+          ? null
+          : _fractionAvailabilitySuffix();
       if (fractionSuffix != null && fractionSuffix.isNotEmpty) {
         spoken = '$spoken $fractionSuffix';
       }
@@ -5504,10 +5560,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// Vrací null, pokud podstrom nelze vyhodnotit — volající pak pokračuje
   /// bez strukturálního důkazu a nikdy z null neodvozuje chybu.
   /// Žádný setState, žádná mutace stavu.
-  double? _tryEvalSubtree(
-    math_expr.Expression sub,
-    math_expr.ContextModel cm,
-  ) {
+  double? _tryEvalSubtree(math_expr.Expression sub, math_expr.ContextModel cm) {
     try {
       final v = sub.evaluate(math_expr.EvaluationType.REAL, cm);
       if (v is num) return v.toDouble();
@@ -5571,10 +5624,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final childErr = _findCalcErrorInFuncArgs(exp, cm);
       if (childErr != null) return childErr;
       // Ln ukládá bázi (e) na getParam(0), argument na getParam(1).
-      final arg = _tryEvalSubtree(
-        _unbindFuncArg(exp.getParam(1)),
-        cm,
-      );
+      final arg = _tryEvalSubtree(_unbindFuncArg(exp.getParam(1)), cm);
       if (arg != null && arg <= 0) {
         return const CalcError(
           CalcErrorKind.domain,
@@ -5586,20 +5636,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (exp is math_expr.Log) {
       final childErr = _findCalcErrorInFuncArgs(exp, cm);
       if (childErr != null) return childErr;
-      final number = _tryEvalSubtree(
-        _unbindFuncArg(exp.getParam(1)),
-        cm,
-      );
+      final number = _tryEvalSubtree(_unbindFuncArg(exp.getParam(1)), cm);
       if (number != null && number <= 0) {
         return const CalcError(
           CalcErrorKind.domain,
           CalcErrorReason.logNonPositiveArg,
         );
       }
-      final base = _tryEvalSubtree(
-        _unbindFuncArg(exp.getParam(0)),
-        cm,
-      );
+      final base = _tryEvalSubtree(_unbindFuncArg(exp.getParam(0)), cm);
       if (base != null && (base <= 0 || base == 1)) {
         return const CalcError(
           CalcErrorKind.domain,
@@ -5611,10 +5655,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (exp is math_expr.Sqrt) {
       final childErr = _findCalcErrorInFuncArgs(exp, cm);
       if (childErr != null) return childErr;
-      final arg = _tryEvalSubtree(
-        _unbindFuncArg(exp.getParam(1)),
-        cm,
-      );
+      final arg = _tryEvalSubtree(_unbindFuncArg(exp.getParam(1)), cm);
       if (arg != null && arg < 0) {
         return const CalcError(
           CalcErrorKind.domain,
@@ -5632,10 +5673,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (exp is math_expr.Asin) {
       final childErr = _findCalcErrorInFuncArgs(exp, cm);
       if (childErr != null) return childErr;
-      final arg = _tryEvalSubtree(
-        _unbindFuncArg(exp.getParam(0)),
-        cm,
-      );
+      final arg = _tryEvalSubtree(_unbindFuncArg(exp.getParam(0)), cm);
       if (arg != null && arg.abs() > 1 + 1e-12) {
         return const CalcError(
           CalcErrorKind.domain,
@@ -5647,10 +5685,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (exp is math_expr.Acos) {
       final childErr = _findCalcErrorInFuncArgs(exp, cm);
       if (childErr != null) return childErr;
-      final arg = _tryEvalSubtree(
-        _unbindFuncArg(exp.getParam(0)),
-        cm,
-      );
+      final arg = _tryEvalSubtree(_unbindFuncArg(exp.getParam(0)), cm);
       if (arg != null && arg.abs() > 1 + 1e-12) {
         return const CalcError(
           CalcErrorKind.domain,
@@ -5782,8 +5817,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // ANS se rozvíjí z platného RationalValue strukturovaně ((n/d)),
     // jinak dosavadní numericky. Stejnou expanzi používá exaktní pokus,
     // takže řetězení zůstává přesné.
-    String processed =
-        expr.replaceAll('ANS', _ansExpansion()).replaceAll(' ', '');
+    String processed = expr
+        .replaceAll('ANS', _ansExpansion())
+        .replaceAll(' ', '');
 
     // 1. PŘÍPRAVA SYMBOLŮ
     processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3');
@@ -5993,10 +6029,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     int openCount = '('.allMatches(processed).length;
     int closeCount = ')'.allMatches(processed).length;
     if (openCount != closeCount) {
-      throw const CalcError(
-        CalcErrorKind.syntax,
-        CalcErrorReason.syntaxParens,
-      );
+      throw const CalcError(CalcErrorKind.syntax, CalcErrorReason.syntaxParens);
     }
 
     // =========================================================================
@@ -6080,10 +6113,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     closeCount = ')'.allMatches(processed).length;
 
     if (openCount != closeCount) {
-      throw const CalcError(
-        CalcErrorKind.syntax,
-        CalcErrorReason.syntaxParens,
-      );
+      throw const CalcError(CalcErrorKind.syntax, CalcErrorReason.syntaxParens);
     }
 
     // PROCENTA: % jako postfixový operátor "/100"
@@ -6103,18 +6133,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     try {
       final p = math_expr.ShuntingYardParser();
-    // Zbytkový marker funkce (např. prázdné SIN()) = neúplná syntaxe.
-    // Kontrolují se pouze naše vlastní sentinely (_SIN_, _LOG_, ...),
-    // nikdy text výjimky knihovny. E-notační placeholdery jsou v tomto
-    // bodě již expandovány (krok 3b), takže tu nemají co dělat.
-    if (RegExp(r'_[A-Z]+_').hasMatch(processed)) {
-      throw const CalcError(
-        CalcErrorKind.syntax,
-        CalcErrorReason.syntaxGeneral,
-      );
-    }
+      // Zbytkový marker funkce (např. prázdné SIN()) = neúplná syntaxe.
+      // Kontrolují se pouze naše vlastní sentinely (_SIN_, _LOG_, ...),
+      // nikdy text výjimky knihovny. E-notační placeholdery jsou v tomto
+      // bodě již expandovány (krok 3b), takže tu nemají co dělat.
+      if (RegExp(r'_[A-Z]+_').hasMatch(processed)) {
+        throw const CalcError(
+          CalcErrorKind.syntax,
+          CalcErrorReason.syntaxGeneral,
+        );
+      }
 
-    debugPrint("Parsing expression: $processed");
+      debugPrint("Parsing expression: $processed");
       math_expr.Expression exp;
       try {
         exp = p.parse(processed);
@@ -6244,7 +6274,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? get _fractionString {
     if (!_hasResult || _lastNumericValue == null) return null;
     if (!_lastNumericValue!.isFinite) return null;
-    if (!_lastResultIsPlainNumeric && !_lastResultIsApproxFractionStat) return null;
+    if (_isSurdValid) return null;
+    if (!_lastResultIsPlainNumeric && !_lastResultIsApproxFractionStat)
+      return null;
     if (_lastResult.toLowerCase() == 'error') return null;
     final r = _validRationalNonTrivial;
     if (r != null) return r.toDisplayString();
@@ -6291,22 +6323,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _isFractionOverrideKeyValid &&
       _validRationalNonTrivial != null;
 
-  bool get _isFractionEligible => _fractionString != null;
+  bool get _isFractionEligible => _fractionString != null || _isSurdValid;
 
   // Cíl příštího stisku přepínače (jediný autoritativní zdroj pro popisek,
   // přístupný stav i hlasové oznámení; žádná část UI cíl neodhaduje
   // samostatně). Simuluje skutečné následné vykreslení: stisk uloží
-  // override = !_isShowingFraction(), takže cíl fraction znamená budoucí
-  // override true a cíle numeric/surd budoucí override false se základem
-  // bez zlomkového překryvu (surd pouze pro surd-základ v text/auto).
+  // override = !_isShowingFraction(), takže cíl fraction/surd znamená budoucí
+  // override true a cíl numeric budoucí override false.
   _FractionTargetKind? _fractionTargetKindAfterNextPress() {
     if (!_isFractionEligible) return null;
-    if (!_isShowingFraction()) return _FractionTargetKind.fraction;
-    if ((_globalResultDisplayMode == ResultDisplayMode.text ||
-            _globalResultDisplayMode == ResultDisplayMode.auto) &&
-        _isSurdValid) {
-      return _FractionTargetKind.surd;
+    if (_isSurdValid) {
+      if (!_isShowingFraction()) {
+        return _FractionTargetKind.surd;
+      }
+      return _FractionTargetKind.numeric;
     }
+    if (!_isShowingFraction()) return _FractionTargetKind.fraction;
     return _FractionTargetKind.numeric;
   }
 
@@ -6379,6 +6411,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return null;
     }
     if (!_hasResult || !_lastResultIsPlainNumeric) return null;
+    if (_isSurdValid) return null;
     // Již zobrazený zlomek se znovu neavizuje (žádná duplicita).
     if (_isShowingFraction()) return null;
     final fracStr = _fractionString;
@@ -6414,7 +6447,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final v = _lastNumericValue;
       final f = v == null ? null : decimalToNonTrivialFraction(v);
       if (f != null) {
-        if (_lastResultIsApproxFractionStat && _lastResultIsApproxStatFraction) {
+        if (_lastResultIsApproxFractionStat &&
+            _lastResultIsApproxStatFraction) {
           return _isEnglish()
               ? 'approximately ${f.numerator} over ${f.denominator}'
               : 'přibližně ${f.numerator} lomeno ${f.denominator}';
@@ -6426,9 +6460,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     if (_isForceDecimalActive) {
       if (_lastResult == 'Error') return _s('Chyba', 'Error');
-      return _spokenForDisplay(
-        _lastResult.isEmpty ? '0.' : _lastResult,
-      );
+      return _spokenForDisplay(_lastResult.isEmpty ? '0.' : _lastResult);
     }
     final active = _activeResultString();
     // R7: chybový stav číst lokalizovaně ("Chyba"/"Error"),
@@ -6448,41 +6480,53 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       say(_l10n.fractionUnavailable);
       return;
     }
-    final showingAfter = target == _FractionTargetKind.fraction;
+    final showingAfter =
+        target == _FractionTargetKind.fraction ||
+        target == _FractionTargetKind.surd;
     setState(() {
       _fractionOverride = showingAfter;
       _fractionViewKey = _lastResult;
       _fractionViewGeneration = _resultGeneration;
     });
     if (showingAfter) {
-      final r = _validRationalNonTrivial;
-      if (r != null) {
-        say(_l10n.fractionAnnounced(r.numerator, r.denominator));
+      if (_isSurdValid) {
+        say(
+          _l10n.resultIs(
+            _spokenForDisplay(formatSurd(_lastExact as SurdValue)),
+          ),
+        );
       } else {
-        final v = _lastNumericValue;
-        final f = v == null ? null : decimalToNonTrivialFraction(v);
-        if (f != null) {
-          if (_lastResultIsApproxFractionStat && _lastResultIsApproxStatFraction) {
-            say(_l10n.approximateFractionAnnounced(f.numerator, f.denominator));
-          } else {
-            say(_l10n.fractionAnnounced(f.numerator, f.denominator));
-          }
+        final r = _validRationalNonTrivial;
+        if (r != null) {
+          say(_l10n.fractionAnnounced(r.numerator, r.denominator));
         } else {
-          final fracStr = _fractionString;
-          say(
-            _s(
-              'Zlomek $fracStr.',
-              'Fraction $fracStr.',
-            ).replaceAll('/', _s(' lomeno ', ' over ')),
-          );
+          final v = _lastNumericValue;
+          final f = v == null ? null : decimalToNonTrivialFraction(v);
+          if (f != null) {
+            if (_lastResultIsApproxFractionStat &&
+                _lastResultIsApproxStatFraction) {
+              say(
+                _l10n.approximateFractionAnnounced(f.numerator, f.denominator),
+              );
+            } else {
+              say(_l10n.fractionAnnounced(f.numerator, f.denominator));
+            }
+          } else {
+            final fracStr = _fractionString;
+            say(
+              _s(
+                'Zlomek $fracStr.',
+                'Fraction $fracStr.',
+              ).replaceAll('/', _s(' lomeno ', ' over ')),
+            );
+          }
         }
       }
     } else {
       // Návrat ze zlomkového pohledu: oznámit reprezentaci, která je po
       // stisku skutečně aktivní (cíl z target-funkce, ne odhad).
       // Neměnit _lastResult, _lastNumericValue, _lastExact ani generace.
-      if (target == _FractionTargetKind.surd &&
-          _lastExact is SurdValue) {
+      if (target == _FractionTargetKind.surd && _lastExact is SurdValue) {
         say(
           _l10n.resultIs(
             _spokenForDisplay(formatSurd(_lastExact as SurdValue)),
@@ -6491,9 +6535,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } else {
         say(
           _l10n.resultIs(
-            _spokenForDisplay(
-              _lastResult.isEmpty ? '0.' : _lastResult,
-            ),
+            _spokenForDisplay(_lastResult.isEmpty ? '0.' : _lastResult),
           ),
         );
       }
@@ -6577,9 +6619,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (display.trim().isNotEmpty) {
         value = _evaluateExpression(display.trim());
       } else if (_hasResult && _lastResult.toLowerCase() != 'error') {
-        final parsed = double.tryParse(
-          _lastResult.replaceAll(',', '.'),
-        );
+        final parsed = double.tryParse(_lastResult.replaceAll(',', '.'));
         if (parsed == null) throw Exception('no value');
         value = parsed;
       } else {
@@ -6786,9 +6826,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 8 * s),
       child: MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.noScaling),
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -6897,7 +6935,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (v == null) return;
         setState(() => _currencyFrom = v);
         _saveCurrencyRates();
-        speak(_s('Z měny ${_currencyDisplayName(v)}', 'From ${_currencyDisplayName(v)}'));
+        speak(
+          _s(
+            'Z měny ${_currencyDisplayName(v)}',
+            'From ${_currencyDisplayName(v)}',
+          ),
+        );
       },
     );
     Widget toField = DropdownButtonFormField<String>(
@@ -6915,15 +6958,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (v == null) return;
         setState(() => _currencyTo = v);
         _saveCurrencyRates();
-        speak(_s('Na měnu ${_currencyDisplayName(v)}', 'To ${_currencyDisplayName(v)}'));
+        speak(
+          _s(
+            'Na měnu ${_currencyDisplayName(v)}',
+            'To ${_currencyDisplayName(v)}',
+          ),
+        );
       },
     );
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 8 * s),
       child: MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.noScaling),
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -7057,8 +7103,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         final CalcValue value = _isSurdValid
             ? _lastExact!
             : (_validRationalNonTrivial != null
-                ? _lastExact!
-                : const NumericValue(0));
+                  ? _lastExact!
+                  : const NumericValue(0));
         if (chooseDisplayRenderer(value, res) == CalcDisplayKind.mathText) {
           return _buildMathTextDisplay(
             _activeResultString(),
@@ -7284,9 +7330,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         foregroundColor: Colors.redAccent,
       ),
       child: MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.noScaling),
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
         child: Text(
           label,
           semanticsLabel: label,
@@ -7347,8 +7391,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     label: _s('Čitatel', 'Numerator'),
                     child: TextField(
                       controller: numCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(signed: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        signed: true,
+                      ),
                       autofocus: true,
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[-\d]')),
@@ -7435,17 +7480,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       _pendingNegOpens.clear();
                       _fractionOverride = null;
                     } else {
-                      _cursorPosition =
-                          insertPos.clamp(0, display.length);
+                      _cursorPosition = insertPos.clamp(0, display.length);
                     }
                   });
                   _insertAtCursor('($n/$d)');
-                  speak(
-                    _s(
-                      'Vloženo $n lomeno $d',
-                      'Inserted $n over $d',
-                    ),
-                  );
+                  speak(_s('Vloženo $n lomeno $d', 'Inserted $n over $d'));
                 },
                 child: Text(_l10n.confirmAction.toUpperCase()),
               ),
@@ -7472,8 +7511,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // (_fractionTargetKindAfterNextPress); žádná větev cíl neodhaduje.
     final bool eligible = _isFractionEligible;
     final bool showing = _isShowingFraction();
-    final _FractionTargetKind? target =
-        _fractionTargetKindAfterNextPress();
+    final _FractionTargetKind? target = _fractionTargetKindAfterNextPress();
 
     String semanticLabel;
     String visualText;
@@ -7481,8 +7519,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       visualText = _l10n.fractionVisualUnavailable;
       semanticLabel = '$visualText. ${_l10n.fractionUnavailable}';
     } else if (showing) {
-      final String fracStr = _fractionString!;
-      final bool isApprox = _lastResultIsApproxFractionStat && _lastResultIsApproxStatFraction;
+      final String fracStr = _fractionString ?? _displayedResultString;
+      final bool isApprox =
+          _lastResultIsApproxFractionStat && _lastResultIsApproxStatFraction;
       visualText = isApprox
           ? _l10n.fractionVisualOnApprox(fracStr.replaceFirst('≈ ', ''))
           : _l10n.fractionVisualOn(fracStr);
@@ -7496,7 +7535,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           : _l10n.fractionSwitchToBaseNumeric;
       semanticLabel = '$visualText. $base. $back';
     } else {
-      final String fracStr = _fractionString!;
+      final String fracStr = _fractionString ?? _displayedResultString;
       visualText = _l10n.fractionVisualOff(fracStr);
       final String base = _fractionBaseIsExact
           ? _l10n.fractionBaseExact
@@ -7528,9 +7567,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         foregroundColor: Colors.redAccent,
       ),
       child: MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.noScaling),
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
         child: Semantics(
           toggled: showing,
           enabled: true,
@@ -8312,42 +8349,42 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
               content: SingleChildScrollView(
                 child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Semantics(
-                    label: _s('Název nového profilu', 'New profile name'),
-                    child: TextField(
-                      controller: nameCtrl,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: _s('Název', 'Name'),
-                        border: const OutlineInputBorder(),
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Semantics(
+                      label: _s('Název nového profilu', 'New profile name'),
+                      child: TextField(
+                        controller: nameCtrl,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: _s('Název', 'Name'),
+                          border: const OutlineInputBorder(),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Semantics(
-                    label: _s('Základní profil pro kopii', 'Base profile'),
-                    child: DropdownButtonFormField<String>(
-                      value: baseId,
-                      decoration: InputDecoration(
-                        labelText: _s('Vycházet z', 'Base on'),
+                    const SizedBox(height: 12),
+                    Semantics(
+                      label: _s('Základní profil pro kopii', 'Base profile'),
+                      child: DropdownButtonFormField<String>(
+                        value: baseId,
+                        decoration: InputDecoration(
+                          labelText: _s('Vycházet z', 'Base on'),
+                        ),
+                        items: _effectiveProfiles
+                            .map(
+                              (p) => DropdownMenuItem(
+                                value: p.id,
+                                child: Text(_displayProfileName(p)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setLocal(() => baseId = v);
+                        },
                       ),
-                      items: _effectiveProfiles
-                          .map(
-                            (p) => DropdownMenuItem(
-                              value: p.id,
-                              child: Text(_displayProfileName(p)),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setLocal(() => baseId = v);
-                      },
                     ),
-                  ),
-                ],
+                  ],
                 ),
               ),
               actions: [
@@ -8493,15 +8530,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
         content: SingleChildScrollView(
           child: Semantics(
-          label: _s('Nový název profilu', 'New profile name'),
-          child: TextField(
-            controller: ctrl,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: _s('Název', 'Name'),
-              border: const OutlineInputBorder(),
+            label: _s('Nový název profilu', 'New profile name'),
+            child: TextField(
+              controller: ctrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: _s('Název', 'Name'),
+                border: const OutlineInputBorder(),
+              ),
             ),
-          ),
           ),
         ),
         actions: [
@@ -8776,10 +8813,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     } catch (_) {}
     try {
       final prefs = await SharedPreferences.getInstance();
-      final occ = _memoryOccupied
-          .where((k) => _memoryOrder.contains(k))
-          .toList()
-        ..sort();
+      final occ =
+          _memoryOccupied.where((k) => _memoryOrder.contains(k)).toList()
+            ..sort();
       await prefs.setStringList('memoryOccupied', occ);
     } catch (_) {}
   }
@@ -10040,10 +10076,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final sysFactor = MediaQuery.textScalerOf(
       context,
     ).scale(1.0).clamp(1.0, 1.6);
-    
-    final bool isWindowsLandscape = Platform.isWindows && MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    final bool isWindowsLandscape =
+        Platform.isWindows &&
+        MediaQuery.orientationOf(context) == Orientation.landscape;
     final double baseFontForScale = (isKeypadKey && isWindowsLandscape)
-        ? (20.0 * 1.4 * _keyboardFontScale * sysFactor * scale).clamp(14.0, 72.0)
+        ? (20.0 * 1.4 * _keyboardFontScale * sysFactor * scale).clamp(
+            14.0,
+            72.0,
+          )
         : (20.0 * _keyboardFontScale * sysFactor * gs).clamp(14.0, 72.0);
 
     final EdgeInsetsGeometry keypadMargin = (isKeypadKey && isWindowsLandscape)
@@ -10134,8 +10175,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             true, // Zamezí TalkBacku vidět InkWell jako samostatný prvek
         onFocusChange: (hasFocus) {
           // Mluvíme pouze pokud není aktivní TalkBack, aby nedocházelo k dvojitému čtení
-          if (hasFocus && _isScreenReaderActive != true)
-            speak(descriptiveName);
+          if (hasFocus && _isScreenReaderActive != true) speak(descriptiveName);
         },
         onTap: () async {
           if (onPressed != null) {
@@ -10577,30 +10617,44 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             numericResult = snapshot.mean;
             final valList = _getFieldValues(_selectedFieldIndex);
             if (valList.isNotEmpty) {
-              bool allExact = true;
-              Rational sumRat = Rational(BigInt.zero, BigInt.one);
-              for (final x in valList) {
-                final f = decimalToFraction(x);
-                if (f == null || ((f.numerator / f.denominator) - x).abs() > 1e-12) {
-                  allExact = false;
-                  break;
-                }
-                sumRat = sumRat + Rational(BigInt.from(f.numerator), BigInt.from(f.denominator));
-              }
-              if (allExact) {
+              final bool allIntegers = valList.every(
+                (x) =>
+                    x.isFinite &&
+                    x == x.roundToDouble() &&
+                    x.abs() <= 9007199254740992.0,
+              );
+              if (allIntegers) {
                 try {
-                  meanExactRat = sumRat / Rational(BigInt.from(valList.length), BigInt.one);
-                  if ((meanExactRat.toDouble() - snapshot.mean).abs() < 1e-12 && meanExactRat.denominator != BigInt.one) {
+                  BigInt sumBig = BigInt.zero;
+                  for (final x in valList) {
+                    sumBig += BigInt.from(x.round());
+                  }
+                  final countBig = BigInt.from(valList.length);
+                  final rat = Rational(sumBig, countBig);
+                  if (rat.denominator != BigInt.one) {
+                    meanExactRat = rat;
                     isMeanExact = true;
                   }
                 } catch (_) {}
               }
             }
             final fracMean = decimalToNonTrivialFraction(snapshot.mean);
-            meanEligible = fracMean != null;
+            meanEligible = isMeanExact || fracMean != null;
+
+            final bool showFractionDirectly =
+                (_globalResultDisplayMode == ResultDisplayMode.text ||
+                    _globalResultDisplayMode == ResultDisplayMode.auto) &&
+                isMeanExact &&
+                meanExactRat != null;
+            final spokenVal = showFractionDirectly
+                ? meanExactRat!.toDisplayString().replaceAll(
+                    '/',
+                    _s(' lomeno ', ' over '),
+                  )
+                : _formatSpokenNumber(snapshot.mean);
             spoken = _s(
-              'Průměr${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.mean)}',
-              'Mean${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.mean)}',
+              'Průměr${fieldLabelSpoken} z paměti je $spokenVal',
+              'Mean${fieldLabelSpoken} from memory is $spokenVal',
             );
           } else if (label == 'SUM') {
             resStr = _formatNumberSmart(snapshot.sum);
@@ -10702,10 +10756,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               _lastResultIsPlainNumeric = true;
               _lastResultIsApproxFractionStat = false;
               _lastResultIsApproxStatFraction = false;
-            } else if (label == 'MEAN') {
+            } else if (label == 'MEAN' && meanEligible) {
               _lastResultIsPlainNumeric = false;
-              _lastResultIsApproxFractionStat = meanEligible;
-              _lastResultIsApproxStatFraction = meanEligible;
+              _lastResultIsApproxFractionStat = true;
+              _lastResultIsApproxStatFraction = true;
               _lastExact = null;
               _lastExactKey = '';
             } else {
@@ -11530,12 +11584,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return LayoutBuilder(
       builder: (ctx, constraints) {
         final scale = _responsiveScale(ctx);
-        final bool isWindowsLandscape = Platform.isWindows && MediaQuery.orientationOf(ctx) == Orientation.landscape;
+        final bool isWindowsLandscape =
+            Platform.isWindows &&
+            MediaQuery.orientationOf(ctx) == Orientation.landscape;
         final double standardRowH = isWindowsLandscape
             ? (64.0 * scale).clamp(56.0 * scale, 90.0 * scale).toDouble()
-            : (54.0 * scale)
-                .clamp(48.0 * scale, 80.0 * scale)
-                .toDouble();
+            : (54.0 * scale).clamp(48.0 * scale, 80.0 * scale).toDouble();
         const double spacing = 2.0;
         const double pad = 4.0;
         // Fit: pokud je místa dost, standardní výška (strop, tlačítka nejsou
@@ -11700,9 +11754,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     showAppDialog(
       context: context,
       // Z2: lokalizovaný název routy (dříve natvrdo česky).
-      routeSettings: RouteSettings(
-        name: _s('Rychlá paměť', 'Quick memory'),
-      ),
+      routeSettings: RouteSettings(name: _s('Rychlá paměť', 'Quick memory')),
       builder: (context) => _QuickMemoryDialog(parent: this),
     ).then((_) => _returnFocusToKeyboard());
   }
@@ -11800,30 +11852,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ),
           content: SingleChildScrollView(
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(fieldNames.length, (i) {
-              final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
-              final label = unitCode != null
-                  ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
-                  : fieldNames[i];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Semantics(
-                  label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
-                  child: TextField(
-                    controller: controllers[i],
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: label,
-                      isDense: true,
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(fieldNames.length, (i) {
+                final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
+                final label = unitCode != null
+                    ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
+                    : fieldNames[i];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Semantics(
+                    label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                    child: TextField(
+                      controller: controllers[i],
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: label,
+                        isDense: true,
+                      ),
                     ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
             ),
           ),
           actions: [
@@ -12441,9 +12493,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'Order changed: $orderSpoken',
     );
     // R9: jedna hláška jednotným kanálem (dříve speak + announce).
-    unawaited(
-      announceEvent(msg, category: SpeechCategory.settings),
-    );
+    unawaited(announceEvent(msg, category: SpeechCategory.settings));
   }
 
   void _moveStatsSummarySectionByOffset(int index, int offset) {
@@ -12480,9 +12530,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _saveSettings();
     final msg = _s('Pořadí obnoveno na výchozí', 'Order reset to default');
     // R9: jedna hláška jednotným kanálem (dříve speak + announce).
-    unawaited(
-      announceEvent(msg, category: SpeechCategory.settings),
-    );
+    unawaited(announceEvent(msg, category: SpeechCategory.settings));
   }
 
   String _getStatsComputedItemLabel(StatsComputedItem it) {
@@ -12579,9 +12627,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'Items order reset to default',
     );
     // R9: jedna hláška jednotným kanálem (dříve speak + announce).
-    unawaited(
-      announceEvent(msg, category: SpeechCategory.settings),
-    );
+    unawaited(announceEvent(msg, category: SpeechCategory.settings));
   }
 
   String _presetLabel(StatsOrderPreset p) {
@@ -12870,12 +12916,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (!dirty && !namesChanged) {
         disposeControllers();
         Navigator.pop(dialogContext);
-      final msg = _s('Žádné změny k uložení.', 'No changes to save.');
-      // R4: jednotný kanál (dříve force-bypass přes SR).
-      unawaited(
-        announceEvent(msg, category: SpeechCategory.actionConfirm),
-      );
-      return;
+        final msg = _s('Žádné změny k uložení.', 'No changes to save.');
+        // R4: jednotný kanál (dříve force-bypass přes SR).
+        unawaited(announceEvent(msg, category: SpeechCategory.actionConfirm));
+        return;
       }
 
       setState(() {
@@ -12937,9 +12981,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
                 content: SingleChildScrollView(
                   child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       ...List.generate(fieldNameControllers.length, (i) {
                         final isLast = fieldNameControllers.length == 1;
                         return Padding(
@@ -13149,9 +13193,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 policy: ReadingOrderTraversalPolicy(),
                 child: SingleChildScrollView(
                   child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       Semantics(
                         label: l10n.statsSetNameLabel,
                         child: TextField(
@@ -13830,41 +13874,41 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               ),
               content: SingleChildScrollView(
                 child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controller,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: _s('Název složky', 'Folder name'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    children: List.generate(
-                      _statsPalette.length,
-                      (i) => ChoiceChip(
-                        label: Text('${i + 1}'),
-                        selected: draftColor == i,
-                        onSelected: (_) => setDlg(() => draftColor = i),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: _s('Název složky', 'Folder name'),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    children: _statsIconNames
-                        .map(
-                          (n) => ChoiceChip(
-                            label: Icon(_statsIconFor(n), size: 16),
-                            selected: draftIcon == n,
-                            onSelected: (_) => setDlg(() => draftIcon = n),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      children: List.generate(
+                        _statsPalette.length,
+                        (i) => ChoiceChip(
+                          label: Text('${i + 1}'),
+                          selected: draftColor == i,
+                          onSelected: (_) => setDlg(() => draftColor = i),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      children: _statsIconNames
+                          .map(
+                            (n) => ChoiceChip(
+                              label: Icon(_statsIconFor(n), size: 16),
+                              selected: draftIcon == n,
+                              onSelected: (_) => setDlg(() => draftIcon = n),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
                 ),
               ),
               actions: [
@@ -13955,11 +13999,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ),
           content: SingleChildScrollView(
             child: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: _s('Název složky', 'Folder name'),
-            ),
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: _s('Název složky', 'Folder name'),
+              ),
             ),
           ),
           actions: [
@@ -15258,12 +15302,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       final entryRational = entry.rational;
                       final insertResult =
                           (entryRational != null &&
-                                  entryRational.denominator != BigInt.one &&
-                                  entry.numericResult.isNotEmpty)
-                              ? '(${entryRational.numerator}/${entryRational.denominator})'
-                              : (entry.numericResult.isNotEmpty
-                                  ? entry.numericResult
-                                  : expression);
+                              entryRational.denominator != BigInt.one &&
+                              entry.numericResult.isNotEmpty)
+                          ? '(${entryRational.numerator}/${entryRational.denominator})'
+                          : (entry.numericResult.isNotEmpty
+                                ? entry.numericResult
+                                : expression);
 
                       // Hlas řádku: racionální tvar jako "n lomeno d",
                       // jinak dosavadní řeč zobrazeného tvaru.
@@ -15275,8 +15319,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           '${entryRational.numerator} over ${entryRational.denominator}',
                         );
                       } else {
-                        spokenResult =
-                            _spokenForDisplay(displayResult);
+                        spokenResult = _spokenForDisplay(displayResult);
                       }
                       String semanticDescription = _s(
                         "Výpočet: ${_spokenForDisplay(expression)}, výsledek: $spokenResult. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
@@ -15382,7 +15425,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// Zjišťuje se PŘED vynulováním. Jediný zdroj pro obě cesty mazání;
   /// čistě numerický výběr (value != 0) už žádný volající nepotřebuje.
   List<String> _occupiedMemoryVariableNames() {
-    return [for (final k in _memoryOrder) if (_memoryOccupied.contains(k)) k];
+    return [
+      for (final k in _memoryOrder)
+        if (_memoryOccupied.contains(k)) k,
+    ];
   }
 
   /// Lokalizovaný seznam „A, C a M" / „A, C and M".
@@ -15405,9 +15451,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (clearedNames.length == 1) {
       return _l10n.memoryClearedSingle(clearedNames.first);
     }
-    return _l10n.memoryClearedPartial(
-      _formatVariableNameList(clearedNames),
-    );
+    return _l10n.memoryClearedPartial(_formatVariableNameList(clearedNames));
   }
 
   void _showClearMemoryConfirmation({BuildContext? dialogContext}) {
@@ -15710,30 +15754,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
         content: SingleChildScrollView(
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(fieldNames.length, (i) {
-            final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
-            final label = unitCode != null
-                ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
-                : fieldNames[i];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Semantics(
-                label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
-                child: TextField(
-                  controller: controllers[i],
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: label,
-                    isDense: true,
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(fieldNames.length, (i) {
+              final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
+              final label = unitCode != null
+                  ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
+                  : fieldNames[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Semantics(
+                  label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                  child: TextField(
+                    controller: controllers[i],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: label,
+                      isDense: true,
+                    ),
                   ),
                 ),
-              ),
-            );
-          }),
+              );
+            }),
           ),
         ),
         actions: [
@@ -15806,86 +15850,85 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 policy: ReadingOrderTraversalPolicy(),
                 child: SingleChildScrollView(
                   child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                        Text(
-                          summary,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        summary,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
-                        const SizedBox(height: 8),
-                        ...editableRecords.asMap().entries.map((entry) {
-                          final idx = entry.key + 1;
-                          final rowTextVis = entry.value.values
-                              .map((v) => _formatNumberSmart(v))
-                              .join('; ');
-                          final rowText = entry.value.values
-                              .map((v) => _formatNumber(v))
-                              .join('; ');
-                          final rowLabel = _s(
-                            'Hodnota $idx: $rowText',
-                            'Value $idx: $rowText',
-                          );
-                          return Semantics(
-                            container: true,
-                            label: rowLabel,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: ExcludeSemantics(
-                                      child: _PeriodicText(
-                                        '$idx. $rowTextVis',
-                                        overlineThickness: _overlineThickness,
-                                        overlineHeight: _overlineHeight,
-                                      ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...editableRecords.asMap().entries.map((entry) {
+                        final idx = entry.key + 1;
+                        final rowTextVis = entry.value.values
+                            .map((v) => _formatNumberSmart(v))
+                            .join('; ');
+                        final rowText = entry.value.values
+                            .map((v) => _formatNumber(v))
+                            .join('; ');
+                        final rowLabel = _s(
+                          'Hodnota $idx: $rowText',
+                          'Value $idx: $rowText',
+                        );
+                        return Semantics(
+                          container: true,
+                          label: rowLabel,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: ExcludeSemantics(
+                                    child: _PeriodicText(
+                                      '$idx. $rowTextVis',
+                                      overlineThickness: _overlineThickness,
+                                      overlineHeight: _overlineHeight,
                                     ),
                                   ),
-                                  IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      size: 20,
-                                      color: Colors.blue,
-                                    ),
-                                    tooltip: _s(
-                                      'Upravit hodnotu $idx',
-                                      'Edit value $idx',
-                                    ),
-                                    onPressed: () =>
-                                        _showEditReviewRecordDialog(
-                                          entry.key,
-                                          editableRecords,
-                                          dialogContext,
-                                          setStateDialog,
-                                        ),
+                                ),
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    size: 20,
+                                    color: Colors.blue,
                                   ),
-                                ],
-                              ),
+                                  tooltip: _s(
+                                    'Upravit hodnotu $idx',
+                                    'Edit value $idx',
+                                  ),
+                                  onPressed: () => _showEditReviewRecordDialog(
+                                    entry.key,
+                                    editableRecords,
+                                    dialogContext,
+                                    setStateDialog,
+                                  ),
+                                ),
+                              ],
                             ),
-                          );
-                        }),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: controller,
-                          focusNode: countFocusNode,
-                          keyboardType: TextInputType.number,
-                          autofocus: true,
-                          decoration: InputDecoration(
-                            labelText: l10n.statsRepeatLabel,
-                            errorText: countError,
                           ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: controller,
+                        focusNode: countFocusNode,
+                        keyboardType: TextInputType.number,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: l10n.statsRepeatLabel,
+                          errorText: countError,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+            ),
             actions: [
               TextButton(
                 onPressed: () {
@@ -16352,233 +16395,224 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             // konkurovat (jinak duplicitní čtení).
                             value: null,
                             onTap: null,
-                                // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
-                                // a vše se přečte z tohoto Semantics widgetu. Textový matematický
-                                // renderer je navíc v ExcludeSemantics, takže displej zůstává
-                                // jeden logický prvek bez duplicitního čtení.
-                                // Displej je samostatny prvek hlavniho layoutu.
-                                // Ovladani zlomku (DEC <-> a/b) je presunuto do
-                                // _buildFractionViewToggleRow() pod displejem:
-                                // bez Stack/Positioned overlaye, s normalnim
-                                // focus order pro TalkBack/NVDA/klavesnici.
-                                // Popisek zustava jednoradkovy jako driv.
-                                child: Column(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.topLeft,
-                                      // Dekorativní duplikát pro čtečky: režim je
-                                      // v sémantickém stromě zastoupen přepínačem
-                                      // režimů ( unfolded chips s `selected`).
-                                      // Bez vyloučení by se text slil do labelu
-                                      // displeje ("Displej\nVĚDECKÁ") a tvořil
-                                      // zastávku navíc před kurzorovým polem.
-                                      child: ExcludeSemantics(
-                                        child: Text(
-                                          _getModeName(_currentMode).toUpperCase(),
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: Colors.redAccent,
-                                            fontSize: 12 * s,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
+                            // Když je čtečka aktivní, vnitřní CustomPaint je pro ni neviditelný
+                            // a vše se přečte z tohoto Semantics widgetu. Textový matematický
+                            // renderer je navíc v ExcludeSemantics, takže displej zůstává
+                            // jeden logický prvek bez duplicitního čtení.
+                            // Displej je samostatny prvek hlavniho layoutu.
+                            // Ovladani zlomku (DEC <-> a/b) je presunuto do
+                            // _buildFractionViewToggleRow() pod displejem:
+                            // bez Stack/Positioned overlaye, s normalnim
+                            // focus order pro TalkBack/NVDA/klavesnici.
+                            // Popisek zustava jednoradkovy jako driv.
+                            child: Column(
+                              children: [
+                                Align(
+                                  alignment: Alignment.topLeft,
+                                  // Dekorativní duplikát pro čtečky: režim je
+                                  // v sémantickém stromě zastoupen přepínačem
+                                  // režimů ( unfolded chips s `selected`).
+                                  // Bez vyloučení by se text slil do labelu
+                                  // displeje ("Displej\nVĚDECKÁ") a tvořil
+                                  // zastávku navíc před kurzorovým polem.
+                                  child: ExcludeSemantics(
+                                    child: Text(
+                                      _getModeName(_currentMode).toUpperCase(),
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 12 * s,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    SizedBox(height: 4 * s),
-                                    Expanded(
-                                      child: LayoutBuilder(
-                                        builder: (context, displayConstraints) {
-                                          // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
-                                          // Konstanty musí odpovídat _buildDotMatrixDisplay
-                                          // (rozestup 1.15 × systémový faktor) a rezervě
-                                          // pro periodickou čáru v CustomSegmentDisplay.
-                                          final fitSysFactor =
-                                              MediaQuery.textScalerOf(
-                                                context,
-                                              ).scale(1.0).clamp(1.0, 1.5);
-                                          final dotLedSize =
-                                              3.0 * _dotMatrixZoom * s;
-                                          final dotSpacing =
-                                              1.15 *
-                                              _dotMatrixZoom *
-                                              s *
-                                              fitSysFactor;
-                                          final dotH =
-                                              dotLedSize * 8 + dotSpacing * 7;
-                                          final segSize = 16 * _resultZoom * s;
-                                          var segH = segSize * 1.8;
-                                          if (_toBarNotation(
-                                            _lastResult.isEmpty
-                                                ? '0.'
-                                                : _lastResult,
-                                          ).contains('\u0305')) {
-                                            final segThick = segSize * 0.15;
-                                            segH +=
-                                                segThick * 2.0 +
-                                                6.0 +
-                                                segThick *
-                                                    0.75 *
-                                                    _overlineThickness /
-                                                    2 +
-                                                2.0;
-                                          }
-                                          final gapH = 12 * s;
-                                          final neededH = dotH + segH + gapH;
-                                          final availableH =
-                                              displayConstraints.maxHeight;
-                                          double fitScale = 1.0;
-                                          if (availableH > 0 &&
-                                              neededH > availableH) {
-                                            fitScale = (availableH / neededH).clamp(
-                                              0.35,
-                                              1.0,
-                                            );
-                                          }
-                                          final needsFallbackScroll =
-                                              fitScale <= 0.36;
+                                  ),
+                                ),
+                                SizedBox(height: 4 * s),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, displayConstraints) {
+                                      // Auto-fit: oba řádky (vstup + výsledek) viditelné bez svislého švihnutí
+                                      // Konstanty musí odpovídat _buildDotMatrixDisplay
+                                      // (rozestup 1.15 × systémový faktor) a rezervě
+                                      // pro periodickou čáru v CustomSegmentDisplay.
+                                      final fitSysFactor =
+                                          MediaQuery.textScalerOf(
+                                            context,
+                                          ).scale(1.0).clamp(1.0, 1.5);
+                                      final dotLedSize =
+                                          3.0 * _dotMatrixZoom * s;
+                                      final dotSpacing =
+                                          1.15 *
+                                          _dotMatrixZoom *
+                                          s *
+                                          fitSysFactor;
+                                      final dotH =
+                                          dotLedSize * 8 + dotSpacing * 7;
+                                      final segSize = 16 * _resultZoom * s;
+                                      var segH = segSize * 1.8;
+                                      if (_toBarNotation(
+                                        _lastResult.isEmpty
+                                            ? '0.'
+                                            : _lastResult,
+                                      ).contains('\u0305')) {
+                                        final segThick = segSize * 0.15;
+                                        segH +=
+                                            segThick * 2.0 +
+                                            6.0 +
+                                            segThick *
+                                                0.75 *
+                                                _overlineThickness /
+                                                2 +
+                                            2.0;
+                                      }
+                                      final gapH = 12 * s;
+                                      final neededH = dotH + segH + gapH;
+                                      final availableH =
+                                          displayConstraints.maxHeight;
+                                      double fitScale = 1.0;
+                                      if (availableH > 0 &&
+                                          neededH > availableH) {
+                                        fitScale = (availableH / neededH).clamp(
+                                          0.35,
+                                          1.0,
+                                        );
+                                      }
+                                      final needsFallbackScroll =
+                                          fitScale <= 0.36;
 
-                                          Widget content = Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            crossAxisAlignment: _alignInputLeft
-                                                ? CrossAxisAlignment.start
-                                                : CrossAxisAlignment.center,
+                                      Widget content = Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment: _alignInputLeft
+                                            ? CrossAxisAlignment.start
+                                            : CrossAxisAlignment.center,
+                                        children: [
+                                          // Horní výpočetní řádek: vizuál
+                                          // + překryvná a11y proxy PŘESNĚ
+                                          // přes jeho plochu. `Stack` se
+                                          // dimenzuje vizuálním vstupem
+                                          // (`Positioned.fill` velikost
+                                          // neurčuje), takže rect proxy =
+                                          // rect horního řádku. Proxy je
+                                          // záměrně MIMO horizontální
+                                          // scroll view: nulový viewport
+                                          // (prázdný výraz po výpočtu)
+                                          // ani odscrollování ji nemohou
+                                          // ořezat ze Semantics stromu.
+                                          // [_A11yHitTestTransparent]
+                                          // propouští dotyky na vnější
+                                          // `GestureDetector` (pinch-zoom,
+                                          // double-tap, tap) — proxy nikdy
+                                          // nekonzumuje gesta vidících
+                                          // uživatelů, TalkBack akce (tap,
+                                          // pohyb kurzoru) jdou přes
+                                          // Semantics a zůstávají funkční.
+                                          Stack(
                                             children: [
-                                              // Horní výpočetní řádek: vizuál
-                                              // + překryvná a11y proxy PŘESNĚ
-                                              // přes jeho plochu. `Stack` se
-                                              // dimenzuje vizuálním vstupem
-                                              // (`Positioned.fill` velikost
-                                              // neurčuje), takže rect proxy =
-                                              // rect horního řádku. Proxy je
-                                              // záměrně MIMO horizontální
-                                              // scroll view: nulový viewport
-                                              // (prázdný výraz po výpočtu)
-                                              // ani odscrollování ji nemohou
-                                              // ořezat ze Semantics stromu.
-                                              // [_A11yHitTestTransparent]
-                                              // propouští dotyky na vnější
-                                              // `GestureDetector` (pinch-zoom,
-                                              // double-tap, tap) — proxy nikdy
-                                              // nekonzumuje gesta vidících
-                                              // uživatelů, TalkBack akce (tap,
-                                              // pohyb kurzoru) jdou přes
-                                              // Semantics a zůstávají funkční.
-                                              Stack(
-                                                children: [
-                                                  SizedBox(
-                                                    width: double.infinity,
-                                                    height: dotH * fitScale,
-                                                    child: Align(
-                                                      alignment:
-                                                          _alignInputLeft
-                                                              ? Alignment
-                                                                  .centerLeft
-                                                              : Alignment
-                                                                  .center,
-                                                      child:
-                                                          SingleChildScrollView(
-                                                            controller:
-                                                                _scrollControllerH,
-                                                            scrollDirection:
-                                                                Axis.horizontal,
-                                                            // Čistě vizuální
-                                                            // renderer vstupu
-                                                            // (pro čtečku
-                                                            // vyloučen);
-                                                            // přístupnou
-                                                            // reprezentací je
-                                                            // překryvná proxy
-                                                            // (viz níže).
-                                                            child:
-                                                                ExcludeSemantics(
-                                                                  child:
-                                                                      _buildDotMatrixDisplay(
-                                                                        fitScale:
-                                                                            fitScale,
-                                                                      ),
-                                                                ),
-                                                          ),
-                                                    ),
-                                                  ),
-                                                  Positioned.fill(
-                                                    child:
-                                                        _A11yHitTestTransparent(
-                                                      child:
-                                                          _buildDisplayA11yProxy(),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              SizedBox(height: 12 * s * fitScale),
-                                              // Dolní výsledkový řádek: vlastní
-                                              // samostatná přístupná oblast
-                                              // přes skutečnou plochu výsledku
-                                              // (viz [_buildResultA11yNode]).
-                                              // Renderery uvnitř jsou
-                                              // ExcludeSemantics/CustomPaint,
-                                              // takže nevzniká duplicitní
-                                              // čtení výsledku. Vnitřní
-                                              // horizontální scroller je čistě
-                                              // vizuální: ExcludeSemantics z něj
-                                              // odstraní i scroll-uzel s akcemi,
-                                              // který by jinak tvořil němou
-                                              // zastávku mezi výsledkem a dalším
-                                              // prvkem (Z4). Vizuální posouvání,
-                                              // controller ani onTap tím nejsou
-                                              // dotčeny; plnou hodnotu nese
-                                              // value vnějšího uzlu.
-                                              _buildResultA11yNode(
-                                                child: SizedBox(
-                                                  width: double.infinity,
-                                                  height: segH * fitScale,
-                                                  child: Align(
-                                                    alignment: Alignment.center,
+                                              SizedBox(
+                                                width: double.infinity,
+                                                height: dotH * fitScale,
+                                                child: Align(
+                                                  alignment: _alignInputLeft
+                                                      ? Alignment.centerLeft
+                                                      : Alignment.center,
+                                                  child: SingleChildScrollView(
+                                                    controller:
+                                                        _scrollControllerH,
+                                                    scrollDirection:
+                                                        Axis.horizontal,
+                                                    // Čistě vizuální
+                                                    // renderer vstupu
+                                                    // (pro čtečku
+                                                    // vyloučen);
+                                                    // přístupnou
+                                                    // reprezentací je
+                                                    // překryvná proxy
+                                                    // (viz níže).
                                                     child: ExcludeSemantics(
                                                       child:
-                                                          SingleChildScrollView(
-                                                            controller:
-                                                                _scrollControllerResultH,
-                                                            scrollDirection: Axis
-                                                                .horizontal,
-                                                            child:
-                                                                _buildMainResultDisplay(
-                                                                  fitScale:
-                                                                      fitScale,
-                                                                ),
+                                                          _buildDotMatrixDisplay(
+                                                            fitScale: fitScale,
                                                           ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            ],
-                                          );
-
-                                          if (needsFallbackScroll) {
-                                            // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
-                                            return Scrollbar(
-                                              controller: _scrollControllerV,
-                                              thumbVisibility: true,
-                                              child: SingleChildScrollView(
-                                                controller: _scrollControllerV,
-                                                scrollDirection: Axis.vertical,
-                                                child: content,
+                                              Positioned.fill(
+                                                child: _A11yHitTestTransparent(
+                                                  child:
+                                                      _buildDisplayA11yProxy(),
+                                                ),
                                               ),
-                                            );
-                                          }
-                                          // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
-                                          return Center(child: content);
-                                        },
-                                      ),
-                                    ),
-                                  ],
+                                            ],
+                                          ),
+                                          SizedBox(height: 12 * s * fitScale),
+                                          // Dolní výsledkový řádek: vlastní
+                                          // samostatná přístupná oblast
+                                          // přes skutečnou plochu výsledku
+                                          // (viz [_buildResultA11yNode]).
+                                          // Renderery uvnitř jsou
+                                          // ExcludeSemantics/CustomPaint,
+                                          // takže nevzniká duplicitní
+                                          // čtení výsledku. Vnitřní
+                                          // horizontální scroller je čistě
+                                          // vizuální: ExcludeSemantics z něj
+                                          // odstraní i scroll-uzel s akcemi,
+                                          // který by jinak tvořil němou
+                                          // zastávku mezi výsledkem a dalším
+                                          // prvkem (Z4). Vizuální posouvání,
+                                          // controller ani onTap tím nejsou
+                                          // dotčeny; plnou hodnotu nese
+                                          // value vnějšího uzlu.
+                                          _buildResultA11yNode(
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              height: segH * fitScale,
+                                              child: Align(
+                                                alignment: Alignment.center,
+                                                child: ExcludeSemantics(
+                                                  child: SingleChildScrollView(
+                                                    controller:
+                                                        _scrollControllerResultH,
+                                                    scrollDirection:
+                                                        Axis.horizontal,
+                                                    child:
+                                                        _buildMainResultDisplay(
+                                                          fitScale: fitScale,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+
+                                      if (needsFallbackScroll) {
+                                        // Extrémní zoom - ponechat nouzový vertikální scroll se scrollbar
+                                        return Scrollbar(
+                                          controller: _scrollControllerV,
+                                          thumbVisibility: true,
+                                          child: SingleChildScrollView(
+                                            controller: _scrollControllerV,
+                                            scrollDirection: Axis.vertical,
+                                            child: content,
+                                          ),
+                                        );
+                                      }
+                                      // Běžný stav: zcela bez svislého posunu - obsah je zmenšen aby se vešel
+                                      return Center(child: content);
+                                    },
+                                  ),
                                 ),
-                              ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
                     // Ovládání kurzoru.
                     _buildCursorNavigationRow(),
                     // Ovládání zobrazení výsledku DEC <-> a/b: samostatný

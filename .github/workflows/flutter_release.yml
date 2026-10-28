@@ -20,7 +20,7 @@ jobs:
         run: flutter build windows --release
 
       - name: Archive Release
-        uses: thewebfreaks/softprops-release-action@v1
+        uses: softprops/action-gh-release@v1
         with:
           files: build/windows/x64/runner/Release/*
         env:

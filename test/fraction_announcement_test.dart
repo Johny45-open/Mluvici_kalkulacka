@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mluvici_kalkulacka/main.dart';
+import 'package:mluvici_kalkulacka/surd.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Automatické hlasové oznámení dostupnosti zlomku ve výsledkové speech.
@@ -70,7 +71,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> setScreenReader(WidgetTester tester, dynamic state, bool on) async {
+  Future<void> setScreenReader(
+    WidgetTester tester,
+    dynamic state,
+    bool on,
+  ) async {
     state.updateActiveSettingsForTest(
       (s) => s.copyWith(
         screenReaderMode: on ? ScreenReaderMode.on : ScreenReaderMode.off,
@@ -146,6 +151,8 @@ void main() {
       tester,
     ) async {
       final state = await pumpApp(tester);
+      state.setResultDisplayModeForTest(ResultDisplayMode.text);
+      await tester.pump();
       await setScreenReader(tester, state, true);
       await calculate(tester, state, '3/4');
       expect(state.fractionStringForTest, '3/4');
@@ -153,7 +160,7 @@ void main() {
       final speeches = resultSpeeches('Výsledek je', 'The result is');
       expect(speeches, isEmpty, reason: 'TTS log: $ttsLog');
       // ... výsledek jde jednotným Semantics kanálem, právě jednou.
-      // 3/4 je přesný výsledek (RationalValue), proto se oznamuje přímo
+      // 3/4 je přesný výsledek (RationalValue), v režimu text se oznamuje přímo
       // jako zlomek — stejně jako exaktní surd tvary.
       final announced = state.lastAnnouncementForTest as String;
       expect(announced, contains('Výsledek je'));
@@ -163,7 +170,7 @@ void main() {
       // Toggle Semantics dál obsahuje konkrétní zlomek.
       final toggle = find.byKey(const ValueKey('fraction_toggle'));
       expect(toggle, findsOneWidget);
-      final semFinder = find.ancestor(
+      final semFinder = find.descendant(
         of: toggle,
         matching: find.byWidgetPredicate((w) {
           if (w is! Semantics) return false;
@@ -205,7 +212,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(state.fractionViewForTest, isTrue);
       expect(
-        ttsLog.where((t) => t.contains('dostupný') || t.contains('is available')),
+        ttsLog.where(
+          (t) => t.contains('dostupný') || t.contains('is available'),
+        ),
         isEmpty,
         reason: 'TTS log: $ttsLog',
       );
@@ -215,7 +224,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(state.fractionViewForTest, isFalse);
       expect(
-        ttsLog.where((t) => t.contains('dostupný') || t.contains('is available')),
+        ttsLog.where(
+          (t) => t.contains('dostupný') || t.contains('is available'),
+        ),
         isEmpty,
         reason: 'TTS log: $ttsLog',
       );
@@ -253,8 +264,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('G2. scientific + SR OFF + TTS ON -> věta MUSÍ být ve speech',
-        (tester) async {
+    testWidgets('G2. scientific + SR OFF + TTS ON -> věta MUSÍ být ve speech', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       expect(state.ttsEnabled, isTrue);
       state.switchModeForTest(CalculatorMode.scientific);
@@ -267,8 +279,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('G3. time/statistics/electrician/currency/unit -> bez věty',
-        (tester) async {
+    testWidgets('G3. time/statistics/electrician/currency/unit -> bez věty', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await setScreenReader(tester, state, false);
 
