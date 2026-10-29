@@ -62,26 +62,21 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
     required VoidCallback onMinus,
     required VoidCallback onPlus,
   }) {
-    return MergeSemantics(
-      child: Row(
-        children: [
-          Expanded(child: Text(label)),
-          Semantics(
-            label: minusSemantics,
-            button: true,
-            child: IconButton(
-              icon: const Icon(Icons.remove),
-              onPressed: onMinus,
-            ),
-          ),
-          Semantics(liveRegion: true, child: Text(valueText)),
-          Semantics(
-            label: plusSemantics,
-            button: true,
-            child: IconButton(icon: const Icon(Icons.add), onPressed: onPlus),
-          ),
-        ],
-      ),
+    return Row(
+      children: [
+        Expanded(child: Text(label)),
+        Semantics(
+          label: minusSemantics,
+          button: true,
+          child: IconButton(icon: const Icon(Icons.remove), onPressed: onMinus),
+        ),
+        Semantics(liveRegion: true, child: Text(valueText)),
+        Semantics(
+          label: plusSemantics,
+          button: true,
+          child: IconButton(icon: const Icon(Icons.add), onPressed: onPlus),
+        ),
+      ],
     );
   }
 

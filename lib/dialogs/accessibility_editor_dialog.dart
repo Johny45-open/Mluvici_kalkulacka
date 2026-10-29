@@ -917,9 +917,15 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton(
-                        onPressed: () => _adjustDotMatrixZoom(-0.1),
-                        child: Text('-'),
+                      Semantics(
+                        label: parent._s(
+                          'Zmenšit přiblížení horního displeje',
+                          'Decrease upper display zoom',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustDotMatrixZoom(-0.1),
+                          child: Text('-'),
+                        ),
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -928,9 +934,15 @@ class _AccessibilityProfileEditorDialogState
                           child: Text('${(s.dotMatrixZoom * 100).toInt()}%'),
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () => _adjustDotMatrixZoom(0.1),
-                        child: Text('+'),
+                      Semantics(
+                        label: parent._s(
+                          'Zvětšit přiblížení horního displeje',
+                          'Increase upper display zoom',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustDotMatrixZoom(0.1),
+                          child: Text('+'),
+                        ),
                       ),
                     ],
                   ),
@@ -943,9 +955,15 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton(
-                        onPressed: () => _adjustResultZoom(-0.1),
-                        child: Text('-'),
+                      Semantics(
+                        label: parent._s(
+                          'Zmenšit přiblížení výsledku',
+                          'Decrease result zoom',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustResultZoom(-0.1),
+                          child: Text('-'),
+                        ),
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -954,9 +972,15 @@ class _AccessibilityProfileEditorDialogState
                           child: Text('${(s.resultZoom * 100).toInt()}%'),
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () => _adjustResultZoom(0.1),
-                        child: Text('+'),
+                      Semantics(
+                        label: parent._s(
+                          'Zvětšit přiblížení výsledku',
+                          'Increase result zoom',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustResultZoom(0.1),
+                          child: Text('+'),
+                        ),
                       ),
                     ],
                   ),
@@ -1209,9 +1233,15 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton(
-                        onPressed: () => _adjustDialogFontScale(-0.1),
-                        child: Text('-'),
+                      Semantics(
+                        label: parent._s(
+                          'Zmenšit velikost písma dialogů',
+                          'Decrease dialog font size',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustDialogFontScale(-0.1),
+                          child: Text('-'),
+                        ),
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1220,9 +1250,15 @@ class _AccessibilityProfileEditorDialogState
                           child: Text('${(s.dialogFontScale * 100).toInt()}%'),
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () => _adjustDialogFontScale(0.1),
-                        child: Text('+'),
+                      Semantics(
+                        label: parent._s(
+                          'Zvětšit velikost písma dialogů',
+                          'Increase dialog font size',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustDialogFontScale(0.1),
+                          child: Text('+'),
+                        ),
                       ),
                     ],
                   ),
@@ -1243,9 +1279,15 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton(
-                        onPressed: () => _adjustKeyboardFontScale(-0.1),
-                        child: Text('-'),
+                      Semantics(
+                        label: parent._s(
+                          'Zmenšit velikost písma tlačítek',
+                          'Decrease button font size',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustKeyboardFontScale(-0.1),
+                          child: Text('-'),
+                        ),
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1256,9 +1298,15 @@ class _AccessibilityProfileEditorDialogState
                           ),
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () => _adjustKeyboardFontScale(0.1),
-                        child: Text('+'),
+                      Semantics(
+                        label: parent._s(
+                          'Zvětšit velikost písma tlačítek',
+                          'Increase button font size',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustKeyboardFontScale(0.1),
+                          child: Text('+'),
+                        ),
                       ),
                     ],
                   ),
@@ -1271,17 +1319,32 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton(
-                        onPressed: () => _adjustSpeechRate(-0.1),
-                        child: Text('-'),
+                      Semantics(
+                        label: parent._s(
+                          'Zmenšit rychlost řeči',
+                          'Decrease speech rate',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustSpeechRate(-0.1),
+                          child: Text('-'),
+                        ),
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('${(s.speechRate * 100).toInt()}%'),
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text('${(s.speechRate * 100).toInt()}%'),
+                        ),
                       ),
-                      ElevatedButton(
-                        onPressed: () => _adjustSpeechRate(0.1),
-                        child: Text('+'),
+                      Semantics(
+                        label: parent._s(
+                          'Zvýšit rychlost řeči',
+                          'Increase speech rate',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustSpeechRate(0.1),
+                          child: Text('+'),
+                        ),
                       ),
                     ],
                   ),
@@ -1294,17 +1357,32 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton(
-                        onPressed: () => _adjustSpeechVolume(-0.1),
-                        child: Text('-'),
+                      Semantics(
+                        label: parent._s(
+                          'Snížit hlasitost řeči',
+                          'Decrease speech volume',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustSpeechVolume(-0.1),
+                          child: Text('-'),
+                        ),
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('${(s.speechVolume * 100).toInt()}%'),
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text('${(s.speechVolume * 100).toInt()}%'),
+                        ),
                       ),
-                      ElevatedButton(
-                        onPressed: () => _adjustSpeechVolume(0.1),
-                        child: Text('+'),
+                      Semantics(
+                        label: parent._s(
+                          'Zvýšit hlasitost řeči',
+                          'Increase speech volume',
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _adjustSpeechVolume(0.1),
+                          child: Text('+'),
+                        ),
                       ),
                     ],
                   ),

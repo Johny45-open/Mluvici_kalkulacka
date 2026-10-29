@@ -423,6 +423,7 @@ void main() {
         devDiagnosticDurationMs: 700,
         devPinCode: null,
         resultDisplayMode: ResultDisplayMode.auto,
+        resultNotationPreference: ResultNotationPreference.decimal,
         historyExactFormat: HistoryExactFormat.numeric,
       );
       final settings = (contract['profiles'] as List).first['settings'] as Map;
