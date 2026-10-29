@@ -158,6 +158,7 @@ void main() {
     ) async {
       final state = await pumpApp(tester);
       state.setResultDisplayModeForTest(ResultDisplayMode.text);
+      state.setResultNotationPreferenceForTest(ResultNotationPreference.fraction);
       await tester.pump();
       await calculate(tester, state, '1/2+1/3');
       // Výchozí zobrazení je zlomek i bez jakéhokoliv override.

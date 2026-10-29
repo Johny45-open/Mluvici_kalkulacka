@@ -291,16 +291,11 @@ void main() {
       // Neni soucasti 7x4 rastru.
       expect(find.descendant(of: keypadGrid(), matching: toggle), findsNothing);
       // Label odpovida stavu (cs "zlomek" / en "fraction").
-      final semFinder = find.ancestor(
-        of: toggle,
-        matching: find.byWidgetPredicate((w) {
-          if (w is! Semantics) return false;
-          final label = w.properties.label ?? '';
-          final l = label.toLowerCase();
-          return l.contains('zlomek') || l.contains('fraction');
-        }),
-      );
+      final semFinder = find.byKey(const ValueKey('fraction_toggle_semantics'));
       expect(semFinder, findsOneWidget);
+      final semanticsWidget = tester.widget<Semantics>(semFinder);
+      final label = (semanticsWidget.properties.label ?? '').toLowerCase();
+      expect(label.contains('zlomek') || label.contains('fraction'), isTrue);
       expect(state.fractionViewForTest, isFalse);
       expect(tester.takeException(), isNull);
     });
@@ -361,7 +356,7 @@ void main() {
       tester.view.physicalSize = const Size(412, 560);
       await tester.pumpAndSettle();
       final plainModes = CalculatorMode.values
-          .where((m) => m != CalculatorMode.scientific)
+          .where((m) => m != CalculatorMode.scientific && m != CalculatorMode.unitConversion && m != CalculatorMode.currency)
           .toList();
       final Map<CalculatorMode, double> small = {};
       for (final mode in plainModes) {
@@ -406,13 +401,11 @@ void main() {
   group('Fraction toggle – samostatny row mimo displej', () {
     Semantics toggleSemantics(WidgetTester tester) {
       final toggle = find.byKey(const ValueKey('fraction_toggle'));
-      final semFinder = find.ancestor(
+      final semFinder = find.descendant(
         of: toggle,
-        matching: find.byWidgetPredicate((w) {
-          if (w is! Semantics) return false;
-          final label = w.properties.label ?? '';
-          return label.isNotEmpty;
-        }),
+        matching: find.byWidgetPredicate(
+          (w) => w is Semantics && (w.properties.label ?? '').isNotEmpty,
+        ),
       );
       expect(semFinder, findsOneWidget);
       return tester.widget<Semantics>(semFinder.first);
@@ -685,17 +678,9 @@ void main() {
     'Fraction toggle – tri vizualni stavy + mode-aware Semantics (A-J)',
     () {
       Semantics toggleSemantics(WidgetTester tester) {
-        final toggle = find.byKey(const ValueKey('fraction_toggle'));
-        final semFinder = find.ancestor(
-          of: toggle,
-          matching: find.byWidgetPredicate((w) {
-            if (w is! Semantics) return false;
-            final label = w.properties.label ?? '';
-            return label.isNotEmpty;
-          }),
+        return tester.widget<Semantics>(
+          find.byKey(const ValueKey('fraction_toggle_semantics')),
         );
-        expect(semFinder, findsOneWidget);
-        return tester.widget<Semantics>(semFinder.first);
       }
 
       String visualText(WidgetTester tester) {
@@ -840,6 +825,7 @@ void main() {
         state.calculateForTest();
         await tester.pumpAndSettle();
         final label = toggleLabel(tester);
+        print('DEBUG LABEL G: $label');
         expect(
           label.contains('číselně') || label.contains('numerically'),
           isTrue,

@@ -382,6 +382,7 @@ void main() {
         devDiagnosticDurationMs: 700,
         devPinCode: null,
         resultDisplayMode: ResultDisplayMode.segment,
+        resultNotationPreference: ResultNotationPreference.decimal,
         historyExactFormat: HistoryExactFormat.numeric,
       );
       expect(validateContract(contract).ok, isTrue);

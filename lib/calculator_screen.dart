@@ -311,6 +311,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // je _globalResultDisplayMode. Profily ho nikdy nečtou ani nezapisují
   // (pouze jednorázová migrace).
   ResultDisplayMode _globalResultDisplayMode = ResultDisplayMode.segment;
+  ResultNotationPreference _globalResultNotationPreference = ResultNotationPreference.decimal;
+
+  ResultNotationPreference get _resultNotationPreference => _globalResultNotationPreference;
+
+  void setGlobalResultNotationPreference(ResultNotationPreference p) {
+    if (_globalResultNotationPreference == p) return;
+    setState(() => _globalResultNotationPreference = p);
+    unawaited(_saveGlobalSettings());
+  }
+
+  String _resultNotationPreferenceName(ResultNotationPreference p) {
+    switch (p) {
+      case ResultNotationPreference.decimal:
+        return _s('Desetinně', 'Decimal');
+      case ResultNotationPreference.fraction:
+        return _s('Zlomkem', 'Fraction');
+    }
+  }
+
+  void setResultNotationPreferenceForTest(ResultNotationPreference p) {
+    setGlobalResultNotationPreference(p);
+  }
+
+  ResultNotationPreference get resultNotationPreferenceForTest => _globalResultNotationPreference;
   // Legacy persistovaný údaj (persistence/contract/UI zachováno pro zpětnou
   // kompatibilitu). Není zdrojem pravdy pro aktivní renderer — aktivní
   // vykreslování historie řídí výhradně _globalResultDisplayMode.
@@ -3329,6 +3353,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       isDegreeMode: _isDegreeMode,
       defaultMode: _defaultMode,
       resultDisplayMode: _globalResultDisplayMode,
+      resultNotationPreference: _globalResultNotationPreference,
     );
     await showAppDialog<void>(
       context: context,
@@ -3354,6 +3379,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       isDegreeMode: _isDegreeMode,
       defaultMode: _defaultMode,
       resultDisplayMode: _globalResultDisplayMode,
+      resultNotationPreference: _globalResultNotationPreference,
     );
     showAppDialog<void>(
       context: context,
@@ -3485,6 +3511,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _profiles = parsed.profiles;
       _activeProfileId = parsed.activeProfileId;
       _globalResultDisplayMode = parsed.resultDisplayMode;
+      _globalResultNotationPreference = parsed.resultNotationPreference;
       _isDegreeMode = parsed.isDegreeMode;
       _defaultMode = parsed.defaultMode;
       _currentMode = parsed.defaultMode;
@@ -5195,8 +5222,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
 
         final bool showFractionDirectly =
-            (_globalResultDisplayMode == ResultDisplayMode.text ||
-                _globalResultDisplayMode == ResultDisplayMode.auto) &&
+            _globalResultNotationPreference == ResultNotationPreference.fraction &&
             statIsMeanExact &&
             statMeanExactRat != null;
         final spokenMean = showFractionDirectly
@@ -5364,8 +5390,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
 
         final bool showFractionDirectly =
-            (_globalResultDisplayMode == ResultDisplayMode.text ||
-                _globalResultDisplayMode == ResultDisplayMode.auto) &&
+            _globalResultNotationPreference == ResultNotationPreference.fraction &&
             exactRational != null &&
             exactRational.denominator != BigInt.one;
         final bool showSurdDirectly =
@@ -6306,10 +6331,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (!_isFractionEligible) return false;
     final o = _fractionOverride;
     if (o == null || !_isFractionOverrideKeyValid) {
-      if (_globalResultDisplayMode == ResultDisplayMode.segment) {
-        return false;
-      }
-      return _validRationalNonTrivial != null;
+      return _globalResultNotationPreference == ResultNotationPreference.fraction &&
+          _validRationalNonTrivial != null;
     }
     return o;
   }
@@ -7457,11 +7480,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       child: MediaQuery(
         data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
         child: Semantics(
+          key: const ValueKey('fraction_toggle_semantics'),
           toggled: showing,
           enabled: true,
+          label: semanticLabel,
           child: Text(
             visualText,
-            semanticsLabel: semanticLabel,
             maxLines: 1,
             softWrap: false,
             overflow: TextOverflow.ellipsis,
@@ -7761,6 +7785,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _globalResultDisplayMode = _resultDisplayModeFromString(
         prefs.getString('resultDisplayMode'),
       );
+      _globalResultNotationPreference = _resultNotationPreferenceFromString(
+        prefs.getString('resultNotationPreference'),
+      );
       _historyExactFormat = _historyExactFormatFromString(
         prefs.getString('historyExactFormat'),
       );
@@ -7811,6 +7838,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setString(
       'resultDisplayMode',
       _resultDisplayModeToString(_globalResultDisplayMode),
+    );
+    await prefs.setString(
+      'resultNotationPreference',
+      _resultNotationPreferenceToString(_globalResultNotationPreference),
     );
     await prefs.setString(
       'historyExactFormat',
@@ -8896,6 +8927,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         themeMode: widget.themeMode,
         isDegreeMode: _isDegreeMode,
         resultDisplayMode: _globalResultDisplayMode,
+        resultNotationPreference: _globalResultNotationPreference,
         historyExactFormat: _historyExactFormat,
         defaultMode: _defaultMode,
         statsSummaryOrder: _statsSummaryOrder,
@@ -9098,6 +9130,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       devDiagnosticDurationMs: parsed.devDiagnosticDurationMs,
       devPinCode: parsed.devPinCode,
       resultDisplayMode: parsed.resultDisplayMode,
+      resultNotationPreference: parsed.resultNotationPreference,
       historyExactFormat: parsed.historyExactFormat,
     );
     // Persist PŘED jakoukoli změnou runtime (safe commit workflow).
@@ -9109,6 +9142,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _profiles = applied.profiles;
       _activeProfileId = applied.activeProfileId;
       _globalResultDisplayMode = applied.resultDisplayMode;
+      _globalResultNotationPreference = applied.resultNotationPreference;
       _historyExactFormat = applied.historyExactFormat;
       _statsSummaryOrder = List<StatsSummarySection>.from(
         applied.statsSummaryOrder,
@@ -10533,8 +10567,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             meanEligible = isMeanExact || fracMean != null;
 
             final bool showFractionDirectly =
-                (_globalResultDisplayMode == ResultDisplayMode.text ||
-                    _globalResultDisplayMode == ResultDisplayMode.auto) &&
+                _globalResultNotationPreference == ResultNotationPreference.fraction &&
                 isMeanExact &&
                 meanExactRat != null;
             final spokenVal = showFractionDirectly
@@ -14202,6 +14235,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       isDegreeMode: _isDegreeMode,
       defaultMode: _defaultMode,
       resultDisplayMode: _globalResultDisplayMode,
+      resultNotationPreference: _globalResultNotationPreference,
     );
     return showAppDialog<void>(
       context: context,

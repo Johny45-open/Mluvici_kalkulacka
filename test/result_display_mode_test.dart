@@ -142,6 +142,7 @@ void main() {
         devDiagnosticDurationMs: 700,
         devPinCode: null,
         resultDisplayMode: m,
+        resultNotationPreference: ResultNotationPreference.decimal,
         historyExactFormat: HistoryExactFormat.numeric,
       );
     }

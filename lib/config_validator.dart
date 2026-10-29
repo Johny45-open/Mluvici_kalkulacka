@@ -655,6 +655,16 @@ void _validateGlobalSettings(Map<String, dynamic> gs, ValidationResult res) {
       ),
     );
   }
+  final grnp = gs['resultNotationPreference'];
+  if (grnp != null && !{'decimal', 'fraction'}.contains(grnp)) {
+    res.errors.add(
+      ValidationIssue(
+        path: 'globalSettings.resultNotationPreference',
+        message: 'resultNotationPreference musi byt jedno z decimal, fraction',
+        code: 'enum',
+      ),
+    );
+  }
   final hef = gs['historyExactFormat'];
   if (hef != null && !{'numeric', 'exact'}.contains(hef)) {
     res.errors.add(

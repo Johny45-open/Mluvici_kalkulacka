@@ -31,6 +31,12 @@ ResultDisplayMode _resultDisplayModeFromString(String? s) {
   return ResultDisplayMode.segment;
 }
 
+String _resultNotationPreferenceToString(ResultNotationPreference v) => v.name;
+ResultNotationPreference _resultNotationPreferenceFromString(String? s) {
+  for (final v in ResultNotationPreference.values) if (v.name == s) return v;
+  return ResultNotationPreference.decimal;
+}
+
 String _historyExactFormatToString(HistoryExactFormat v) => v.name;
 HistoryExactFormat _historyExactFormatFromString(String? s) {
   for (final v in HistoryExactFormat.values) if (v.name == s) return v;
@@ -159,6 +165,7 @@ Map<String, dynamic> buildContractJson({
   required int devDiagnosticDurationMs,
   required String? devPinCode,
   required ResultDisplayMode resultDisplayMode,
+  required ResultNotationPreference resultNotationPreference,
   required HistoryExactFormat historyExactFormat,
 }) {
   final now = DateTime.now().toUtc().toIso8601String().replaceAll(
@@ -186,6 +193,7 @@ Map<String, dynamic> buildContractJson({
       'isDegreeMode': isDegreeMode,
       'defaultMode': _calcModeToString(defaultMode),
       'resultDisplayMode': _resultDisplayModeToString(resultDisplayMode),
+      'resultNotationPreference': _resultNotationPreferenceToString(resultNotationPreference),
       'historyExactFormat': _historyExactFormatToString(historyExactFormat),
       'statsSummaryOrder': statsSummaryOrder
           .map((e) => _statsSectionToString(e))
@@ -210,6 +218,7 @@ class ParsedContract {
   final ThemeMode themeMode;
   final bool isDegreeMode;
   final ResultDisplayMode resultDisplayMode;
+  final ResultNotationPreference resultNotationPreference;
   final HistoryExactFormat historyExactFormat;
   final CalculatorMode defaultMode;
   final List<StatsSummarySection> statsSummaryOrder;
@@ -226,6 +235,7 @@ class ParsedContract {
     required this.themeMode,
     required this.isDegreeMode,
     required this.resultDisplayMode,
+    required this.resultNotationPreference,
     required this.historyExactFormat,
     required this.defaultMode,
     required this.statsSummaryOrder,
@@ -260,6 +270,9 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
   ResultDisplayMode resolvedRdm = _resultDisplayModeFromString(
     gs['resultDisplayMode'] as String?,
   );
+  ResultNotationPreference resolvedRnp = _resultNotationPreferenceFromString(
+    gs['resultNotationPreference'] as String?,
+  );
   HistoryExactFormat resolvedHef = _historyExactFormatFromString(
     gs['historyExactFormat'] as String?,
   );
@@ -280,6 +293,7 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
     themeMode: _themeFromString(gs['themeMode'] as String),
     isDegreeMode: gs['isDegreeMode'] as bool,
     resultDisplayMode: resolvedRdm,
+    resultNotationPreference: resolvedRnp,
     historyExactFormat: resolvedHef,
     defaultMode: _calcModeFromString(gs['defaultMode'] as String),
     statsSummaryOrder: (gs['statsSummaryOrder'] as List)

@@ -45,6 +45,45 @@ class _ResultDisplayModePicker extends StatelessWidget {
   }
 }
 
+class _ResultNotationPreferencePicker extends StatelessWidget {
+  final _CalculatorScreenState parent;
+  final VoidCallback? onChanged;
+
+  const _ResultNotationPreferencePicker({required this.parent, this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: parent._s(
+        'Výchozí tvar výsledku, globální nastavení nezávislé na profilu',
+        'Default result notation, global setting independent of profile',
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final p in ResultNotationPreference.values)
+            RadioListTile<ResultNotationPreference>(
+              title: Text(parent._resultNotationPreferenceName(p)),
+              value: p,
+              groupValue: parent._resultNotationPreference,
+              onChanged: (v) {
+                if (v == null) return;
+                parent.setGlobalResultNotationPreference(v);
+                parent.say(
+                  parent._s(
+                    'Výchozí tvar výsledku: ${parent._resultNotationPreferenceName(v)}',
+                    'Default result notation: ${parent._resultNotationPreferenceName(v)}',
+                  ),
+                );
+                onChanged?.call();
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AdvancedFunctionsDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
   const _AdvancedFunctionsDialog({required this.parent});
@@ -987,6 +1026,18 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
         title: parent._s('Vzhled výsledkového displeje', 'Result display'),
         children: [
           _ResultDisplayModePicker(
+            parent: parent,
+            onChanged: () => setState(() {}),
+          ),
+          const Divider(),
+          Semantics(
+            header: true,
+            child: Text(
+              parent._l10n.resultNotationPreferenceTitle,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          _ResultNotationPreferencePicker(
             parent: parent,
             onChanged: () => setState(() {}),
           ),
@@ -2706,6 +2757,18 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
               ),
               children: [
                 _ResultDisplayModePicker(
+                  parent: widget.parent,
+                  onChanged: () => setState(() {}),
+                ),
+                const Divider(),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    widget.parent._l10n.resultNotationPreferenceTitle,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                _ResultNotationPreferencePicker(
                   parent: widget.parent,
                   onChanged: () => setState(() {}),
                 ),

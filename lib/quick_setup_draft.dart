@@ -17,6 +17,7 @@ class QuickSetupDraft {
   final bool isDegreeMode;
   final CalculatorMode defaultMode;
   final ResultDisplayMode resultDisplayMode;
+  final ResultNotationPreference resultNotationPreference;
 
   const QuickSetupDraft({
     required this.settings,
@@ -24,6 +25,7 @@ class QuickSetupDraft {
     required this.isDegreeMode,
     required this.defaultMode,
     required this.resultDisplayMode,
+    required this.resultNotationPreference,
   });
 
   /// Sestaví draft z aktuálního runtime stavu (bez zápisu).
@@ -33,6 +35,7 @@ class QuickSetupDraft {
     required bool isDegreeMode,
     required CalculatorMode defaultMode,
     required ResultDisplayMode resultDisplayMode,
+    required ResultNotationPreference resultNotationPreference,
   }) {
     return QuickSetupDraft(
       settings: settings.copyWith(),
@@ -40,6 +43,7 @@ class QuickSetupDraft {
       isDegreeMode: isDegreeMode,
       defaultMode: defaultMode,
       resultDisplayMode: resultDisplayMode,
+      resultNotationPreference: resultNotationPreference,
     );
   }
 
@@ -51,6 +55,7 @@ class QuickSetupDraft {
       isDegreeMode: true,
       defaultMode: CalculatorMode.scientific,
       resultDisplayMode: ResultDisplayMode.segment,
+      resultNotationPreference: ResultNotationPreference.decimal,
     );
   }
 
@@ -60,6 +65,7 @@ class QuickSetupDraft {
     bool? isDegreeMode,
     CalculatorMode? defaultMode,
     ResultDisplayMode? resultDisplayMode,
+    ResultNotationPreference? resultNotationPreference,
   }) {
     return QuickSetupDraft(
       settings: settings ?? this.settings.copyWith(),
@@ -67,6 +73,7 @@ class QuickSetupDraft {
       isDegreeMode: isDegreeMode ?? this.isDegreeMode,
       defaultMode: defaultMode ?? this.defaultMode,
       resultDisplayMode: resultDisplayMode ?? this.resultDisplayMode,
+      resultNotationPreference: resultNotationPreference ?? this.resultNotationPreference,
     );
   }
 

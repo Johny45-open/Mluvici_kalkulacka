@@ -178,6 +178,7 @@ Map<String, dynamic> buildQuickSetupContract({
     devDiagnosticDurationMs: devDiagnosticDurationMs,
     devPinCode: devPinCode,
     resultDisplayMode: draft.resultDisplayMode,
+    resultNotationPreference: draft.resultNotationPreference,
     historyExactFormat: historyExactFormat,
   );
 }
@@ -212,6 +213,10 @@ Future<void> persistCanonicalContract(
     prefs.setString(
       'resultDisplayMode',
       _resultDisplayModeToString(parsed.resultDisplayMode),
+    ),
+    prefs.setString(
+      'resultNotationPreference',
+      _resultNotationPreferenceToString(parsed.resultNotationPreference),
     ),
     prefs.setString(
       'historyExactFormat',

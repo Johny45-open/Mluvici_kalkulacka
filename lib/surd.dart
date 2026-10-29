@@ -12,6 +12,9 @@ import 'rational.dart';
 // - auto: běžná čísla segmentově, matematické konstrukce textově.
 enum ResultDisplayMode { segment, text, auto }
 
+// Výchozí předvolba číselné reprezentace výsledků (desetinně vs zlomkem).
+enum ResultNotationPreference { decimal, fraction }
+
 // Výsledek výpočtu oddělený od vizuální reprezentace.
 sealed class CalcValue {
   const CalcValue();

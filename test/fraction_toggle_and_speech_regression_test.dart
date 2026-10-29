@@ -236,6 +236,7 @@ void main() {
 
         // B) Režim text: přesný zlomek se zobrazí přímo a hlas ohlásí přímo zlomek
         state.setResultDisplayModeForTest(ResultDisplayMode.text);
+        state.setResultNotationPreferenceForTest(ResultNotationPreference.fraction);
         await tester.pump();
         await calculate(tester, state, '1/2+1/3');
         expect(state.fractionViewForTest, isTrue);

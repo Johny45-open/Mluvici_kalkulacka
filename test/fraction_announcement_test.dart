@@ -152,6 +152,7 @@ void main() {
     ) async {
       final state = await pumpApp(tester);
       state.setResultDisplayModeForTest(ResultDisplayMode.text);
+      state.setResultNotationPreferenceForTest(ResultNotationPreference.fraction);
       await tester.pump();
       await setScreenReader(tester, state, true);
       await calculate(tester, state, '3/4');

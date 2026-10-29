@@ -948,5 +948,16 @@
         "type": "String"
       }
     }
+  },
+  "resultNotationPreferenceTitle": "Default result notation",
+  "resultNotationDecimal": "Decimal",
+  "resultNotationFraction": "Fraction",
+  "resultNotationAnnouncement": "Default result notation: {notation}",
+  "@resultNotationAnnouncement": {
+    "placeholders": {
+      "notation": {
+        "type": "String"
+      }
+    }
   }
 }

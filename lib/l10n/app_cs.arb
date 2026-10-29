@@ -1020,5 +1020,16 @@
         "type": "String"
       }
     }
+  },
+  "resultNotationPreferenceTitle": "Výchozí tvar výsledku",
+  "resultNotationDecimal": "Desetinně",
+  "resultNotationFraction": "Zlomkem",
+  "resultNotationAnnouncement": "Výchozí tvar výsledku: {notation}",
+  "@resultNotationAnnouncement": {
+    "placeholders": {
+      "notation": {
+        "type": "String"
+      }
+    }
   }
 }

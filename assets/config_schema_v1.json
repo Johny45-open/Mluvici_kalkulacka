@@ -117,6 +117,7 @@
         "isDegreeMode": { "type": "boolean" },
         "defaultMode": { "type": "string", "enum": ["basic", "scientific", "statistics", "electrician", "unitConversion", "time", "currency"] },
         "resultDisplayMode": { "type": "string", "enum": ["segment", "text", "auto"] },
+        "resultNotationPreference": { "type": "string", "enum": ["decimal", "fraction"] },
         "historyExactFormat": { "type": "string", "enum": ["numeric", "exact"] },
         "statsSummaryOrder": {
           "type": "array",
