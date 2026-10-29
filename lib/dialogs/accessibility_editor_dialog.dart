@@ -183,6 +183,21 @@ class _AccessibilityProfileEditorDialogState
     );
   }
 
+  Widget _buildStepperButton({
+    required String label,
+    required VoidCallback onPressed,
+    required String text,
+  }) {
+    return Semantics(
+      label: label,
+      button: true,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        child: ExcludeSemantics(child: Text(text)),
+      ),
+    );
+  }
+
   List<String> _collectChanges() {
     final draft = editingSettings;
     AccessibilitySettings? orig;
@@ -917,15 +932,13 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zmenšit přiblížení horního displeje',
                           'Decrease upper display zoom',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDotMatrixZoom(-0.1),
-                          child: Text('-'),
-                        ),
+                        onPressed: () => _adjustDotMatrixZoom(-0.1),
+                        text: '-',
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -934,15 +947,13 @@ class _AccessibilityProfileEditorDialogState
                           child: Text('${(s.dotMatrixZoom * 100).toInt()}%'),
                         ),
                       ),
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zvětšit přiblížení horního displeje',
                           'Increase upper display zoom',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDotMatrixZoom(0.1),
-                          child: Text('+'),
-                        ),
+                        onPressed: () => _adjustDotMatrixZoom(0.1),
+                        text: '+',
                       ),
                     ],
                   ),
@@ -955,15 +966,13 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zmenšit přiblížení výsledku',
                           'Decrease result zoom',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustResultZoom(-0.1),
-                          child: Text('-'),
-                        ),
+                        onPressed: () => _adjustResultZoom(-0.1),
+                        text: '-',
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -972,15 +981,13 @@ class _AccessibilityProfileEditorDialogState
                           child: Text('${(s.resultZoom * 100).toInt()}%'),
                         ),
                       ),
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zvětšit přiblížení výsledku',
                           'Increase result zoom',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustResultZoom(0.1),
-                          child: Text('+'),
-                        ),
+                        onPressed: () => _adjustResultZoom(0.1),
+                        text: '+',
                       ),
                     ],
                   ),
@@ -1040,15 +1047,13 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Snížit výšku periodické čáry',
                           'Decrease repeating bar height',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustOverlineHeight(-0.1),
-                          child: Text('-'),
-                        ),
+                        onPressed: () => _adjustOverlineHeight(-0.1),
+                        text: '-',
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1057,15 +1062,13 @@ class _AccessibilityProfileEditorDialogState
                           child: Text('${(s.overlineHeight * 100).toInt()}%'),
                         ),
                       ),
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zvýšit výšku periodické čáry',
                           'Increase repeating bar height',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustOverlineHeight(0.1),
-                          child: Text('+'),
-                        ),
+                        onPressed: () => _adjustOverlineHeight(0.1),
+                        text: '+',
                       ),
                     ],
                   ),
@@ -1082,15 +1085,13 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zmenšit tloušťku periodické čárky',
                           'Decrease repeating bar thickness',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustOverlineThickness(-0.2),
-                          child: Text('-'),
-                        ),
+                        onPressed: () => _adjustOverlineThickness(-0.2),
+                        text: '-',
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1101,15 +1102,13 @@ class _AccessibilityProfileEditorDialogState
                           ),
                         ),
                       ),
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zvětšit tloušťku periodické čárky',
                           'Increase repeating bar thickness',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustOverlineThickness(0.2),
-                          child: Text('+'),
-                        ),
+                        onPressed: () => _adjustOverlineThickness(0.2),
+                        text: '+',
                       ),
                     ],
                   ),
@@ -1233,15 +1232,13 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zmenšit velikost písma dialogů',
                           'Decrease dialog font size',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDialogFontScale(-0.1),
-                          child: Text('-'),
-                        ),
+                        onPressed: () => _adjustDialogFontScale(-0.1),
+                        text: '-',
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1250,15 +1247,13 @@ class _AccessibilityProfileEditorDialogState
                           child: Text('${(s.dialogFontScale * 100).toInt()}%'),
                         ),
                       ),
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zvětšit velikost písma dialogů',
                           'Increase dialog font size',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustDialogFontScale(0.1),
-                          child: Text('+'),
-                        ),
+                        onPressed: () => _adjustDialogFontScale(0.1),
+                        text: '+',
                       ),
                     ],
                   ),
@@ -1279,15 +1274,13 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zmenšit velikost písma tlačítek',
                           'Decrease button font size',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustKeyboardFontScale(-0.1),
-                          child: Text('-'),
-                        ),
+                        onPressed: () => _adjustKeyboardFontScale(-0.1),
+                        text: '-',
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1298,15 +1291,13 @@ class _AccessibilityProfileEditorDialogState
                           ),
                         ),
                       ),
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zvětšit velikost písma tlačítek',
                           'Increase button font size',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustKeyboardFontScale(0.1),
-                          child: Text('+'),
-                        ),
+                        onPressed: () => _adjustKeyboardFontScale(0.1),
+                        text: '+',
                       ),
                     ],
                   ),
@@ -1319,15 +1310,13 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zmenšit rychlost řeči',
                           'Decrease speech rate',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechRate(-0.1),
-                          child: Text('-'),
-                        ),
+                        onPressed: () => _adjustSpeechRate(-0.1),
+                        text: '-',
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1336,15 +1325,13 @@ class _AccessibilityProfileEditorDialogState
                           child: Text('${(s.speechRate * 100).toInt()}%'),
                         ),
                       ),
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zvýšit rychlost řeči',
                           'Increase speech rate',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechRate(0.1),
-                          child: Text('+'),
-                        ),
+                        onPressed: () => _adjustSpeechRate(0.1),
+                        text: '+',
                       ),
                     ],
                   ),
@@ -1357,15 +1344,13 @@ class _AccessibilityProfileEditorDialogState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Snížit hlasitost řeči',
                           'Decrease speech volume',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechVolume(-0.1),
-                          child: Text('-'),
-                        ),
+                        onPressed: () => _adjustSpeechVolume(-0.1),
+                        text: '-',
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1374,15 +1359,13 @@ class _AccessibilityProfileEditorDialogState
                           child: Text('${(s.speechVolume * 100).toInt()}%'),
                         ),
                       ),
-                      Semantics(
+                      _buildStepperButton(
                         label: parent._s(
                           'Zvýšit hlasitost řeči',
                           'Increase speech volume',
                         ),
-                        child: ElevatedButton(
-                          onPressed: () => _adjustSpeechVolume(0.1),
-                          child: Text('+'),
-                        ),
+                        onPressed: () => _adjustSpeechVolume(0.1),
+                        text: '+',
                       ),
                     ],
                   ),
