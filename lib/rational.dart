@@ -37,19 +37,17 @@ class Rational {
   bool get isInteger => denominator == BigInt.one;
 
   Rational operator +(Rational other) => Rational(
-        numerator * other.denominator + other.numerator * denominator,
-        denominator * other.denominator,
-      );
+    numerator * other.denominator + other.numerator * denominator,
+    denominator * other.denominator,
+  );
 
   Rational operator -(Rational other) => Rational(
-        numerator * other.denominator - other.numerator * denominator,
-        denominator * other.denominator,
-      );
+    numerator * other.denominator - other.numerator * denominator,
+    denominator * other.denominator,
+  );
 
-  Rational operator *(Rational other) => Rational(
-        numerator * other.numerator,
-        denominator * other.denominator,
-      );
+  Rational operator *(Rational other) =>
+      Rational(numerator * other.numerator, denominator * other.denominator);
 
   /// Dělení nulovým racionálem vyhodí [RationalZeroDenominator]
   /// (evaluátor mapuje na dělení nulou, nikdy na Infinity).
@@ -114,11 +112,14 @@ class RationalLimitExceeded implements Exception {
 enum RationalFailureKind {
   /// Dělitel normalizovaný na nulu (včetně `1/(2-2)`).
   divisionByZero,
+
   /// V gramatice, ale neplatné: prázdné závorky, chybějící operand,
   /// visící operátor.
   syntax,
+
   /// Nevyvážené závorky.
   unbalancedParens,
+
   /// Překročení limitu implementace (délka, tokeny, číslice).
   /// Nesmí se vydávat za výsledek ani tiše padat do `double`.
   limitExceeded,
@@ -177,8 +178,7 @@ RationalEvalResult tryEvaluateRational(
     final value = _evaluateTokens(tokens);
     final digits = _digits(value.numerator);
     final digitsD = _digits(value.denominator);
-    if (digits > maxRationalValueDigits ||
-        digitsD > maxRationalValueDigits) {
+    if (digits > maxRationalValueDigits || digitsD > maxRationalValueDigits) {
       return const RationalFailure(RationalFailureKind.limitExceeded);
     }
     return RationalOk(value);
@@ -284,7 +284,8 @@ List<Object> _tokenize(String t, Map<String, Rational> symbols) {
       var j = i;
       while (j < t.length) {
         final cc = t[j].codeUnitAt(0);
-        final ok = (cc >= 65 && cc <= 90) ||
+        final ok =
+            (cc >= 65 && cc <= 90) ||
             (cc >= 97 && cc <= 122) ||
             (cc >= 48 && cc <= 57) ||
             t[j] == '_';

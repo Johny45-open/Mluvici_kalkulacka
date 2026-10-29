@@ -77,24 +77,21 @@ void main() {
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
         scrollable: false,
-        insetPadding: const EdgeInsets.symmetric(
-          horizontal: 40,
-          vertical: 24,
-        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
         title: Semantics(header: true, child: Text(title)),
         content: SingleChildScrollView(
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < fieldCount; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: TextField(
-                  key: ValueKey('probe_field_$i'),
-                  decoration: InputDecoration(labelText: 'Field $i'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < fieldCount; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: TextField(
+                    key: ValueKey('probe_field_$i'),
+                    decoration: InputDecoration(labelText: 'Field $i'),
+                  ),
                 ),
-              ),
-          ],
+            ],
           ),
         ),
         actions: [
@@ -157,10 +154,7 @@ void main() {
       lessThanOrEqualTo(limit + 1),
       reason: 'Focusované pole musí zůstat nad klávesnicí',
     );
-    for (final key in const [
-      ValueKey('probe_cancel'),
-      ValueKey('probe_ok'),
-    ]) {
+    for (final key in const [ValueKey('probe_cancel'), ValueKey('probe_ok')]) {
       final r = tester.getRect(find.byKey(key));
       expect(
         r.bottom,
@@ -199,9 +193,7 @@ void main() {
         tester,
         logicalSize: const Size(360, screenHeight),
       );
-      tester.view.viewInsets = const FakeViewPadding(
-        bottom: keyboardHeight,
-      );
+      tester.view.viewInsets = const FakeViewPadding(bottom: keyboardHeight);
       await tester.pump();
       tester.takeException();
 
@@ -233,9 +225,7 @@ void main() {
         tester,
         logicalSize: const Size(360, screenHeight),
       );
-      tester.view.viewInsets = const FakeViewPadding(
-        bottom: keyboardHeight,
-      );
+      tester.view.viewInsets = const FakeViewPadding(bottom: keyboardHeight);
       await tester.pump();
       tester.takeException();
 
@@ -263,9 +253,7 @@ void main() {
         tester,
         logicalSize: const Size(360, screenHeight),
       );
-      tester.view.viewInsets = const FakeViewPadding(
-        bottom: keyboardHeight,
-      );
+      tester.view.viewInsets = const FakeViewPadding(bottom: keyboardHeight);
       await tester.pump();
       tester.takeException();
 
@@ -286,51 +274,50 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('5) TextField dole: titulek zůstane, pole i akce nad klávesnicí', (
-      tester,
-    ) async {
-      const screenHeight = 640.0;
-      const keyboardHeight = 300.0;
-      final state = await pumpApp(
-        tester,
-        logicalSize: const Size(360, screenHeight),
-      );
-      tester.view.viewInsets = const FakeViewPadding(
-        bottom: keyboardHeight,
-      );
-      await tester.pump();
-      tester.takeException();
+    testWidgets(
+      '5) TextField dole: titulek zůstane, pole i akce nad klávesnicí',
+      (tester) async {
+        const screenHeight = 640.0;
+        const keyboardHeight = 300.0;
+        final state = await pumpApp(
+          tester,
+          logicalSize: const Size(360, screenHeight),
+        );
+        tester.view.viewInsets = const FakeViewPadding(bottom: keyboardHeight);
+        await tester.pump();
+        tester.takeException();
 
-      openProbeDialog(state, appContext(tester), fieldCount: 3);
-      await tester.pumpAndSettle();
-      await tester.showKeyboard(find.byKey(const ValueKey('probe_field_2')));
-      await tester.pumpAndSettle();
+        openProbeDialog(state, appContext(tester), fieldCount: 3);
+        await tester.pumpAndSettle();
+        await tester.showKeyboard(find.byKey(const ValueKey('probe_field_2')));
+        await tester.pumpAndSettle();
 
-      expectStableAboveKeyboard(
-        tester,
-        screenHeight: screenHeight,
-        keyboardHeight: keyboardHeight,
-        fieldKey: const ValueKey('probe_field_2'),
-        titleText: 'Probe dialog',
-      );
-      // Titulek je fixní (není součástí scroll viewportu obsahu),
-      // takže ensureVisible fokusovaného pole ho nevytlačí z viewportu.
-      final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
-      final titleRect = tester.getRect(find.byWidget(dialog.title!));
-      expect(
-        titleRect.top,
-        greaterThanOrEqualTo(-1),
-        reason: 'Titulek dialogu musí zůstat v horní části',
-      );
-      expect(
-        titleRect.bottom,
-        lessThanOrEqualTo(screenHeight - keyboardHeight + 1),
-        reason: 'Titulek nesmí být vytlačen pod klávesnici',
-      );
-      // Overflow těla aplikace za bariérou je očekávaný (viz helper).
-      tester.takeException();
-      await tester.pump(const Duration(seconds: 3));
-    });
+        expectStableAboveKeyboard(
+          tester,
+          screenHeight: screenHeight,
+          keyboardHeight: keyboardHeight,
+          fieldKey: const ValueKey('probe_field_2'),
+          titleText: 'Probe dialog',
+        );
+        // Titulek je fixní (není součástí scroll viewportu obsahu),
+        // takže ensureVisible fokusovaného pole ho nevytlačí z viewportu.
+        final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
+        final titleRect = tester.getRect(find.byWidget(dialog.title!));
+        expect(
+          titleRect.top,
+          greaterThanOrEqualTo(-1),
+          reason: 'Titulek dialogu musí zůstat v horní části',
+        );
+        expect(
+          titleRect.bottom,
+          lessThanOrEqualTo(screenHeight - keyboardHeight + 1),
+          reason: 'Titulek nesmí být vytlačen pod klávesnici',
+        );
+        // Overflow těla aplikace za bariérou je očekávaný (viz helper).
+        tester.takeException();
+        await tester.pump(const Duration(seconds: 3));
+      },
+    );
 
     testWidgets('6) malé zařízení 320x568 s klávesnicí', (tester) async {
       const screenHeight = 568.0;
@@ -339,9 +326,7 @@ void main() {
         tester,
         logicalSize: const Size(320, screenHeight),
       );
-      tester.view.viewInsets = const FakeViewPadding(
-        bottom: keyboardHeight,
-      );
+      tester.view.viewInsets = const FakeViewPadding(bottom: keyboardHeight);
       await tester.pump();
       tester.takeException();
 
@@ -370,9 +355,7 @@ void main() {
         logicalSize: const Size(360, screenHeight),
         textScale: 2.0,
       );
-      tester.view.viewInsets = const FakeViewPadding(
-        bottom: keyboardHeight,
-      );
+      tester.view.viewInsets = const FakeViewPadding(bottom: keyboardHeight);
       await tester.pump();
       tester.takeException();
 
@@ -404,9 +387,7 @@ void main() {
         tester,
         logicalSize: const Size(360, screenHeight),
       );
-      tester.view.viewInsets = const FakeViewPadding(
-        bottom: keyboardHeight,
-      );
+      tester.view.viewInsets = const FakeViewPadding(bottom: keyboardHeight);
       await tester.pump();
       tester.takeException();
 

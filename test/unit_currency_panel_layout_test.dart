@@ -88,11 +88,7 @@ void main() {
     // vsechny prvky vystupuji jako tlacitka (ovladatelne klavesnici i cteckou)
     for (final f in [category, from, to]) {
       expect(
-        tester
-            .getSemantics(f)
-            .getSemanticsData()
-            .flagsCollection
-            .isButton,
+        tester.getSemantics(f).getSemanticsData().flagsCollection.isButton,
         isTrue,
         reason: '$f',
       );
@@ -122,11 +118,7 @@ void main() {
     }
     for (final f in [from, to]) {
       expect(
-        tester
-            .getSemantics(f)
-            .getSemanticsData()
-            .flagsCollection
-            .isButton,
+        tester.getSemantics(f).getSemanticsData().flagsCollection.isButton,
         isTrue,
         reason: '$f',
       );
@@ -140,11 +132,7 @@ void main() {
         testWidgets('$size text $scale: panel jednotek dosazitelny', (
           tester,
         ) async {
-          final state = await pumpSized(
-            tester,
-            size: size,
-            textScale: scale,
-          );
+          final state = await pumpSized(tester, size: size, textScale: scale);
           state.switchModeForTest(CalculatorMode.unitConversion);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
@@ -159,14 +147,8 @@ void main() {
           await tester.pump(const Duration(seconds: 1));
         });
 
-        testWidgets('$size text $scale: panel men dosazitelny', (
-          tester,
-        ) async {
-          final state = await pumpSized(
-            tester,
-            size: size,
-            textScale: scale,
-          );
+        testWidgets('$size text $scale: panel men dosazitelny', (tester) async {
+          final state = await pumpSized(tester, size: size, textScale: scale);
           state.switchModeForTest(CalculatorMode.currency);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);

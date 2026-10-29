@@ -79,7 +79,8 @@ void main() {
     );
     debugPrint('PROBE getSemantics(toggle): [${toggleNode.label}]');
 
-    final root = tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!;
+    final root =
+        tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!;
     void walk(SemanticsNode n, int depth) {
       final l = n.label;
       final low = l.toLowerCase();
@@ -89,7 +90,8 @@ void main() {
           if (n.hasFlag(SemanticsFlag.isFocusable)) 'focusable',
           if (n.hasFlag(SemanticsFlag.isToggled)) 'toggled',
           if (n.hasFlag(SemanticsFlag.isEnabled) == false &&
-              n.hasFlag(SemanticsFlag.isButton)) 'DISABLED',
+              n.hasFlag(SemanticsFlag.isButton))
+            'DISABLED',
         ];
         final acts = <String>[
           if (n.getSemanticsData().hasAction(SemanticsAction.tap)) 'tap',

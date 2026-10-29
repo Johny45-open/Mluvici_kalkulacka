@@ -25,9 +25,8 @@ void main() {
       return 1;
     });
     messenger.setMockMethodCallHandler(
-      const MethodChannel('com.example.mluvici_kalkulacka/accessibility'), (
-        MethodCall call,
-      ) async {
+      const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
+      (MethodCall call) async {
         if (call.method == 'isTalkBackEnabled' ||
             call.method == 'isScreenReaderEnabled') {
           return false;
@@ -53,7 +52,9 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 1.0;
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearAllTestValues);
-    await tester.pumpWidget(const ScientificCalculatorApp(locale: Locale('cs')));
+    await tester.pumpWidget(
+      const ScientificCalculatorApp(locale: Locale('cs')),
+    );
     await tester.pumpAndSettle();
     return tester.state(find.byType(CalculatorScreen)) as dynamic;
   }
@@ -141,34 +142,37 @@ void main() {
   // storeCurrentValueToMemory (dialogs.dart), tedy tutéž business logiku
   // jako STO na klávesnici. Ukládání nesmí spadnout na statistické větvi
   // calculateResult a hodnota se musí dostat do _memory.
-  testWidgets("('Uložit do proměnné' přes store funguje i ve statistickém režimu)", (
-    tester,
-  ) async {
-    final state = await pumpApp(tester);
-    await switchToStatistics(tester);
-    state.addStatsSetForTest(
-      StatisticsSet(
-        name: 'Test',
-        fieldNames: const ['Value'],
-        records: [StatisticsRecord(values: [1])],
-      ),
-    );
-    await tester.pumpAndSettle();
-    state.setDisplayForTest('0.5', 3);
-    await tester.pump();
-    final ok = state.storeCurrentValueToMemory('A');
-    await tester.pumpAndSettle();
-    expect(ok, isTrue, reason: 'Ukládání do proměnné A se nesmí selhat');
-    expect(
-      state.memoryValueForTest('A'),
-      isNotNull,
-      reason: 'Proměnná A musí být po uložení v _memory',
-    );
-    expect(
-      state.memoryValueForTest('A'),
-      closeTo(0.5, 1e-9),
-      reason: 'Proměnná A musí mít hodnotu 0.5',
-    );
-    await tester.pump(const Duration(seconds: 1));
-  });
+  testWidgets(
+    "('Uložit do proměnné' přes store funguje i ve statistickém režimu)",
+    (tester) async {
+      final state = await pumpApp(tester);
+      await switchToStatistics(tester);
+      state.addStatsSetForTest(
+        StatisticsSet(
+          name: 'Test',
+          fieldNames: const ['Value'],
+          records: [
+            StatisticsRecord(values: [1]),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      state.setDisplayForTest('0.5', 3);
+      await tester.pump();
+      final ok = state.storeCurrentValueToMemory('A');
+      await tester.pumpAndSettle();
+      expect(ok, isTrue, reason: 'Ukládání do proměnné A se nesmí selhat');
+      expect(
+        state.memoryValueForTest('A'),
+        isNotNull,
+        reason: 'Proměnná A musí být po uložení v _memory',
+      );
+      expect(
+        state.memoryValueForTest('A'),
+        closeTo(0.5, 1e-9),
+        reason: 'Proměnná A musí mít hodnotu 0.5',
+      );
+      await tester.pump(const Duration(seconds: 1));
+    },
+  );
 }

@@ -59,8 +59,7 @@ void main() {
     addTearDown(tester.platformDispatcher.clearAllTestValues);
     await tester.pumpWidget(ScientificCalculatorApp(locale: locale));
     await tester.pumpAndSettle();
-    final state =
-        tester.state(find.byType(CalculatorScreen)) as dynamic;
+    final state = tester.state(find.byType(CalculatorScreen)) as dynamic;
     state.switchModeForTest(CalculatorMode.currency);
     await tester.pumpAndSettle();
     return state;
@@ -77,9 +76,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('zmena meny se ohlasi nazvem a prevod funguje', (
-      tester,
-    ) async {
+    testWidgets('zmena meny se ohlasi nazvem a prevod funguje', (tester) async {
       final state = await pumpCurrency(tester);
       ttsLog.clear();
       // zmenit cil na USD

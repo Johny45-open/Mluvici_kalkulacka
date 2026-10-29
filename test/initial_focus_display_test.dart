@@ -28,9 +28,10 @@ void main() {
     });
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(const MethodChannel('flutter_tts'), (
-      MethodCall call,
-    ) async => 1);
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('flutter_tts'),
+      (MethodCall call) async => 1,
+    );
     messenger.setMockMethodCallHandler(
       const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
       (MethodCall call) async => false,
@@ -55,7 +56,9 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 1.0;
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearAllTestValues);
-    await tester.pumpWidget(const ScientificCalculatorApp(locale: Locale('cs')));
+    await tester.pumpWidget(
+      const ScientificCalculatorApp(locale: Locale('cs')),
+    );
     await tester.pumpAndSettle();
     return tester.state(find.byType(CalculatorScreen)) as dynamic;
   }

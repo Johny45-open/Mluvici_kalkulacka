@@ -430,10 +430,7 @@ class _AccessibilityProfileEditorDialogState
     final ok = await parent.saveEditingProfile();
     if (!ok) {
       // Tichý fail odstraněn: jasná chyba, draft zůstává k opravě.
-      final fail = parent._s(
-        'Uložení selhalo',
-        'Save failed',
-      );
+      final fail = parent._s('Uložení selhalo', 'Save failed');
       parent.say(fail);
       return;
     }
@@ -540,9 +537,7 @@ class _AccessibilityProfileEditorDialogState
                     // R9: jedna hláška jednotným kanálem.
                     unawaited(
                       parent.announceEvent(
-                        nv
-                            ? parent._l10n.segment16On
-                            : parent._l10n.segment7On,
+                        nv ? parent._l10n.segment16On : parent._l10n.segment7On,
                         category: SpeechCategory.settings,
                         interruptCurrentSpeech: true,
                       ),

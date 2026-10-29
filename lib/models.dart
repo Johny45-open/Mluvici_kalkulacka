@@ -451,8 +451,7 @@ class CalculationHistoryEntry {
 
   /// Exaktní racionální tvar, nebo null pokud neexistuje.
   /// Nikdy se neodvozuje z resultDouble ani z textu výsledku.
-  Rational? get rational =>
-      Rational.tryParseStorage(rationalNum, rationalDen);
+  Rational? get rational => Rational.tryParseStorage(rationalNum, rationalDen);
 
   /// Nový záznam je autoritativní (exact/rational explicitně rozhodnut).
   /// Starý záznam (legacy exp|res) má resultDouble null a metadata null —

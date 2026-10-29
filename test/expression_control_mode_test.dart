@@ -93,8 +93,9 @@ void main() {
   }
 
   group('Z1 režim ovládání výrazu', () {
-    testWidgets('1. primární fokus + ON: šipky/Home/End hýbou (handled)',
-        (tester) async {
+    testWidgets('1. primární fokus + ON: šipky/Home/End hýbou (handled)', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('12+3', 2);
       await tester.pumpAndSettle();
@@ -111,7 +112,10 @@ void main() {
       );
       expect(
         state.handleKeyEventForTest(
-          keyDown(PhysicalKeyboardKey.arrowRight, LogicalKeyboardKey.arrowRight),
+          keyDown(
+            PhysicalKeyboardKey.arrowRight,
+            LogicalKeyboardKey.arrowRight,
+          ),
         ),
         KeyEventResult.handled,
       );
@@ -184,7 +188,9 @@ void main() {
       );
     });
 
-    testWidgets('3. režim OFF + primární fokus: šipka reaktivuje', (tester) async {
+    testWidgets('3. režim OFF + primární fokus: šipka reaktivuje', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('12+3', 2);
       await tester.pumpAndSettle();
@@ -197,7 +203,10 @@ void main() {
       expect(main.hasPrimaryFocus, isTrue);
       expect(
         state.handleKeyEventForTest(
-          keyDown(PhysicalKeyboardKey.arrowRight, LogicalKeyboardKey.arrowRight),
+          keyDown(
+            PhysicalKeyboardKey.arrowRight,
+            LogicalKeyboardKey.arrowRight,
+          ),
         ),
         KeyEventResult.handled,
       );
@@ -206,7 +215,10 @@ void main() {
       // Druhá už hýbe.
       expect(
         state.handleKeyEventForTest(
-          keyDown(PhysicalKeyboardKey.arrowRight, LogicalKeyboardKey.arrowRight),
+          keyDown(
+            PhysicalKeyboardKey.arrowRight,
+            LogicalKeyboardKey.arrowRight,
+          ),
         ),
         KeyEventResult.handled,
       );
@@ -222,8 +234,9 @@ void main() {
       expect(state.expressionControlActiveForTest, isTrue);
     });
 
-    testWidgets('5. aktivace displeje zapne a callback nezruší',
-        (tester) async {
+    testWidgets('5. aktivace displeje zapne a callback nezruší', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('12+3', 2);
       await tester.pumpAndSettle();
@@ -291,8 +304,7 @@ void main() {
       expect(state.cursorForTest, 1);
     });
 
-    testWidgets('7. KeyRepeatEvent/KeyUpEvent kurzor nehýbou',
-        (tester) async {
+    testWidgets('7. KeyRepeatEvent/KeyUpEvent kurzor nehýbou', (tester) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('12+3', 2);
       await tester.pumpAndSettle();
@@ -302,10 +314,7 @@ void main() {
         logicalKey: LogicalKeyboardKey.arrowLeft,
         timeStamp: Duration.zero,
       );
-      expect(
-        state.handleKeyEventForTest(repeat),
-        KeyEventResult.ignored,
-      );
+      expect(state.handleKeyEventForTest(repeat), KeyEventResult.ignored);
       const up = KeyUpEvent(
         physicalKey: PhysicalKeyboardKey.arrowLeft,
         logicalKey: LogicalKeyboardKey.arrowLeft,
@@ -315,7 +324,9 @@ void main() {
       expect(state.cursorForTest, 2);
     });
 
-    testWidgets('8. SR-passthrough, Tab, Delete, Escape, Enter', (tester) async {
+    testWidgets('8. SR-passthrough, Tab, Delete, Escape, Enter', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.updateActiveSettingsForTest(
         (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
@@ -588,7 +599,10 @@ void main() {
       final before = state.lastAnnouncementForTest as String;
       expect(
         state.handleKeyEventForTest(
-          keyDown(PhysicalKeyboardKey.arrowRight, LogicalKeyboardKey.arrowRight),
+          keyDown(
+            PhysicalKeyboardKey.arrowRight,
+            LogicalKeyboardKey.arrowRight,
+          ),
         ),
         KeyEventResult.handled,
       );
@@ -600,7 +614,9 @@ void main() {
       expect(state.lastAnnouncementForTest as String, armed);
     });
 
-    testWidgets('T5. programový návrat fokusu sám nic nezapíná', (tester) async {
+    testWidgets('T5. programový návrat fokusu sám nic nezapíná', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('12+3', 2);
       await tester.pumpAndSettle();
@@ -621,8 +637,9 @@ void main() {
       expect(state.cursorForTest, 2);
     });
 
-    testWidgets('T6. listener reaguje na primaryFocus, ne hasFocus',
-        (tester) async {
+    testWidgets('T6. listener reaguje na primaryFocus, ne hasFocus', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await tester.pumpAndSettle();
       final FocusNode main = state.mainFocusNodeForTest as FocusNode;
@@ -681,15 +698,20 @@ void main() {
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 300));
       expect(state.dialogDepthForTest, 0);
-      expect(FocusManager.instance.primaryFocus,
-          state.mainFocusNodeForTest as FocusNode);
+      expect(
+        FocusManager.instance.primaryFocus,
+        state.mainFocusNodeForTest as FocusNode,
+      );
       expect(state.expressionControlActiveForTest, isFalse);
 
       // První šipka: handled + oznámení právě jednou, kurzor stojí.
       final ttsBefore = ttsLog.length;
       expect(
         state.handleKeyEventForTest(
-          keyDown(PhysicalKeyboardKey.arrowRight, LogicalKeyboardKey.arrowRight),
+          keyDown(
+            PhysicalKeyboardKey.arrowRight,
+            LogicalKeyboardKey.arrowRight,
+          ),
         ),
         KeyEventResult.handled,
       );

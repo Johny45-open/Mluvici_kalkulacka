@@ -1030,9 +1030,9 @@ class _DevPinDialogState extends State<_DevPinDialog> {
       title: Semantics(header: true, child: Text(title)),
       content: SingleChildScrollView(
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             if (isChange) ...[
               Semantics(
                 label: parent._s('Starý PIN', 'Old PIN'),

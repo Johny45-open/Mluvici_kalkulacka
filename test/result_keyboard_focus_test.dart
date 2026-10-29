@@ -83,12 +83,11 @@ void main() {
     return out;
   }
 
-  List<SemanticsNode> resultNodes(WidgetTester tester) => allNodes(
-    tester,
-  ).where((n) {
-    final lbl = n.getSemanticsData().label;
-    return lbl == 'Výsledek' || lbl == 'Result';
-  }).toList();
+  List<SemanticsNode> resultNodes(WidgetTester tester) =>
+      allNodes(tester).where((n) {
+        final lbl = n.getSemanticsData().label;
+        return lbl == 'Výsledek' || lbl == 'Result';
+      }).toList();
 
   Future<dynamic> calculate(
     WidgetTester tester,
@@ -126,41 +125,42 @@ void main() {
   }
 
   group('Z5 výsledek dosažitelný přes Tab', () {
-    testWidgets('1. Tab dosáhne na výsledek, Shift+Tab se předvídatelně vrátí',
-        (tester) async {
-      final state = await pumpApp(tester);
-      final FocusNode resultNode =
-          state.resultFocusNodeForTest as FocusNode;
-      final FocusNode mainNode = state.mainFocusNodeForTest as FocusNode;
+    testWidgets(
+      '1. Tab dosáhne na výsledek, Shift+Tab se předvídatelně vrátí',
+      (tester) async {
+        final state = await pumpApp(tester);
+        final FocusNode resultNode = state.resultFocusNodeForTest as FocusNode;
+        final FocusNode mainNode = state.mainFocusNodeForTest as FocusNode;
 
-      // Výchozí stav: primární fokus na kořeni klávesnice.
-      (state.mainFocusNodeForTest as FocusNode).requestFocus();
-      await tester.pump();
-      expect(FocusManager.instance.primaryFocus, mainNode);
-      expect(resultNode.hasPrimaryFocus, isFalse);
+        // Výchozí stav: primární fokus na kořeni klávesnice.
+        (state.mainFocusNodeForTest as FocusNode).requestFocus();
+        await tester.pump();
+        expect(FocusManager.instance.primaryFocus, mainNode);
+        expect(resultNode.hasPrimaryFocus, isFalse);
 
-      // Skutečný Tab-cyklus (klávesové události, ne sémantické pořadí).
-      await tabToResult(tester, state);
-      expect(state.resultHasFocusForTest as bool, isTrue);
+        // Skutečný Tab-cyklus (klávesové události, ne sémantické pořadí).
+        await tabToResult(tester, state);
+        expect(state.resultHasFocusForTest as bool, isTrue);
 
-      // Shift+Tab: výsledek opustí na předchozí prvek v pořadí.
-      await shiftTab(tester);
-      expect(resultNode.hasPrimaryFocus, isFalse);
-      expect(state.resultHasFocusForTest as bool, isFalse);
+        // Shift+Tab: výsledek opustí na předchozí prvek v pořadí.
+        await shiftTab(tester);
+        expect(resultNode.hasPrimaryFocus, isFalse);
+        expect(state.resultHasFocusForTest as bool, isFalse);
 
-      // Tab se vrátí zpět na výsledek (symetrická cesta).
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
-      expect(resultNode.hasPrimaryFocus, isTrue);
-    });
+        // Tab se vrátí zpět na výsledek (symetrická cesta).
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        expect(resultNode.hasPrimaryFocus, isTrue);
+      },
+    );
 
-    testWidgets('2. jeden uzel výsledku s plnou hodnotou po více výpočtech',
-        (tester) async {
+    testWidgets('2. jeden uzel výsledku s plnou hodnotou po více výpočtech', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
-        final FocusNode nodeBefore =
-            state.resultFocusNodeForTest as FocusNode;
+        final FocusNode nodeBefore = state.resultFocusNodeForTest as FocusNode;
 
         await calculate(tester, state, '3/4');
         var results = resultNodes(tester);
@@ -186,81 +186,86 @@ void main() {
       }
     });
 
-    testWidgets('3a. aktivace čtečkou při fokusu jinde vrací řízení klávesnici',
-        (tester) async {
-      final handle = tester.ensureSemantics();
-      try {
-        final state = await pumpApp(tester);
-        final FocusNode mainNode = state.mainFocusNodeForTest as FocusNode;
-        await calculate(tester, state, '3/4');
+    testWidgets(
+      '3a. aktivace čtečkou při fokusu jinde vrací řízení klávesnici',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        try {
+          final state = await pumpApp(tester);
+          final FocusNode mainNode = state.mainFocusNodeForTest as FocusNode;
+          await calculate(tester, state, '3/4');
 
-        // Fokus prokazatelně jinde (mimo primární fokus kořenového uzlu).
-        // Přímé vyvolání onTap uzlu = cesta NVDA (Invoke) / TalkBacku
-        // (double-tap). Fyzický dotyk se ve widgetovém testu na displeji
-        // nedá věrně simulovat (proxy je hit-test transparentní, plochu
-        // výsledku obsluhuje horizontální scroller); dotyková cesta
-        // (GestureDetector) je kódem Z5 nedotčena.
-        (state.a11yProxyFocusNodeForTest as FocusNode).requestFocus();
-        await tester.pumpAndSettle();
-        expect(mainNode.hasPrimaryFocus, isFalse);
+          // Fokus prokazatelně jinde (mimo primární fokus kořenového uzlu).
+          // Přímé vyvolání onTap uzlu = cesta NVDA (Invoke) / TalkBacku
+          // (double-tap). Fyzický dotyk se ve widgetovém testu na displeji
+          // nedá věrně simulovat (proxy je hit-test transparentní, plochu
+          // výsledku obsluhuje horizontální scroller); dotyková cesta
+          // (GestureDetector) je kódem Z5 nedotčena.
+          (state.a11yProxyFocusNodeForTest as FocusNode).requestFocus();
+          await tester.pumpAndSettle();
+          expect(mainNode.hasPrimaryFocus, isFalse);
 
-        final Finder resultSemantics = find.byWidgetPredicate(
-          (w) =>
-              w is Semantics &&
-              (w.properties.label == 'Výsledek' ||
-                  w.properties.label == 'Result'),
-        );
-        expect(resultSemantics, findsOneWidget);
-        ttsLog.clear();
-        (tester.widget(resultSemantics) as Semantics).properties.onTap!();
-        await tester.pumpAndSettle();
+          final Finder resultSemantics = find.byWidgetPredicate(
+            (w) =>
+                w is Semantics &&
+                (w.properties.label == 'Výsledek' ||
+                    w.properties.label == 'Result'),
+          );
+          expect(resultSemantics, findsOneWidget);
+          ttsLog.clear();
+          (tester.widget(resultSemantics) as Semantics).properties.onTap!();
+          await tester.pumpAndSettle();
 
-        // Řízení se vrátilo klávesnici a hodnota se promluvila.
-        expect(FocusManager.instance.primaryFocus, mainNode);
-        expect(ttsLog, isNotEmpty);
-      } finally {
-        handle.dispose();
-      }
-    });
+          // Řízení se vrátilo klávesnici a hodnota se promluvila.
+          expect(FocusManager.instance.primaryFocus, mainNode);
+          expect(ttsLog, isNotEmpty);
+        } finally {
+          handle.dispose();
+        }
+      },
+    );
 
-    testWidgets('3b. aktivace čtečkou při klávesnicovém fokusu fokus neukradne',
-        (tester) async {
-      final handle = tester.ensureSemantics();
-      try {
-        final state = await pumpApp(tester);
-        final FocusNode resultNode =
-            state.resultFocusNodeForTest as FocusNode;
-        await calculate(tester, state, '3/4');
+    testWidgets(
+      '3b. aktivace čtečkou při klávesnicovém fokusu fokus neukradne',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        try {
+          final state = await pumpApp(tester);
+          final FocusNode resultNode =
+              state.resultFocusNodeForTest as FocusNode;
+          await calculate(tester, state, '3/4');
 
-        (resultNode).requestFocus();
-        await tester.pump();
-        expect(FocusManager.instance.primaryFocus, resultNode);
+          (resultNode).requestFocus();
+          await tester.pump();
+          expect(FocusManager.instance.primaryFocus, resultNode);
 
-        // Přímé vyvolání onTap uzlu = to, co pošle NVDA (Invoke) či TalkBack
-        // (double-tap): žádné pointerové události, žádný GestureDetector.
-        final Finder resultSemantics = find.byWidgetPredicate(
-          (w) =>
-              w is Semantics &&
-              (w.properties.label == 'Výsledek' ||
-                  w.properties.label == 'Result'),
-        );
-        expect(resultSemantics, findsOneWidget);
-        ttsLog.clear();
-        (tester.widget(resultSemantics) as Semantics).properties.onTap!();
-        await tester.pump();
+          // Přímé vyvolání onTap uzlu = to, co pošle NVDA (Invoke) či TalkBack
+          // (double-tap): žádné pointerové události, žádný GestureDetector.
+          final Finder resultSemantics = find.byWidgetPredicate(
+            (w) =>
+                w is Semantics &&
+                (w.properties.label == 'Výsledek' ||
+                    w.properties.label == 'Result'),
+          );
+          expect(resultSemantics, findsOneWidget);
+          ttsLog.clear();
+          (tester.widget(resultSemantics) as Semantics).properties.onTap!();
+          await tester.pump();
 
-        // Fokus zůstal na výsledku, hodnota se promluvila.
-        expect(FocusManager.instance.primaryFocus, resultNode);
-        expect(ttsLog, isNotEmpty);
-      } finally {
-        handle.dispose();
-      }
-    });
+          // Fokus zůstal na výsledku, hodnota se promluvila.
+          expect(FocusManager.instance.primaryFocus, resultNode);
+          expect(ttsLog, isNotEmpty);
+        } finally {
+          handle.dispose();
+        }
+      },
+    );
 
-    testWidgets('4. Enter/mezerník/šipky nemění výraz ani kurzor', (tester) async {
+    testWidgets('4. Enter/mezerník/šipky nemění výraz ani kurzor', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
-      final FocusNode resultNode =
-          state.resultFocusNodeForTest as FocusNode;
+      final FocusNode resultNode = state.resultFocusNodeForTest as FocusNode;
       state.setDisplayForTest('2+2', 3);
       await tester.pump();
       state.calculateForTest();
@@ -307,11 +312,11 @@ void main() {
       expect(state.cursorForTest as int, beforeCursor);
     });
 
-    testWidgets('4b. číslice dál píší do vstupu i při fokusu výsledku',
-        (tester) async {
+    testWidgets('4b. číslice dál píší do vstupu i při fokusu výsledku', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
-      final FocusNode resultNode =
-          state.resultFocusNodeForTest as FocusNode;
+      final FocusNode resultNode = state.resultFocusNodeForTest as FocusNode;
       state.setDisplayForTest('', 0);
       await tester.pump();
 
@@ -325,11 +330,11 @@ void main() {
       expect(state.cursorForTest as int, 1);
     });
 
-    testWidgets('5. dlouhý výsledek: scroll + plná hodnota i při fokusu',
-        (tester) async {
+    testWidgets('5. dlouhý výsledek: scroll + plná hodnota i při fokusu', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
-      final FocusNode resultNode =
-          state.resultFocusNodeForTest as FocusNode;
+      final FocusNode resultNode = state.resultFocusNodeForTest as FocusNode;
       await calculate(tester, state, '123456789*987654321');
 
       resultNode.requestFocus();
@@ -369,13 +374,13 @@ void main() {
       }
     });
 
-    testWidgets('6. při novém fokusu nevznikne druhá sémantická zastávka',
-        (tester) async {
+    testWidgets('6. při novém fokusu nevznikne druhá sémantická zastávka', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
-        final FocusNode resultNode =
-            state.resultFocusNodeForTest as FocusNode;
+        final FocusNode resultNode = state.resultFocusNodeForTest as FocusNode;
         await calculate(tester, state, '3/4');
 
         // Bez fokusu: jeden neoznačený uzel.
@@ -405,11 +410,11 @@ void main() {
       }
     });
 
-    testWidgets('7. Z1: kurzorový režim po Tab-návratu stále funguje',
-        (tester) async {
+    testWidgets('7. Z1: kurzorový režim po Tab-návratu stále funguje', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
-      final FocusNode resultNode =
-          state.resultFocusNodeForTest as FocusNode;
+      final FocusNode resultNode = state.resultFocusNodeForTest as FocusNode;
       final FocusNode mainNode = state.mainFocusNodeForTest as FocusNode;
       state.setDisplayForTest('12+34', 5);
       await tester.pump();
@@ -434,8 +439,7 @@ void main() {
 
     testWidgets('viditelná indikace fokusu (ne pouze barvou)', (tester) async {
       final state = await pumpApp(tester);
-      final FocusNode resultNode =
-          state.resultFocusNodeForTest as FocusNode;
+      final FocusNode resultNode = state.resultFocusNodeForTest as FocusNode;
       await calculate(tester, state, '3/4');
 
       Finder frame() => find.byWidgetPredicate(
@@ -466,9 +470,7 @@ void main() {
           .map((c) => (c.decoration as BoxDecoration).border as Border)
           .toList();
       expect(
-        decorations.any(
-          (b) => b.top.color == Colors.white && b.top.width >= 2,
-        ),
+        decorations.any((b) => b.top.color == Colors.white && b.top.width >= 2),
         isTrue,
       );
     });

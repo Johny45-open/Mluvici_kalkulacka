@@ -13,9 +13,10 @@ void main() {
     });
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(const MethodChannel('flutter_tts'), (
-      MethodCall call,
-    ) async => 1);
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('flutter_tts'),
+      (MethodCall call) async => 1,
+    );
     messenger.setMockMethodCallHandler(
       const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
       (MethodCall call) async => false,

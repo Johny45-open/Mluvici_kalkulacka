@@ -80,8 +80,7 @@ void main() {
     final finder = find.byWidgetPredicate(
       (w) =>
           w is Semantics &&
-          (w.properties.label == 'Displej' ||
-              w.properties.label == 'Display'),
+          (w.properties.label == 'Displej' || w.properties.label == 'Display'),
     );
     expect(finder, findsOneWidget, reason: 'Displej node musí existovat');
     return tester.widget<Semantics>(finder);
@@ -233,9 +232,7 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('10. zmena vyrazu pri aktivnim screen readeru', (
-      tester,
-    ) async {
+    testWidgets('10. zmena vyrazu pri aktivnim screen readeru', (tester) async {
       final state = await pumpApp(tester);
       state.updateActiveSettingsForTest(
         (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
@@ -311,41 +308,41 @@ void main() {
           reason: 'move backward by character musí existovat',
         );
 
-      // Pohyb přes klávesnici (stejná metoda jako AT akce) syncuje proxy.
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-      await tester.pumpAndSettle();
-      expect(state.cursorForTest, 3);
-      expect(
-        state.a11yProxyValueForTest.selection,
-        const TextSelection.collapsed(offset: 3),
-      );
+        // Pohyb přes klávesnici (stejná metoda jako AT akce) syncuje proxy.
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await tester.pumpAndSettle();
+        expect(state.cursorForTest, 3);
+        expect(
+          state.a11yProxyValueForTest.selection,
+          const TextSelection.collapsed(offset: 3),
+        );
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
-      await tester.pumpAndSettle();
-      expect(state.cursorForTest, 2);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+        await tester.pumpAndSettle();
+        expect(state.cursorForTest, 2);
 
-      // AT selection (collapsed) na začátek a konec prochází stavovým strojem.
-      state.handleA11ySelectionForTest(
-        const TextSelection(baseOffset: 0, extentOffset: 0),
-      );
-      await tester.pumpAndSettle();
-      expect(state.cursorForTest, 0);
-      expect(
-        state.a11yProxyValueForTest.selection,
-        const TextSelection.collapsed(offset: 0),
-      );
+        // AT selection (collapsed) na začátek a konec prochází stavovým strojem.
+        state.handleA11ySelectionForTest(
+          const TextSelection(baseOffset: 0, extentOffset: 0),
+        );
+        await tester.pumpAndSettle();
+        expect(state.cursorForTest, 0);
+        expect(
+          state.a11yProxyValueForTest.selection,
+          const TextSelection.collapsed(offset: 0),
+        );
 
-      state.handleA11ySelectionForTest(
-        const TextSelection(baseOffset: 4, extentOffset: 4),
-      );
-      await tester.pumpAndSettle();
-      expect(state.cursorForTest, 4);
-      expect(state.displayForTest, '12+3');
-      expect(
-        state.a11yProxyValueForTest.selection,
-        const TextSelection.collapsed(offset: 4),
-      );
-      await tester.pump(const Duration(seconds: 3));
+        state.handleA11ySelectionForTest(
+          const TextSelection(baseOffset: 4, extentOffset: 4),
+        );
+        await tester.pumpAndSettle();
+        expect(state.cursorForTest, 4);
+        expect(state.displayForTest, '12+3');
+        expect(
+          state.a11yProxyValueForTest.selection,
+          const TextSelection.collapsed(offset: 4),
+        );
+        await tester.pump(const Duration(seconds: 3));
       } finally {
         handle.dispose();
       }
@@ -394,9 +391,7 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('prazdny displej: stabilni proxy s Prázdnem', (
-      tester,
-    ) async {
+    testWidgets('prazdny displej: stabilni proxy s Prázdnem', (tester) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('', 0);
       await tester.pumpAndSettle();

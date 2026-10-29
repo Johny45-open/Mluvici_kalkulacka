@@ -102,8 +102,9 @@ void main() {
   }
 
   group('Z3-krok 0: infrastruktura měří počet, ne jen hodnotu', () {
-    testWidgets('dvojí publikování stejné zprávy = delta čítače 2',
-        (tester) async {
+    testWidgets('dvojí publikování stejné zprávy = delta čítače 2', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await setReaderMode(tester, state, ScreenReaderMode.on);
       expect(state.isScreenReaderActiveForTest, isTrue);
@@ -126,18 +127,16 @@ void main() {
   });
 
   group('Z3: MC bez sady = právě jedno oznámení', () {
-    testWidgets('OFF: právě jedno TTS, žádné Semantics publikování',
-        (tester) async {
+    testWidgets('OFF: právě jedno TTS, žádné Semantics publikování', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await setReaderMode(tester, state, ScreenReaderMode.off);
       expect(state.isScreenReaderActiveForTest, isFalse);
       final semBefore = await pressMcWithoutSet(tester, state);
       expect(ttsLog, hasLength(1));
       expect(ttsLog.single, contains('Není vytvořena žádná sada'));
-      expect(
-        state.publishedAnnouncementCountForTest as int,
-        semBefore,
-      );
+      expect(state.publishedAnnouncementCountForTest as int, semBefore);
     });
 
     testWidgets('ON: právě jedno Semantics, žádné TTS', (tester) async {
@@ -146,28 +145,23 @@ void main() {
       expect(state.isScreenReaderActiveForTest, isTrue);
       final semBefore = await pressMcWithoutSet(tester, state);
       expect(ttsLog, isEmpty);
-      expect(
-        state.publishedAnnouncementCountForTest as int,
-        semBefore + 1,
-      );
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
       expect(
         state.lastAnnouncementForTest as String,
         contains('Není vytvořena žádná sada'),
       );
     });
 
-    testWidgets('auto + detekce true: Semantics kanál, bez TTS',
-        (tester) async {
+    testWidgets('auto + detekce true: Semantics kanál, bez TTS', (
+      tester,
+    ) async {
       accessibilityMockResult = true;
       final state = await pumpApp(tester);
       await tester.pumpAndSettle();
       expect(state.isScreenReaderActiveForTest, isTrue);
       final semBefore = await pressMcWithoutSet(tester, state);
       expect(ttsLog, isEmpty);
-      expect(
-        state.publishedAnnouncementCountForTest as int,
-        semBefore + 1,
-      );
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
     });
 
     testWidgets('auto + UNKNOWN: ticho na obou kanálech', (tester) async {
@@ -178,10 +172,7 @@ void main() {
       expect(state.isScreenReaderActiveForTest, isNull);
       final semBefore = await pressMcWithoutSet(tester, state);
       expect(ttsLog, isEmpty);
-      expect(
-        state.publishedAnnouncementCountForTest as int,
-        semBefore,
-      );
+      expect(state.publishedAnnouncementCountForTest as int, semBefore);
     });
   });
 }

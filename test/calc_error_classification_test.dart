@@ -87,11 +87,7 @@ void main() {
       final state = await pumpApp(tester);
       for (final expr in ['5/0', '0/0', '0^(-1)']) {
         final err = catchCalcError(state, expr);
-        expect(
-          err.kind,
-          CalcErrorKind.divisionByZero,
-          reason: 'výraz $expr',
-        );
+        expect(err.kind, CalcErrorKind.divisionByZero, reason: 'výraz $expr');
       }
     });
 
@@ -99,11 +95,7 @@ void main() {
       final state = await pumpApp(tester);
       for (final expr in ['5/(3-3)', '5/(2-1-1)']) {
         final err = catchCalcError(state, expr);
-        expect(
-          err.kind,
-          CalcErrorKind.divisionByZero,
-          reason: 'výraz $expr',
-        );
+        expect(err.kind, CalcErrorKind.divisionByZero, reason: 'výraz $expr');
         expect(err.reason, CalcErrorReason.zeroDenominator);
       }
     });
@@ -156,11 +148,7 @@ void main() {
       for (final expr in ['1+2)', '1+(2*3', '((1+2)', '(1+2))']) {
         final err = catchCalcError(state, expr);
         expect(err.kind, CalcErrorKind.syntax, reason: 'výraz $expr');
-        expect(
-          err.reason,
-          CalcErrorReason.syntaxParens,
-          reason: 'výraz $expr',
-        );
+        expect(err.reason, CalcErrorReason.syntaxParens, reason: 'výraz $expr');
       }
     });
 

@@ -221,10 +221,7 @@ void main() {
       final expectedDesktopFont = Platform.isWindows
           ? 20.0 * desktopScale * 1.4
           : 20.0 * desktopScale * (desktopRowH / desktopStandard);
-      expect(
-        desktop,
-        closeTo(expectedDesktopFont, 1.5),
-      );
+      expect(desktop, closeTo(expectedDesktopFont, 1.5));
       expect(desktop, greaterThanOrEqualTo(14.0));
       // Zadny vertikalni scroll v hlavni klavesnici.
       expect(

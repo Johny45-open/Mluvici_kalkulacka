@@ -740,8 +740,9 @@ void main() {
         try {
           final tabs = find.byType(Tab);
           expect(tabCount(tester), 9);
-          final controller =
-              tester.widget<TabBar>(find.byType(TabBar)).controller!;
+          final controller = tester
+              .widget<TabBar>(find.byType(TabBar))
+              .controller!;
           // Každá záložka musí nést SemanticsAction.tap (UIA Invoke pattern) —
           // jinak odečítač kartu najde, ale neaktivuje ji Enterem.
           for (int i = 0; i < 9; i++) {

@@ -41,15 +41,14 @@ void main() {
         return null;
       },
     );
-    messenger.setMockMethodCallHandler(
-      const MethodChannel('flutter_tts'),
-      (MethodCall call) async {
-        if (call.method == 'speak') {
-          ttsLog.add(call.arguments as String? ?? '');
-        }
-        return 1;
-      },
-    );
+    messenger.setMockMethodCallHandler(const MethodChannel('flutter_tts'), (
+      MethodCall call,
+    ) async {
+      if (call.method == 'speak') {
+        ttsLog.add(call.arguments as String? ?? '');
+      }
+      return 1;
+    });
     messenger.setMockMethodCallHandler(
       const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
       (MethodCall call) async => false,
@@ -109,14 +108,8 @@ void main() {
       for (final v in memoryVars) {
         expect(state.memoryForTest[v], 0.0);
       }
-      expect(
-        (state.occupiedMemoryForTest as Set),
-        isEmpty,
-      );
-      expect(
-        snackTextContaining('všech paměťových proměnných'),
-        findsWidgets,
-      );
+      expect((state.occupiedMemoryForTest as Set), isEmpty);
+      expect(snackTextContaining('všech paměťových proměnných'), findsWidgets);
       // Žádný výčet jednotlivých názvů v souhrnné hlášce.
       expect(ttsLog, hasLength(1));
       expect(ttsLog.single, contains('všech paměťových proměnných'));

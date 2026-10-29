@@ -46,14 +46,14 @@ void main() {
       (MethodCall call) async => false,
     );
     messenger.setMockMethodCallHandler(
-      const MethodChannel('dev.fluttercommunity.plus/package_info'), (
-      MethodCall call,
-    ) async => <String, Object>{
-      'appName': 'mluvici_kalkulacka',
-      'packageName': 'com.example.mluvici_kalkulacka',
-      'version': '6.2.0',
-      'buildNumber': '1',
-    });
+      const MethodChannel('dev.fluttercommunity.plus/package_info'),
+      (MethodCall call) async => <String, Object>{
+        'appName': 'mluvici_kalkulacka',
+        'packageName': 'com.example.mluvici_kalkulacka',
+        'version': '6.2.0',
+        'buildNumber': '1',
+      },
+    );
   });
 
   /// Spustí appku a nechá primární fokus na hlavním uzlu (potřeba pro
@@ -65,7 +65,9 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 1.0;
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearAllTestValues);
-    await tester.pumpWidget(const ScientificCalculatorApp(locale: Locale('cs')));
+    await tester.pumpWidget(
+      const ScientificCalculatorApp(locale: Locale('cs')),
+    );
     await tester.pumpAndSettle();
     final state = tester.state(find.byType(CalculatorScreen)) as dynamic;
     (state.mainFocusNodeForTest as FocusNode).requestFocus();
@@ -177,7 +179,8 @@ void main() {
       expect(
         state.displayForTest,
         '3.',
-        reason: 'Numerická desetinná klávesa bez znaku musí použít logickou klávesu',
+        reason:
+            'Numerická desetinná klávesa bez znaku musí použít logickou klávesu',
       );
       expect(state.cursorForTest, 2);
 

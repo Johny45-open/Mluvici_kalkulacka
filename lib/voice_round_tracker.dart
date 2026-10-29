@@ -16,8 +16,7 @@ import 'dart:async';
 
 class VoiceRoundTracker {
   VoiceRoundTracker({Duration? graceDuration})
-    : graceDuration =
-          graceDuration ?? const Duration(milliseconds: 2500);
+    : graceDuration = graceDuration ?? const Duration(milliseconds: 2500);
 
   /// Milost po hintu (done/notListening/onError): dává finále v letu šanci
   /// dorazit dřív, než kolo padne do `null`. Délka není náhodná: kryje

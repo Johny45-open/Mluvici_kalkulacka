@@ -1197,10 +1197,7 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
     final parent = widget.parent;
     final message =
         '${parent._l10n.sectionMemory}. '
-        '${parent._s(
-          'Vyberte operaci s pamětí. Samotné otevření dialogu nic nemění.',
-          'Choose a memory operation. Opening the dialog changes nothing.',
-        )} '
+        '${parent._s('Vyberte operaci s pamětí. Samotné otevření dialogu nic nemění.', 'Choose a memory operation. Opening the dialog changes nothing.')} '
         '${switch (_action) {
           _QuickMemAction.insert => parent._l10n.quickMemoryInsertTitle,
           _QuickMemAction.store => parent._l10n.quickMemorySaveTo,
@@ -1396,15 +1393,11 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
           // oznámí vybraný segment (viz selected sémantika). Text = existující
           // nadpis režimu, žádné nové lokalizační řetězce.
           if (parent._isScreenReaderActive != true) {
-            parent.announceEvent(
-              switch (next) {
-                _QuickMemAction.insert =>
-                  parent._l10n.quickMemoryInsertTitle,
-                _QuickMemAction.store => parent._l10n.quickMemorySaveTo,
-                _QuickMemAction.recall => parent._l10n.quickMemoryRecallTitle,
-              },
-              category: SpeechCategory.actionConfirm,
-            );
+            parent.announceEvent(switch (next) {
+              _QuickMemAction.insert => parent._l10n.quickMemoryInsertTitle,
+              _QuickMemAction.store => parent._l10n.quickMemorySaveTo,
+              _QuickMemAction.recall => parent._l10n.quickMemoryRecallTitle,
+            }, category: SpeechCategory.actionConfirm);
           }
         },
       ),
@@ -1514,8 +1507,8 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
         width: double.maxFinite,
         child: SingleChildScrollView(
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+            mainAxisSize: MainAxisSize.min,
+            children: [
               if (sortedKeys.isEmpty) Text(parent._l10n.currencyNoRates),
               ...sortedKeys.map((code) {
                 final isCzk = code == 'CZK';
@@ -1621,14 +1614,14 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                           ),
                           content: SingleChildScrollView(
                             child: TextField(
-                            controller: ctrl,
-                            autofocus: true,
-                            textCapitalization: TextCapitalization.characters,
-                            decoration: InputDecoration(
-                              labelText: parent._l10n.currencyCodeLabel,
-                              border: const OutlineInputBorder(),
-                            ),
-                            maxLength: 3,
+                              controller: ctrl,
+                              autofocus: true,
+                              textCapitalization: TextCapitalization.characters,
+                              decoration: InputDecoration(
+                                labelText: parent._l10n.currencyCodeLabel,
+                                border: const OutlineInputBorder(),
+                              ),
+                              maxLength: 3,
                             ),
                           ),
                           actions: [

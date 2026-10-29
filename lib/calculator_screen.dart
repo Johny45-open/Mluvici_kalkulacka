@@ -3306,7 +3306,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _maybeShowQuickSetup() async {
     if (_quickSetupShown || !mounted) return;
-    _quickSetupShown = true;
     // Draft se smí stavět teprve z načtené konfigurace (globály + profily),
     // jinak by Apply přepsal skutečnou konfiguraci výchozími hodnotami.
     try {
@@ -3323,6 +3322,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return;
     }
     if (!firstRun || !mounted) return;
+    _quickSetupShown = true;
     final draft = QuickSetupDraft.fromRuntime(
       settings: _getActiveAccessibilityProfile().settings,
       themeMode: widget.themeMode,
@@ -7351,148 +7351,36 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // validuje s lokalizovanými chybami a po potvrzení vloží "(n/d)" přes
   // _insertAtCursor. Evaluátor přijatý vstup na limitu neodmítne (dialogové
   // limity ≤ limitům Rational). Jediné hlasové potvrzení stávajícím kanálem.
-  Future<void> _showFractionInputDialog() {
+  Future<void> _showFractionInputDialog() async {
     final int insertPos = _cursorPosition;
     final bool startFresh = _hasResult;
     final numCtrl = TextEditingController();
     final denCtrl = TextEditingController();
-    // Chyby validace žijí mimo builder, aby je rebuild dialogu nezahodil.
-    String? numError;
-    String? denError;
-    return showAppDialog<void>(
-      context: context,
-      routeSettings: RouteSettings(
-        name: _s('Vložit zlomek', 'Insert fraction'),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (dialogContext, setStateDialog) {
-          InputDecoration decoration(String label, String? error) =>
-              InputDecoration(
-                labelText: label,
-                errorText: error,
-                helperText: _s(
-                  'Povolené znaky: číslice, čitatel smí mít mínus, max. 12',
-                  'Allowed: digits, numerator may start with minus, max. 12',
-                ),
-              );
-          return AlertDialog(
-            scrollable: false,
-            insetPadding: _dialogInsetPadding(),
-            title: Semantics(
-              header: true,
-              child: Text(_s('Vložit zlomek', 'Insert fraction')),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Semantics(
-                    label: _s('Čitatel', 'Numerator'),
-                    child: TextField(
-                      controller: numCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        signed: true,
-                      ),
-                      autofocus: true,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[-\d]')),
-                        LengthLimitingTextInputFormatter(13),
-                      ],
-                      decoration: decoration(
-                        _s('Čitatel', 'Numerator'),
-                        numError,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Semantics(
-                    label: _s('Jmenovatel', 'Denominator'),
-                    child: TextField(
-                      controller: denCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(12),
-                      ],
-                      decoration: decoration(
-                        _s(
-                          'Jmenovatel (nesmí být nula)',
-                          'Denominator (must not be zero)',
-                        ),
-                        denError,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(_l10n.cancel.toUpperCase()),
-              ),
-              TextButton(
-                onPressed: () {
-                  final nText = numCtrl.text.trim();
-                  final dText = denCtrl.text.trim();
-                  String? nErr;
-                  String? dErr;
-                  if (!RegExp(r'^-?\d{1,12}$').hasMatch(nText)) {
-                    nErr = _s(
-                      'Čitatel musí být celé číslo, nejvýše 12 číslic.',
-                      'Numerator must be an integer with up to 12 digits.',
-                    );
-                  }
-                  if (!RegExp(r'^\d{1,12}$').hasMatch(dText)) {
-                    dErr = _s(
-                      'Jmenovatel musí být kladné celé číslo, nejvýše 12 číslic.',
-                      'Denominator must be a positive integer with up to 12 digits.',
-                    );
-                  } else if (int.parse(dText) == 0) {
-                    dErr = _s(
-                      'Jmenovatel nesmí být nula.',
-                      'Denominator must not be zero.',
-                    );
-                  } else if (int.parse(dText) == 1) {
-                    dErr = _s(
-                      'Jmenovatel 1 netvoří zlomek, zadejte číslo přímo.',
-                      'Denominator 1 is not a fraction, enter the number directly.',
-                    );
-                  }
-                  if (nErr != null || dErr != null) {
-                    // Dialog zůstává otevřený, chyby se ukážou v polích
-                    // (errorText čte čtečka při fokusu pole).
-                    setStateDialog(() {
-                      numError = nErr;
-                      denError = dErr;
-                    });
-                    return;
-                  }
-                  Navigator.pop(ctx);
-                  final n = BigInt.parse(nText);
-                  final d = BigInt.parse(dText);
-                  setState(() {
-                    if (startFresh) {
-                      display = '';
-                      _cursorPosition = 0;
-                      _hasResult = false;
-                      _pendingNegOpens.clear();
-                      _fractionOverride = null;
-                    } else {
-                      _cursorPosition = insertPos.clamp(0, display.length);
-                    }
-                  });
-                  _insertAtCursor('($n/$d)');
-                  speak(_s('Vloženo $n lomeno $d', 'Inserted $n over $d'));
-                },
-                child: Text(_l10n.confirmAction.toUpperCase()),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+    final disposalCompleter = Completer<void>();
+    try {
+      await showAppDialog<void>(
+        context: context,
+        routeSettings: RouteSettings(
+          name: _s('Vložit zlomek', 'Insert fraction'),
+        ),
+        builder: (ctx) => _FractionInputDialog(
+          numCtrl: numCtrl,
+          denCtrl: denCtrl,
+          insertPos: insertPos,
+          startFresh: startFresh,
+          screenState: this,
+          onDispose: () {
+            if (!disposalCompleter.isCompleted) {
+              disposalCompleter.complete();
+            }
+          },
+        ),
+      );
+      await disposalCompleter.future;
+    } finally {
+      numCtrl.dispose();
+      denCtrl.dispose();
+    }
   }
 
   // Prezentační přepínač DEC <-> a/b jako běžné tlačítko hlavního layoutu
@@ -8061,9 +7949,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Future<void> _loadProfilesV2() async {
     List<AccessibilityProfile>? loaded;
     String? loadedActiveId;
+    String? jsonStr;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString('accessibility_profiles_v2');
+      jsonStr = prefs.getString('accessibility_profiles_v2');
       loadedActiveId = prefs.getString('activeProfileId');
       if (jsonStr != null) {
         final decoded = jsonDecode(jsonStr);
@@ -8116,9 +8005,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _profiles = [_fallbackStandardProfile()];
       }
       _activeProfileId = _profiles.first.id;
-      try {
-        await _saveProfilesV2();
-      } catch (_) {}
+      if (jsonStr == null) {
+        try {
+          await _saveProfilesV2();
+        } catch (_) {}
+      }
     }
     // cleanup starých klíčů (neglobálních)
     try {
@@ -17165,6 +17056,164 @@ class _TutorialDialogState extends State<_TutorialDialog>
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FractionInputDialog extends StatefulWidget {
+  final TextEditingController numCtrl;
+  final TextEditingController denCtrl;
+  final int insertPos;
+  final bool startFresh;
+  final _CalculatorScreenState screenState;
+  final VoidCallback onDispose;
+
+  const _FractionInputDialog({
+    required this.numCtrl,
+    required this.denCtrl,
+    required this.insertPos,
+    required this.startFresh,
+    required this.screenState,
+    required this.onDispose,
+  });
+
+  @override
+  State<_FractionInputDialog> createState() => _FractionInputDialogState();
+}
+
+class _FractionInputDialogState extends State<_FractionInputDialog> {
+  String? numError;
+  String? denError;
+
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final numHint = widget.screenState._s(
+      'Celé číslo se znaménkem minus pouze na začátku, nejvýše 12 číslic',
+      'Integer with minus sign only at the beginning, up to 12 digits',
+    );
+    final denHint = widget.screenState._s(
+      'Kladné celé číslo, nula a jednička nejsou povoleny, nejvýše 12 číslic',
+      'Positive integer, zero and one are not allowed, up to 12 digits',
+    );
+    return AlertDialog(
+      scrollable: false,
+      insetPadding: widget.screenState._dialogInsetPadding(),
+      title: Semantics(
+        header: true,
+        child: Text(widget.screenState._s('Vložit zlomek', 'Insert fraction')),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              hint: numError != null ? null : numHint,
+              child: TextField(
+                controller: widget.numCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                  signed: true,
+                ),
+                autofocus: true,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[-\d]')),
+                  LengthLimitingTextInputFormatter(13),
+                ],
+                decoration: InputDecoration(
+                  labelText: widget.screenState._s('Čitatel', 'Numerator'),
+                  errorText: numError,
+                  helperText: numHint,
+                  helperMaxLines: 3,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Semantics(
+              hint: denError != null ? null : denHint,
+              child: TextField(
+                controller: widget.denCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(12),
+                ],
+                decoration: InputDecoration(
+                  labelText: widget.screenState._s('Jmenovatel', 'Denominator'),
+                  errorText: denError,
+                  helperText: denHint,
+                  helperMaxLines: 3,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(widget.screenState._l10n.cancel.toUpperCase()),
+        ),
+        TextButton(
+          onPressed: () {
+            final nText = widget.numCtrl.text.trim();
+            final dText = widget.denCtrl.text.trim();
+            String? nErr;
+            String? dErr;
+            if (!RegExp(r'^-?\d{1,12}$').hasMatch(nText)) {
+              nErr = widget.screenState._s(
+                'Čitatel musí být celé číslo, nejvýše 12 číslic.',
+                'Numerator must be an integer with up to 12 digits.',
+              );
+            }
+            if (!RegExp(r'^\d{1,12}$').hasMatch(dText)) {
+              dErr = widget.screenState._s(
+                'Jmenovatel musí být kladné celé číslo, nejvýše 12 číslic.',
+                'Denominator must be a positive integer with up to 12 digits.',
+              );
+            } else if (int.parse(dText) == 0) {
+              dErr = widget.screenState._s(
+                'Jmenovatel nesmí být nula.',
+                'Denominator must not be zero.',
+              );
+            } else if (int.parse(dText) == 1) {
+              dErr = widget.screenState._s(
+                'Jmenovatel 1 netvoří zlomek, zadejte číslo přímo.',
+                'Denominator 1 is not a fraction, enter the number directly.',
+              );
+            }
+            if (nErr != null || dErr != null) {
+              setState(() {
+                numError = nErr;
+                denError = dErr;
+              });
+              return;
+            }
+            final n = BigInt.parse(nText);
+            final d = BigInt.parse(dText);
+            widget.screenState.setState(() {
+              if (widget.startFresh) {
+                widget.screenState.display = '';
+                widget.screenState._cursorPosition = 0;
+                widget.screenState._hasResult = false;
+                widget.screenState._pendingNegOpens.clear();
+                widget.screenState._fractionOverride = null;
+              } else {
+                widget.screenState._cursorPosition = widget.insertPos.clamp(0, widget.screenState.display.length);
+              }
+            });
+            widget.screenState._insertAtCursor('($n/$d)');
+            widget.screenState.speak(widget.screenState._s('Vloženo $n lomeno $d', 'Inserted $n over $d'));
+            Navigator.pop(context);
+          },
+          child: Text(widget.screenState._l10n.confirmAction.toUpperCase()),
+        ),
+      ],
     );
   }
 }

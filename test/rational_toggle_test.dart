@@ -59,11 +59,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Rational rat(int n, int d) =>
-      Rational(BigInt.from(n), BigInt.from(d));
+  Rational rat(int n, int d) => Rational(BigInt.from(n), BigInt.from(d));
 
-  group('exact results keep numeric _lastResult with structural metadata',
-      () {
+  group('exact results keep numeric _lastResult with structural metadata', () {
     testWidgets('six required equalities', (tester) async {
       final state = await pumpApp(tester);
       final cases = <String, Rational>{
@@ -118,8 +116,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('scientific input falls back to double engine unchanged',
-        (tester) async {
+    testWidgets('scientific input falls back to double engine unchanged', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await calculate(tester, state, '1/2+0.5');
       expect(state.lastNumericForTest, closeTo(1.0, 1e-9));
@@ -154,8 +153,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('text: auto-shows 5/6 with null override, toggles to decimal',
-        (tester) async {
+    testWidgets('text: auto-shows 5/6 with null override, toggles to decimal', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setResultDisplayModeForTest(ResultDisplayMode.text);
       await tester.pump();
@@ -191,8 +191,9 @@ void main() {
   });
 
   group('invalidation', () {
-    testWidgets('1/3 exact vs 0.3333333333 numeric share no metadata',
-        (tester) async {
+    testWidgets('1/3 exact vs 0.3333333333 numeric share no metadata', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await calculate(tester, state, '1/3');
       expect(state.lastRationalForTest, rat(1, 3));
@@ -204,8 +205,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('special modes and clear invalidate exact metadata',
-        (tester) async {
+    testWidgets('special modes and clear invalidate exact metadata', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await calculate(tester, state, '1/2+1/3');
       expect(state.lastRationalForTest, rat(5, 6));
@@ -238,8 +240,7 @@ void main() {
     });
   });
 
-  group('ANS, memory, history carry structure, never double approximation',
-      () {
+  group('ANS, memory, history carry structure, never double approximation', () {
     testWidgets('ANS chaining stays exact: 5/6 + 1/6 = 1', (tester) async {
       final state = await pumpApp(tester);
       await calculate(tester, state, '1/2+1/3');
@@ -275,14 +276,16 @@ void main() {
       expect(first.rational, rat(5, 6));
       expect(first.numericResult, isNot(contains('/')));
       // Storage roundtrip nese strukturovaná data, žádný text "5/6" v JSON.
-      final restored =
-          CalculationHistoryEntry.fromStorageString(first.toStorageString());
+      final restored = CalculationHistoryEntry.fromStorageString(
+        first.toStorageString(),
+      );
       expect(restored.rational, rat(5, 6));
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('legacy entries never gain back-approximated fractions',
-        (tester) async {
+    testWidgets('legacy entries never gain back-approximated fractions', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.addHistoryEntryForTest(
         CalculationHistoryEntry.fromStorageString('2+2|4'),
@@ -308,8 +311,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('integer result: reachable, no fraction engaged',
-        (tester) async {
+    testWidgets('integer result: reachable, no fraction engaged', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await calculate(tester, state, '1+1');
       final toggle = find.byKey(const ValueKey('fraction_toggle'));
@@ -362,8 +366,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('zero denominator keeps dialog open with error',
-        (tester) async {
+    testWidgets('zero denominator keeps dialog open with error', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await tester.tap(find.byKey(const ValueKey('fraction_insert')));
       await tester.pumpAndSettle();
@@ -378,6 +383,65 @@ void main() {
       // Dialog zůstal otevřený, výraz nedotčen.
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(state.displayForTest, '');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('fraction dialog accessibility and validation errors for 0 and 1', (
+      tester,
+    ) async {
+      await pumpApp(tester);
+      await tester.tap(find.byKey(const ValueKey('fraction_insert')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      final fields = find.byType(TextField);
+      expect(fields, findsNWidgets(2));
+
+      // Check numerator semantics
+      final numSemantics = tester.getSemantics(fields.at(0)).getSemanticsData();
+      expect(numSemantics.label, matches(RegExp(r'Čitatel|Numerator')));
+      expect(numSemantics.hint, matches(RegExp(r'Celé číslo se znaménkem minus|Integer with minus sign')));
+
+      // Check denominator semantics
+      final denSemantics = tester.getSemantics(fields.at(1)).getSemanticsData();
+      expect(denSemantics.label, matches(RegExp(r'Jmenovatel|Denominator')));
+      expect(denSemantics.hint, matches(RegExp(r'Kladné celé číslo|Positive integer')));
+
+      // Test denominator 1 validation error
+      await tester.enterText(fields.at(0), '2');
+      await tester.enterText(fields.at(1), '1');
+      await tester.pump();
+
+      final confirm = find.text('POTVRDIT').evaluate().isNotEmpty
+          ? find.text('POTVRDIT')
+          : find.text('CONFIRM');
+      await tester.tap(confirm.first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((w) =>
+            w is Text &&
+            (w.data?.contains('netvoří zlomek') == true ||
+                w.data?.contains('not a fraction') == true)),
+        findsOneWidget,
+      );
+
+      // Test denominator 0 validation error
+      await tester.enterText(fields.at(1), '0');
+      await tester.pump();
+      await tester.tap(confirm.first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((w) =>
+            w is Text &&
+            (w.data?.contains('nesmí být nula') == true ||
+                w.data?.contains('must not be zero') == true)),
+        findsOneWidget,
+      );
+
       expect(tester.takeException(), isNull);
     });
   });

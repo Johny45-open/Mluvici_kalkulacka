@@ -69,7 +69,10 @@ void main() {
       expect(history, isNotEmpty);
       final first = history.first;
       expect(first.expression, '√(72)');
-      expect(first.exact, const SurdValue(coefficient: 6, radicand: 2, index: 2));
+      expect(
+        first.exact,
+        const SurdValue(coefficient: 6, radicand: 2, index: 2),
+      );
       expect(
         double.parse(first.numericResult.replaceAll(',', '.')),
         closeTo(8.4852813742, 1e-6),
@@ -88,7 +91,10 @@ void main() {
         const SurdValue(coefficient: 3, radicand: 2, index: 3),
       );
       final history = state.historyForTest as List;
-      expect(history.first.exact, const SurdValue(coefficient: 3, radicand: 2, index: 3));
+      expect(
+        history.first.exact,
+        const SurdValue(coefficient: 3, radicand: 2, index: 3),
+      );
       expect(tester.takeException(), isNull);
     });
 
@@ -103,7 +109,10 @@ void main() {
         const SurdValue(coefficient: 2, radicand: 3, index: 4),
       );
       final history = state.historyForTest as List;
-      expect(history.first.exact, const SurdValue(coefficient: 2, radicand: 3, index: 4));
+      expect(
+        history.first.exact,
+        const SurdValue(coefficient: 2, radicand: 3, index: 4),
+      );
       expect(formatSurd(history.first.exact), '2⁴√3');
       expect(tester.takeException(), isNull);
     });
@@ -139,10 +148,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('6√2'), findsNothing);
       // Numerická hodnota je stále v historii.
-      expect(
-        find.textContaining(RegExp(r'8[,.]485')),
-        findsWidgets,
-      );
+      expect(find.textContaining(RegExp(r'8[,.]485')), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
@@ -181,9 +187,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('poklepání vloží NUMERICKOU hodnotu, ne 6√2', (
-      tester,
-    ) async {
+    testWidgets('poklepání vloží NUMERICKOU hodnotu, ne 6√2', (tester) async {
       final state = await pumpApp(tester);
       seedLegacyHistory(state);
       await tester.pump();
@@ -261,21 +265,27 @@ void main() {
       final restored = CalculationHistoryEntry.fromJson(e.toJson());
       expect(restored.expression, '√(72)');
       expect(restored.numericResult, '8,485281');
-      expect(restored.exact, const SurdValue(coefficient: 6, radicand: 2, index: 2));
+      expect(
+        restored.exact,
+        const SurdValue(coefficient: 6, radicand: 2, index: 2),
+      );
       // Žádný předformátovaný text v JSON.
       final raw = jsonEncode(e.toJson());
       expect(raw, isNot(contains('6√2')));
       // Storage roundtrip.
-      final fromStorage =
-          CalculationHistoryEntry.fromStorageString(e.toStorageString());
-      expect(fromStorage.exact, const SurdValue(coefficient: 6, radicand: 2, index: 2));
+      final fromStorage = CalculationHistoryEntry.fromStorageString(
+        e.toStorageString(),
+      );
+      expect(
+        fromStorage.exact,
+        const SurdValue(coefficient: 6, radicand: 2, index: 2),
+      );
     });
   });
 
   group('C) migrace starého profilu → globál', () {
     Map<String, Object> prefsWithLegacyProfile() {
-      final settings =
-          AccessibilitySettings.defaultsStandard().toJson();
+      final settings = AccessibilitySettings.defaultsStandard().toJson();
       settings['resultDisplayMode'] = 1; // text ve starém profilu
       final v2 = jsonEncode([
         {
@@ -331,55 +341,53 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('potvrzovací dialog: jeden titul, žádný liveRegion se souhrnem', (
-      tester,
-    ) async {
-      final state = await pumpApp(tester);
-      expect(state.startEditingForTest('standard'), isTrue);
-      state.updateEditingForTest(
-        (AccessibilitySettings s) => s.copyWith(speechRate: 0.9),
-      );
-      await tester.pump();
-      final dialogFuture = state.openEditorDialogForTest();
-      await tester.pumpAndSettle();
-      // _s() v editoru může vrátit cs i en variantu podle testovacího
-      // locale — akceptuj obě stejně jako stávající testy.
-      Finder saveFinder() => find
-          .text('Uložit')
-          .evaluate()
-          .isNotEmpty
-          ? find.text('Uložit')
-          : find.text('Save');
-      await tester.tap(saveFinder().first);
-      await tester.pumpAndSettle();
-      // Potvrzovací dialog má správný název.
-      final confirmTitle = find.text('Potvrdit uložení').evaluate().isNotEmpty
-          ? find.text('Potvrdit uložení')
-          : find.text('Confirm save');
-      expect(confirmTitle, findsOneWidget);
-      // Žádný liveRegion s celým summary textem (duplicita pro TalkBack).
-      final liveSummary = find.byWidgetPredicate(
-        (w) =>
-            w is Semantics &&
-            (w.properties.liveRegion == true) &&
-            ((w.properties.label?.contains('Potvrdit uložení profilu') ==
-                    true) ||
-                (w.properties.label?.contains('Confirm saving profile') ==
-                    true)),
-      );
-      expect(liveSummary, findsNothing);
-      // Save tlačítko confirmu má správný label.
-      expect(saveFinder(), findsWidgets);
-      await tester.tap(saveFinder().last);
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(milliseconds: 300));
-      await dialogFuture;
-      // Po save je editor zavřený a draft vyčištěn, summary není
-      // znovu vystaven jako živá oblast.
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(state.editingDraftForTest, isNull);
-      expect(liveSummary, findsNothing);
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'potvrzovací dialog: jeden titul, žádný liveRegion se souhrnem',
+      (tester) async {
+        final state = await pumpApp(tester);
+        expect(state.startEditingForTest('standard'), isTrue);
+        state.updateEditingForTest(
+          (AccessibilitySettings s) => s.copyWith(speechRate: 0.9),
+        );
+        await tester.pump();
+        final dialogFuture = state.openEditorDialogForTest();
+        await tester.pumpAndSettle();
+        // _s() v editoru může vrátit cs i en variantu podle testovacího
+        // locale — akceptuj obě stejně jako stávající testy.
+        Finder saveFinder() => find.text('Uložit').evaluate().isNotEmpty
+            ? find.text('Uložit')
+            : find.text('Save');
+        await tester.tap(saveFinder().first);
+        await tester.pumpAndSettle();
+        // Potvrzovací dialog má správný název.
+        final confirmTitle = find.text('Potvrdit uložení').evaluate().isNotEmpty
+            ? find.text('Potvrdit uložení')
+            : find.text('Confirm save');
+        expect(confirmTitle, findsOneWidget);
+        // Žádný liveRegion s celým summary textem (duplicita pro TalkBack).
+        final liveSummary = find.byWidgetPredicate(
+          (w) =>
+              w is Semantics &&
+              (w.properties.liveRegion == true) &&
+              ((w.properties.label?.contains('Potvrdit uložení profilu') ==
+                      true) ||
+                  (w.properties.label?.contains('Confirm saving profile') ==
+                      true)),
+        );
+        expect(liveSummary, findsNothing);
+        // Save tlačítko confirmu má správný label.
+        expect(saveFinder(), findsWidgets);
+        await tester.tap(saveFinder().last);
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 300));
+        await dialogFuture;
+        // Po save je editor zavřený a draft vyčištěn, summary není
+        // znovu vystaven jako živá oblast.
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(state.editingDraftForTest, isNull);
+        expect(liveSummary, findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

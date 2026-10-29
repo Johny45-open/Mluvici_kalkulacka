@@ -21,15 +21,34 @@ const String kQuickSetupCompletedKey = 'quickSetupCompleted';
 /// konfigurace. Seednuté defaults v RAM samy o sobě NIKDY neznamenají,
 /// že uživatel konfiguraci má.
 bool hasPersistedUserConfiguration({
-  required bool hasProfilesV2,
-  required bool hasActiveProfileId,
+  required String? profilesV2Json,
+  required String? activeProfileId,
   required bool hasModeQuestionAsked,
 }) {
-  // Stará validní instalace: profily v2 + aktivní profil + zodpovězená
-  // otázka na režim. Všechny tři markery musí existovat, aby se stará
-  // instalace nepovažovala za nového uživatele.
-  if (hasProfilesV2 && hasActiveProfileId && hasModeQuestionAsked) return true;
-  return false;
+  if (!hasModeQuestionAsked ||
+      activeProfileId == null ||
+      activeProfileId.isEmpty ||
+      profilesV2Json == null ||
+      profilesV2Json.isEmpty) {
+    return false;
+  }
+  try {
+    final decoded = jsonDecode(profilesV2Json);
+    if (decoded is! List || decoded.isEmpty) return false;
+    bool foundActive = false;
+    for (final p in decoded) {
+      if (p is Map) {
+        final id = p['id']?.toString();
+        if (id != null && id == activeProfileId) {
+          foundActive = true;
+          break;
+        }
+      }
+    }
+    return foundActive;
+  } catch (_) {
+    return false;
+  }
 }
 
 /// First-run detekce nad skutečnými SharedPreferences.
@@ -41,8 +60,8 @@ bool hasPersistedUserConfiguration({
 Future<bool> isQuickSetupFirstRun(SharedPreferences prefs) async {
   if (prefs.getBool(kQuickSetupCompletedKey) == true) return false;
   final hasOld = hasPersistedUserConfiguration(
-    hasProfilesV2: prefs.containsKey('accessibility_profiles_v2'),
-    hasActiveProfileId: prefs.containsKey('activeProfileId'),
+    profilesV2Json: prefs.getString('accessibility_profiles_v2'),
+    activeProfileId: prefs.getString('activeProfileId'),
     hasModeQuestionAsked: prefs.getBool('modeQuestionAsked') == true,
   );
   if (hasOld) {
@@ -125,17 +144,17 @@ Map<String, dynamic> buildQuickSetupContract({
 }) {
   final effectiveProfiles = profiles.isNotEmpty
       ? profiles
-          .map(
-            (p) => p.id == activeProfileId
-                ? AccessibilityProfile(
-                    id: p.id,
-                    name: p.name,
-                    isBuiltIn: p.isBuiltIn,
-                    settings: draft.settings.copyWith(),
-                  )
-                : p,
-          )
-          .toList()
+            .map(
+              (p) => p.id == activeProfileId
+                  ? AccessibilityProfile(
+                      id: p.id,
+                      name: p.name,
+                      isBuiltIn: p.isBuiltIn,
+                      settings: draft.settings.copyWith(),
+                    )
+                  : p,
+            )
+            .toList()
       : [
           AccessibilityProfile(
             id: activeProfileId,
@@ -211,10 +230,7 @@ Future<void> persistCanonicalContract(
     prefs.setString('currencyTo', parsed.currencyTo),
     prefs.setBool('devModeEnabled', parsed.devEnabled),
     prefs.setBool('devAutoDiagnosticEnabled', parsed.devAutoDiagnostic),
-    prefs.setInt(
-      'devDiagnosticDurationMs',
-      parsed.devDiagnosticDurationMs,
-    ),
+    prefs.setInt('devDiagnosticDurationMs', parsed.devDiagnosticDurationMs),
     if (parsed.devPinCode != null)
       prefs.setString('devPinCode', parsed.devPinCode!)
     else

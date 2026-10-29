@@ -74,17 +74,11 @@ class QuickSetupDraft {
   QuickSetupDraft applyPreset(QuickSetupPreset preset) {
     switch (preset) {
       case QuickSetupPreset.standard:
-        return copyWith(
-          settings: AccessibilitySettings.defaultsStandard(),
-        );
+        return copyWith(settings: AccessibilitySettings.defaultsStandard());
       case QuickSetupPreset.blind:
-        return copyWith(
-          settings: AccessibilitySettings.defaultsBlind(),
-        );
+        return copyWith(settings: AccessibilitySettings.defaultsBlind());
       case QuickSetupPreset.lowVision:
-        return copyWith(
-          settings: AccessibilitySettings.defaultsLowVision(),
-        );
+        return copyWith(settings: AccessibilitySettings.defaultsLowVision());
       case QuickSetupPreset.custom:
         return this;
     }

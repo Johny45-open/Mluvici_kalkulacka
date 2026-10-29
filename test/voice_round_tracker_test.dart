@@ -29,27 +29,29 @@ void main() {
   }
 
   group('ochrana kol (kritéria opravy)', () {
-    test('hint před finálem: finále v milosti vyhrává, milost se ruší',
-        () async {
-      int expirations = 0;
-      final tracker = newTracker(onExpired: (_) => expirations++);
-      final completer = Completer<String?>();
+    test(
+      'hint před finálem: finále v milosti vyhrává, milost se ruší',
+      () async {
+        int expirations = 0;
+        final tracker = newTracker(onExpired: (_) => expirations++);
+        final completer = Completer<String?>();
 
-      final g = tracker.beginRound();
-      // TTS mezera: hint sem neprojde.
-      expect(tracker.armHint(g, pending: true), isFalse);
-      tracker.activate(g);
-      // done bez výsledku → pouze milost, žádné dokončení.
-      expect(tracker.armHint(g, pending: !completer.isCompleted), isTrue);
-      expect(completer.isCompleted, isFalse);
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-      // Finále v letu dorazí v milosti → přijato, milost zrušena.
-      expect(tracker.acceptFinal(g), isTrue);
-      completer.complete('ano');
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(expirations, 0);
-      expect(completer.isCompleted, isTrue);
-    });
+        final g = tracker.beginRound();
+        // TTS mezera: hint sem neprojde.
+        expect(tracker.armHint(g, pending: true), isFalse);
+        tracker.activate(g);
+        // done bez výsledku → pouze milost, žádné dokončení.
+        expect(tracker.armHint(g, pending: !completer.isCompleted), isTrue);
+        expect(completer.isCompleted, isFalse);
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        // Finále v letu dorazí v milosti → přijato, milost zrušena.
+        expect(tracker.acceptFinal(g), isTrue);
+        completer.complete('ano');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(expirations, 0);
+        expect(completer.isCompleted, isTrue);
+      },
+    );
 
     test('obvyklé pořadí finále → done: hint po finále je no-op', () async {
       int expirations = 0;
@@ -63,8 +65,7 @@ void main() {
       expect(expirations, 0);
     });
 
-    test('opožděný notListening během TTS nové otázky je ignorován',
-        () async {
+    test('opožděný notListening během TTS nové otázky je ignorován', () async {
       int expirations = 0;
       final tracker = newTracker(onExpired: (_) => expirations++);
       // Kolo N úspěšně skončilo.
@@ -163,8 +164,7 @@ void main() {
   });
 
   group('známá omezení knihovny (charakterizace, NE kritéria)', () {
-    test(
-        'CHARAKTERIZACE: staré finále doručené do nového aktivního kola '
+    test('CHARAKTERIZACE: staré finále doručené do nového aktivního kola '
         'tracker přijme — původ slov API nerozliší', () {
       final tracker = newTracker();
       final gN = tracker.beginRound();

@@ -75,7 +75,10 @@ void main() {
         const SurdValue(coefficient: 6, radicand: 2, index: 2),
       );
       final history = state.historyForTest as List;
-      expect(history.first.exact, const SurdValue(coefficient: 6, radicand: 2, index: 2));
+      expect(
+        history.first.exact,
+        const SurdValue(coefficient: 6, radicand: 2, index: 2),
+      );
       expect(tester.takeException(), isNull);
     });
 
@@ -156,42 +159,43 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('legacy bez metadat: text/auto fallback 6√2, segment numerika', (
-      tester,
-    ) async {
-      final state = await pumpApp(tester);
-      state.addHistoryEntryForTest(
-        CalculationHistoryEntry.fromStorageString('√72|8,485281'),
-      );
-      await tester.pump();
-      final history = state.historyForTest as List;
-      expect(history.first.exact, isNull);
-      expect(history.first.isLegacyExactUnknown, isTrue);
+    testWidgets(
+      'legacy bez metadat: text/auto fallback 6√2, segment numerika',
+      (tester) async {
+        final state = await pumpApp(tester);
+        state.addHistoryEntryForTest(
+          CalculationHistoryEntry.fromStorageString('√72|8,485281'),
+        );
+        await tester.pump();
+        final history = state.historyForTest as List;
+        expect(history.first.exact, isNull);
+        expect(history.first.isLegacyExactUnknown, isTrue);
 
-      state.setResultDisplayModeForTest(ResultDisplayMode.text);
-      await tester.pump();
-      state.showHistoryDialogForTest();
-      await tester.pumpAndSettle();
-      expect(find.text('6√2'), findsOneWidget);
-      await tester.tap(closeButton());
-      await tester.pumpAndSettle();
+        state.setResultDisplayModeForTest(ResultDisplayMode.text);
+        await tester.pump();
+        state.showHistoryDialogForTest();
+        await tester.pumpAndSettle();
+        expect(find.text('6√2'), findsOneWidget);
+        await tester.tap(closeButton());
+        await tester.pumpAndSettle();
 
-      state.setResultDisplayModeForTest(ResultDisplayMode.auto);
-      await tester.pump();
-      state.showHistoryDialogForTest();
-      await tester.pumpAndSettle();
-      expect(find.text('6√2'), findsOneWidget);
-      await tester.tap(closeButton());
-      await tester.pumpAndSettle();
+        state.setResultDisplayModeForTest(ResultDisplayMode.auto);
+        await tester.pump();
+        state.showHistoryDialogForTest();
+        await tester.pumpAndSettle();
+        expect(find.text('6√2'), findsOneWidget);
+        await tester.tap(closeButton());
+        await tester.pumpAndSettle();
 
-      state.setResultDisplayModeForTest(ResultDisplayMode.segment);
-      await tester.pump();
-      state.showHistoryDialogForTest();
-      await tester.pumpAndSettle();
-      expect(find.text('6√2'), findsNothing);
-      expect(find.textContaining(RegExp(r'8[,.]485')), findsWidgets);
-      expect(tester.takeException(), isNull);
-    });
+        state.setResultDisplayModeForTest(ResultDisplayMode.segment);
+        await tester.pump();
+        state.showHistoryDialogForTest();
+        await tester.pumpAndSettle();
+        expect(find.text('6√2'), findsNothing);
+        expect(find.textContaining(RegExp(r'8[,.]485')), findsWidgets);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets('tap na historii vkládá numeriku, ne 6√2', (tester) async {
       final state = await pumpApp(tester);
@@ -218,8 +222,9 @@ void main() {
         exactRadicand: 2,
         exactIndex: 2,
       );
-      final restored =
-          CalculationHistoryEntry.fromStorageString(e.toStorageString());
+      final restored = CalculationHistoryEntry.fromStorageString(
+        e.toStorageString(),
+      );
       expect(
         restored.exact,
         const SurdValue(coefficient: 6, radicand: 2, index: 2),
@@ -260,8 +265,7 @@ void main() {
       expect(state.activeResultForTest() as String, '6√2');
       // Hlas odpovídá aktivní reprezentaci, ne natvrdo numerice.
       final speech = state.currentResultSpeechForTest() as String;
-      final expected =
-          state.spokenForDisplayForTest('6√2') as String;
+      final expected = state.spokenForDisplayForTest('6√2') as String;
       expect(speech, expected);
       expect(speech.contains('odmocnina') || speech.contains('root'), isTrue);
       expect(tester.takeException(), isNull);
@@ -307,20 +311,12 @@ void main() {
       expect(find.text('6√2'), findsNothing);
       expect(state.activeResultForTest() as String, numeric);
       final speech = state.currentResultSpeechForTest() as String;
-      expect(
-        speech.contains('odmocnina') || speech.contains('root'),
-        isFalse,
-      );
-      expect(
-        speech,
-        state.spokenForDisplayForTest(numeric) as String,
-      );
+      expect(speech.contains('odmocnina') || speech.contains('root'), isFalse);
+      expect(speech, state.spokenForDisplayForTest(numeric) as String);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('běžný decimal 1/2 se chová jako před opravou', (
-      tester,
-    ) async {
+    testWidgets('běžný decimal 1/2 se chová jako před opravou', (tester) async {
       final state = await pumpApp(tester);
       await calculate(tester, state, '1/2');
       final before = state.lastResultForTest as String;

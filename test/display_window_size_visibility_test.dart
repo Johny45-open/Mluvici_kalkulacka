@@ -88,7 +88,9 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 1.0;
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearAllTestValues);
-    await tester.pumpWidget(ScientificCalculatorApp(locale: const Locale('cs')));
+    await tester.pumpWidget(
+      ScientificCalculatorApp(locale: const Locale('cs')),
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     return tester.state(find.byType(CalculatorScreen)) as dynamic;
@@ -130,11 +132,8 @@ void main() {
     double innerTop,
     double innerBottom,
     bool fallback,
-  }) measure(
-    WidgetTester tester, {
-    required Size size,
-    required String mode,
-  }) {
+  })
+  measure(WidgetTester tester, {required Size size, required String mode}) {
     expect(
       tester.takeException(),
       isNull,
@@ -229,13 +228,15 @@ void main() {
       expect(
         isVerticallyInside(rootRect, dotRect),
         isTrue,
-        reason: '$mode @ $size: mřížka svisle mimo displej '
+        reason:
+            '$mode @ $size: mřížka svisle mimo displej '
             '(dotRect=$dotRect vs rootRect=$rootRect)',
       );
       expect(
         isVerticallyInside(rootRect, segRect),
         isTrue,
-        reason: '$mode @ $size: výsledek svisle mimo displej '
+        reason:
+            '$mode @ $size: výsledek svisle mimo displej '
             '(segRect=$segRect vs rootRect=$rootRect)',
       );
     }
@@ -290,7 +291,8 @@ void main() {
     expect(
       g.fallback,
       isFalse,
-      reason: '$mode @ $size: nouzový vertikální scroll je zapnutý '
+      reason:
+          '$mode @ $size: nouzový vertikální scroll je zapnutý '
           '(fitScale narazil na podlahu 0,36) — displej není kompletně '
           'viditelný bez posunu',
     );
@@ -340,7 +342,8 @@ void main() {
     expect(
       dotTopRect.top,
       greaterThanOrEqualTo(g.innerTop - 0.5),
-      reason: '$mode @ $size: po posunu na začátek není mřížka nahoře '
+      reason:
+          '$mode @ $size: po posunu na začátek není mřížka nahoře '
           '(dotTop=${dotTopRect.top} < innerTop=${g.innerTop})',
     );
     expect(
@@ -358,8 +361,7 @@ void main() {
     );
     final segEnd = largestRect(tester, segInDisplay);
     expect(
-      segEnd.top >= g.innerTop - 0.5 &&
-          segEnd.bottom <= g.innerBottom + 0.5,
+      segEnd.top >= g.innerTop - 0.5 && segEnd.bottom <= g.innerBottom + 0.5,
       isTrue,
       reason:
           '$mode @ $size: po posunu na konec není výsledek vidět celý '
@@ -395,9 +397,7 @@ void main() {
       }
     });
 
-    testWidgets('změna velikosti okna za běhu displej nezničí', (
-      tester,
-    ) async {
+    testWidgets('změna velikosti okna za běhu displej nezničí', (tester) async {
       final state = await pumpSized(tester, const Size(1280, 720));
       state.switchModeForTest(CalculatorMode.scientific);
       await tester.pumpAndSettle();
@@ -551,7 +551,9 @@ void main() {
       tester.platformDispatcher.textScaleFactorTestValue = 1.5;
       addTearDown(tester.view.reset);
       addTearDown(tester.platformDispatcher.clearAllTestValues);
-      await tester.pumpWidget(ScientificCalculatorApp(locale: const Locale('cs')));
+      await tester.pumpWidget(
+        ScientificCalculatorApp(locale: const Locale('cs')),
+      );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       final state = tester.state(find.byType(CalculatorScreen)) as dynamic;

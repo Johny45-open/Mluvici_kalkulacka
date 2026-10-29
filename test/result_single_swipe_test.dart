@@ -79,12 +79,11 @@ void main() {
     return out;
   }
 
-  List<SemanticsNode> resultNodes(WidgetTester tester) => allNodes(
-    tester,
-  ).where((n) {
-    final lbl = n.getSemanticsData().label;
-    return lbl == 'Výsledek' || lbl == 'Result';
-  }).toList();
+  List<SemanticsNode> resultNodes(WidgetTester tester) =>
+      allNodes(tester).where((n) {
+        final lbl = n.getSemanticsData().label;
+        return lbl == 'Výsledek' || lbl == 'Result';
+      }).toList();
 
   int indexOfLabel(List<SemanticsNode> nodes, bool Function(String) match) {
     for (var i = 0; i < nodes.length; i++) {
@@ -105,8 +104,9 @@ void main() {
   }
 
   group('Z4 výsledek = jedna položka', () {
-    testWidgets('1.+2. krátký výsledek: jeden uzel s plnou hodnotou',
-        (tester) async {
+    testWidgets('1.+2. krátký výsledek: jeden uzel s plnou hodnotou', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
@@ -124,8 +124,9 @@ void main() {
       }
     });
 
-    testWidgets('1.+2. dlouhý výsledek: jeden uzel s plnou hodnotou',
-        (tester) async {
+    testWidgets('1.+2. dlouhý výsledek: jeden uzel s plnou hodnotou', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
@@ -141,8 +142,9 @@ void main() {
       }
     });
 
-    testWidgets('3. výsledková větev bez scrollLeft/scrollRight',
-        (tester) async {
+    testWidgets('3. výsledková větev bez scrollLeft/scrollRight', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
@@ -166,8 +168,7 @@ void main() {
           isFalse,
         );
         i++;
-        while (i < nodes.length &&
-            nodes[i].getSemanticsData().label.isEmpty) {
+        while (i < nodes.length && nodes[i].getSemanticsData().label.isEmpty) {
           expect(
             nodes[i].getSemanticsData().hasAction(SemanticsAction.scrollLeft),
             isFalse,
@@ -187,54 +188,57 @@ void main() {
       }
     });
 
-    testWidgets('4. pořadí: Výsledek → Na začátek → zlomek → Paměť → klávesnice',
-        (tester) async {
-      final handle = tester.ensureSemantics();
-      try {
-        final state = await pumpApp(tester);
-        await calculate(tester, state, '3/4');
+    testWidgets(
+      '4. pořadí: Výsledek → Na začátek → zlomek → Paměť → klávesnice',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        try {
+          final state = await pumpApp(tester);
+          await calculate(tester, state, '3/4');
 
-        final nodes = allNodes(tester);
-        final resIdx = indexOfLabel(
-          nodes,
-          (l) => l == 'Výsledek' || l == 'Result',
-        );
-        final cursorIdx = indexOfLabel(
-          nodes,
-          (l) => l == 'Na začátek' || l == 'To start',
-        );
-        final fractionIdx = indexOfLabel(
-          nodes,
-          (l) => l.contains('Zlomek') || l.contains('Fraction'),
-        );
-        final memoryIdx = indexOfLabel(
-          nodes,
-          (l) => l.contains('Paměť') || l.contains('Memory'),
-        );
-        final equalsIdx = indexOfLabel(
-          nodes,
-          (l) => l == 'Rovná se' || l == 'Equals',
-        );
-        for (final e in {
-          'Výsledek': resIdx,
-          'Na začátek': cursorIdx,
-          'Zlomek': fractionIdx,
-          'Paměť': memoryIdx,
-          'Rovná se': equalsIdx,
-        }.entries) {
-          expect(e.value, greaterThanOrEqualTo(0), reason: 'Chybí ${e.key}');
+          final nodes = allNodes(tester);
+          final resIdx = indexOfLabel(
+            nodes,
+            (l) => l == 'Výsledek' || l == 'Result',
+          );
+          final cursorIdx = indexOfLabel(
+            nodes,
+            (l) => l == 'Na začátek' || l == 'To start',
+          );
+          final fractionIdx = indexOfLabel(
+            nodes,
+            (l) => l.contains('Zlomek') || l.contains('Fraction'),
+          );
+          final memoryIdx = indexOfLabel(
+            nodes,
+            (l) => l.contains('Paměť') || l.contains('Memory'),
+          );
+          final equalsIdx = indexOfLabel(
+            nodes,
+            (l) => l == 'Rovná se' || l == 'Equals',
+          );
+          for (final e in {
+            'Výsledek': resIdx,
+            'Na začátek': cursorIdx,
+            'Zlomek': fractionIdx,
+            'Paměť': memoryIdx,
+            'Rovná se': equalsIdx,
+          }.entries) {
+            expect(e.value, greaterThanOrEqualTo(0), reason: 'Chybí ${e.key}');
+          }
+          expect(resIdx, lessThan(cursorIdx));
+          expect(cursorIdx, lessThan(fractionIdx));
+          expect(fractionIdx, lessThan(memoryIdx));
+          expect(memoryIdx, lessThan(equalsIdx));
+        } finally {
+          handle.dispose();
         }
-        expect(resIdx, lessThan(cursorIdx));
-        expect(cursorIdx, lessThan(fractionIdx));
-        expect(fractionIdx, lessThan(memoryIdx));
-        expect(memoryIdx, lessThan(equalsIdx));
-      } finally {
-        handle.dispose();
-      }
-    });
+      },
+    );
 
-    testWidgets('6. dlouhý výsledek lze vizuálně horizontálně posouvat',
-        (tester) async {
+    testWidgets('6. dlouhý výsledek lze vizuálně horizontálně posouvat', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       await calculate(tester, state, '123456789*987654321');
 
@@ -253,8 +257,7 @@ void main() {
         matching: find.byType(Scrollable),
       );
       expect(scrollable, findsOneWidget);
-      final before =
-          tester.state<ScrollableState>(scrollable).position.pixels;
+      final before = tester.state<ScrollableState>(scrollable).position.pixels;
       expect(before, 0.0);
 
       // Tažení prstem po výsledku: offset se pohne, struktura drží.

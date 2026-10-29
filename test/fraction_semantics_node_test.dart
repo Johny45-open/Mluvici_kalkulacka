@@ -98,53 +98,55 @@ void main() {
 
   group('Sémantický strom zlomkových tlačítek (uzly, ne widgety)', () {
     testWidgets(
-        '1. Vložit zlomek: právě jeden uzel, button + focusable + tap', (
-      tester,
-    ) async {
-      final handle = tester.ensureSemantics();
-      try {
-        await pumpApp(tester);
-        const key = ValueKey<String>('fraction_insert');
-        final label = fullSemanticsLabel(tester, key);
-        final nodes = allSemanticsNodes(tester);
+      '1. Vložit zlomek: právě jeden uzel, button + focusable + tap',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        try {
+          await pumpApp(tester);
+          const key = ValueKey<String>('fraction_insert');
+          final label = fullSemanticsLabel(tester, key);
+          final nodes = allSemanticsNodes(tester);
 
-        final matching = nodes.where((n) => n.label == label).toList();
-        expect(
-          matching,
-          hasLength(1),
-          reason:
-              'Přístupný název smí nést právě jeden uzel (jinak NVDA hlásí '
-              'dvě tlačítkové položky). Nalezeno: '
-              '${matching.map(describe).join(' | ')}',
-        );
-        final node = matching.single;
-        expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
-        expect(node.hasFlag(SemanticsFlag.isFocusable), isTrue);
-        expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-        // Parazitní uzel: tlačítko bez akce tap s týmž názvem.
-        final parasitic = nodes
-            .where(
-              (n) =>
-                  n != node &&
-                  n.hasFlag(SemanticsFlag.isButton) &&
-                  !n.getSemanticsData().hasAction(SemanticsAction.tap) &&
-                  n.label.contains(label),
-            )
-            .toList();
-        expect(
-          parasitic,
-          isEmpty,
-          reason:
-              'Žádný druhý „button" uzel bez tap s týmž názvem. '
-              'Nalezeno: ${parasitic.map(describe).join(' | ')}',
-        );
-      } finally {
-        handle.dispose();
-      }
-    });
+          final matching = nodes.where((n) => n.label == label).toList();
+          expect(
+            matching,
+            hasLength(1),
+            reason:
+                'Přístupný název smí nést právě jeden uzel (jinak NVDA hlásí '
+                'dvě tlačítkové položky). Nalezeno: '
+                '${matching.map(describe).join(' | ')}',
+          );
+          final node = matching.single;
+          expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
+          expect(node.hasFlag(SemanticsFlag.isFocusable), isTrue);
+          expect(
+            node.getSemanticsData().hasAction(SemanticsAction.tap),
+            isTrue,
+          );
+          // Parazitní uzel: tlačítko bez akce tap s týmž názvem.
+          final parasitic = nodes
+              .where(
+                (n) =>
+                    n != node &&
+                    n.hasFlag(SemanticsFlag.isButton) &&
+                    !n.getSemanticsData().hasAction(SemanticsAction.tap) &&
+                    n.label.contains(label),
+              )
+              .toList();
+          expect(
+            parasitic,
+            isEmpty,
+            reason:
+                'Žádný druhý „button" uzel bez tap s týmž názvem. '
+                'Nalezeno: ${parasitic.map(describe).join(' | ')}',
+          );
+        } finally {
+          handle.dispose();
+        }
+      },
+    );
 
-    testWidgets(
-        '2. Přepínač: právě jeden uzel nese plný název se stavem '
+    testWidgets('2. Přepínač: právě jeden uzel nese plný název se stavem '
         '(button, focusable, tap)', (tester) async {
       final handle = tester.ensureSemantics();
       try {
@@ -178,7 +180,8 @@ void main() {
         final visual = nodes
             .where(
               (n) =>
-                  n.label == richLabel.split('. ').first && n.label != richLabel,
+                  n.label == richLabel.split('. ').first &&
+                  n.label != richLabel,
             )
             .toList();
         expect(

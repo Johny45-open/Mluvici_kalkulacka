@@ -4,11 +4,26 @@ import 'package:mluvici_kalkulacka/rational.dart';
 void main() {
   group('Rational normalization', () {
     test('sign lives in numerator, gcd applied', () {
-      expect(Rational(BigInt.from(2), BigInt.from(4)), Rational(BigInt.one, BigInt.from(2)));
-      expect(Rational(BigInt.from(-2), BigInt.from(4)), Rational(BigInt.from(-1), BigInt.from(2)));
-      expect(Rational(BigInt.from(2), BigInt.from(-4)), Rational(BigInt.from(-1), BigInt.from(2)));
-      expect(Rational(BigInt.from(-2), BigInt.from(-4)), Rational(BigInt.one, BigInt.from(2)));
-      expect(Rational(BigInt.zero, BigInt.from(5)), Rational(BigInt.zero, BigInt.one));
+      expect(
+        Rational(BigInt.from(2), BigInt.from(4)),
+        Rational(BigInt.one, BigInt.from(2)),
+      );
+      expect(
+        Rational(BigInt.from(-2), BigInt.from(4)),
+        Rational(BigInt.from(-1), BigInt.from(2)),
+      );
+      expect(
+        Rational(BigInt.from(2), BigInt.from(-4)),
+        Rational(BigInt.from(-1), BigInt.from(2)),
+      );
+      expect(
+        Rational(BigInt.from(-2), BigInt.from(-4)),
+        Rational(BigInt.one, BigInt.from(2)),
+      );
+      expect(
+        Rational(BigInt.zero, BigInt.from(5)),
+        Rational(BigInt.zero, BigInt.one),
+      );
       expect(Rational(BigInt.from(5), BigInt.one).isInteger, isTrue);
     });
 
@@ -43,7 +58,10 @@ void main() {
     test('toDisplayString never yields n/1', () {
       expect(Rational(BigInt.from(5), BigInt.one).toDisplayString(), '5');
       expect(Rational(BigInt.zero, BigInt.one).toDisplayString(), '0');
-      expect(Rational(BigInt.from(-3), BigInt.from(4)).toDisplayString(), '-3/4');
+      expect(
+        Rational(BigInt.from(-3), BigInt.from(4)).toDisplayString(),
+        '-3/4',
+      );
     });
 
     test('storage roundtrip', () {
@@ -88,8 +106,11 @@ void main() {
         '--1/2',
         '1/2+SIN(30)',
       ]) {
-        expect(tryEvaluateRational(expr), isA<RationalUnsupported>(),
-            reason: expr);
+        expect(
+          tryEvaluateRational(expr),
+          isA<RationalUnsupported>(),
+          reason: expr,
+        );
       }
     });
 
@@ -125,10 +146,7 @@ void main() {
       final res = tryEvaluateRational('ANS+1/2', symbols: {'ANS': ans});
       expect(res, isA<RationalOk>());
       expect((res as RationalOk).value, Rational(BigInt.one, BigInt.one));
-      expect(
-        tryEvaluateRational('ANS+1/2'),
-        isA<RationalUnsupported>(),
-      );
+      expect(tryEvaluateRational('ANS+1/2'), isA<RationalUnsupported>());
     });
   });
 }

@@ -108,8 +108,9 @@ void main() {
       );
     });
 
-    testWidgets('∛ přes ANS se záporným výsledkem (celá produkční cesta)',
-        (tester) async {
+    testWidgets('∛ přes ANS se záporným výsledkem (celá produkční cesta)', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.displayForTest = '-8/27';
       state.calculateForTest();
@@ -144,8 +145,9 @@ void main() {
       expect(state.lastResultForTest, isNot('Error'));
     });
 
-    testWidgets('vnořené závorky: ∛((-8)), ∛((8/27)), ∛(∛(729))',
-        (tester) async {
+    testWidgets('vnořené závorky: ∛((-8)), ∛((8/27)), ∛(∛(729))', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       expect(state.evaluateExpressionForTest('∛((-8))'), closeTo(-2.0, 1e-9));
       expect(
@@ -176,17 +178,14 @@ void main() {
       expect(state.evaluateExpressionForTest('√(2)*√(2)'), closeTo(2.0, 1e-9));
     });
 
-    testWidgets('skutečně nevyvážený výraz je stále syntaxParens',
-        (tester) async {
+    testWidgets('skutečně nevyvážený výraz je stále syntaxParens', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       for (final expr in ['∛(-8', '1+(2*3', '((1+2)', '(1+2))']) {
         final err = catchCalcError(state, expr);
         expect(err.kind, CalcErrorKind.syntax, reason: 'výraz $expr');
-        expect(
-          err.reason,
-          CalcErrorReason.syntaxParens,
-          reason: 'výraz $expr',
-        );
+        expect(err.reason, CalcErrorReason.syntaxParens, reason: 'výraz $expr');
       }
     });
 

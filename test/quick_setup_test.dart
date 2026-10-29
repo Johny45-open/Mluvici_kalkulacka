@@ -96,34 +96,47 @@ void main() {
       expect(prefs.getString('activeProfileId'), 'blind');
     });
 
-    test('4) seed defaults v RAM != ulozena konfigurace', () {
-      // Seed zapise v2+activeId, ale bez modeQuestionAsked to NENI
-      // skutecne ulozena uzivatelska konfigurace.
-      expect(
-        hasPersistedUserConfiguration(
-          hasProfilesV2: true,
-          hasActiveProfileId: true,
-          hasModeQuestionAsked: false,
-        ),
-        isFalse,
-      );
-      expect(
-        hasPersistedUserConfiguration(
-          hasProfilesV2: true,
-          hasActiveProfileId: true,
-          hasModeQuestionAsked: true,
-        ),
-        isTrue,
-      );
-      expect(
-        hasPersistedUserConfiguration(
-          hasProfilesV2: false,
-          hasActiveProfileId: false,
-          hasModeQuestionAsked: false,
-        ),
-        isFalse,
-      );
-    });
+    test(
+      '4) validace persistovane konfigurace (seed, korupce, neplatne ID)',
+      () {
+        final validJson = seedV2Json();
+        expect(
+          hasPersistedUserConfiguration(
+            profilesV2Json: validJson,
+            activeProfileId: 'standard',
+            hasModeQuestionAsked: true,
+          ),
+          isTrue,
+        );
+        // Bez modeQuestionAsked -> false
+        expect(
+          hasPersistedUserConfiguration(
+            profilesV2Json: validJson,
+            activeProfileId: 'standard',
+            hasModeQuestionAsked: false,
+          ),
+          isFalse,
+        );
+        // Neplatny JSON -> false
+        expect(
+          hasPersistedUserConfiguration(
+            profilesV2Json: 'neplatny json',
+            activeProfileId: 'standard',
+            hasModeQuestionAsked: true,
+          ),
+          isFalse,
+        );
+        // Neexistujici activeProfileId -> false
+        expect(
+          hasPersistedUserConfiguration(
+            profilesV2Json: validJson,
+            activeProfileId: 'neexistujici',
+            hasModeQuestionAsked: true,
+          ),
+          isFalse,
+        );
+      },
+    );
 
     test('quickSetupCompleted == true -> nikdy first run', () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
@@ -155,10 +168,7 @@ void main() {
       final d = QuickSetupDraft.defaults().applyPreset(
         QuickSetupPreset.lowVision,
       );
-      expect(
-        d.settings.accessibilityType,
-        AccessibilityType.visuallyImpaired,
-      );
+      expect(d.settings.accessibilityType, AccessibilityType.visuallyImpaired);
       expect(d.settings.fontSizeMultiplier, 1.75);
       expect(d.settings.useSixteenSegment, isTrue);
       expect(d.detectedPreset, QuickSetupPreset.lowVision);
@@ -257,14 +267,18 @@ void main() {
       final reloaded = await SharedPreferences.getInstance();
       expect(reloaded.getBool('isDegreeMode'), isFalse);
       final snapshot =
-          jsonDecode(reloaded.getString('config_contract_v1')!) as Map<String, dynamic>;
+          jsonDecode(reloaded.getString('config_contract_v1')!)
+              as Map<String, dynamic>;
       final parsed = parseContract(snapshot);
       expect(parsed.isDegreeMode, isFalse);
       expect(parsed.defaultMode, CalculatorMode.basic);
       expect(parsed.resultDisplayMode, ResultDisplayMode.text);
       expect(parsed.themeMode, ThemeMode.light);
       expect(
-        parsed.profiles.firstWhere((p) => p.id == 'standard').settings.accessibilityType,
+        parsed.profiles
+            .firstWhere((p) => p.id == 'standard')
+            .settings
+            .accessibilityType,
         AccessibilityType.blind,
       );
     });
@@ -317,18 +331,18 @@ void main() {
     ];
 
     test('15) exact voice', () {
-      final r = resolveVoice(
-        {'name': 'Czech Voice A', 'locale': 'cs-CZ'},
-        available,
-      );
+      final r = resolveVoice({
+        'name': 'Czech Voice A',
+        'locale': 'cs-CZ',
+      }, available);
       expect(r, {'name': 'Czech Voice A', 'locale': 'cs-CZ'});
     });
 
     test('16) locale fallback', () {
-      final r = resolveVoice(
-        {'name': 'Neexistujici hlas', 'locale': 'cs-CZ'},
-        available,
-      );
+      final r = resolveVoice({
+        'name': 'Neexistujici hlas',
+        'locale': 'cs-CZ',
+      }, available);
       expect(r, {'name': 'Czech Voice A', 'locale': 'cs-CZ'});
     });
 
@@ -410,13 +424,9 @@ void main() {
         resultDisplayMode: ResultDisplayMode.auto,
         historyExactFormat: HistoryExactFormat.numeric,
       );
-      final settings =
-          (contract['profiles'] as List).first['settings'] as Map;
+      final settings = (contract['profiles'] as List).first['settings'] as Map;
       expect(settings.containsKey('resultDisplayMode'), isFalse);
-      expect(
-        (contract['globalSettings'] as Map)['resultDisplayMode'],
-        'auto',
-      );
+      expect((contract['globalSettings'] as Map)['resultDisplayMode'], 'auto');
       final parsed = parseContract(contract);
       expect(parsed.resultDisplayMode, ResultDisplayMode.auto);
       // Profil zustava na migracnim defaultu.
@@ -437,57 +447,61 @@ void main() {
           },
         ]
         ..remove('globalSettings');
-      final gs = Map<String, dynamic>.from(
-        contract['globalSettings'] as Map,
-      )..remove('resultDisplayMode');
+      final gs = Map<String, dynamic>.from(contract['globalSettings'] as Map)
+        ..remove('resultDisplayMode');
       legacy['globalSettings'] = gs;
       expect(parseContract(legacy).resultDisplayMode, ResultDisplayMode.text);
     });
 
-    test('20) historyExactFormat zustava global (persist + contract)', () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-      final prefs = await SharedPreferences.getInstance();
-      final draft = QuickSetupDraft.defaults();
-      final contract = buildQuickSetupContract(
-        draft: draft,
-        profiles: [
-          AccessibilityProfile(
-            id: 'standard',
-            name: 'Standard',
-            isBuiltIn: true,
-            settings: AccessibilitySettings.defaultsStandard(),
-          ),
-        ],
-        activeProfileId: 'standard',
-        statsSummaryOrder: const [
-          StatsSummarySection.header,
-          StatsSummarySection.dataValues,
-          StatsSummarySection.computed,
-        ],
-        statsComputedOrder: StatsComputedItem.values,
-        currencyFrom: 'CZK',
-        currencyTo: 'EUR',
-        devEnabled: false,
-        devAutoDiagnostic: false,
-        devDiagnosticDurationMs: 700,
-        devPinCode: null,
-        historyExactFormat: HistoryExactFormat.exact,
-      );
-      expect((contract['globalSettings'] as Map)['historyExactFormat'], 'exact');
-      await persistCanonicalContract(prefs, contract);
-      expect(prefs.getString('historyExactFormat'), 'exact');
-      final snapshot =
-          jsonDecode(prefs.getString('config_contract_v1')!) as Map<String, dynamic>;
-      expect(
-        (snapshot['globalSettings'] as Map)['historyExactFormat'],
-        'exact',
-      );
-    });
+    test(
+      '20) historyExactFormat zustava global (persist + contract)',
+      () async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final prefs = await SharedPreferences.getInstance();
+        final draft = QuickSetupDraft.defaults();
+        final contract = buildQuickSetupContract(
+          draft: draft,
+          profiles: [
+            AccessibilityProfile(
+              id: 'standard',
+              name: 'Standard',
+              isBuiltIn: true,
+              settings: AccessibilitySettings.defaultsStandard(),
+            ),
+          ],
+          activeProfileId: 'standard',
+          statsSummaryOrder: const [
+            StatsSummarySection.header,
+            StatsSummarySection.dataValues,
+            StatsSummarySection.computed,
+          ],
+          statsComputedOrder: StatsComputedItem.values,
+          currencyFrom: 'CZK',
+          currencyTo: 'EUR',
+          devEnabled: false,
+          devAutoDiagnostic: false,
+          devDiagnosticDurationMs: 700,
+          devPinCode: null,
+          historyExactFormat: HistoryExactFormat.exact,
+        );
+        expect(
+          (contract['globalSettings'] as Map)['historyExactFormat'],
+          'exact',
+        );
+        await persistCanonicalContract(prefs, contract);
+        expect(prefs.getString('historyExactFormat'), 'exact');
+        final snapshot =
+            jsonDecode(prefs.getString('config_contract_v1')!)
+                as Map<String, dynamic>;
+        expect(
+          (snapshot['globalSettings'] as Map)['historyExactFormat'],
+          'exact',
+        );
+      },
+    );
 
     test('21) schema obsahuje nove globalni klice', () async {
-      final raw = await rootBundle.loadString(
-        'assets/config_schema_v1.json',
-      );
+      final raw = await rootBundle.loadString('assets/config_schema_v1.json');
       final schema = jsonDecode(raw) as Map<String, dynamic>;
       final defs = schema[r'$defs'] as Map<String, dynamic>;
       final global = defs['globalSettings'] as Map<String, dynamic>;
@@ -538,7 +552,8 @@ void main() {
       expect(validateContract(exported).ok, isTrue);
       await persistCanonicalContract(prefs, exported);
       final snapshot =
-          jsonDecode(prefs.getString('config_contract_v1')!) as Map<String, dynamic>;
+          jsonDecode(prefs.getString('config_contract_v1')!)
+              as Map<String, dynamic>;
       final reparsed = parseContract(snapshot);
       expect(reparsed.resultDisplayMode, ResultDisplayMode.auto);
       expect(reparsed.activeProfileId, 'blind');
@@ -554,7 +569,7 @@ void main() {
   });
 
   group('startup widget', () {
-    testWidgets('2) first run zobrazi Quick Setup pouze jednou', (
+    testWidgets('2) first run zobrazi Quick Setup pouze jednou s úvodem a tlačítkem Skip setup', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -564,10 +579,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Quick calculator setup'), findsOneWidget);
       expect(find.text('Apply settings'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Skip setup'), findsOneWidget);
+      expect(find.text('Welcome to Talking Calculator. Choose an accessibility preset. You can adjust advanced settings in the expandable section or anytime later in the menu.'), findsOneWidget);
+      expect(find.text('Advanced settings'), findsOneWidget);
 
-      // Storno: dialog zmizi, marker se ulozi.
-      await tester.tap(find.text('Cancel'));
+      // Přeskočit: dialog zmizi, marker se ulozi, konfigurace se nemění.
+      await tester.tap(find.text('Skip setup'));
       await tester.pumpAndSettle();
       expect(find.text('Quick calculator setup'), findsNothing);
       var prefs = await SharedPreferences.getInstance();
@@ -597,6 +614,20 @@ void main() {
       expect(prefs.getString('activeProfileId'), 'standard');
     });
 
+    testWidgets('poškozená nebo neúplná konfigurace se nedetekuje jako validní', (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'accessibility_profiles_v2': '{invalid json',
+        'activeProfileId': 'standard',
+        'modeQuestionAsked': true,
+      });
+      mockChannels();
+      await pumpApp(tester);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      // Protože je JSON poškozený, detekce selže a spustí se onboarding (first run).
+      expect(find.text('Quick calculator setup'), findsOneWidget);
+    });
+
     testWidgets('apply z dialogu ulozi blind preset', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       mockChannels();
@@ -614,9 +645,13 @@ void main() {
       expect(prefs.getBool('quickSetupCompleted'), isTrue);
       final v2 =
           jsonDecode(prefs.getString('accessibility_profiles_v2')!) as List;
-      final active = (v2.firstWhere(
-        (e) => (e as Map)['id'] == prefs.getString('activeProfileId'),
-      ) as Map)['settings'] as Map;
+      final active =
+          (v2.firstWhere(
+                    (e) =>
+                        (e as Map)['id'] == prefs.getString('activeProfileId'),
+                  )
+                  as Map)['settings']
+              as Map;
       expect(active['accessibilityType'], AccessibilityType.blind.index);
     });
   });

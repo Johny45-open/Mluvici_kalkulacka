@@ -191,10 +191,7 @@ void main() {
       tester,
     ) async {
       final state = await pumpApp(tester);
-      expect(
-        state.resultDisplayModeForTest,
-        ResultDisplayMode.segment,
-      );
+      expect(state.resultDisplayModeForTest, ResultDisplayMode.segment);
       state.setDisplayForTest('√(72)', 5);
       await tester.pump();
       state.calculateForTest();
@@ -295,29 +292,30 @@ void main() {
       expect(dups, findsNothing);
     });
 
-    testWidgets('segment + surd: displej i čtečka numericky (sjednocený kontrakt)', (
-      tester,
-    ) async {
-      final state = await pumpApp(tester);
-      state.setDisplayForTest('√(72)', 5);
-      await tester.pump();
-      state.calculateForTest();
-      await tester.pumpAndSettle();
-      // Vzhled beze změny: žádný surd text na displeji.
-      expect(find.text('6√2'), findsNothing);
-      // ZÁMĚRNÁ ZMĚNA kontraktu (surd hlasová oprava): hlas odpovídá
-      // skutečně aktivní reprezentaci, tedy v segmentu numerice —
-      // surd se hlasově nevnucuje. Surd-slovně čte jen text/auto.
-      final outer = outerDisplaySemantics(tester);
-      final val = outer.properties.value ?? '';
-      expect(val.contains('odmocnina') || val.contains('root'), isFalse);
-      final dups = find.byWidgetPredicate((w) {
-        if (w is! Semantics || w == outer) return false;
-        final v = w.properties.value ?? '';
-        return v.contains('odmocnina') || v.contains('root');
-      });
-      expect(dups, findsNothing);
-    });
+    testWidgets(
+      'segment + surd: displej i čtečka numericky (sjednocený kontrakt)',
+      (tester) async {
+        final state = await pumpApp(tester);
+        state.setDisplayForTest('√(72)', 5);
+        await tester.pump();
+        state.calculateForTest();
+        await tester.pumpAndSettle();
+        // Vzhled beze změny: žádný surd text na displeji.
+        expect(find.text('6√2'), findsNothing);
+        // ZÁMĚRNÁ ZMĚNA kontraktu (surd hlasová oprava): hlas odpovídá
+        // skutečně aktivní reprezentaci, tedy v segmentu numerice —
+        // surd se hlasově nevnucuje. Surd-slovně čte jen text/auto.
+        final outer = outerDisplaySemantics(tester);
+        final val = outer.properties.value ?? '';
+        expect(val.contains('odmocnina') || val.contains('root'), isFalse);
+        final dups = find.byWidgetPredicate((w) {
+          if (w is! Semantics || w == outer) return false;
+          final v = w.properties.value ?? '';
+          return v.contains('odmocnina') || v.contains('root');
+        });
+        expect(dups, findsNothing);
+      },
+    );
   });
 
   group('globální ResultDisplayMode – nezávislost na profilu', () {
@@ -349,7 +347,11 @@ void main() {
       expect(state.profilesLoadedForTest, isTrue);
       state.setResultDisplayModeForTest(ResultDisplayMode.auto);
       // _saveGlobalSettings je async: počkej na persistenci klíče.
-      for (var i = 0; i < 100 && prefs.getString('resultDisplayMode') != 'auto'; i++) {
+      for (
+        var i = 0;
+        i < 100 && prefs.getString('resultDisplayMode') != 'auto';
+        i++
+      ) {
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(prefs.getString('resultDisplayMode'), 'auto');

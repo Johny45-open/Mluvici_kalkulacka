@@ -119,37 +119,38 @@ void main() {
   }
 
   group('A11y proxy displeje', () {
-    testWidgets('1. prazdny stav se stabilni proxy, editace s prave jednim polem', (
-      tester,
-    ) async {
-      final handle = tester.ensureSemantics();
-      try {
-        final state = await pumpApp(tester);
+    testWidgets(
+      '1. prazdny stav se stabilni proxy, editace s prave jednim polem',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        try {
+          final state = await pumpApp(tester);
 
-        // Prázdný výraz: proxy je ve stromě trvale (stabilní BUILD spike).
-        // Jediné textové pole nese hodnotu prázdného stavu ("Prázdno" /
-        // řeč výsledku) a collapsed selection na 0.
-        state.setDisplayForTest('', 0);
-        await tester.pumpAndSettle();
-        expect(find.byType(EditableText), findsOneWidget);
-        expect(countTextFields(tester), 1);
-        expect(state.a11yProxyValueForTest.text, '');
-        expect(
-          state.a11yProxyValueForTest.selection,
-          const TextSelection.collapsed(offset: 0),
-        );
+          // Prázdný výraz: proxy je ve stromě trvale (stabilní BUILD spike).
+          // Jediné textové pole nese hodnotu prázdného stavu ("Prázdno" /
+          // řeč výsledku) a collapsed selection na 0.
+          state.setDisplayForTest('', 0);
+          await tester.pumpAndSettle();
+          expect(find.byType(EditableText), findsOneWidget);
+          expect(countTextFields(tester), 1);
+          expect(state.a11yProxyValueForTest.text, '');
+          expect(
+            state.a11yProxyValueForTest.selection,
+            const TextSelection.collapsed(offset: 0),
+          );
 
-        // Při editaci je proxy jediným textovým polem displeje.
-        state.setDisplayForTest('12+3', 2);
-        await tester.pumpAndSettle();
-        expect(find.byType(EditableText), findsOneWidget);
-        expect(state.a11yProxyValueForTest.text, '12+3');
-        expect(countTextFields(tester), 1);
-        await tester.pump(const Duration(seconds: 1));
-      } finally {
-        handle.dispose();
-      }
-    });
+          // Při editaci je proxy jediným textovým polem displeje.
+          state.setDisplayForTest('12+3', 2);
+          await tester.pumpAndSettle();
+          expect(find.byType(EditableText), findsOneWidget);
+          expect(state.a11yProxyValueForTest.text, '12+3');
+          expect(countTextFields(tester), 1);
+          await tester.pump(const Duration(seconds: 1));
+        } finally {
+          handle.dispose();
+        }
+      },
+    );
     testWidgets('2. vychozi collapsed selection na spravnem offsetu', (
       tester,
     ) async {
@@ -333,10 +334,7 @@ void main() {
 
       await tester.sendKeyEvent(LogicalKeyboardKey.home);
       await tester.pumpAndSettle();
-      expect(
-        state.lastAnnouncementForTest as String,
-        'Začátek výrazu',
-      );
+      expect(state.lastAnnouncementForTest as String, 'Začátek výrazu');
       expect(ttsLog, isEmpty);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.end);

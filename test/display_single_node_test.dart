@@ -116,8 +116,9 @@ void main() {
   ).where((n) => n.getSemanticsData().flagsCollection.isTextField).length;
 
   group('Jediný přístupný prvek displeje', () {
-    testWidgets('1.+2. neprázdný: jeden uzel Displej = textové pole se vším',
-        (tester) async {
+    testWidgets('1.+2. neprázdný: jeden uzel Displej = textové pole se vším', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
@@ -149,8 +150,9 @@ void main() {
       }
     });
 
-    testWidgets('3. žádný další samostatný uzel Displej před polem',
-        (tester) async {
+    testWidgets('3. žádný další samostatný uzel Displej před polem', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
@@ -173,8 +175,9 @@ void main() {
       }
     });
 
-    testWidgets('4. žádné druhé textové pole se stejným výrazem',
-        (tester) async {
+    testWidgets('4. žádné druhé textové pole se stejným výrazem', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
@@ -187,8 +190,9 @@ void main() {
       }
     });
 
-    testWidgets('5. zoom instrukce není hintem před kurzorovým polem',
-        (tester) async {
+    testWidgets('5. zoom instrukce není hintem před kurzorovým polem', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
@@ -205,17 +209,15 @@ void main() {
           reason: 'Žádný uzel nesmí číst zoom instrukci jako hint',
         );
         // Ani samotný displejový uzel nemá hint.
-        expect(
-          displejNodes(tester).single.getSemanticsData().hint,
-          isEmpty,
-        );
+        expect(displejNodes(tester).single.getSemanticsData().hint, isEmpty);
       } finally {
         handle.dispose();
       }
     });
 
-    testWidgets('prázdný stav: jediný uzel Displej = pole s Prázdnem',
-        (tester) async {
+    testWidgets('prázdný stav: jediný uzel Displej = pole s Prázdnem', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         final state = await pumpApp(tester);
@@ -286,60 +288,57 @@ void main() {
         await tester.pumpAndSettle();
         expect(displejNodes(tester), hasLength(1));
         expect(countTextFields(tester), 1);
-        expect(
-          displejNodes(tester).single.getSemanticsData().value,
-          '7',
-        );
+        expect(displejNodes(tester).single.getSemanticsData().value, '7');
 
         // Smazat vše: návrat na jediný uzel s Prázdnem (pole zůstává).
         state.backspaceForTest();
         await tester.pumpAndSettle();
         expect(displejNodes(tester), hasLength(1));
         expect(countTextFields(tester), 1);
-        expect(
-          displejNodes(tester).single.getSemanticsData().value,
-          'Prázdno',
-        );
+        expect(displejNodes(tester).single.getSemanticsData().value, 'Prázdno');
       } finally {
         handle.dispose();
       }
     });
 
-    testWidgets('výsledek výpočtu: proxy nese řeč prázdna a výsledek je samostatný uzel', (tester) async {
-      final handle = tester.ensureSemantics();
-      try {
-        final state = await pumpApp(tester);
-        state.setDisplayForTest('3/4', 3);
-        await tester.pump();
-        state.calculateForTest();
-        await tester.pumpAndSettle();
+    testWidgets(
+      'výsledek výpočtu: proxy nese řeč prázdna a výsledek je samostatný uzel',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        try {
+          final state = await pumpApp(tester);
+          state.setDisplayForTest('3/4', 3);
+          await tester.pump();
+          state.calculateForTest();
+          await tester.pumpAndSettle();
 
-        // Po výpočtu je výraz prázdný → stabilní proxy je jediným uzlem
-        // Displej s hodnotou "Prázdno" (stále textové pole, collapsed 0).
-        expect(find.byType(EditableText), findsOneWidget);
-        expect(countTextFields(tester), 1);
-        expect(displejNodes(tester), hasLength(1));
-        final data = displejNodes(tester).single.getSemanticsData();
-        expect(data.flagsCollection.isTextField, isTrue);
-        expect(data.value, 'Prázdno');
-        expect(
-          data.textSelection,
-          const TextSelection(baseOffset: 0, extentOffset: 0),
-        );
+          // Po výpočtu je výraz prázdný → stabilní proxy je jediným uzlem
+          // Displej s hodnotou "Prázdno" (stále textové pole, collapsed 0).
+          expect(find.byType(EditableText), findsOneWidget);
+          expect(countTextFields(tester), 1);
+          expect(displejNodes(tester), hasLength(1));
+          final data = displejNodes(tester).single.getSemanticsData();
+          expect(data.flagsCollection.isTextField, isTrue);
+          expect(data.value, 'Prázdno');
+          expect(
+            data.textSelection,
+            const TextSelection(baseOffset: 0, extentOffset: 0),
+          );
 
-        // Dolní uzel Výsledek je samostatným uzlem s řečí výsledku.
-        final results = allNodes(tester).where((n) {
-          final lbl = n.getSemanticsData().label;
-          return lbl == 'Výsledek' || lbl == 'Result';
-        }).toList();
-        expect(results, hasLength(1));
-        final resData = results.single.getSemanticsData();
-        expect(resData.value.isNotEmpty, isTrue);
-        expect(resData.value, contains('0,75'));
-      } finally {
-        handle.dispose();
-      }
-    });
+          // Dolní uzel Výsledek je samostatným uzlem s řečí výsledku.
+          final results = allNodes(tester).where((n) {
+            final lbl = n.getSemanticsData().label;
+            return lbl == 'Výsledek' || lbl == 'Result';
+          }).toList();
+          expect(results, hasLength(1));
+          final resData = results.single.getSemanticsData();
+          expect(resData.value.isNotEmpty, isTrue);
+          expect(resData.value, contains('0,75'));
+        } finally {
+          handle.dispose();
+        }
+      },
+    );
   });
 
   group('Hlasový kontrakt kurzoru (diagnostika, ne odstranění)', () {
@@ -354,8 +353,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(state.cursorForTest, 3);
-      expect(state.a11yProxyValueForTest.selection,
-          const TextSelection.collapsed(offset: 3));
+      expect(
+        state.a11yProxyValueForTest.selection,
+        const TextSelection.collapsed(offset: 3),
+      );
       // Aplikační hláška (fallback) stále odchází liveRegionem…
       expect(state.lastAnnouncementForTest as String, isNot(before));
       expect(
@@ -367,8 +368,9 @@ void main() {
       expect(state.isScreenReaderActiveForTest, isTrue);
     });
 
-    testWidgets('SR off: pohyb → vlastní TTS, liveRegion se nemění',
-        (tester) async {
+    testWidgets('SR off: pohyb → vlastní TTS, liveRegion se nemění', (
+      tester,
+    ) async {
       final state = await pumpAppSrOff(tester);
       state.setDisplayForTest('12+3', 2);
       await tester.pumpAndSettle();

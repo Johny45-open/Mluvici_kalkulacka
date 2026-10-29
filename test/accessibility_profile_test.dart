@@ -95,9 +95,7 @@ void main() {
       expect(v2, isNotNull);
       final decoded = jsonDecode(v2!) as List;
       final active =
-          (decoded.firstWhere(
-                    (e) => (e as Map)['id'] == activeId,
-                  )
+          (decoded.firstWhere((e) => (e as Map)['id'] == activeId)
                   as Map)['settings']
               as Map;
       expect(active['accessibilityType'], AccessibilityType.blind.index);
@@ -125,10 +123,7 @@ void main() {
         await tester.pumpAndSettle();
         var prefs = await SharedPreferences.getInstance();
         state = tester.state(find.byType(CalculatorScreen)) as dynamic;
-        expect(
-          state.displayAccessibilityTypeForTest,
-          AccessibilityType.blind,
-        );
+        expect(state.displayAccessibilityTypeForTest, AccessibilityType.blind);
 
         // D: změna přes Quick Setup na low-vision preset
         tester.view.physicalSize = const Size(800, 1280);

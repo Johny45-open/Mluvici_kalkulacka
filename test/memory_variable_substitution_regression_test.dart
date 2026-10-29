@@ -80,7 +80,9 @@ void main() {
   }
 
   group('sousedící paměťové proměnné (A=2, B=-3, C=1)', () {
-    testWidgets('Bx²-4AC = B²-4AC = 1, 4AC = 8, AC = 2, 2A = 4', (tester) async {
+    testWidgets('Bx²-4AC = B²-4AC = 1, 4AC = 8, AC = 2, 2A = 4', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setMemoryForTest('A', 2.0);
       state.setMemoryForTest('B', -3.0);
@@ -138,8 +140,9 @@ void main() {
       expect(state.evaluateExpressionForTest('Bx²'), closeTo(9.0, 1e-9));
     });
 
-    testWidgets('4AC = 0 při A = 0 (uložená nula, ne chybějící proměnná)',
-        (tester) async {
+    testWidgets('4AC = 0 při A = 0 (uložená nula, ne chybějící proměnná)', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setMemoryForTest('A', 0.0);
       state.setMemoryForTest('C', 1.0);
@@ -148,8 +151,9 @@ void main() {
   });
 
   group('E-notace má přednost před uloženou proměnnou E = 99', () {
-    testWidgets('2(10E5) = 2000000, A(10E5) = 2000000, 10E5+A = 1000002',
-        (tester) async {
+    testWidgets('2(10E5) = 2000000, A(10E5) = 2000000, 10E5+A = 1000002', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setMemoryForTest('E', 99.0);
       state.setMemoryForTest('A', 2.0);
@@ -171,19 +175,14 @@ void main() {
       );
     });
 
-    testWidgets('10E5, 20E-6, (10)E5 — standardní E-notace beze změny',
-        (tester) async {
+    testWidgets('10E5, 20E-6, (10)E5 — standardní E-notace beze změny', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setMemoryForTest('E', 99.0);
 
-      expect(
-        state.evaluateExpressionForTest('10E5'),
-        closeTo(1000000.0, 1.0),
-      );
-      expect(
-        state.evaluateExpressionForTest('20E-6'),
-        closeTo(0.00002, 1e-9),
-      );
+      expect(state.evaluateExpressionForTest('10E5'), closeTo(1000000.0, 1.0));
+      expect(state.evaluateExpressionForTest('20E-6'), closeTo(0.00002, 1e-9));
       expect(
         state.evaluateExpressionForTest('(10)E5'),
         closeTo(1000000.0, 1.0),
@@ -192,8 +191,9 @@ void main() {
   });
 
   group('proměnná E, funkce a sousedící proměnné', () {
-    testWidgets('E = 7: E+2 = 9, 2*E = 14, 2E = 14, AE = 14 (A = 2)',
-        (tester) async {
+    testWidgets('E = 7: E+2 = 9, 2*E = 14, 2E = 14, AE = 14 (A = 2)', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setMemoryForTest('E', 7.0);
       state.setMemoryForTest('A', 2.0);
@@ -206,15 +206,17 @@ void main() {
       expect(state.evaluateExpressionForTest('AE'), closeTo(14.0, 1e-9));
     });
 
-    testWidgets('ABS(A) = 5 při A = -5 (marker funkce + dosazení)',
-        (tester) async {
+    testWidgets('ABS(A) = 5 při A = -5 (marker funkce + dosazení)', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setMemoryForTest('A', -5.0);
       expect(state.evaluateExpressionForTest('ABS(A)'), closeTo(5.0, 1e-9));
     });
 
-    testWidgets('LN(EX) = 1 při E = e a X = 1 (funkce + sousedící proměnné)',
-        (tester) async {
+    testWidgets('LN(EX) = 1 při E = e a X = 1 (funkce + sousedící proměnné)', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setMemoryForTest('E', math.e);
       state.setMemoryForTest('X', 1.0);

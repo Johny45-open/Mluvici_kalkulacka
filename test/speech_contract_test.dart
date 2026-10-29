@@ -236,10 +236,7 @@ void main() {
       await setScreenReader(tester, state, true);
       await calculate(tester, state, '2+2');
       expect(ttsLog, isEmpty, reason: 'TTS log: $ttsLog');
-      expect(
-        state.lastAnnouncementForTest as String,
-        contains('Výsledek je'),
-      );
+      expect(state.lastAnnouncementForTest as String, contains('Výsledek je'));
       expect(tester.takeException(), isNull);
     });
 
@@ -313,10 +310,7 @@ void main() {
       expect(state.numberToSpeechForTest('1.5E+03'), contains('třetí'));
       expect(state.numberToSpeechForTest('1,5E+03'), contains('třetí'));
       expect(state.numberToSpeechForTest('1,5E-03'), contains('mínus'));
-      expect(
-        state.numberToSpeechForTest('1.5E+03').contains('E+'),
-        isFalse,
-      );
+      expect(state.numberToSpeechForTest('1.5E+03').contains('E+'), isFalse);
       expect(tester.takeException(), isNull);
     });
 
@@ -361,8 +355,7 @@ void main() {
 
     testWidgets('surd ve větě se přečte slovně', (tester) async {
       final state = await pumpApp(tester);
-      final spoken =
-          state.numberToSpeechForTest('Výsledek je 6√2') as String;
+      final spoken = state.numberToSpeechForTest('Výsledek je 6√2') as String;
       expect(spoken, contains('odmocnina'));
       expect(spoken.contains('√'), isFalse);
       expect(tester.takeException(), isNull);
@@ -389,10 +382,7 @@ void main() {
       state.switchModeForTest(CalculatorMode.scientific);
       await tester.pumpAndSettle();
       expect(ttsLog, isEmpty, reason: 'TTS log: $ttsLog');
-      expect(
-        state.lastAnnouncementForTest as String,
-        contains('Přepnuto na'),
-      );
+      expect(state.lastAnnouncementForTest as String, contains('Přepnuto na'));
       expect(tester.takeException(), isNull);
     });
 
@@ -426,10 +416,7 @@ void main() {
           : find.text('Upper row zoom');
       expect(header, findsOneWidget);
       // Najdi sloupec hlavičky a v něm tlačítko '+'.
-      final cols = find.ancestor(
-        of: header,
-        matching: find.byType(Column),
-      );
+      final cols = find.ancestor(of: header, matching: find.byType(Column));
       final plusCandidates = <Finder>[];
       for (final el in cols.evaluate()) {
         final candidate = find.descendant(
@@ -458,9 +445,7 @@ void main() {
     testWidgets('TTS OFF -> ticho; TTS ON -> potvrzení', (tester) async {
       final state = await pumpApp(tester);
       await setScreenReader(tester, state, false);
-      state.updateActiveSettingsForTest(
-        (s) => s.copyWith(ttsEnabled: false),
-      );
+      state.updateActiveSettingsForTest((s) => s.copyWith(ttsEnabled: false));
       await tester.pumpAndSettle();
       ttsLog.clear();
       await state.handleButtonPressedForTest('7');
@@ -481,17 +466,12 @@ void main() {
       tester,
     ) async {
       final state = await pumpApp(tester);
-      state.updateActiveSettingsForTest(
-        (s) => s.copyWith(ttsEnabled: false),
-      );
+      state.updateActiveSettingsForTest((s) => s.copyWith(ttsEnabled: false));
       await setScreenReader(tester, state, true);
       await calculate(tester, state, '2+2');
       // Potvrzení nesmí záviset na vypnutém TTS (R9).
       expect(ttsLog, isEmpty, reason: 'TTS log: $ttsLog');
-      expect(
-        state.lastAnnouncementForTest as String,
-        contains('Výsledek je'),
-      );
+      expect(state.lastAnnouncementForTest as String, contains('Výsledek je'));
       expect(tester.takeException(), isNull);
     });
 
@@ -519,9 +499,11 @@ void main() {
       final state = await pumpApp(tester);
       // Přepni na jiný profil a persistuj do něj režim čtečky ON
       // (aktivace aplikuje uložené nastavení profilu).
-      final otherId = (state.profilesForTest as List)
-          .firstWhere((p) => p.id != state.activeProfileIdForTest)
-          .id as String;
+      final otherId =
+          (state.profilesForTest as List)
+                  .firstWhere((p) => p.id != state.activeProfileIdForTest)
+                  .id
+              as String;
       state.switchProfileForTest(otherId);
       await tester.pumpAndSettle();
       await setScreenReader(tester, state, true);

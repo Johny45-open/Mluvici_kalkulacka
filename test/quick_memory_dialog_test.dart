@@ -12,8 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// v hlavní pracovní ploše (nikoli AppBar), dialog Paměť → A,
 /// reuse business logiky STO/RCL, persistence `memoryVariables`,
 /// přehled, mazání s výčtem proměnných a legacy Advanced cesta.
-Finder memoryEntryButton() =>
-    find.byKey(const ValueKey('memory_entry_button'));
+Finder memoryEntryButton() => find.byKey(const ValueKey('memory_entry_button'));
 
 /// Najde [Text] s libovolným z daných řetězců (cs/en varianta).
 Finder textAny(List<String> options) => find.byWidgetPredicate(
@@ -59,15 +58,14 @@ void main() {
       },
     );
 
-    messenger.setMockMethodCallHandler(
-      const MethodChannel('flutter_tts'),
-      (MethodCall call) async {
-        if (call.method == 'speak') {
-          ttsLog.add(call.arguments as String? ?? '');
-        }
-        return null;
-      },
-    );
+    messenger.setMockMethodCallHandler(const MethodChannel('flutter_tts'), (
+      MethodCall call,
+    ) async {
+      if (call.method == 'speak') {
+        ttsLog.add(call.arguments as String? ?? '');
+      }
+      return null;
+    });
 
     messenger.setMockMethodCallHandler(
       const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
@@ -111,13 +109,13 @@ void main() {
     expect(find.byType(AlertDialog), findsOneWidget);
   }
 
-  Finder dialogText(String value) => find.descendant(
-    of: find.byType(AlertDialog),
-    matching: find.text(value),
-  );
+  Finder dialogText(String value) =>
+      find.descendant(of: find.byType(AlertDialog), matching: find.text(value));
 
   group('Quick memory body entry point (not AppBar)', () {
-    testWidgets('1. Velke textove tlacitko Pamet existuje v body', (tester) async {
+    testWidgets('1. Velke textove tlacitko Pamet existuje v body', (
+      tester,
+    ) async {
       await pumpApp(tester);
       expect(memoryEntryButton(), findsOneWidget);
       expect(textAny(['Paměť', 'Memory']), findsWidgets);
@@ -125,26 +123,25 @@ void main() {
 
     testWidgets('1b. Pamet NENI v AppBaru', (tester) async {
       await pumpApp(tester);
-      expect(
-        find.widgetWithIcon(IconButton, Icons.memory),
-        findsNothing,
-      );
+      expect(find.widgetWithIcon(IconButton, Icons.memory), findsNothing);
     });
 
-    testWidgets('2. Tlacitko ma spravny accessibility label', (
-      tester,
-    ) async {
+    testWidgets('2. Tlacitko ma spravny accessibility label', (tester) async {
       await pumpApp(tester);
       expect(memoryEntryButton(), findsOneWidget);
       expect(
         find.bySemanticsLabel(
-          RegExp('Paměť, otevře paměťové proměnné|Memory, opens memory variables'),
+          RegExp(
+            'Paměť, otevře paměťové proměnné|Memory, opens memory variables',
+          ),
         ),
         findsOneWidget,
       );
     });
 
-    testWidgets('3. Dialog se otevre ve vychozim rezimu Vlozit', (tester) async {
+    testWidgets('3. Dialog se otevre ve vychozim rezimu Vlozit', (
+      tester,
+    ) async {
       await pumpApp(tester);
       await openQuickMemory(tester);
       // Nadpis dialogu + heading pro vložení (default, ne ukládání).
@@ -397,9 +394,7 @@ void main() {
   });
 
   group('Rychla pamet ve vsech rezimech', () {
-    testWidgets('Dialog lze otevrit ze vsech hlavnich rezimu', (
-      tester,
-    ) async {
+    testWidgets('Dialog lze otevrit ze vsech hlavnich rezimu', (tester) async {
       final state = await pumpApp(tester);
       for (final mode in CalculatorMode.values) {
         state.switchModeForTest(mode);
@@ -549,8 +544,9 @@ void main() {
     bool memoryIsEmpty(dynamic state) =>
         memoryVars.every((v) => (state.memoryForTest[v] as double) == 0.0);
 
-    testWidgets('Z2-1. vychozi rezim insert, otevreni nic nemeni',
-        (tester) async {
+    testWidgets('Z2-1. vychozi rezim insert, otevreni nic nemeni', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('', 0);
       await tester.pump();
@@ -598,8 +594,7 @@ void main() {
         }).toList();
         expect(mutexNodes, hasLength(3), reason: 'Tři režimy ve skupině');
         bool isSel(SemanticsNode n) =>
-            n.getSemanticsData().flagsCollection.isSelected ==
-            Tristate.isTrue;
+            n.getSemanticsData().flagsCollection.isSelected == Tristate.isTrue;
         for (final s in mutexNodes) {
           // Žádný režim nesmí být prezentován jako zakázaný.
           expect(
@@ -628,8 +623,9 @@ void main() {
       }
     });
 
-    testWidgets('Z2-3. prepnuti rezimu meni obsah, neprovadi operaci',
-        (tester) async {
+    testWidgets('Z2-3. prepnuti rezimu meni obsah, neprovadi operaci', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('', 0);
       await tester.pump();
@@ -667,8 +663,9 @@ void main() {
       expect(find.byType(AlertDialog), findsOneWidget);
     });
 
-    testWidgets('Z2-4. titulek a instrukce v semantickem stromu',
-        (tester) async {
+    testWidgets('Z2-4. titulek a instrukce v semantickem stromu', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       try {
         await pumpApp(tester);
@@ -695,8 +692,9 @@ void main() {
       }
     });
 
-    testWidgets('Z2-5. prvni fokus je deterministicky, nic se nespusti',
-        (tester) async {
+    testWidgets('Z2-5. prvni fokus je deterministicky, nic se nespusti', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.setDisplayForTest('', 0);
       await tester.pump();
@@ -705,10 +703,7 @@ void main() {
       // (nikoli hlavní klávesnice), první Tab vede dovnitř obsahu.
       final primary = FocusManager.instance.primaryFocus;
       expect(primary, isNotNull);
-      expect(
-        primary,
-        isNot(state.mainFocusNodeForTest as FocusNode),
-      );
+      expect(primary, isNot(state.mainFocusNodeForTest as FocusNode));
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
       expect(primaryFocusInsideDialog(), isTrue);
@@ -760,8 +755,9 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
     });
 
-    testWidgets('Z2-9. otevreni s aktivni cteckou jde pristupnostnim kanalem',
-        (tester) async {
+    testWidgets('Z2-9. otevreni s aktivni cteckou jde pristupnostnim kanalem', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.updateActiveSettingsForTest(
         (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
@@ -772,16 +768,20 @@ void main() {
       // Vstupní zpráva (titul + instrukce + výchozí operace) přes kanál
       // čtečky, nikoli přes vlastní TTS.
       final announced = state.lastAnnouncementForTest as String;
-      expect(announced.contains('Paměť') || announced.contains('Memory'),
-          isTrue);
       expect(
-          announced.contains('Samotné otevření') ||
-              announced.contains('Choose a memory operation'),
-          isTrue);
+        announced.contains('Paměť') || announced.contains('Memory'),
+        isTrue,
+      );
       expect(
-          announced.contains('Vložit proměnnou') ||
-              announced.contains('Insert variable'),
-          isTrue);
+        announced.contains('Samotné otevření') ||
+            announced.contains('Choose a memory operation'),
+        isTrue,
+      );
+      expect(
+        announced.contains('Vložit proměnnou') ||
+            announced.contains('Insert variable'),
+        isTrue,
+      );
       expect(ttsLog, isEmpty);
       // Přepnutí režimu je při aktivní čtečce nadále tiché (segment oznámí
       // sama čtečka skrze selected sémantiku).
@@ -796,14 +796,15 @@ void main() {
       expect(ttsLog, isEmpty);
     });
 
-    testWidgets('Z2-11. auto s detekovanou cteckou bez interniho TTS',
-        (tester) async {
+    testWidgets('Z2-11. auto s detekovanou cteckou bez interniho TTS', (
+      tester,
+    ) async {
       // Detekce hlásí aktivní odečítač ještě před startem aplikace.
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
-        (MethodCall call) async => true,
-      );
+            const MethodChannel('com.example.mluvici_kalkulacka/accessibility'),
+            (MethodCall call) async => true,
+          );
       final state = await pumpApp(tester);
       await tester.pumpAndSettle();
       // Výchozí režim je auto → detekce rozhoduje.
@@ -812,23 +813,28 @@ void main() {
       await tester.pump();
       await openQuickMemory(tester);
       final announced = state.lastAnnouncementForTest as String;
-      expect(announced.contains('Paměť') || announced.contains('Memory'),
-          isTrue);
       expect(
-          announced.contains('Samotné otevření') ||
-              announced.contains('Choose a memory operation'),
-          isTrue);
+        announced.contains('Paměť') || announced.contains('Memory'),
+        isTrue,
+      );
       expect(
-          announced.contains('Vložit proměnnou') ||
-              announced.contains('Insert variable'),
-          isTrue);
+        announced.contains('Samotné otevření') ||
+            announced.contains('Choose a memory operation'),
+        isTrue,
+      );
+      expect(
+        announced.contains('Vložit proměnnou') ||
+            announced.contains('Insert variable'),
+        isTrue,
+      );
       expect(ttsLog, isEmpty);
       // Bez vedlejších účinků na výraz a paměť.
       expect(state.displayForTest, '');
     });
 
-    testWidgets('Z2-12. rebuild vstupni zpravu neposle podruhe',
-        (tester) async {
+    testWidgets('Z2-12. rebuild vstupni zpravu neposle podruhe', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.updateActiveSettingsForTest(
         (s) => s.copyWith(screenReaderMode: ScreenReaderMode.off),
@@ -845,8 +851,9 @@ void main() {
       expect(find.byType(AlertDialog), findsOneWidget);
     });
 
-    testWidgets('Z2-10. zmena rezimu bez ctecky oznami prave jednou',
-        (tester) async {
+    testWidgets('Z2-10. zmena rezimu bez ctecky oznami prave jednou', (
+      tester,
+    ) async {
       final state = await pumpApp(tester);
       state.updateActiveSettingsForTest(
         (s) => s.copyWith(screenReaderMode: ScreenReaderMode.off),
