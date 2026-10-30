@@ -188,12 +188,11 @@ class _AccessibilityProfileEditorDialogState
     required VoidCallback onPressed,
     required String text,
   }) {
-    return Semantics(
-      label: label,
-      button: true,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        child: ExcludeSemantics(child: Text(text)),
+    return ElevatedButton(
+      onPressed: onPressed,
+      child: Text(
+        text,
+        semanticsLabel: label,
       ),
     );
   }
