@@ -3,6 +3,7 @@ part of 'main.dart';
 class CalculatorScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  static bool skipNetworkUpdatesForTest = false;
 
   const CalculatorScreen({
     super.key,
@@ -2874,7 +2875,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Future<void> _checkForNews() async {
-    if (!mounted || _updateDialogShown) {
+    if (CalculatorScreen.skipNetworkUpdatesForTest || !mounted || _updateDialogShown) {
       return;
     }
     // Bez načtené verze nelze porovnávat – odloží se na dokončení loadu.
@@ -3012,7 +3013,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Future<void> _checkForUpdates() async {
-    if (_updateDialogShown || !mounted) {
+    if (CalculatorScreen.skipNetworkUpdatesForTest || _updateDialogShown || !mounted) {
       return;
     }
     // Bez načtené verze nelze porovnávat (prázdná by se jevila starší
@@ -3065,6 +3066,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  @visibleForTesting
+  void showUpdateDialogForTest(GitHubReleaseInfo release) {
+    unawaited(_showUpdateDialog(release));
+  }
+
   Future<void> _showUpdateDialog(GitHubReleaseInfo release) async {
     setState(() {
       _updateDialogShown = true;
@@ -3077,26 +3083,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       builder: (dialogContext) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
         title: Semantics(header: true, child: Text(_l10n.updateAvailableTitle)),
-        content: Semantics(
-          label: _l10n.newVersionSemantics(
-            release.normalizedVersion,
-            _currentAppVersion,
-          ),
+        content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _l10n.newVersionText(
+              Semantics(
+                label: _l10n.newVersionSemantics(
                   release.normalizedVersion,
                   _currentAppVersion,
+                ),
+                child: Text(
+                  _l10n.newVersionText(
+                    release.normalizedVersion,
+                    _currentAppVersion,
+                  ),
                 ),
               ),
               if (release.releaseSummary.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                Text(
-                  _l10n.whatIsNew,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    _l10n.whatIsNew,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(release.releaseSummary),
