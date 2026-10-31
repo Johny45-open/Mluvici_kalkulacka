@@ -366,96 +366,39 @@ class _AccessibilityProfileEditorDialogState
     return out;
   }
 
-  Future<void> _confirmAndSave() async {
+  Future<void> _saveChanges() async {
     final changes = _collectChanges();
     final isNoChange =
         changes.length == 1 &&
         (changes.first.contains('Žádné změny') ||
             changes.first.contains('No changes'));
-    final summary = changes.join('; ');
-    final spoken = parent._s(
-      'Potvrdit uložení profilu $editingName. Změny: $summary',
-      'Confirm saving profile $editingName. Changes: $summary',
-    );
-    // Jediný konzistentní mechanismus oznámení: say() (čtečka ->
-    // announce, jinak TTS). Žádný paralelní speak+announce+liveRegion
-    // se stejným textem; obsah dialogu nemá liveRegion, aby TalkBack
-    // při focusu na "Uložit" nečetl celý souhrn znovu.
-    final confirmed = await parent.showAppDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      routeSettings: RouteSettings(name: 'Potvrdit uložení $editingName'),
-      builder: (ctx) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (ctx.mounted) parent.say(spoken, ctx);
-        });
-        return AlertDialog(
-          insetPadding: parent._dialogInsetPadding(),
-          title: Semantics(
-            header: true,
-            child: Text(parent._s('Potvrdit uložení', 'Confirm save')),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  parent._s('Profil: $editingName', 'Profile: $editingName'),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                if (isNoChange)
-                  Text(
-                    changes.first,
-                    style: const TextStyle(fontStyle: FontStyle.italic),
-                  )
-                else
-                  ...changes.map(
-                    (c) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('• '),
-                          Expanded(child: Text(c)),
-                        ],
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 12),
-                Text(
-                  parent._s('Uložit změny?', 'Save changes?'),
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(parent._l10n.cancel),
-            ),
-            FilledButton(
-              autofocus: true,
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(parent._s('Uložit', 'Save')),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmed != true) return;
+
+    if (isNoChange) {
+      if (mounted) Navigator.pop(context);
+      if (parent.editingProfile != null) {
+        parent.discardEditingProfile();
+      }
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (!mounted) return;
+      parent.say(
+        parent._s(
+          'Profil $editingName nebyl změněn',
+          'Profile $editingName was not changed',
+        ),
+      );
+      return;
+    }
+
     final ok = await parent.saveEditingProfile();
     if (!ok) {
-      // Tichý fail odstraněn: jasná chyba, draft zůstává k opravě.
-      final fail = parent._s('Uložení selhalo', 'Save failed');
+      final fail = parent._s(
+        'Uložení profilu $editingName se nepovedlo',
+        'Saving profile $editingName failed',
+      );
       parent.say(fail);
       return;
     }
-    // Draft je po saveEditingProfile() vyčištěn (null); discard po save
-    // je no-op. Zavři editor a teprve po usazení focusu jednorázově
-    // potvrď — nikdy znovu celý souhrn.
+
     if (mounted) Navigator.pop(context);
     await Future.delayed(const Duration(milliseconds: 200));
     if (!mounted) return;
@@ -1434,7 +1377,7 @@ class _AccessibilityProfileEditorDialogState
             child: FilledButton(
               autofocus: true,
               onPressed: () async {
-                await _confirmAndSave();
+                await _saveChanges();
               },
               child: Text(parent._s('Uložit', 'Save')),
             ),
