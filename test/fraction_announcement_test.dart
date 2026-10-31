@@ -441,5 +441,23 @@ void main() {
       expect(announced.contains('is available'), isFalse);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('I. announceFractionAvailability vypnuto -> 0,75 bez doplňkové věty', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+      await setScreenReader(tester, state, false);
+      state.updateActiveSettingsForTest(
+        (s) => s.copyWith(announceFractionAvailability: false),
+      );
+      await calculate(tester, state, '0.75');
+      expect(state.fractionStringForTest, '3/4');
+      final speeches = resultSpeeches('Výsledek je', 'The result is');
+      expect(speeches, hasLength(1), reason: 'TTS log: $ttsLog');
+      expect(speeches.single, contains('Výsledek je'));
+      expect(speeches.single.contains('dostupný zlomek'), isFalse);
+      expect(speeches.single.contains('is available'), isFalse);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

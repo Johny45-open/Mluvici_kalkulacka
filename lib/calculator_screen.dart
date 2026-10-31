@@ -6440,6 +6440,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? _fractionAvailabilitySuffix() {
     // UNKNOWN (=ne false) → bez doplňkové věty, výsledek oznamuje displej.
     if (_isScreenReaderActive != false) return null;
+    if (!activeAccessibilitySettings.announceFractionAvailability) return null;
     if (_currentMode != CalculatorMode.basic &&
         _currentMode != CalculatorMode.scientific) {
       return null;

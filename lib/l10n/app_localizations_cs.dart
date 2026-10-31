@@ -1401,4 +1401,18 @@ class AppLocalizationsCs extends AppLocalizations {
   String resultNotationAnnouncement(String notation) {
     return 'Výchozí tvar výsledku: $notation';
   }
+
+  @override
+  String announceFractionAvailabilityState(String state) {
+    return 'Upozorňování na zlomek: $state';
+  }
+
+  @override
+  String get announceFractionAvailabilityLabel => 'Upozorňovat na dostupný zlomek';
+
+  @override
+  String get announceFractionAvailabilityDesc => 'Určuje, zda hlasové oznámení výsledku obsahuje také informaci o dostupném zlomku.';
+
+  @override
+  String get toggleAnnounceFractionAvailability => 'Přepnutí upozorňování na dostupný zlomek';
 }

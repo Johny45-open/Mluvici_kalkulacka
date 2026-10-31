@@ -120,6 +120,7 @@ bool _sameSettings(AccessibilitySettings a, AccessibilitySettings b) {
       a.useSixteenSegment == b.useSixteenSegment &&
       a.usePeriodicNotation == b.usePeriodicNotation &&
       a.announceExpression == b.announceExpression &&
+      a.announceFractionAvailability == b.announceFractionAvailability &&
       a.readStatsMemoryValues == b.readStatsMemoryValues &&
       a.autoReadStatsSummary == b.autoReadStatsSummary &&
       a.showStatsNavigationHint == b.showStatsNavigationHint &&

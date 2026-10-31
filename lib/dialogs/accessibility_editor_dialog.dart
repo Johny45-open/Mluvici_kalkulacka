@@ -242,6 +242,11 @@ class _AccessibilityProfileEditorDialogState
       draft.announceExpression != orig.announceExpression,
     );
     add(
+      'Upozorňování na zlomek: ${draft.announceFractionAvailability ? 'Zapnuto' : 'Vypnuto'}',
+      'Announce fraction availability: ${draft.announceFractionAvailability ? 'On' : 'Off'}',
+      draft.announceFractionAvailability != orig.announceFractionAvailability,
+    );
+    add(
       'Auto-čtení souhrnu: ${draft.autoReadStatsSummary ? 'Zapnuto' : 'Vypnuto'}',
       'Auto-read summary: ${draft.autoReadStatsSummary ? 'On' : 'Off'}',
       draft.autoReadStatsSummary != orig.autoReadStatsSummary,
@@ -669,6 +674,43 @@ class _AccessibilityProfileEditorDialogState
                   child: Text(
                     parent._l10n.announceExpressionState(
                       s.announceExpression
+                          ? parent._s('Zapnuto', 'On')
+                          : parent._s('Vypnuto', 'Off'),
+                    ),
+                  ),
+                ),
+              ),
+              const Divider(),
+              Semantics(
+                label: parent._s(
+                  'Přepnutí upozorňování na dostupný zlomek',
+                  'Toggle announcing fraction availability',
+                ),
+                child: ElevatedButton(
+                  onPressed: () {
+                    _onUpdate(
+                      (v) => v.copyWith(
+                        announceFractionAvailability:
+                            !v.announceFractionAvailability,
+                      ),
+                    );
+                    final nv = editingSettings.announceFractionAvailability;
+                    unawaited(
+                      parent.announceEvent(
+                        parent._l10n.announceFractionAvailabilityState(
+                          nv
+                              ? parent._s('Zapnuto', 'On')
+                              : parent._s('Vypnuto', 'Off'),
+                        ),
+                        category: SpeechCategory.settings,
+                        interruptCurrentSpeech: true,
+                      ),
+                    );
+                    setState(() {});
+                  },
+                  child: Text(
+                    parent._l10n.announceFractionAvailabilityState(
+                      s.announceFractionAvailability
                           ? parent._s('Zapnuto', 'On')
                           : parent._s('Vypnuto', 'Off'),
                     ),

@@ -959,5 +959,16 @@
         "type": "String"
       }
     }
-  }
+  },
+  "announceFractionAvailabilityState": "Announce fraction availability: {state}",
+  "@announceFractionAvailabilityState": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "announceFractionAvailabilityLabel": "Announce fraction availability",
+  "announceFractionAvailabilityDesc": "Controls whether spoken result announcements include an additional notice about an available fraction.",
+  "toggleAnnounceFractionAvailability": "Toggle announce fraction availability"
 }

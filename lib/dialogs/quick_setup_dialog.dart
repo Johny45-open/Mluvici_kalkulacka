@@ -109,6 +109,24 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
           ),
         ),
       ),
+      Semantics(
+        label: _t(
+          'Upozorňovat na dostupný zlomek zapnuto nebo vypnuto',
+          'Announce fraction availability on or off',
+        ),
+        child: SwitchListTile(
+          title: Text(_t('Upozorňovat na dostupný zlomek', 'Announce fraction availability')),
+          subtitle: Text(_t('Určuje, zda hlasové oznámení výsledku obsahuje také informaci o dostupném zlomku.', 'Controls whether spoken result announcements include an additional notice about an available fraction.')),
+          value: s.announceFractionAvailability,
+          onChanged: (v) => _updateSettings(
+            (x) => x.copyWith(announceFractionAvailability: v),
+            _t(
+              v ? 'Upozorňování na zlomek zapnuto' : 'Upozorňování na zlomek vypnuto',
+              v ? 'Announce fraction availability on' : 'Announce fraction availability off',
+            ),
+          ),
+        ),
+      ),
       FutureBuilder<List<Map<String, String>>>(
         future: widget.availableVoices,
         builder: (context, snap) {

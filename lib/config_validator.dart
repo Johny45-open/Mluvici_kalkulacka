@@ -41,6 +41,7 @@ const Set<String> _knownSettingsKeys = {
   'useSixteenSegment',
   'usePeriodicNotation',
   'announceExpression',
+  'announceFractionAvailability',
   'readStatsMemoryValues',
   'autoReadStatsSummary',
   'showStatsNavigationHint',

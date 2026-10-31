@@ -1031,5 +1031,16 @@
         "type": "String"
       }
     }
-  }
+  },
+  "announceFractionAvailabilityState": "Upozorňování na zlomek: {state}",
+  "@announceFractionAvailabilityState": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "announceFractionAvailabilityLabel": "Upozorňovat na dostupný zlomek",
+  "announceFractionAvailabilityDesc": "Určuje, zda hlasové oznámení výsledku obsahuje také informaci o dostupném zlomku.",
+  "toggleAnnounceFractionAvailability": "Přepnutí upozorňování na dostupný zlomek"
 }

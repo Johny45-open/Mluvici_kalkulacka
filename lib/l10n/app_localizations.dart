@@ -2578,6 +2578,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Default result notation: {notation}'**
   String resultNotationAnnouncement(String notation);
+
+  /// No description provided for @announceFractionAvailabilityState.
+  ///
+  /// In en, this message translates to:
+  /// **'Announce fraction availability: {state}'**
+  String announceFractionAvailabilityState(String state);
+
+  /// No description provided for @announceFractionAvailabilityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Announce fraction availability'**
+  String get announceFractionAvailabilityLabel;
+
+  /// No description provided for @announceFractionAvailabilityDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls whether spoken result announcements include an additional notice about an available fraction.'**
+  String get announceFractionAvailabilityDesc;
+
+  /// No description provided for @toggleAnnounceFractionAvailability.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle announce fraction availability'**
+  String get toggleAnnounceFractionAvailability;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

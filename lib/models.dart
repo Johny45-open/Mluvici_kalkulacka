@@ -33,6 +33,7 @@ class AccessibilitySettings {
   final bool useSixteenSegment;
   final bool usePeriodicNotation;
   final bool announceExpression;
+  final bool announceFractionAvailability;
   final bool readStatsMemoryValues;
   final bool autoReadStatsSummary;
   final bool showStatsNavigationHint;
@@ -60,6 +61,7 @@ class AccessibilitySettings {
     required this.useSixteenSegment,
     required this.usePeriodicNotation,
     required this.announceExpression,
+    required this.announceFractionAvailability,
     required this.readStatsMemoryValues,
     required this.autoReadStatsSummary,
     required this.showStatsNavigationHint,
@@ -89,6 +91,7 @@ class AccessibilitySettings {
       useSixteenSegment: false,
       usePeriodicNotation: true,
       announceExpression: false,
+      announceFractionAvailability: true,
       readStatsMemoryValues: true,
       autoReadStatsSummary: true,
       showStatsNavigationHint: true,
@@ -119,6 +122,7 @@ class AccessibilitySettings {
       useSixteenSegment: false,
       usePeriodicNotation: true,
       announceExpression: true,
+      announceFractionAvailability: true,
       readStatsMemoryValues: true,
       autoReadStatsSummary: true,
       showStatsNavigationHint: true,
@@ -149,6 +153,7 @@ class AccessibilitySettings {
       useSixteenSegment: true,
       usePeriodicNotation: true,
       announceExpression: false,
+      announceFractionAvailability: true,
       readStatsMemoryValues: true,
       autoReadStatsSummary: true,
       showStatsNavigationHint: true,
@@ -178,6 +183,7 @@ class AccessibilitySettings {
     bool? useSixteenSegment,
     bool? usePeriodicNotation,
     bool? announceExpression,
+    bool? announceFractionAvailability,
     bool? readStatsMemoryValues,
     bool? autoReadStatsSummary,
     bool? showStatsNavigationHint,
@@ -209,6 +215,8 @@ class AccessibilitySettings {
       useSixteenSegment: useSixteenSegment ?? this.useSixteenSegment,
       usePeriodicNotation: usePeriodicNotation ?? this.usePeriodicNotation,
       announceExpression: announceExpression ?? this.announceExpression,
+      announceFractionAvailability:
+          announceFractionAvailability ?? this.announceFractionAvailability,
       readStatsMemoryValues:
           readStatsMemoryValues ?? this.readStatsMemoryValues,
       autoReadStatsSummary: autoReadStatsSummary ?? this.autoReadStatsSummary,
@@ -254,6 +262,7 @@ class AccessibilitySettings {
     'useSixteenSegment': useSixteenSegment,
     'usePeriodicNotation': usePeriodicNotation,
     'announceExpression': announceExpression,
+    'announceFractionAvailability': announceFractionAvailability,
     'readStatsMemoryValues': readStatsMemoryValues,
     'autoReadStatsSummary': autoReadStatsSummary,
     'showStatsNavigationHint': showStatsNavigationHint,
@@ -333,6 +342,8 @@ class AccessibilitySettings {
       useSixteenSegment: json['useSixteenSegment'] as bool? ?? false,
       usePeriodicNotation: json['usePeriodicNotation'] as bool? ?? true,
       announceExpression: json['announceExpression'] as bool? ?? false,
+      announceFractionAvailability:
+          json['announceFractionAvailability'] as bool? ?? true,
       readStatsMemoryValues: json['readStatsMemoryValues'] as bool? ?? true,
       autoReadStatsSummary: json['autoReadStatsSummary'] as bool? ?? true,
       showStatsNavigationHint: json['showStatsNavigationHint'] as bool? ?? true,

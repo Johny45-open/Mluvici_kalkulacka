@@ -1401,4 +1401,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String resultNotationAnnouncement(String notation) {
     return 'Default result notation: $notation';
   }
+
+  @override
+  String announceFractionAvailabilityState(String state) {
+    return 'Announce fraction availability: $state';
+  }
+
+  @override
+  String get announceFractionAvailabilityLabel => 'Announce fraction availability';
+
+  @override
+  String get announceFractionAvailabilityDesc => 'Controls whether spoken result announcements include an additional notice about an available fraction.';
+
+  @override
+  String get toggleAnnounceFractionAvailability => 'Toggle announce fraction availability';
 }

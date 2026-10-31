@@ -88,6 +88,7 @@ Map<String, dynamic> _settingsToContract(AccessibilitySettings s) => {
   'useSixteenSegment': s.useSixteenSegment,
   'usePeriodicNotation': s.usePeriodicNotation,
   'announceExpression': s.announceExpression,
+  'announceFractionAvailability': s.announceFractionAvailability,
   'readStatsMemoryValues': s.readStatsMemoryValues,
   'autoReadStatsSummary': s.autoReadStatsSummary,
   'showStatsNavigationHint': s.showStatsNavigationHint,
@@ -122,6 +123,8 @@ AccessibilitySettings _settingsFromContract(Map<String, dynamic> m) =>
       useSixteenSegment: m['useSixteenSegment'] as bool,
       usePeriodicNotation: m['usePeriodicNotation'] as bool,
       announceExpression: m['announceExpression'] as bool,
+      announceFractionAvailability:
+          m['announceFractionAvailability'] as bool? ?? true,
       readStatsMemoryValues: m['readStatsMemoryValues'] as bool,
       autoReadStatsSummary: m['autoReadStatsSummary'] as bool,
       showStatsNavigationHint: m['showStatsNavigationHint'] as bool,
