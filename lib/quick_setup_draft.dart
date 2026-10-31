@@ -18,6 +18,7 @@ class QuickSetupDraft {
   final CalculatorMode defaultMode;
   final ResultDisplayMode resultDisplayMode;
   final ResultNotationPreference resultNotationPreference;
+  final bool announceFractionAvailability;
 
   const QuickSetupDraft({
     required this.settings,
@@ -26,6 +27,7 @@ class QuickSetupDraft {
     required this.defaultMode,
     required this.resultDisplayMode,
     required this.resultNotationPreference,
+    required this.announceFractionAvailability,
   });
 
   /// Sestaví draft z aktuálního runtime stavu (bez zápisu).
@@ -36,6 +38,7 @@ class QuickSetupDraft {
     required CalculatorMode defaultMode,
     required ResultDisplayMode resultDisplayMode,
     required ResultNotationPreference resultNotationPreference,
+    required bool announceFractionAvailability,
   }) {
     return QuickSetupDraft(
       settings: settings.copyWith(),
@@ -44,6 +47,7 @@ class QuickSetupDraft {
       defaultMode: defaultMode,
       resultDisplayMode: resultDisplayMode,
       resultNotationPreference: resultNotationPreference,
+      announceFractionAvailability: announceFractionAvailability,
     );
   }
 
@@ -56,6 +60,7 @@ class QuickSetupDraft {
       defaultMode: CalculatorMode.scientific,
       resultDisplayMode: ResultDisplayMode.segment,
       resultNotationPreference: ResultNotationPreference.decimal,
+      announceFractionAvailability: true,
     );
   }
 
@@ -66,6 +71,7 @@ class QuickSetupDraft {
     CalculatorMode? defaultMode,
     ResultDisplayMode? resultDisplayMode,
     ResultNotationPreference? resultNotationPreference,
+    bool? announceFractionAvailability,
   }) {
     return QuickSetupDraft(
       settings: settings ?? this.settings.copyWith(),
@@ -74,6 +80,7 @@ class QuickSetupDraft {
       defaultMode: defaultMode ?? this.defaultMode,
       resultDisplayMode: resultDisplayMode ?? this.resultDisplayMode,
       resultNotationPreference: resultNotationPreference ?? this.resultNotationPreference,
+      announceFractionAvailability: announceFractionAvailability ?? this.announceFractionAvailability,
     );
   }
 
@@ -107,7 +114,7 @@ class QuickSetupDraft {
 }
 
 /// Porovnání nastavení pro detekci presetu (bez resultDisplayMode,
-/// který je globální, a bez display-only ttsVoiceName).
+/// announceFractionAvailability, který je globální, a bez display-only ttsVoiceName).
 bool _sameSettings(AccessibilitySettings a, AccessibilitySettings b) {
   return a.accessibilityType == b.accessibilityType &&
       a.screenReaderMode == b.screenReaderMode &&
@@ -120,7 +127,6 @@ bool _sameSettings(AccessibilitySettings a, AccessibilitySettings b) {
       a.useSixteenSegment == b.useSixteenSegment &&
       a.usePeriodicNotation == b.usePeriodicNotation &&
       a.announceExpression == b.announceExpression &&
-      a.announceFractionAvailability == b.announceFractionAvailability &&
       a.readStatsMemoryValues == b.readStatsMemoryValues &&
       a.autoReadStatsSummary == b.autoReadStatsSummary &&
       a.showStatsNavigationHint == b.showStatsNavigationHint &&

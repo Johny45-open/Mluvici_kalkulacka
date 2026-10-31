@@ -242,9 +242,9 @@ class _AccessibilityProfileEditorDialogState
       draft.announceExpression != orig.announceExpression,
     );
     add(
-      'Upozorňování na zlomek: ${draft.announceFractionAvailability ? 'Zapnuto' : 'Vypnuto'}',
-      'Announce fraction availability: ${draft.announceFractionAvailability ? 'On' : 'Off'}',
-      draft.announceFractionAvailability != orig.announceFractionAvailability,
+      'Upozorňování na zlomek: ${parent._announceFractionAvailability ? 'Zapnuto' : 'Vypnuto'}',
+      'Announce fraction availability: ${parent._announceFractionAvailability ? 'On' : 'Off'}',
+      false,
     );
     add(
       'Auto-čtení souhrnu: ${draft.autoReadStatsSummary ? 'Zapnuto' : 'Vypnuto'}',
@@ -688,13 +688,8 @@ class _AccessibilityProfileEditorDialogState
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    _onUpdate(
-                      (v) => v.copyWith(
-                        announceFractionAvailability:
-                            !v.announceFractionAvailability,
-                      ),
-                    );
-                    final nv = editingSettings.announceFractionAvailability;
+                    final nv = !parent._announceFractionAvailability;
+                    parent.setGlobalAnnounceFractionAvailability(nv);
                     unawaited(
                       parent.announceEvent(
                         parent._l10n.announceFractionAvailabilityState(
@@ -710,7 +705,7 @@ class _AccessibilityProfileEditorDialogState
                   },
                   child: Text(
                     parent._l10n.announceFractionAvailabilityState(
-                      s.announceFractionAvailability
+                      parent._announceFractionAvailability
                           ? parent._s('Zapnuto', 'On')
                           : parent._s('Vypnuto', 'Off'),
                     ),

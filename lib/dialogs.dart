@@ -84,6 +84,95 @@ class _ResultNotationPreferencePicker extends StatelessWidget {
   }
 }
 
+class _ResultDisplayAppearanceSection extends StatelessWidget {
+  final _CalculatorScreenState parent;
+  final VoidCallback? onChanged;
+
+  const _ResultDisplayAppearanceSection({required this.parent, this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ResultDisplayModePicker(parent: parent, onChanged: onChanged),
+        const Divider(),
+        Semantics(
+          header: true,
+          child: Text(
+            parent._l10n.resultNotationPreferenceTitle,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        _ResultNotationPreferencePicker(parent: parent, onChanged: onChanged),
+        const Divider(),
+        Semantics(
+          header: true,
+          child: Text(
+            parent._s(
+              'Formát exaktního výsledku v historii',
+              'History exact result format',
+            ),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        Semantics(
+          label: parent._s(
+            'Formát exaktního výsledku v historii, globální nastavení',
+            'History exact result format, global setting',
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final f in HistoryExactFormat.values)
+                RadioListTile<HistoryExactFormat>(
+                  title: Text(parent._historyExactFormatName(f)),
+                  value: f,
+                  groupValue: parent._historyExactFormat,
+                  onChanged: (v) {
+                    if (v == null) return;
+                    parent.setHistoryExactFormat(v);
+                    parent.say(
+                      parent._s(
+                        'Formát historie: ${parent._historyExactFormatName(v)}',
+                        'History format: ${parent._historyExactFormatName(v)}',
+                      ),
+                    );
+                    onChanged?.call();
+                  },
+                ),
+            ],
+          ),
+        ),
+        const Divider(),
+        Semantics(
+          header: true,
+          child: Text(
+            parent._s('Hlasové oznámení zlomku', 'Fraction voice announcement'),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        SwitchListTile(
+          title: Text(parent._s('Upozorňovat na dostupný zlomek', 'Announce available fraction')),
+          subtitle: Text(parent._s('Globální nastavení doplňkové věty o zlomku ve výsledku.', 'Global setting for additional fraction notice in speech.')),
+          value: parent._announceFractionAvailability,
+          onChanged: (v) {
+            parent.setGlobalAnnounceFractionAvailability(v);
+            parent.say(
+              parent._s(
+                v ? 'Upozorňování na zlomek zapnuto' : 'Upozorňování na zlomek vypnuto',
+                v ? 'Announce fraction availability on' : 'Announce fraction availability off',
+              ),
+            );
+            onChanged?.call();
+          },
+        ),
+      ],
+    );
+  }
+}
+
 class _AdvancedFunctionsDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
   const _AdvancedFunctionsDialog({required this.parent});
@@ -1079,6 +1168,29 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                   ),
               ],
             ),
+          ),
+          const Divider(),
+          Semantics(
+            header: true,
+            child: Text(
+              parent._s('Hlasové oznámení zlomku', 'Fraction voice announcement'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          SwitchListTile(
+            title: Text(parent._s('Upozorňovat na dostupný zlomek', 'Announce available fraction')),
+            subtitle: Text(parent._s('Globální nastavení doplňkové věty o zlomku ve výsledku.', 'Global setting for additional fraction notice in speech.')),
+            value: parent._announceFractionAvailability,
+            onChanged: (v) {
+              parent.setGlobalAnnounceFractionAvailability(v);
+              parent.say(
+                parent._s(
+                  v ? 'Upozorňování na zlomek zapnuto' : 'Upozorňování na zlomek vypnuto',
+                  v ? 'Announce fraction availability on' : 'Announce fraction availability off',
+                ),
+              );
+              setState(() {});
+            },
           ),
         ],
       ),
@@ -2756,19 +2868,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 'Result display',
               ),
               children: [
-                _ResultDisplayModePicker(
-                  parent: widget.parent,
-                  onChanged: () => setState(() {}),
-                ),
-                const Divider(),
-                Semantics(
-                  header: true,
-                  child: Text(
-                    widget.parent._l10n.resultNotationPreferenceTitle,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                _ResultNotationPreferencePicker(
+                _ResultDisplayAppearanceSection(
                   parent: widget.parent,
                   onChanged: () => setState(() {}),
                 ),

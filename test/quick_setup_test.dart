@@ -384,6 +384,7 @@ void main() {
         resultDisplayMode: ResultDisplayMode.segment,
         resultNotationPreference: ResultNotationPreference.decimal,
         historyExactFormat: HistoryExactFormat.numeric,
+        announceFractionAvailability: true,
       );
       expect(validateContract(contract).ok, isTrue);
       final parsed = parseContract(contract);
@@ -425,6 +426,7 @@ void main() {
         resultDisplayMode: ResultDisplayMode.auto,
         resultNotationPreference: ResultNotationPreference.decimal,
         historyExactFormat: HistoryExactFormat.numeric,
+        announceFractionAvailability: true,
       );
       final settings = (contract['profiles'] as List).first['settings'] as Map;
       expect(settings.containsKey('resultDisplayMode'), isFalse);

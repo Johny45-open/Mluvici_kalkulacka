@@ -313,6 +313,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // (pouze jednorázová migrace).
   ResultDisplayMode _globalResultDisplayMode = ResultDisplayMode.segment;
   ResultNotationPreference _globalResultNotationPreference = ResultNotationPreference.decimal;
+  bool _globalAnnounceFractionAvailability = true;
+
+  bool get _announceFractionAvailability => _globalAnnounceFractionAvailability;
+
+  void setGlobalAnnounceFractionAvailability(bool v) {
+    if (_globalAnnounceFractionAvailability == v) return;
+    setState(() => _globalAnnounceFractionAvailability = v);
+    unawaited(_saveGlobalSettings());
+  }
+
+  void setAnnounceFractionAvailabilityForTest(bool v) {
+    setGlobalAnnounceFractionAvailability(v);
+  }
+
+  bool get announceFractionAvailabilityForTest => _globalAnnounceFractionAvailability;
 
   ResultNotationPreference get _resultNotationPreference => _globalResultNotationPreference;
 
@@ -3365,6 +3380,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       defaultMode: _defaultMode,
       resultDisplayMode: _globalResultDisplayMode,
       resultNotationPreference: _globalResultNotationPreference,
+      announceFractionAvailability: _globalAnnounceFractionAvailability,
     );
     await showAppDialog<void>(
       context: context,
@@ -3391,6 +3407,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       defaultMode: _defaultMode,
       resultDisplayMode: _globalResultDisplayMode,
       resultNotationPreference: _globalResultNotationPreference,
+      announceFractionAvailability: _globalAnnounceFractionAvailability,
     );
     showAppDialog<void>(
       context: context,
@@ -3523,6 +3540,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _activeProfileId = parsed.activeProfileId;
       _globalResultDisplayMode = parsed.resultDisplayMode;
       _globalResultNotationPreference = parsed.resultNotationPreference;
+      _globalAnnounceFractionAvailability = parsed.announceFractionAvailability;
       _isDegreeMode = parsed.isDegreeMode;
       _defaultMode = parsed.defaultMode;
       _currentMode = parsed.defaultMode;
@@ -6440,7 +6458,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? _fractionAvailabilitySuffix() {
     // UNKNOWN (=ne false) → bez doplňkové věty, výsledek oznamuje displej.
     if (_isScreenReaderActive != false) return null;
-    if (!activeAccessibilitySettings.announceFractionAvailability) return null;
+    if (!_globalAnnounceFractionAvailability) return null;
     if (_currentMode != CalculatorMode.basic &&
         _currentMode != CalculatorMode.scientific) {
       return null;
@@ -8941,6 +8959,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         resultDisplayMode: _globalResultDisplayMode,
         resultNotationPreference: _globalResultNotationPreference,
         historyExactFormat: _historyExactFormat,
+        announceFractionAvailability: _globalAnnounceFractionAvailability,
         defaultMode: _defaultMode,
         statsSummaryOrder: _statsSummaryOrder,
         statsComputedOrder: _statsComputedOrder,
@@ -9144,6 +9163,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       resultDisplayMode: parsed.resultDisplayMode,
       resultNotationPreference: parsed.resultNotationPreference,
       historyExactFormat: parsed.historyExactFormat,
+      announceFractionAvailability: parsed.announceFractionAvailability,
     );
     // Persist PŘED jakoukoli změnou runtime (safe commit workflow).
     final prefs = await SharedPreferences.getInstance();
@@ -9156,6 +9176,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _globalResultDisplayMode = applied.resultDisplayMode;
       _globalResultNotationPreference = applied.resultNotationPreference;
       _historyExactFormat = applied.historyExactFormat;
+      _globalAnnounceFractionAvailability = applied.announceFractionAvailability;
       _statsSummaryOrder = List<StatsSummarySection>.from(
         applied.statsSummaryOrder,
       );
@@ -14248,6 +14269,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       defaultMode: _defaultMode,
       resultDisplayMode: _globalResultDisplayMode,
       resultNotationPreference: _globalResultNotationPreference,
+      announceFractionAvailability: _globalAnnounceFractionAvailability,
     );
     return showAppDialog<void>(
       context: context,

@@ -144,6 +144,7 @@ void main() {
         resultDisplayMode: m,
         resultNotationPreference: ResultNotationPreference.decimal,
         historyExactFormat: HistoryExactFormat.numeric,
+        announceFractionAvailability: true,
       );
     }
 

@@ -180,6 +180,7 @@ Map<String, dynamic> buildQuickSetupContract({
     resultDisplayMode: draft.resultDisplayMode,
     resultNotationPreference: draft.resultNotationPreference,
     historyExactFormat: historyExactFormat,
+    announceFractionAvailability: draft.announceFractionAvailability,
   );
 }
 

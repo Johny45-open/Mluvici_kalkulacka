@@ -447,9 +447,7 @@ void main() {
     ) async {
       final state = await pumpApp(tester);
       await setScreenReader(tester, state, false);
-      state.updateActiveSettingsForTest(
-        (s) => s.copyWith(announceFractionAvailability: false),
-      );
+      state.setAnnounceFractionAvailabilityForTest(false);
       await calculate(tester, state, '0.75');
       expect(state.fractionStringForTest, '3/4');
       final speeches = resultSpeeches('Výsledek je', 'The result is');

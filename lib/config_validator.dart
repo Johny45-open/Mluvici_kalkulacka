@@ -41,7 +41,6 @@ const Set<String> _knownSettingsKeys = {
   'useSixteenSegment',
   'usePeriodicNotation',
   'announceExpression',
-  'announceFractionAvailability',
   'readStatsMemoryValues',
   'autoReadStatsSummary',
   'showStatsNavigationHint',
@@ -63,6 +62,7 @@ const Set<String> _knownGlobalKeys = {
   'defaultMode',
   'resultDisplayMode',
   'historyExactFormat',
+  'announceFractionAvailability',
   'statsSummaryOrder',
   'statsComputedOrder',
   'currency',
@@ -673,6 +673,16 @@ void _validateGlobalSettings(Map<String, dynamic> gs, ValidationResult res) {
         path: 'globalSettings.historyExactFormat',
         message: 'historyExactFormat musi byt jedno z numeric, exact',
         code: 'enum',
+      ),
+    );
+  }
+  if (gs['announceFractionAvailability'] != null &&
+      gs['announceFractionAvailability'] is! bool) {
+    res.errors.add(
+      ValidationIssue(
+        path: 'globalSettings.announceFractionAvailability',
+        message: 'announceFractionAvailability musi byt bool',
+        code: 'type',
       ),
     );
   }

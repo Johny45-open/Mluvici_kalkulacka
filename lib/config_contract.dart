@@ -88,7 +88,6 @@ Map<String, dynamic> _settingsToContract(AccessibilitySettings s) => {
   'useSixteenSegment': s.useSixteenSegment,
   'usePeriodicNotation': s.usePeriodicNotation,
   'announceExpression': s.announceExpression,
-  'announceFractionAvailability': s.announceFractionAvailability,
   'readStatsMemoryValues': s.readStatsMemoryValues,
   'autoReadStatsSummary': s.autoReadStatsSummary,
   'showStatsNavigationHint': s.showStatsNavigationHint,
@@ -170,6 +169,7 @@ Map<String, dynamic> buildContractJson({
   required ResultDisplayMode resultDisplayMode,
   required ResultNotationPreference resultNotationPreference,
   required HistoryExactFormat historyExactFormat,
+  required bool announceFractionAvailability,
 }) {
   final now = DateTime.now().toUtc().toIso8601String().replaceAll(
     '+00:00',
@@ -198,6 +198,7 @@ Map<String, dynamic> buildContractJson({
       'resultDisplayMode': _resultDisplayModeToString(resultDisplayMode),
       'resultNotationPreference': _resultNotationPreferenceToString(resultNotationPreference),
       'historyExactFormat': _historyExactFormatToString(historyExactFormat),
+      'announceFractionAvailability': announceFractionAvailability,
       'statsSummaryOrder': statsSummaryOrder
           .map((e) => _statsSectionToString(e))
           .toList(),
@@ -223,6 +224,7 @@ class ParsedContract {
   final ResultDisplayMode resultDisplayMode;
   final ResultNotationPreference resultNotationPreference;
   final HistoryExactFormat historyExactFormat;
+  final bool announceFractionAvailability;
   final CalculatorMode defaultMode;
   final List<StatsSummarySection> statsSummaryOrder;
   final List<StatsComputedItem> statsComputedOrder;
@@ -240,6 +242,7 @@ class ParsedContract {
     required this.resultDisplayMode,
     required this.resultNotationPreference,
     required this.historyExactFormat,
+    required this.announceFractionAvailability,
     required this.defaultMode,
     required this.statsSummaryOrder,
     required this.statsComputedOrder,
@@ -279,6 +282,7 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
   HistoryExactFormat resolvedHef = _historyExactFormatFromString(
     gs['historyExactFormat'] as String?,
   );
+  bool resolvedAfa = gs['announceFractionAvailability'] as bool? ?? true;
   if (!gs.containsKey('resultDisplayMode')) {
     final activeId = raw['activeProfileId'] as String?;
     for (final p in profiles) {
@@ -286,6 +290,15 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
         if (p.settings.resultDisplayMode != ResultDisplayMode.segment) {
           resolvedRdm = p.settings.resultDisplayMode;
         }
+        break;
+      }
+    }
+  }
+  if (!gs.containsKey('announceFractionAvailability')) {
+    final activeId = raw['activeProfileId'] as String?;
+    for (final p in profiles) {
+      if (p.id == activeId) {
+        resolvedAfa = p.settings.announceFractionAvailability;
         break;
       }
     }
@@ -298,6 +311,7 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
     resultDisplayMode: resolvedRdm,
     resultNotationPreference: resolvedRnp,
     historyExactFormat: resolvedHef,
+    announceFractionAvailability: resolvedAfa,
     defaultMode: _calcModeFromString(gs['defaultMode'] as String),
     statsSummaryOrder: (gs['statsSummaryOrder'] as List)
         .map((e) => _statsSectionFromString(e as String))

@@ -119,6 +119,7 @@
         "resultDisplayMode": { "type": "string", "enum": ["segment", "text", "auto"] },
         "resultNotationPreference": { "type": "string", "enum": ["decimal", "fraction"] },
         "historyExactFormat": { "type": "string", "enum": ["numeric", "exact"] },
+        "announceFractionAvailability": { "type": "boolean" },
         "statsSummaryOrder": {
           "type": "array",
           "minItems": 3,
