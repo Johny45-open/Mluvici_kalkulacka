@@ -1,5 +1,42 @@
 part of 'main.dart';
 
+/// Stavový wrapper pro udržení položky v paměti (keep-alive), pokud některý
+/// z jejích potomků drží klávesnicový fokus. Nezasahuje do sémantiky ani do Tab pořadí.
+class _KeepAliveSetTile extends StatefulWidget {
+  final Widget child;
+  const _KeepAliveSetTile({required Key key, required this.child}) : super(key: key);
+
+  @override
+  State<_KeepAliveSetTile> createState() => _KeepAliveSetTileState();
+}
+
+class _KeepAliveSetTileState extends State<_KeepAliveSetTile>
+    with AutomaticKeepAliveClientMixin {
+  bool _hasFocus = false;
+
+  @override
+  bool get wantKeepAlive => _hasFocus;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      includeSemantics: false,
+      onFocusChange: (hasFocus) {
+        if (_hasFocus != hasFocus) {
+          setState(() {
+            _hasFocus = hasFocus;
+          });
+          updateKeepAlive();
+        }
+      },
+      child: widget.child,
+    );
+  }
+}
+
 class _StatsSetsDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
   const _StatsSetsDialog({required this.parent});
@@ -829,15 +866,18 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
                   final set = filtered[index];
                   final realIndex = parent._statsSets.indexOf(set);
                   final isCurrent = realIndex == parent._currentStatsSetIndex;
-                  return LayoutBuilder(
-                    builder: (itemCtx, itemConstraints) {
-                      final itemNarrow =
-                          itemConstraints.maxWidth < 420 || narrowContent;
-                      if (itemNarrow) {
-                        return _buildSetTileNarrow(set, realIndex, isCurrent);
-                      }
-                      return _buildSetTileWide(set, realIndex, isCurrent);
-                    },
+                  return _KeepAliveSetTile(
+                    key: ValueKey<String>(set.id),
+                    child: LayoutBuilder(
+                      builder: (itemCtx, itemConstraints) {
+                        final itemNarrow =
+                            itemConstraints.maxWidth < 420 || narrowContent;
+                        if (itemNarrow) {
+                          return _buildSetTileNarrow(set, realIndex, isCurrent);
+                        }
+                        return _buildSetTileWide(set, realIndex, isCurrent);
+                      },
+                    ),
                   );
                 }
 
@@ -856,12 +896,21 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
                       ),
                     );
                   }
+                  final idToIndex = <String, int>{
+                    for (int i = 0; i < filtered.length; i++) filtered[i].id: i
+                  };
                   return ListView.builder(
                     shrinkWrap: shrinkWrap,
                     physics: shrinkWrap
                         ? const NeverScrollableScrollPhysics()
                         : null,
                     itemCount: filtered.length,
+                    findChildIndexCallback: (Key key) {
+                      if (key is ValueKey<String>) {
+                        return idToIndex[key.value];
+                      }
+                      return null;
+                    },
                     itemBuilder: buildItem,
                   );
                 }

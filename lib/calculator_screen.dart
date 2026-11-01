@@ -7777,6 +7777,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _devDiagnosticDurationMs =
           (prefs.getInt('devDiagnosticDurationMs') ?? 700).clamp(200, 3000);
       _devPinCode = prefs.getString('devPinCode');
+      _globalAnnounceFractionAvailability =
+          prefs.getBool('announceFractionAvailability') ?? true;
       // Pořadí statistického souhrnu
       final orderList = prefs.getStringList('statsSummaryOrder');
       if (orderList != null && orderList.isNotEmpty) {
@@ -7886,6 +7888,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setString(
       'historyExactFormat',
       _historyExactFormatToString(_historyExactFormat),
+    );
+    await prefs.setBool(
+      'announceFractionAvailability',
+      _globalAnnounceFractionAvailability,
     );
     await prefs.setInt('defaultMode', _defaultMode.index);
     await prefs.setBool('devModeEnabled', _devModeEnabled);
