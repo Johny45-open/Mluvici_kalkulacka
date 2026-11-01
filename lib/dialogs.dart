@@ -2472,6 +2472,8 @@ class _AccessibilityDialog extends StatefulWidget {
 
 class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   String? _selectedProfileId;
+  String? _statusMessage;
+
   @override
   void initState() {
     super.initState();
@@ -2504,14 +2506,44 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
     final routeName =
         'Upravit profil ${widget.parent._displayProfileName(profileForName)}';
     widget.parent
-        .showAppDialog<void>(
+        .showAppDialog<AccessibilityEditorResult>(
           context: context,
           routeSettings: RouteSettings(name: routeName),
           builder: (ctx) =>
               _AccessibilityProfileEditorDialog(parent: widget.parent),
         )
-        .then((_) {
-          if (mounted) setState(() {});
+        .then((result) {
+          if (!mounted) return;
+          if (result != null) {
+            if (result.noChange) {
+              final msg = widget.parent._s(
+                'Profil ${widget.parent._displayProfileName(profileForName)} nebyl změněn',
+                'Profile ${widget.parent._displayProfileName(profileForName)} was not changed',
+              );
+              setState(() {
+                _statusMessage = msg;
+              });
+              widget.parent.announceEvent(
+                msg,
+                category: SpeechCategory.actionConfirm,
+                interruptCurrentSpeech: true,
+              );
+            } else if (result.saved) {
+              final msg = widget.parent._s(
+                'Profil ${result.profileName} byl úspěšně uložen',
+                'Profile ${result.profileName} was successfully saved',
+              );
+              setState(() {
+                _statusMessage = msg;
+              });
+              widget.parent.announceEvent(
+                msg,
+                category: SpeechCategory.actionConfirm,
+                interruptCurrentSpeech: true,
+              );
+            }
+          }
+          setState(() {});
         });
   }
 
@@ -2526,7 +2558,17 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_statusMessage != null) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Text(
+                  _statusMessage!,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

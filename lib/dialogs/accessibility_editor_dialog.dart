@@ -1,5 +1,16 @@
 part of '../main.dart';
 
+class AccessibilityEditorResult {
+  final bool saved;
+  final bool noChange;
+  final String profileName;
+  const AccessibilityEditorResult({
+    this.saved = false,
+    this.noChange = false,
+    this.profileName = '',
+  });
+}
+
 class _AccessibilityProfileEditorDialog extends StatefulWidget {
   final _CalculatorScreenState parent;
   const _AccessibilityProfileEditorDialog({required this.parent});
@@ -366,7 +377,12 @@ class _AccessibilityProfileEditorDialogState
     return out;
   }
 
+  String? _errorMessage;
+
   Future<void> _saveChanges() async {
+    setState(() {
+      _errorMessage = null;
+    });
     final changes = _collectChanges();
     final isNoChange =
         changes.length == 1 &&
@@ -374,37 +390,45 @@ class _AccessibilityProfileEditorDialogState
             changes.first.contains('No changes'));
 
     if (isNoChange) {
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(
+          context,
+          const AccessibilityEditorResult(noChange: true),
+        );
+      }
       if (parent.editingProfile != null) {
         parent.discardEditingProfile();
       }
-      await Future.delayed(const Duration(milliseconds: 200));
-      if (!mounted) return;
-      parent.say(
-        parent._s(
-          'Profil $editingName nebyl změněn',
-          'Profile $editingName was not changed',
-        ),
-      );
       return;
     }
 
+    final nameBeforeSave = editingName;
     final ok = await parent.saveEditingProfile();
     if (!ok) {
       final fail = parent._s(
-        'Uložení profilu $editingName se nepovedlo',
-        'Saving profile $editingName failed',
+        'Uložení profilu $nameBeforeSave se nepovedlo',
+        'Saving profile $nameBeforeSave failed',
       );
-      parent.say(fail);
+      setState(() {
+        _errorMessage = fail;
+      });
+      parent.announceEvent(
+        fail,
+        category: SpeechCategory.actionConfirm,
+        interruptCurrentSpeech: true,
+      );
       return;
     }
 
-    if (mounted) Navigator.pop(context);
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (!mounted) return;
-    parent.say(
-      parent._s('Profil $editingName uložen', 'Profile $editingName saved'),
-    );
+    if (mounted) {
+      Navigator.pop(
+        context,
+        AccessibilityEditorResult(
+          saved: true,
+          profileName: nameBeforeSave,
+        ),
+      );
+    }
   }
 
   @override
@@ -458,6 +482,21 @@ class _AccessibilityProfileEditorDialogState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_errorMessage != null) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               Semantics(
                 liveRegion: true,
                 child: Text(

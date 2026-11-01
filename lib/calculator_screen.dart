@@ -4,6 +4,8 @@ class CalculatorScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
   static bool skipNetworkUpdatesForTest = false;
+  @visibleForTesting
+  static Future<bool> Function()? mockSaveProfilesErrorForTest;
 
   const CalculatorScreen({
     super.key,
@@ -538,10 +540,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     final savedId = _editingProfileId!;
     final wasActive = savedId == _activeProfileId;
+    final oldProfile = _profiles[idx];
     setState(() {
       _profiles[idx] = _editingDraft!;
     });
-    await _saveProfilesV2();
+    final success = await _saveProfilesV2();
+    if (!success) {
+      setState(() {
+        _profiles[idx] = oldProfile;
+      });
+      debugPrint('saveEditingProfile: SharedPreferences save failed');
+      return false;
+    }
     if (wasActive) {
       _applySettingsToRuntime(_editingDraft!.settings);
       _applyActiveProfileToState();
@@ -7993,13 +8003,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return [_fallbackStandardProfile()];
   }
 
-  Future<void> _saveProfilesV2() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'accessibility_profiles_v2',
-      jsonEncode(_profiles.map((p) => p.toJson()).toList()),
-    );
-    await prefs.setString('activeProfileId', _activeProfileId);
+  Future<bool> _saveProfilesV2() async {
+    if (CalculatorScreen.mockSaveProfilesErrorForTest != null) {
+      return await CalculatorScreen.mockSaveProfilesErrorForTest!();
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final profilesJson = jsonEncode(_profiles.map((p) => p.toJson()).toList());
+      final res1 = await prefs.setString(
+        'accessibility_profiles_v2',
+        profilesJson,
+      );
+      final res2 = await prefs.setString('activeProfileId', _activeProfileId);
+      return res1 && res2;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _saveActiveProfileId() async {

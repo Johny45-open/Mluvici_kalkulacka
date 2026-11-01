@@ -643,4 +643,109 @@ void main() {
       expect(state.editingDraftForTest, isNull);
     });
   });
+
+  group('UI save confirmation and failure handling', () {
+    testWidgets('successful save of inactive profile updates parent dialog status message and keeps parent open', (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
+      mockChannels();
+      dynamic state = await pumpApp(tester);
+      state.switchProfileForTest('standard');
+      await tester.pumpAndSettle();
+
+      // Open accessibility settings dialog
+      state.showAccessibilityDialogForTest();
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+
+      // Tap on 'Blind' profile button to select it
+      await tester.tap(find.text('Blind'));
+      await tester.pumpAndSettle();
+
+      // Tap Edit button
+      final editFinder = find.byWidgetPredicate(
+        (w) => w is Text && (w.data == 'Upravit' || w.data == 'Edit'),
+      );
+      await tester.ensureVisible(editFinder);
+      await tester.tap(editFinder);
+      await tester.pumpAndSettle();
+
+      // Editor dialog should be open
+      expect(find.text('Edit profile: Blind'), findsOneWidget);
+
+      // Make a change in editor (e.g., tap display type switch)
+      final segFinder = find.textContaining('7-segment');
+      await tester.ensureVisible(segFinder);
+      await tester.tap(segFinder);
+      await tester.pumpAndSettle();
+
+      // Tap Save
+      final saveFinder = find.widgetWithText(FilledButton, 'Save').at(0);
+      if (!tester.any(saveFinder)) {
+        await tester.tap(find.widgetWithText(FilledButton, 'Uložit').first);
+      } else {
+        await tester.tap(saveFinder);
+      }
+      await tester.pumpAndSettle();
+
+      // Editor dialog should be closed, parent accessibility dialog still open
+      // And status message should show success with profile name
+      expect(find.textContaining(RegExp(r'byl úspěšně uložen|successfully saved')), findsOneWidget);
+    });
+
+    testWidgets('failure saving to SharedPreferences keeps editor open, preserves draft, and shows error', (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
+      mockChannels();
+      CalculatorScreen.mockSaveProfilesErrorForTest = () async => false;
+      addTearDown(() {
+        CalculatorScreen.mockSaveProfilesErrorForTest = null;
+      });
+      tester.view.physicalSize = const Size(800, 1280);
+
+      dynamic state = await pumpApp(tester);
+      state.switchProfileForTest('standard');
+      await tester.pumpAndSettle();
+
+      state.showAccessibilityDialogForTest();
+      await tester.pumpAndSettle();
+
+      // Tap Edit button for default selected (Standard)
+      final editFinder = find.byWidgetPredicate(
+        (w) => w is Text && (w.data == 'Upravit' || w.data == 'Edit'),
+      );
+      await tester.ensureVisible(editFinder);
+      await tester.tap(editFinder, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      // Editor should be open
+      expect(find.text('Edit profile: Standard'), findsOneWidget);
+
+      // Make a change in editor draft
+      state.updateEditingForTest(
+        (AccessibilitySettings s) => s.copyWith(speechRate: 0.55),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap Save
+      final saveFinder = find.widgetWithText(FilledButton, 'Save');
+      if (tester.any(saveFinder)) {
+        await tester.ensureVisible(saveFinder.first);
+        await tester.tap(saveFinder.first, warnIfMissed: false);
+      } else {
+        final saveFinderCs = find.widgetWithText(FilledButton, 'Uložit');
+        await tester.ensureVisible(saveFinderCs.first);
+        await tester.tap(saveFinderCs.first, warnIfMissed: false);
+      }
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+
+      // Save failed: editor should remain open, error message visible
+      expect(find.textContaining(RegExp(r'nepovedlo|failed')), findsOneWidget);
+      expect(state.editingDraftForTest, isNotNull);
+    });
+  });
 }
