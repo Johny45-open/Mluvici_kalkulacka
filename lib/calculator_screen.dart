@@ -3032,6 +3032,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (kDebugMode) {
+      debugPrint('TTS-Diag: AppLifecycleState changed to $state');
+    }
     if (state == AppLifecycleState.resumed) {
       _refreshAccessibilityState();
     }
