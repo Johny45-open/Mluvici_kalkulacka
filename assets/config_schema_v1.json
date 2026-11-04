@@ -129,8 +129,9 @@
         "statsComputedOrder": {
           "type": "array",
           "minItems": 10,
-          "maxItems": 10,
-          "items": { "type": "string", "enum": ["mean", "sum", "variance", "sd", "median", "min", "max", "mode", "cv", "wmean"] }
+          "maxItems": 13,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["mean", "sum", "variance", "sd", "median", "min", "max", "mode", "cv", "wmean", "wvar", "wsd", "wcv"] }
         },
         "currency": {
           "type": "object",

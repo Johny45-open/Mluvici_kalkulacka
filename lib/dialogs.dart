@@ -329,6 +329,9 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                           'MODE',
                           'CV',
                           'WMEAN',
+                          'WVAR',
+                          'WSD',
+                          'WCV',
                           'MIN',
                           'MAX',
                         ].map((b) {

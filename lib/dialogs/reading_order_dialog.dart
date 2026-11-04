@@ -717,8 +717,8 @@ class _StatsSummaryReadingOrderDialogState
                   ),
                   child: Text(
                     p._s(
-                      'Pořadí položek uvnitř Vypočtené (10 položek):',
-                      'Order inside Computed (10 items):',
+                      'Pořadí položek uvnitř Vypočtené (${p._statsComputedOrder.length} položek):',
+                      'Order inside Computed (${p._statsComputedOrder.length} items):',
                     ),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,

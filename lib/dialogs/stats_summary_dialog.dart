@@ -74,6 +74,15 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
         final wmeanText = snapshot.wmean == null
             ? null
             : p._formatNumberSmart(snapshot.wmean!);
+        final wvarText = snapshot.weightedVariance == null
+            ? null
+            : p._formatNumberSmart(snapshot.weightedVariance!);
+        final wsdText = snapshot.weightedSd == null
+            ? null
+            : p._formatNumberSmart(snapshot.weightedSd!);
+        final wcvText = snapshot.weightedCv == null
+            ? null
+            : '${p._formatNumberSmart(snapshot.weightedCv!)} %';
 
         MapEntry<String, String>? entryForItem(StatsComputedItem it) {
           switch (it) {
@@ -119,6 +128,16 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
             case StatsComputedItem.wmean:
               if (snapshot.wmean == null) return null;
               return MapEntry(l10n.statsWeightedMean, wmeanText!);
+            case StatsComputedItem.wvar:
+              // Vážené řádky se skryjí, když nelze spočítat (žádné nuly).
+              if (snapshot.weightedVariance == null) return null;
+              return MapEntry(l10n.statsWeightedVariance, wvarText!);
+            case StatsComputedItem.wsd:
+              if (snapshot.weightedSd == null) return null;
+              return MapEntry(l10n.statsWeightedSd, wsdText!);
+            case StatsComputedItem.wcv:
+              if (snapshot.weightedCv == null) return null;
+              return MapEntry(l10n.statsWeightedCv, wcvText!);
           }
         }
 

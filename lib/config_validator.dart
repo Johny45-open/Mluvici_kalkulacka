@@ -725,11 +725,13 @@ void _validateGlobalSettings(Map<String, dynamic> gs, ValidationResult res) {
   }
   final corder = gs['statsComputedOrder'];
   if (corder is List) {
-    if (corder.length != 10)
+    // 10 = původní konfigurace (zpětná kompatibilita), 13 = po rozšíření
+    // o WVAR/WSD/WCV. Chybějící položky doplní normalizeStatsComputedOrder.
+    if (corder.length < 10 || corder.length > 13)
       res.errors.add(
         ValidationIssue(
           path: 'globalSettings.statsComputedOrder',
-          message: 'musi mit 10 polozek',
+          message: 'musi mit 10 az 13 polozek',
           code: 'length',
         ),
       );
@@ -744,6 +746,9 @@ void _validateGlobalSettings(Map<String, dynamic> gs, ValidationResult res) {
       'mode',
       'cv',
       'wmean',
+      'wvar',
+      'wsd',
+      'wcv',
     };
     for (int i = 0; i < corder.length; i++)
       if (!allowed.contains(corder[i]))

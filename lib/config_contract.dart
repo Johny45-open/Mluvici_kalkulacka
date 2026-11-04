@@ -316,9 +316,11 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
     statsSummaryOrder: (gs['statsSummaryOrder'] as List)
         .map((e) => _statsSectionFromString(e as String))
         .toList(),
-    statsComputedOrder: (gs['statsComputedOrder'] as List)
-        .map((e) => _statsComputedFromString(e as String))
-        .toList(),
+    statsComputedOrder: normalizeStatsComputedOrder(
+      (gs['statsComputedOrder'] as List)
+          .map((e) => _statsComputedFromString(e as String))
+          .toList(),
+    ),
     currencyFrom: cur['from'] as String,
     currencyTo: cur['to'] as String,
     devEnabled: dev['enabled'] as bool,

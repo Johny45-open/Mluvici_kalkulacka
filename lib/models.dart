@@ -620,6 +620,153 @@ enum StatsComputedItem {
   mode,
   cv,
   wmean,
+  wvar,
+  wsd,
+  wcv,
+}
+
+/// Doplň chybějící položky a odstraní duplicity.
+///
+/// Stará uložená i stará importovaná pořadí mají 10 položek. Po
+/// rozšíření enumu se nesmí zahodit – zachová se uživatelské
+/// uspořádání a nové vážené položky se připojí na konec (v pořadí
+/// enumu). Výsledek je vždy úplné a unikátní pořadí.
+List<StatsComputedItem> normalizeStatsComputedOrder(
+  Iterable<StatsComputedItem> raw,
+) {
+  final result = <StatsComputedItem>[];
+  for (final item in raw) {
+    if (!result.contains(item)) result.add(item);
+  }
+  for (final item in StatsComputedItem.values) {
+    if (!result.contains(item)) result.add(item);
+  }
+  return result;
+}
+
+/// Důvod, proč nelze vážené charakteristiky spočítat.
+///
+/// Jednotné kategorie chyby pro všechny vážené výpočty – text hlášky
+/// se zvolí až v UI, podle aktivního jazyka.
+enum WeightedStatsFailure {
+  /// Některý záznam nemá hodnotu ani váhu (nebo je pole prázdné).
+  missingRecord,
+
+  /// Hodnota nebo váha není konečné číslo (NaN/Infinity).
+  nonFinite,
+
+  /// Váha je záporná. Nulová váha je povolena.
+  negativeWeight,
+
+  /// Součet vah není větší než nula.
+  zeroWeightSum,
+
+  /// Při součtu nebo násobení vzniklo nekonečno.
+  overflow,
+}
+
+/// Výsledek sdíleného výpočtu vážených charakteristik.
+///
+/// Všechny čtyři hodnoty vznikají z jediného průchodu daty, takže mezi
+/// nimi nemůže dojít k rozporu. Při chybě jsou všechny hodnoty `null`
+/// a [failure] určuje důvod – nikdy se nevrací NaN ani Infinity.
+/// WCV může být `null` i při úspěchu, když je vážený průměr nulový.
+class WeightedStatsResult {
+  final double? wmean;
+  final double? wvar;
+  final double? wsd;
+  final double? wcv;
+  final WeightedStatsFailure? failure;
+
+  const WeightedStatsResult({
+    this.wmean,
+    this.wvar,
+    this.wsd,
+    this.wcv,
+    this.failure,
+  });
+
+  bool get isOk => failure == null;
+}
+
+/// Vážené charakteristiky: první pole = hodnoty, druhé pole = váhy.
+///
+/// - μw  = Σ(xᵢ·wᵢ) / Σwᵢ
+/// - WVAR = Σ[wᵢ·(xᵢ − μw)²] / Σwᵢ  (populační, stejně jako běžný VAR)
+/// - WSD  = √WVAR
+/// - WCV  = (WSD / |μw|) · 100 %, při μw = 0 nelze spočítat (null)
+///
+/// Validace je společná pro všechny čtyři hodnoty: obě pole musí mít
+/// stejnou nenulovou délku, všechny hodnoty i váhy musí být konečné,
+/// váhy nesmí být záporné (nulová váha je povolena) a součet vah musí
+/// být větší než nula. Přetečení při matematických operacích je
+/// zachyceno jako [WeightedStatsFailure.overflow].
+WeightedStatsResult computeWeightedStats(
+  List<double> values,
+  List<double> weights,
+) {
+  if (values.isEmpty || values.length != weights.length) {
+    return const WeightedStatsResult(
+      failure: WeightedStatsFailure.missingRecord,
+    );
+  }
+  double sumW = 0;
+  double sumVW = 0;
+  for (var i = 0; i < values.length; i++) {
+    final x = values[i];
+    final w = weights[i];
+    if (!x.isFinite || !w.isFinite) {
+      return const WeightedStatsResult(
+        failure: WeightedStatsFailure.nonFinite,
+      );
+    }
+    if (w < 0) {
+      return const WeightedStatsResult(
+        failure: WeightedStatsFailure.negativeWeight,
+      );
+    }
+    sumVW += x * w;
+    sumW += w;
+    if (!sumVW.isFinite || !sumW.isFinite) {
+      return const WeightedStatsResult(
+        failure: WeightedStatsFailure.overflow,
+      );
+    }
+  }
+  if (sumW <= 0) {
+    return const WeightedStatsResult(
+      failure: WeightedStatsFailure.zeroWeightSum,
+    );
+  }
+  final wmean = sumVW / sumW;
+  if (!wmean.isFinite) {
+    return const WeightedStatsResult(failure: WeightedStatsFailure.overflow);
+  }
+  // Součet nezáporných členů wᵢ·(xᵢ−μw)² je v plovoucí čárce vždy
+  // nezáporný, takže záporný rozptyl znamená přetečení, ne šum.
+  double acc = 0;
+  for (var i = 0; i < values.length; i++) {
+    final dev = values[i] - wmean;
+    acc += weights[i] * dev * dev;
+    if (!acc.isFinite) {
+      return const WeightedStatsResult(
+        failure: WeightedStatsFailure.overflow,
+      );
+    }
+  }
+  final wvar = acc / sumW;
+  if (!wvar.isFinite || wvar < 0) {
+    return const WeightedStatsResult(failure: WeightedStatsFailure.overflow);
+  }
+  final wsd = math.sqrt(wvar);
+  if (!wsd.isFinite) {
+    return const WeightedStatsResult(failure: WeightedStatsFailure.overflow);
+  }
+  final wcv = wmean == 0 ? null : (wsd / wmean.abs()) * 100;
+  if (wcv != null && !wcv.isFinite) {
+    return const WeightedStatsResult(failure: WeightedStatsFailure.overflow);
+  }
+  return WeightedStatsResult(wmean: wmean, wvar: wvar, wsd: wsd, wcv: wcv);
 }
 
 enum StatsOrderPreset { def, valuesFirst, statsFirst, headerLast, custom }
@@ -698,6 +845,9 @@ class _StatisticsSnapshot {
   final bool modeExists;
   final double? cv;
   final double? wmean;
+  final double? weightedVariance;
+  final double? weightedSd;
+  final double? weightedCv;
   final Map<double, int> frequencies;
 
   const _StatisticsSnapshot({
@@ -713,6 +863,9 @@ class _StatisticsSnapshot {
     required this.modeExists,
     required this.cv,
     this.wmean,
+    this.weightedVariance,
+    this.weightedSd,
+    this.weightedCv,
     required this.frequencies,
   });
 }

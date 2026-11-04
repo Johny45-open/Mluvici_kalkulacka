@@ -275,18 +275,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     StatsSummarySection.dataValues,
     StatsSummarySection.computed,
   ];
-  List<StatsComputedItem> _statsComputedOrder = [
-    StatsComputedItem.mean,
-    StatsComputedItem.sum,
-    StatsComputedItem.variance,
-    StatsComputedItem.sd,
-    StatsComputedItem.median,
-    StatsComputedItem.min,
-    StatsComputedItem.max,
-    StatsComputedItem.mode,
-    StatsComputedItem.cv,
-    StatsComputedItem.wmean,
-  ];
+  // Výchozí pořadí = pořadí enumu (vážené položky pohromadě na konci).
+  // normalizeStatsComputedOrder zajistí úplnost i při přidání položek.
+  List<StatsComputedItem> _statsComputedOrder = normalizeStatsComputedOrder(
+    const [],
+  );
   final bool _sayWelcome = true;
   bool _welcomeAnnounced = false;
   final Completer<bool> _ttsReady = Completer<bool>();
@@ -1052,6 +1045,61 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return _statsMemory.map((r) => r.values[fieldIndex]).toList();
   }
 
+  /// Hodnoty daného pole, nebo `null` když některý záznam nemá tolik
+  /// hodnot – vážené výpočty nesmějí spadnout na RangeError.
+  List<double>? _tryGetFieldValues(int fieldIndex) {
+    final out = <double>[];
+    for (final r in _statsMemory) {
+      if (r.values.length <= fieldIndex) return null;
+      out.add(r.values[fieldIndex]);
+    }
+    return out;
+  }
+
+  /// Jediné místo, odkud vážené charakteristiky WMEAN/WVAR/WSD/WCV
+  /// berou data: první pole = hodnoty, druhé pole = váhy, bez ohledu na
+  /// aktuálně vybrané pole v souhrnu. Vrací `null`, když sada nemá
+  /// alespoň 2 pole; jinak výsledek se společnou validací.
+  WeightedStatsResult? _computeWeightedStats() {
+    if (_currentFieldCount < 2) return null;
+    final values = _tryGetFieldValues(0);
+    final weights = _tryGetFieldValues(1);
+    if (values == null || weights == null) {
+      return const WeightedStatsResult(
+        failure: WeightedStatsFailure.missingRecord,
+      );
+    }
+    return computeWeightedStats(values, weights);
+  }
+
+  /// Lokalizovaná hláška pro důvod selhání váženého výpočtu.
+  ///
+  /// [label] rozlišuje tlačítko: u WMEAN zůstávají obě dlouhodobé hlášky
+  /// beze změny, ostatní tlačítka sdílejí společné klíče.
+  String _weightedStatsFailureMessage(
+    WeightedStatsFailure failure,
+    String label,
+  ) {
+    if (label == 'WMEAN' && failure == WeightedStatsFailure.zeroWeightSum) {
+      return _s(
+        'Součet vah je nulový, nelze vypočítat vážený průměr.',
+        'Sum of weights is zero, cannot calculate weighted mean.',
+      );
+    }
+    switch (failure) {
+      case WeightedStatsFailure.missingRecord:
+        return _l10n.statsWeightedMissingRecord;
+      case WeightedStatsFailure.nonFinite:
+        return _l10n.statsWeightedNonFinite;
+      case WeightedStatsFailure.negativeWeight:
+        return _l10n.statsWeightedNegativeWeight;
+      case WeightedStatsFailure.zeroWeightSum:
+        return _l10n.statsWeightedZeroWeightSum;
+      case WeightedStatsFailure.overflow:
+        return _l10n.statsWeightedOverflow;
+    }
+  }
+
   final Map<String, Map<String, double>> _unitCategories = {
     'Délka': {
       'm': 1.0,
@@ -1578,6 +1626,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     'MODE': ['Modus', 'Mode'],
     'CV': ['Variační koeficient', 'Coefficient of variation'],
     'WMEAN': ['Vážený průměr', 'Weighted mean'],
+    'WVAR': ['Vážený rozptyl', 'Weighted variance'],
+    'WSD': ['Vážená směrodatná odchylka', 'Weighted standard deviation'],
+    'WCV': ['Vážený variační koeficient', 'Weighted coefficient of variation'],
     'MIN': ['Minimum', 'Minimum'],
     'MAX': ['Maximum', 'Maximum'],
     'SETS': ['Správa sad', 'Manage sets'],
@@ -1771,17 +1822,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       value: (e) => e.value,
     );
 
-    double? wmean;
+    // Vážené charakteristiky: vždy z prvního a druhého pole, společná
+    // validace i výpočet pro WMEAN, WVAR, WSD a WCV (viz
+    // computeWeightedStats). Při chybě zůstanou poloznamy null – souhrn
+    // takové řádky nezobrazí.
+    WeightedStatsResult? weighted;
     if (_currentFieldCount >= 2) {
-      final values = _getFieldValues(0);
-      final weights = _getFieldValues(1);
-      double sumW = 0;
-      double sumVW = 0;
-      for (int i = 0; i < values.length; i++) {
-        sumVW += values[i] * weights[i];
-        sumW += weights[i];
-      }
-      if (sumW != 0) wmean = sumVW / sumW;
+      weighted = _computeWeightedStats();
     }
 
     return _StatisticsSnapshot(
@@ -1796,7 +1843,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       modeOccurrenceCount: maxCount,
       modeExists: modeExists,
       cv: mean == 0 ? null : (sd / mean) * 100,
-      wmean: wmean,
+      wmean: weighted?.wmean,
+      weightedVariance: weighted?.wvar,
+      weightedSd: weighted?.wsd,
+      weightedCv: weighted?.wcv,
       frequencies: frequencies,
     );
   }
@@ -7811,9 +7861,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             }
           }
         }
-        if (parsed.length == StatsComputedItem.values.length &&
-            parsed.toSet().length == parsed.length) {
-          _statsComputedOrder = parsed;
+        // Stará 10položková konfigurace zůstane platná: zachová se
+        // uživatelské pořadí, odstraní se duplicity a chybějící vážené
+        // položky se připojí na konec.
+        if (parsed.isNotEmpty) {
+          _statsComputedOrder = normalizeStatsComputedOrder(parsed);
         }
       }
       // Měna
@@ -9923,6 +9975,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 l10n.statsHelpAdvancedMax,
                 l10n.statsHelpAdvancedCv,
                 l10n.statsHelpAdvancedWmean,
+                l10n.statsHelpAdvancedWvar,
+                l10n.statsHelpAdvancedWsd,
+                l10n.statsHelpAdvancedWcv,
               ]),
               const Divider(),
               _section(l10n.statsHelpFieldsSection, [l10n.statsHelpFieldsDesc]),
@@ -10492,6 +10547,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'CV',
       'SUM',
       'WMEAN',
+      'WVAR',
+      'WSD',
+      'WCV',
       'MIN',
       'MAX',
     ].contains(label)) {
@@ -10503,73 +10561,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           }
 
           final fieldNames = _statsSets[_currentStatsSetIndex].fieldNames;
-
-          if (label == 'WMEAN') {
-            if (_currentFieldCount < 2) {
-              speak(
-                _s(
-                  'Vážený průměr vyžaduje alespoň 2 pole (hodnoty a váhy).',
-                  'Weighted mean requires at least 2 fields (values and weights).',
-                ),
-              );
-              return;
-            }
-            final values = _getFieldValues(0);
-            final weights = _getFieldValues(1);
-            double sumW = 0;
-            double sumVW = 0;
-            for (int i = 0; i < values.length; i++) {
-              sumVW += values[i] * weights[i];
-              sumW += weights[i];
-            }
-            if (sumW == 0) {
-              speak(
-                _s(
-                  'Součet vah je nulový, nelze vypočítat vážený průměr.',
-                  'Sum of weights is zero, cannot calculate weighted mean.',
-                ),
-              );
-              return;
-            }
-            final wmean = sumVW / sumW;
-            final resStr = _formatNumberSmart(wmean);
-            final fracW = decimalToNonTrivialFraction(wmean);
-            final bool wmeanEligible = fracW != null;
-            final spoken = _s(
-              'Vážený průměr z paměti je ${_formatSpokenNumber(wmean)} '
-                  '(pole ${fieldNames[0]} váženo polem ${fieldNames[1]})',
-              'Weighted mean from memory is ${_formatSpokenNumber(wmean)} '
-                  '(field ${fieldNames[0]} weighted by field ${fieldNames[1]})',
-            );
-            setState(() {
-              _lastResult = resStr;
-              _hasResult = true;
-              display = resStr;
-              _cursorPosition = display.length;
-              _lastNumericValue = wmean;
-              _lastResultIsPlainNumeric = false;
-              _lastResultIsApproxFractionStat = wmeanEligible;
-              _lastResultIsApproxStatFraction = wmeanEligible;
-              _fractionOverride = null;
-              _lastExact = null;
-              _lastExactKey = '';
-              _resultGeneration++;
-              _lastExactGeneration = _resultGeneration;
-            });
-            // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
-            unawaited(
-              announceEvent(
-                spoken,
-                category: SpeechCategory.actionConfirm,
-                isNumeric: true,
-                interruptCurrentSpeech: true,
-              ),
-            );
-            _addToHistory('STATS($label)', resStr, numericValue: wmean);
-            return;
-          }
-
-          final snapshot = _computeStatisticsSnapshot()!;
+          final isWeightedLabel =
+              label == 'WMEAN' ||
+              label == 'WVAR' ||
+              label == 'WSD' ||
+              label == 'WCV';
 
           String resStr = '0';
           String spoken = '';
@@ -10577,6 +10573,86 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           bool isMeanExact = false;
           Rational? meanExactRat;
           bool meanEligible = false;
+          bool weightedEligible = false;
+
+          // Vážené charakteristiky: jediný výpočet i jediná validace
+          // pro WMEAN, WVAR, WSD a WCV (pole 0 = hodnoty, pole 1 = váhy).
+          // Při chybě se oznamuje důvod a výpočet se přeruší; jinak se
+          // výsledky uloží do proměnných a projdou společným setState níže.
+          if (isWeightedLabel) {
+            final weighted = _computeWeightedStats();
+            if (weighted == null) {
+              speak(
+                label == 'WMEAN'
+                    ? _s(
+                        'Vážený průměr vyžaduje alespoň 2 pole (hodnoty a váhy).',
+                        'Weighted mean requires at least 2 fields (values and weights).',
+                      )
+                    : _l10n.statsWeightedNeedsTwoFields,
+              );
+              return;
+            }
+            if (!weighted.isOk) {
+              speak(_weightedStatsFailureMessage(weighted.failure!, label));
+              return;
+            }
+            double? value;
+            if (label == 'WMEAN') {
+              value = weighted.wmean;
+            } else if (label == 'WVAR') {
+              value = weighted.wvar;
+            } else if (label == 'WSD') {
+              value = weighted.wsd;
+            } else {
+              value = weighted.wcv;
+            }
+            final context = _s(
+              '(pole ${fieldNames[0]} váženo polem ${fieldNames[1]})',
+              '(field ${fieldNames[0]} weighted by field ${fieldNames[1]})',
+            );
+            if (value == null) {
+              // WCV: vážený průměr je nulový – stejně jako CV ukážeme Err.
+              resStr = 'Err';
+              spoken = _l10n.statsWeightedCvZeroMean;
+            } else {
+              resStr = _formatNumberSmart(value);
+              numericResult = value;
+              // Nabídka zlomku zůstává jen u WMEAN (stejně jako dřív).
+              weightedEligible =
+                  label == 'WMEAN' &&
+                  decimalToNonTrivialFraction(value) != null;
+              final valSpoken = _formatSpokenNumber(value);
+              if (label == 'WMEAN') {
+                spoken = _s(
+                  'Vážený průměr z paměti je $valSpoken $context',
+                  'Weighted mean from memory is $valSpoken $context',
+                );
+              } else if (label == 'WVAR') {
+                spoken = _s(
+                  'Vážený rozptyl z paměti je $valSpoken $context',
+                  'Weighted variance from memory is $valSpoken $context',
+                );
+              } else if (label == 'WSD') {
+                spoken = _s(
+                  'Vážená směrodatná odchylka z paměti je $valSpoken $context',
+                  'Weighted standard deviation from memory is $valSpoken $context',
+                );
+              } else {
+                spoken = _s(
+                  'Vážený variační koeficient je $valSpoken procent $context',
+                  'Weighted coefficient of variation is $valSpoken percent $context',
+                );
+              }
+            }
+          }
+
+          // Pro vážené výpočty se snapshot dál nepoužije (větev if/else
+          // níže se pro WMEAN/WVAR/WSD/WCV neaktivuje). Pole 0 je ale
+          // už ověřené výše, proto se pro něj bere bezpečný index, aby
+          // se případný chybějící záznam neprojevil jako RangeError.
+          final snapshot = _computeStatisticsSnapshot(
+            isWeightedLabel ? 0 : -1,
+          )!;
 
           final fieldUnit =
               _statsSets.isNotEmpty &&
@@ -10591,10 +10667,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   ' in ${_getUnitSpeech(fieldUnit)}',
                 )
               : '';
+          // Index musí být v rozsahu – vážené výpočty sem nově také
+          // procházejí a nesmějí spadnout na RangeError.
+          final labelFieldIndex = _selectedFieldIndex < fieldNames.length
+              ? _selectedFieldIndex
+              : 0;
           final fieldLabelSpoken = _currentFieldCount > 1
               ? _s(
-                  ' pro pole ${fieldNames[_selectedFieldIndex]}$fieldUnitSpoken',
-                  ' for field ${fieldNames[_selectedFieldIndex]}$fieldUnitSpoken',
+                  ' pro pole ${fieldNames[labelFieldIndex]}$fieldUnitSpoken',
+                  ' for field ${fieldNames[labelFieldIndex]}$fieldUnitSpoken',
                 )
               : fieldUnitSpoken;
 
@@ -10742,6 +10823,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               _lastResultIsApproxFractionStat = false;
               _lastResultIsApproxStatFraction = false;
             } else if (label == 'MEAN' && meanEligible) {
+              _lastResultIsPlainNumeric = false;
+              _lastResultIsApproxFractionStat = true;
+              _lastResultIsApproxStatFraction = true;
+              _lastExact = null;
+              _lastExactKey = '';
+            } else if (weightedEligible) {
+              // Vážený průměr: stejná nabídka přibližného zlomku jako dřív.
               _lastResultIsPlainNumeric = false;
               _lastResultIsApproxFractionStat = true;
               _lastResultIsApproxStatFraction = true;
@@ -12327,6 +12415,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final wmeanSpoken = snapshot.wmean == null
         ? null
         : _formatSpokenNumber(snapshot.wmean!);
+    final wvarSpoken = snapshot.weightedVariance == null
+        ? null
+        : _formatSpokenNumber(snapshot.weightedVariance!);
+    final wsdSpoken = snapshot.weightedSd == null
+        ? null
+        : _formatSpokenNumber(snapshot.weightedSd!);
+    final wcvSpoken = snapshot.weightedCv == null
+        ? null
+        : '${_formatSpokenNumber(snapshot.weightedCv!)} ${_s('procent', 'percent')}';
 
     final header = _s(
       'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. Počet hodnot: $dataCount. ',
@@ -12383,14 +12480,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           return _s('Modus: $modeSpoken. ', 'Mode: $modeSpoken. ');
         case StatsComputedItem.cv:
           return _s(
-            'Variační koeficient: $cvSpoken.',
-            'Coefficient of variation: $cvSpoken.',
+            'Variační koeficient: $cvSpoken. ',
+            'Coefficient of variation: $cvSpoken. ',
           );
         case StatsComputedItem.wmean:
           if (snapshot.wmean == null) return '';
           return _s(
-            ' Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}).',
-            ' Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}).',
+            'Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}). ',
+            'Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}). ',
+          );
+        case StatsComputedItem.wvar:
+          if (snapshot.weightedVariance == null) return '';
+          return _s(
+            'Vážený rozptyl: $wvarSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}). ',
+            'Weighted variance: $wvarSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}). ',
+          );
+        case StatsComputedItem.wsd:
+          if (snapshot.weightedSd == null) return '';
+          return _s(
+            'Vážená směrodatná odchylka: $wsdSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}). ',
+            'Weighted standard deviation: $wsdSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}). ',
+          );
+        case StatsComputedItem.wcv:
+          if (snapshot.weightedCv == null) return '';
+          return _s(
+            'Vážený variační koeficient: $wcvSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}). ',
+            'Weighted coefficient of variation: $wcvSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}). ',
           );
       }
     }
@@ -12540,6 +12655,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return _s('Variační koeficient', 'Coefficient of variation');
       case StatsComputedItem.wmean:
         return _s('Vážený průměr', 'Weighted mean');
+      case StatsComputedItem.wvar:
+        return _s('Vážený rozptyl', 'Weighted variance');
+      case StatsComputedItem.wsd:
+        return _s('Vážená směrodatná odchylka', 'Weighted standard deviation');
+      case StatsComputedItem.wcv:
+        return _s('Vážený variační koeficient', 'Weighted coefficient of variation');
     }
   }
 
@@ -12565,6 +12686,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return _s('Variační koeficient v procentech', 'CV in percent');
       case StatsComputedItem.wmean:
         return _s('Vážený průměr (2 pole)', 'Weighted mean (2 fields)');
+      case StatsComputedItem.wvar:
+        return _s(
+          'Populační rozptyl prvního pole vážený druhým polem',
+          'Population variance of the first field weighted by the second',
+        );
+      case StatsComputedItem.wsd:
+        return _s(
+          'Odmocnina z váženého rozptylu',
+          'Square root of the weighted variance',
+        );
+      case StatsComputedItem.wcv:
+        return _s(
+          'Vážená směrodatná odchylka v procentech váženého průměru',
+          'Weighted standard deviation in percent of the weighted mean',
+        );
     }
   }
 
@@ -12593,18 +12729,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _resetStatsComputedOrder() {
     setState(() {
-      _statsComputedOrder = [
-        StatsComputedItem.mean,
-        StatsComputedItem.sum,
-        StatsComputedItem.variance,
-        StatsComputedItem.sd,
-        StatsComputedItem.median,
-        StatsComputedItem.min,
-        StatsComputedItem.max,
-        StatsComputedItem.mode,
-        StatsComputedItem.cv,
-        StatsComputedItem.wmean,
-      ];
+      _statsComputedOrder = normalizeStatsComputedOrder(const []);
     });
     _saveSettings();
     final msg = _s(
@@ -14634,6 +14759,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @visibleForTesting
   Future<void> handleButtonPressedForTest(String label) =>
       _handleButtonPressed(label);
+
+  /// Pořadí vypočtených položek pro testy migrace a uložení.
+  @visibleForTesting
+  List<StatsComputedItem> get statsComputedOrderForTest =>
+      List<StatsComputedItem>.unmodifiable(_statsComputedOrder);
+
+  /// Nastaví pořadí položek (testy migrace 10/13 položek).
+  @visibleForTesting
+  void setStatsComputedOrderForTest(List<StatsComputedItem> order) {
+    setState(() => _statsComputedOrder = normalizeStatsComputedOrder(order));
+  }
+
+  /// Znovu načte globální nastavení z prefs stejným kódem jako startup.
+  @visibleForTesting
+  Future<void> reloadGlobalSettingsForTest() => _loadGlobalSettings();
+
+  /// Sdílený výpočet vážených charakteristik pro testy.
+  @visibleForTesting
+  WeightedStatsResult? computeWeightedStatsForTest() => _computeWeightedStats();
+
+  /// Hlasová mapa souhrnu pro testy oznamování (auto-read / manuální čtení).
+  @visibleForTesting
+  Map<StatsSummarySection, String> statsSummaryPartsForTest(int fieldIndex) =>
+      _buildStatsSummaryPartsMap(fieldIndex);
 
   @visibleForTesting
   double evaluateExpressionForTest(String expr) => _evaluateExpression(expr);
