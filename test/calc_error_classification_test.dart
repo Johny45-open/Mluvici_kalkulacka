@@ -265,4 +265,55 @@ void main() {
       expect(state.memoryForTest['X'], 7.0);
     });
   });
+
+  group('Dlouhé výrazy a racionální fallback', () {
+    testWidgets('výraz se 33 jedničkami (překročení limitu tokenů) úspěšně spočte 33', (tester) async {
+      final state = await pumpApp(tester);
+      final longExpr = List.filled(33, '1').join('+'); // 33 tokenů + 32 operátorů = 65 tokenů (> 64)
+      state.setDisplayForTest(longExpr, longExpr.length);
+      await tester.pump();
+      state.calculateForTest();
+      await tester.pumpAndSettle();
+      expect(state.lastNumericForTest, 33.0);
+      expect(state.lastResultForTest, '33');
+    });
+
+    testWidgets('validní dlouhý výraz > 200 znaků se spočte numerickým fallbackem', (tester) async {
+      final state = await pumpApp(tester);
+      // Vytvoříme validní výraz dlouhý přes 200 znaků (např. 80 sčítanců "2*1")
+      final longExpr = List.filled(80, '2*1').join('+');
+      expect(longExpr.length, greaterThan(200));
+      state.setDisplayForTest(longExpr, longExpr.length);
+      await tester.pump();
+      state.calculateForTest();
+      await tester.pumpAndSettle();
+      expect(state.lastNumericForTest, 160.0);
+      expect(state.lastResultForTest, '160');
+    });
+
+    testWidgets('přesný zlomek 1/3+1/6 nadále používá exaktní racionální výsledek 1/2', (tester) async {
+      final state = await pumpApp(tester);
+      state.setDisplayForTest('1/3+1/6', 7);
+      await tester.pump();
+      state.calculateForTest();
+      await tester.pumpAndSettle();
+      expect(state.lastRationalForTest?.numerator.toInt(), 1);
+      expect(state.lastRationalForTest?.denominator.toInt(), 2);
+    });
+
+    testWidgets('dělení nulou v dlouhém výrazu nadále hlásí dělení nulou', (tester) async {
+      final state = await pumpApp(tester);
+      // Dlouhý výraz obsahující dělení nulou na konci
+      final longExpr = '${List.filled(35, '1').join('+')}/(2-2)';
+      final err = catchCalcError(state, longExpr);
+      expect(err.kind, CalcErrorKind.divisionByZero);
+    });
+
+    testWidgets('syntaktická chyba v dlouhém výrazu nadále hlásí syntaktickou chybu', (tester) async {
+      final state = await pumpApp(tester);
+      final longExpr = '${List.filled(35, '1').join('+')}+*2';
+      final err = catchCalcError(state, longExpr);
+      expect(err.kind, CalcErrorKind.syntax);
+    });
+  });
 }

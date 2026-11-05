@@ -5422,7 +5422,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             if (rationalEval is RationalOk) {
               exactRational = rationalEval.value;
             } else if (rationalEval is RationalFailure) {
-              throw _mapRationalFailure(rationalEval.kind);
+              if (rationalEval.kind != RationalFailureKind.limitExceeded) {
+                throw _mapRationalFailure(rationalEval.kind);
+              }
             }
           }
         }
