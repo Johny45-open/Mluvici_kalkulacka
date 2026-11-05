@@ -7576,9 +7576,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           key: const ValueKey('fraction_toggle_semantics'),
           toggled: showing,
           enabled: true,
-          label: semanticLabel,
           child: Text(
             visualText,
+            semanticsLabel: semanticLabel,
             maxLines: 1,
             softWrap: false,
             overflow: TextOverflow.ellipsis,
@@ -12439,6 +12439,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     // Computed – poskládáno dle _statsComputedOrder (synchronizováno s vizuálem)
     final fieldNamesForWmean = _statsSets[_currentStatsSetIndex].fieldNames;
+
+    // Kontext vah (pole X váženo polem Y) se naráže jen jednou – u první
+    // vážené statistiky v pořadí čtení, ne u každé z WMEAN/WVAR/WSD/WCV.
+    bool weightedCtxAnnounced = false;
+    String weightedContextSuffix() {
+      if (weightedCtxAnnounced) return '';
+      weightedCtxAnnounced = true;
+      return _s(
+        ' (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]})',
+        ' (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]})',
+      );
+    }
+
     String computedFor(StatsComputedItem it) {
       switch (it) {
         case StatsComputedItem.mean:
@@ -12485,27 +12498,31 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           );
         case StatsComputedItem.wmean:
           if (snapshot.wmean == null) return '';
+          final ctxSuffix = weightedContextSuffix();
           return _s(
-            'Vážený průměr: $wmeanSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}). ',
-            'Weighted mean: $wmeanSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}). ',
+            'Vážený průměr: $wmeanSpoken$ctxSuffix. ',
+            'Weighted mean: $wmeanSpoken$ctxSuffix. ',
           );
         case StatsComputedItem.wvar:
           if (snapshot.weightedVariance == null) return '';
+          final ctxSuffix = weightedContextSuffix();
           return _s(
-            'Vážený rozptyl: $wvarSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}). ',
-            'Weighted variance: $wvarSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}). ',
+            'Vážený rozptyl: $wvarSpoken$ctxSuffix. ',
+            'Weighted variance: $wvarSpoken$ctxSuffix. ',
           );
         case StatsComputedItem.wsd:
           if (snapshot.weightedSd == null) return '';
+          final ctxSuffix = weightedContextSuffix();
           return _s(
-            'Vážená směrodatná odchylka: $wsdSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}). ',
-            'Weighted standard deviation: $wsdSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}). ',
+            'Vážená směrodatná odchylka: $wsdSpoken$ctxSuffix. ',
+            'Weighted standard deviation: $wsdSpoken$ctxSuffix. ',
           );
         case StatsComputedItem.wcv:
           if (snapshot.weightedCv == null) return '';
+          final ctxSuffix = weightedContextSuffix();
           return _s(
-            'Vážený variační koeficient: $wcvSpoken (pole ${fieldNamesForWmean[0]} váženo polem ${fieldNamesForWmean[1]}). ',
-            'Weighted coefficient of variation: $wcvSpoken (field ${fieldNamesForWmean[0]} weighted by field ${fieldNamesForWmean[1]}). ',
+            'Vážený variační koeficient: $wcvSpoken$ctxSuffix. ',
+            'Weighted coefficient of variation: $wcvSpoken$ctxSuffix. ',
           );
       }
     }
@@ -14381,6 +14398,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void showStatsSummaryDialogForTest() {
     _showStatisticsSummaryDialog();
   }
+
+  @visibleForTesting
+  String orderedSpokenSummaryForTest(int fieldIndex) =>
+      _getOrderedSpokenSummary(fieldIndex);
 
   @visibleForTesting
   void showRenameStatsSetDialogForTest(int index) {

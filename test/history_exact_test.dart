@@ -342,7 +342,7 @@ void main() {
     });
 
     testWidgets(
-      'potvrzovací dialog: jeden titul, žádný liveRegion se souhrnem',
+      'save profilu: uloží se přímo, editor se zavře, bez liveRegionu',
       (tester) async {
         final state = await pumpApp(tester);
         expect(state.startEditingForTest('standard'), isTrue);
@@ -358,13 +358,26 @@ void main() {
             ? find.text('Uložit')
             : find.text('Save');
         await tester.tap(saveFinder().first);
+        await tester.pump();
+        await dialogFuture;
         await tester.pumpAndSettle();
-        // Potvrzovací dialog má správný název.
-        final confirmTitle = find.text('Potvrdit uložení').evaluate().isNotEmpty
-            ? find.text('Potvrdit uložení')
-            : find.text('Confirm save');
-        expect(confirmTitle, findsOneWidget);
-        // Žádný liveRegion s celým summary textem (duplicita pro TalkBack).
+        await tester.pump(const Duration(milliseconds: 300));
+        // Nový save flow (5f44896): potvrzovací dialog už není — save
+        // proběhne přímo, editor se zavře a draft se vyčistí.
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(state.editingDraftForTest, isNull);
+        // Změna byla skutečně zpersistována do profilu.
+        final prefs = await SharedPreferences.getInstance();
+        final profilesJson =
+            jsonDecode(prefs.getString('accessibility_profiles_v2')!) as List;
+        final standard =
+            profilesJson.firstWhere((p) => p['id'] == 'standard') as Map;
+        expect(
+          (standard['settings'] as Map)['speechRate'],
+          0.9,
+          reason: 'speechRate 0.9 se musí uložit do profilu standard',
+        );
+        // Žádný liveRegion s textem uložení profilu (duplicita pro TalkBack).
         final liveSummary = find.byWidgetPredicate(
           (w) =>
               w is Semantics &&
@@ -374,17 +387,6 @@ void main() {
                   (w.properties.label?.contains('Confirm saving profile') ==
                       true)),
         );
-        expect(liveSummary, findsNothing);
-        // Save tlačítko confirmu má správný label.
-        expect(saveFinder(), findsWidgets);
-        await tester.tap(saveFinder().last);
-        await tester.pumpAndSettle();
-        await tester.pump(const Duration(milliseconds: 300));
-        await dialogFuture;
-        // Po save je editor zavřený a draft vyčištěn, summary není
-        // znovu vystaven jako živá oblast.
-        expect(find.byType(AlertDialog), findsNothing);
-        expect(state.editingDraftForTest, isNull);
         expect(liveSummary, findsNothing);
         expect(tester.takeException(), isNull);
       },
