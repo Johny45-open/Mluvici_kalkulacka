@@ -1454,4 +1454,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toggleAnnounceFractionAvailability => 'Toggle announce fraction availability';
+
+  @override
+  String get timeDecimalMinutes => 'Decimal minutes';
+
+  @override
+  String get timeDecimalMinutesOn => 'Decimal minutes enabled';
+
+  @override
+  String get timeDecimalMinutesOff => 'Decimal minutes disabled';
+
+  @override
+  String get decimalComma => 'Decimal comma';
 }

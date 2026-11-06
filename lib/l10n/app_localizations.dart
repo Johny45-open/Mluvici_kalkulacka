@@ -2680,6 +2680,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Toggle announce fraction availability'**
   String get toggleAnnounceFractionAvailability;
+
+  /// No description provided for @timeDecimalMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Decimal minutes'**
+  String get timeDecimalMinutes;
+
+  /// No description provided for @timeDecimalMinutesOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Decimal minutes enabled'**
+  String get timeDecimalMinutesOn;
+
+  /// No description provided for @timeDecimalMinutesOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Decimal minutes disabled'**
+  String get timeDecimalMinutesOff;
+
+  /// No description provided for @decimalComma.
+  ///
+  /// In en, this message translates to:
+  /// **'Decimal comma'**
+  String get decimalComma;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

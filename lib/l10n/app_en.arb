@@ -983,5 +983,9 @@
   },
   "announceFractionAvailabilityLabel": "Announce fraction availability",
   "announceFractionAvailabilityDesc": "Controls whether spoken result announcements include an additional notice about an available fraction.",
-  "toggleAnnounceFractionAvailability": "Toggle announce fraction availability"
+  "toggleAnnounceFractionAvailability": "Toggle announce fraction availability",
+  "timeDecimalMinutes": "Decimal minutes",
+  "timeDecimalMinutesOn": "Decimal minutes enabled",
+  "timeDecimalMinutesOff": "Decimal minutes disabled",
+  "decimalComma": "Decimal comma"
 }

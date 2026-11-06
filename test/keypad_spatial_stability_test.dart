@@ -190,6 +190,7 @@ void main() {
       '0',
       ';',
       'NOW',
+      '.',
       '=',
     ],
     CalculatorMode.currency: [

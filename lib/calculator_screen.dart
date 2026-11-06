@@ -1566,6 +1566,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool _isStoreMode = false;
   bool _isRecallMode = false;
   bool _hasResult = false;
+  bool _timeDecimalMinutesEnabled = false;
 
   final Map<String, List<String>> _buttonNames = {
     'SIN': ['Sinus', 'Sine'],
@@ -2520,14 +2521,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return baseLabel;
   }
 
+  String? _getTimeButtonSemanticLabel(String label) {
+    if (_currentMode == CalculatorMode.time && label == '.') {
+      return _s('Desetinná čárka', 'Decimal comma');
+    }
+    return null;
+  }
+
   // --- Čas helpers ---
   int _parseHmsToSeconds(String input) {
     final s = input.trim();
     if (s.isEmpty) throw _TimeInputException(_l10n.timeInvalidFormat);
     if (!s.contains(':')) {
-      // Single number = seconds
+      // Single number = seconds or decimal minutes
       final v = double.tryParse(s.replaceAll(',', '.'));
       if (v == null) throw _TimeInputException(_l10n.timeInvalidFormat);
+      if (_timeDecimalMinutesEnabled) {
+        return (v * 60).round();
+      }
       return v.round();
     }
     final parts = s.split(':');
@@ -7649,6 +7660,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // a clear() flagy resetuje stejně.
       _isStoreMode = false;
       _isRecallMode = false;
+      _timeDecimalMinutesEnabled = false;
     });
     _modeUsageCounts[mode.index]++;
     _totalModeSwitches++;
@@ -11163,13 +11175,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         try {
           String src = display.trim();
           if (src.isEmpty && _hasResult) src = _lastResult;
-          double v;
-          if (src.contains(':')) {
-            v = _parseHmsToSeconds(src).toDouble();
-          } else {
-            v = double.parse(src.replaceAll(',', '.'));
-          }
-          final hms = _formatSecondsToHms(v.round());
+          final totalSec = _parseHmsToSeconds(src);
+          final hms = _formatSecondsToHms(totalSec);
+          final v = totalSec.toDouble();
           setState(() {
             _lastResult = hms;
             display = '';
@@ -11184,13 +11192,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
           unawaited(
             announceEvent(
-              _l10n.timeToHmsResult(v.round().toString(), hms),
+              _l10n.timeToHmsResult(src.isEmpty ? _lastResult : src, hms),
               category: SpeechCategory.actionConfirm,
               isNumeric: true,
               interruptCurrentSpeech: true,
             ),
           );
-          _addToHistory(src, hms, numericValue: v);
+          _addToHistory(src.isEmpty ? _lastResult : src, hms, numericValue: v);
         } catch (e) {
           unawaited(
             announceEvent(
@@ -11581,6 +11589,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           '0',
           ';',
           'NOW',
+          '.',
           '=',
         ];
         break;
@@ -11631,7 +11640,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return buildButton(
         b,
         color: color,
-        semanticLabel: _getElectricianButtonSemanticLabel(b),
+        semanticLabel: _getTimeButtonSemanticLabel(b) ?? _getElectricianButtonSemanticLabel(b),
         expanded: false,
         fitScale: fitScale,
         isKeypadKey: true,

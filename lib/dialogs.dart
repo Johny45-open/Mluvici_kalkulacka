@@ -563,6 +563,31 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
+                  StatefulBuilder(
+                    builder: (ctx, setLocalState) {
+                      return SwitchListTile(
+                        title: Text(parent._l10n.timeDecimalMinutes),
+                        value: parent._timeDecimalMinutesEnabled,
+                        onChanged: (val) {
+                          parent.setState(() {
+                            parent._timeDecimalMinutesEnabled = val;
+                          });
+                          setLocalState(() {});
+                          final msg = val
+                              ? parent._l10n.timeDecimalMinutesOn
+                              : parent._l10n.timeDecimalMinutesOff;
+                          unawaited(
+                            parent.announceEvent(
+                              msg,
+                              category: SpeechCategory.actionConfirm,
+                              interruptCurrentSpeech: true,
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   Wrap(
                     alignment: WrapAlignment.center,
                     spacing: 4,

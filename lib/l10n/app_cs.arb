@@ -1055,5 +1055,9 @@
   },
   "announceFractionAvailabilityLabel": "Upozorňovat na dostupný zlomek",
   "announceFractionAvailabilityDesc": "Určuje, zda hlasové oznámení výsledku obsahuje také informaci o dostupném zlomku.",
-  "toggleAnnounceFractionAvailability": "Přepnutí upozorňování na dostupný zlomek"
+  "toggleAnnounceFractionAvailability": "Přepnutí upozorňování na dostupný zlomek",
+  "timeDecimalMinutes": "Desetinné minuty",
+  "timeDecimalMinutesOn": "Desetinné minuty zapnuty",
+  "timeDecimalMinutesOff": "Desetinné minuty vypnuty",
+  "decimalComma": "Desetinná čárka"
 }

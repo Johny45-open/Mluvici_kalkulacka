@@ -1454,4 +1454,16 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get toggleAnnounceFractionAvailability => 'Přepnutí upozorňování na dostupný zlomek';
+
+  @override
+  String get timeDecimalMinutes => 'Desetinné minuty';
+
+  @override
+  String get timeDecimalMinutesOn => 'Desetinné minuty zapnuty';
+
+  @override
+  String get timeDecimalMinutesOff => 'Desetinné minuty vypnuty';
+
+  @override
+  String get decimalComma => 'Desetinná čárka';
 }
