@@ -6221,10 +6221,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       processed = processed.replaceAll('_ATAN_', 'arctan');
     }
 
-    // Odstranění případných zdvojených závorek po dosazení ANS, pokud by vznikly
-    processed = processed.replaceAll('arcsin((', 'arcsin(');
-    processed = processed.replaceAll('arccos((', 'arccos(');
-    processed = processed.replaceAll('arctan((', 'arctan(');
+    // Odstranění případných zdvojených závorek po dosazení ANS již není potřeba
+    // a bylo odstraněno, aby nedocházelo k narušení vyváženosti závorek.
 
     // KONTROLA ZÁVOREK po DEG/RAD expanzi (bez automatické opravy —
     // viz bod 6 výše). Expanze přidává pouze vyvážené závorky.

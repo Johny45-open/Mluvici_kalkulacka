@@ -316,4 +316,24 @@ void main() {
       expect(err.kind, CalcErrorKind.syntax);
     });
   });
+
+  group('inverzní funkce s ANS', () {
+    testWidgets('ACOS(ANS), ASIN(ANS), ATAN(ANS) s platným ANS (kladným i záporným)', (tester) async {
+      final state = await pumpApp(tester);
+
+      for (final fn in ['ACOS', 'ASIN', 'ATAN']) {
+        state.displayForTest = '1/2';
+        state.calculateForTest();
+        await tester.pump();
+        final resPos = state.evaluateExpressionForTest('$fn(ANS)');
+        expect(resPos, isNotNull);
+
+        state.displayForTest = '-1/2';
+        state.calculateForTest();
+        await tester.pump();
+        final resNeg = state.evaluateExpressionForTest('$fn(ANS)');
+        expect(resNeg, isNotNull);
+      }
+    });
+  });
 }
