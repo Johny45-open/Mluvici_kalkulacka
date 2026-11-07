@@ -392,4 +392,38 @@ void main() {
       },
     );
   });
+
+  group('E) mazání jednotlivých položek v historii', () {
+    testWidgets('history dialog allows deleting individual entry', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'modeQuestionAsked': true,
+      });
+      mockChannels();
+      final state = await pumpApp(tester);
+      state.addHistoryEntryForTest(
+        CalculationHistoryEntry.fromStorageString('2+2|4'),
+      );
+      state.addHistoryEntryForTest(
+        CalculationHistoryEntry.fromStorageString('√72|8,485281'),
+      );
+      expect((state.historyForTest as List).length, 2);
+
+      state.showHistoryDialogForTest();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline), findsWidgets);
+
+      // Tap the delete button on the first history item
+      await tester.tap(find.byIcon(Icons.delete_outline).first);
+      await tester.pumpAndSettle();
+
+      // Now there should be 1 history entry left
+      expect((state.historyForTest as List).length, 1);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

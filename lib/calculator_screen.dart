@@ -15522,108 +15522,125 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showHistoryDialog() {
-    final bool historyEmpty = _history.isEmpty;
     showAppDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Historie výpočtů'),
-      builder: (context) => AlertDialog(
-        insetPadding: _dialogInsetPadding(),
-        title: Semantics(header: true, child: Text(_l10n.historyTitle)),
-        content: _applyDialogSize(
-          historyEmpty
-              ? Semantics(container: true, child: Text(_l10n.emptyHistory))
-              : SizedBox(
-                  width: double.maxFinite,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _history.length,
-                    itemBuilder: (context, index) {
-                      final entry = _history[index];
-                      final expression = entry.expression;
-                      // Vizuální výsledek podle globální volby; vkládání
-                      // používá strukturovanou pravdu: racionální metadata
-                      // jako (n/d) v závorkách (priorita), jinak numeriku
-                      // (nikdy "6√2" ani aproximaci).
-                      final displayResult = _historyDisplayResult(entry);
-                      final entryRational = entry.rational;
-                      final insertResult =
-                          (entryRational != null &&
-                              entryRational.denominator != BigInt.one &&
-                              entry.numericResult.isNotEmpty)
-                          ? '(${entryRational.numerator}/${entryRational.denominator})'
-                          : (entry.numericResult.isNotEmpty
-                                ? entry.numericResult
-                                : expression);
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          final bool historyEmpty = _history.isEmpty;
+          return AlertDialog(
+            insetPadding: _dialogInsetPadding(),
+            title: Semantics(header: true, child: Text(_l10n.historyTitle)),
+            content: _applyDialogSize(
+              historyEmpty
+                  ? Semantics(container: true, child: Text(_l10n.emptyHistory))
+                  : SizedBox(
+                      width: double.maxFinite,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _history.length,
+                        itemBuilder: (context, index) {
+                          final entry = _history[index];
+                          final expression = entry.expression;
+                          // Vizuální výsledek podle globální volby; vkládání
+                          // používá strukturovanou pravdu: racionální metadata
+                          // jako (n/d) v závorkách (priorita), jinak numeriku
+                          // (nikdy "6√2" ani aproximaci).
+                          final displayResult = _historyDisplayResult(entry);
+                          final entryRational = entry.rational;
+                          final insertResult =
+                              (entryRational != null &&
+                                  entryRational.denominator != BigInt.one &&
+                                  entry.numericResult.isNotEmpty)
+                              ? '(${entryRational.numerator}/${entryRational.denominator})'
+                              : (entry.numericResult.isNotEmpty
+                                    ? entry.numericResult
+                                    : expression);
 
-                      // Hlas řádku: racionální tvar jako "n lomeno d",
-                      // jinak dosavadní řeč zobrazeného tvaru.
-                      final String spokenResult;
-                      if (entryRational != null &&
-                          entryRational.denominator != BigInt.one) {
-                        spokenResult = _s(
-                          '${entryRational.numerator} lomeno ${entryRational.denominator}',
-                          '${entryRational.numerator} over ${entryRational.denominator}',
-                        );
-                      } else {
-                        spokenResult = _spokenForDisplay(displayResult);
-                      }
-                      String semanticDescription = _s(
-                        "Výpočet: ${_spokenForDisplay(expression)}, výsledek: $spokenResult. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
-                        "Calculation: ${_spokenForDisplay(expression)}, result: $spokenResult. Tap to insert the result, hold to insert the whole calculation.",
-                      );
+                          // Hlas řádku: racionální tvar jako "n lomeno d",
+                          // jinak dosavadní řeč zobrazeného tvaru.
+                          final String spokenResult;
+                          if (entryRational != null &&
+                              entryRational.denominator != BigInt.one) {
+                            spokenResult = _s(
+                              '${entryRational.numerator} lomeno ${entryRational.denominator}',
+                              '${entryRational.numerator} over ${entryRational.denominator}',
+                            );
+                          } else {
+                            spokenResult = _spokenForDisplay(displayResult);
+                          }
+                          String semanticDescription = _s(
+                            "Výpočet: ${_spokenForDisplay(expression)}, výsledek: $spokenResult. Poklepáním vložíte výsledek, přidržením vložíte celý výpočet.",
+                            "Calculation: ${_spokenForDisplay(expression)}, result: $spokenResult. Tap to insert the result, hold to insert the whole calculation.",
+                          );
 
-                      return Semantics(
-                        label: semanticDescription,
-                        container: true,
-                        child: MergeSemantics(
-                          child: ListTile(
-                            title: _PeriodicText(
-                              expression,
-                              style: const TextStyle(fontSize: 14),
-                              overlineThickness: _overlineThickness,
-                              overlineHeight: _overlineHeight,
+                          return Semantics(
+                            label: semanticDescription,
+                            container: true,
+                            child: ListTile(
+                              title: _PeriodicText(
+                                expression,
+                                style: const TextStyle(fontSize: 14),
+                                overlineThickness: _overlineThickness,
+                                overlineHeight: _overlineHeight,
+                              ),
+                              subtitle: displayResult.isNotEmpty
+                                  ? _PeriodicText(
+                                      displayResult,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: Colors.blue,
+                                      ),
+                                      overlineThickness: _overlineThickness,
+                                      overlineHeight: _overlineHeight,
+                                    )
+                                  : null,
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                tooltip: _s(
+                                  'Smazat záznam $expression',
+                                  'Delete record $expression',
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _history.removeAt(index);
+                                    _saveHistory();
+                                  });
+                                  setStateDialog(() {});
+                                  speak(_s('Záznam smazán', 'Record deleted'));
+                                },
+                              ),
+                              onTap: () => _insertFromHistory(insertResult),
+                              onLongPress: () => _insertFromHistory(expression),
                             ),
-                            subtitle: displayResult.isNotEmpty
-                                ? _PeriodicText(
-                                    displayResult,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: Colors.blue,
-                                    ),
-                                    overlineThickness: _overlineThickness,
-                                    overlineHeight: _overlineHeight,
-                                  )
-                                : null,
-                            onTap: () => _insertFromHistory(insertResult),
-                            onLongPress: () => _insertFromHistory(expression),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: historyEmpty
-                ? null
-                : () {
-                    Navigator.pop(context);
-                    _showClearHistoryConfirmation();
-                  },
-            child: Text(_l10n.clearHistory),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: Text(_l10n.close),
-          ),
-        ],
+                          );
+                        },
+                      ),
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: historyEmpty
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        _showClearHistoryConfirmation();
+                      },
+                child: Text(_l10n.clearHistory),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: Text(_l10n.close),
+              ),
+            ],
+          );
+        },
       ),
     );
-    if (historyEmpty) speak(_l10n.emptyHistory);
+    if (_history.isEmpty) speak(_l10n.emptyHistory);
   }
 
   void _showClearHistoryConfirmation() {
