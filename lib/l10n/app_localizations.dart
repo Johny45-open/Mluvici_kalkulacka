@@ -2336,14 +2336,14 @@ abstract class AppLocalizations {
   /// No description provided for @timeToSecResult.
   ///
   /// In en, this message translates to:
-  /// **'{hms} is {sec} seconds'**
-  String timeToSecResult(String hms, String sec);
+  /// **'{value} {unit} is {sec} {secUnit}'**
+  String timeToSecResult(String value, String unit, String sec, String secUnit);
 
   /// No description provided for @timeToHmsResult.
   ///
   /// In en, this message translates to:
-  /// **'{sec} seconds is {hms}'**
-  String timeToHmsResult(String sec, String hms);
+  /// **'{value} {unit} is {hms}'**
+  String timeToHmsResult(String value, String unit, String hms);
 
   /// No description provided for @timeHelp.
   ///

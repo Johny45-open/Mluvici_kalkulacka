@@ -830,21 +830,30 @@
       }
     }
   },
-  "timeToSecResult": "{hms} je {sec} sekund",
+  "timeToSecResult": "{value} {unit} je {sec} {secUnit}",
   "@timeToSecResult": {
     "placeholders": {
-      "hms": {
+      "value": {
+        "type": "String"
+      },
+      "unit": {
         "type": "String"
       },
       "sec": {
         "type": "String"
+      },
+      "secUnit": {
+        "type": "String"
       }
     }
   },
-  "timeToHmsResult": "{sec} sekund je {hms}",
+  "timeToHmsResult": "{value} {unit} je {hms}",
   "@timeToHmsResult": {
     "placeholders": {
-      "sec": {
+      "value": {
+        "type": "String"
+      },
+      "unit": {
         "type": "String"
       },
       "hms": {

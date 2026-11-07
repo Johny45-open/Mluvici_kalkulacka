@@ -2608,6 +2608,48 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return speech.trim();
   }
 
+  /// Pro hlášky TO_SEC / TO_HMS určuje hodnotu a jednotku první části
+  /// věty podle formátu vstupu a přepínače desetinných minut:
+  /// - vstup obsahuje dvojtečku (HH:MM[:SS]) -> přepočtené sekundy,
+  ///   protože časový zápis není sám o sobě sekundami,
+  /// - holé číslo s zapnutým přepínačem -> desetinné minuty,
+  /// - jinak -> sekundy (případně s desetinnou částí).
+  ///
+  /// Skloňování jednotky řeší `[_getUnitSpeech]` (slovník jednotek),
+  /// takže hlášky zůstávají konzistentní s ostatními částmi aplikace.
+  ({String value, String unit}) _timeSourcePhrase(
+    String src,
+    int totalSeconds,
+  ) {
+    if (src.trim().isEmpty) {
+      return (
+        value: totalSeconds.toString(),
+        unit: _getUnitSpeech('s', value: totalSeconds.toDouble()),
+      );
+    }
+    final dv = double.tryParse(src.replaceAll(',', '.'));
+    if (src.contains(':')) {
+      return (
+        value: totalSeconds.toString(),
+        unit: _getUnitSpeech('s', value: totalSeconds.toDouble()),
+      );
+    }
+    if (_timeDecimalMinutesEnabled) {
+      return (
+        value: src,
+        unit: dv == null
+            ? _getUnitSpeech('min', context: 'z')
+            : _getUnitSpeech('min', value: dv),
+      );
+    }
+    return (
+      value: src,
+      unit: dv == null
+          ? _getUnitSpeech('s', context: 'z')
+          : _getUnitSpeech('s', value: dv),
+    );
+  }
+
   String _getTimeUnitSpeech(
     String unit,
     double value, {
@@ -2643,17 +2685,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (!trimmed.contains('+') &&
         !trimmed.contains('-') &&
         !trimmed.contains(';')) {
-      if (trimmed.contains(':')) {
-        final sec = _parseHmsToSeconds(trimmed);
-        return _formatSecondsToHms(sec);
-      } else {
-        // numeric seconds -> Hms
-        final v = double.tryParse(trimmed.replaceAll(',', '.'));
-        if (v != null) {
-          return _formatSecondsToHms(v.round());
-        }
-        throw _TimeInputException(_l10n.timeInvalidFormat);
-      }
+      // _parseHmsToSeconds zvládne jak HH:MM[:SS], tak holé číslo –
+      // to se chová podle přepínače desetinných minut (sekundy/minuty).
+      final sec = _parseHmsToSeconds(trimmed);
+      return _formatSecondsToHms(sec);
     }
     // Split by + or - or ; (treat ; as diff)
     if (trimmed.contains(';')) {
@@ -11141,12 +11176,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             _resultGeneration++;
             _lastExactGeneration = _resultGeneration;
           });
+          // První část hlášky: hodnota + skloňovaná jednotka podle vstupu
+          // a přepínače desetinných minut (viz [_timeSourcePhrase]).
+          final from = _timeSourcePhrase(src, sec);
           // R4/R6: jedna hláška jednotným kanálem, oddělovač podle jazyka.
           unawaited(
             announceEvent(
               _l10n.timeToSecResult(
-                _localizeDecimalSeparator(src.isEmpty ? secStr : src),
+                _localizeDecimalSeparator(from.value),
+                from.unit,
                 secStr,
+                _getUnitSpeech('s', value: sec.toDouble()),
               ),
               category: SpeechCategory.actionConfirm,
               isNumeric: true,
@@ -11178,6 +11218,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           final totalSec = _parseHmsToSeconds(src);
           final hms = _formatSecondsToHms(totalSec);
           final v = totalSec.toDouble();
+          // První část hlášky: hodnota + skloňovaná jednotka podle vstupu
+          // a přepínače desetinných minut (viz [_timeSourcePhrase]).
+          final from = _timeSourcePhrase(src, totalSec);
           setState(() {
             _lastResult = hms;
             display = '';
@@ -11192,7 +11235,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           // R4: jedna hláška jednotným kanálem (dříve force-bypass přes SR).
           unawaited(
             announceEvent(
-              _l10n.timeToHmsResult(src.isEmpty ? _lastResult : src, hms),
+              _l10n.timeToHmsResult(
+                _localizeDecimalSeparator(from.value),
+                from.unit,
+                hms,
+              ),
               category: SpeechCategory.actionConfirm,
               isNumeric: true,
               interruptCurrentSpeech: true,
@@ -14980,6 +15027,39 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   CalculatorMode get currentModeForTest => _currentMode;
+
+  @visibleForTesting
+  bool get timeDecimalMinutesEnabledForTest => _timeDecimalMinutesEnabled;
+
+  @visibleForTesting
+  set timeDecimalMinutesEnabledForTest(bool value) =>
+      _timeDecimalMinutesEnabled = value;
+
+  /// Výpočet výsledku časového režimu (pro testy; stejný kód jako '=').
+  @visibleForTesting
+  String calculateTimeResultForTest(String input) =>
+      _calculateTimeResult(input);
+
+  /// Hodnota a jednotka první části hlášky TO_SEC / TO_HMS (pro testy).
+  @visibleForTesting
+  ({String value, String unit}) timeSourcePhraseForTest(
+    String src,
+    int totalSeconds,
+  ) =>
+      _timeSourcePhrase(src, totalSeconds);
+
+  /// Skloňovaná jednotka (pro testy; stejně řečeno jako v hláškách).
+  @visibleForTesting
+  String unitSpeechForTest(
+    String unitCode, {
+    double? value,
+    String context = 'base',
+  }) =>
+      _getUnitSpeech(
+        unitCode,
+        value: value,
+        context: context,
+      );
 
   void _showDeleteStatsSetConfirmation(
     BuildContext context,

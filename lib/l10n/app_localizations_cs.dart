@@ -1240,13 +1240,13 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String timeToSecResult(String hms, String sec) {
-    return '$hms je $sec sekund';
+  String timeToSecResult(String value, String unit, String sec, String secUnit) {
+    return '$value $unit je $sec $secUnit';
   }
 
   @override
-  String timeToHmsResult(String sec, String hms) {
-    return '$sec sekund je $hms';
+  String timeToHmsResult(String value, String unit, String hms) {
+    return '$value $unit je $hms';
   }
 
   @override

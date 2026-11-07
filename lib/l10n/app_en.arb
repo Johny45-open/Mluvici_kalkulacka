@@ -758,21 +758,30 @@
       }
     }
   },
-  "timeToSecResult": "{hms} is {sec} seconds",
+  "timeToSecResult": "{value} {unit} is {sec} {secUnit}",
   "@timeToSecResult": {
     "placeholders": {
-      "hms": {
+      "value": {
+        "type": "String"
+      },
+      "unit": {
         "type": "String"
       },
       "sec": {
         "type": "String"
+      },
+      "secUnit": {
+        "type": "String"
       }
     }
   },
-  "timeToHmsResult": "{sec} seconds is {hms}",
+  "timeToHmsResult": "{value} {unit} is {hms}",
   "@timeToHmsResult": {
     "placeholders": {
-      "sec": {
+      "value": {
+        "type": "String"
+      },
+      "unit": {
         "type": "String"
       },
       "hms": {
