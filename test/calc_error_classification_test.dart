@@ -336,4 +336,78 @@ void main() {
       }
     });
   });
+
+  group('Pokračování v zadávání po chybě', () {
+    testWidgets('12+ -> Error -> 5 -> 12+5 -> = -> 17', (tester) async {
+      final state = await pumpApp(tester);
+
+      state.setDisplayForTest('12+', 3);
+      await tester.pump();
+      state.calculateForTest();
+      await tester.pumpAndSettle();
+
+      // Chyba je hlášena a rozpracovaný výraz zůstává zachován pro opravu.
+      expect(state.lastResultForTest, 'Error');
+      expect(state.displayForTest, '12+');
+
+      // Číslice se připojí za kurzor, výraz se nezmaže.
+      await state.handleButtonPressedForTest('5');
+      await tester.pumpAndSettle();
+      expect(state.displayForTest, '12+5');
+
+      // Opravený výraz se úspěšně spočte.
+      state.calculateForTest();
+      await tester.pumpAndSettle();
+      expect(state.lastResultForTest, '17');
+      expect(state.lastNumericForTest, 17.0);
+      expect(state.displayForTest, isEmpty);
+    });
+
+    testWidgets('12+ -> Error -> DEL -> + -> 5 -> 12+5 -> = -> 17',
+        (tester) async {
+      final state = await pumpApp(tester);
+
+      state.setDisplayForTest('12+', 3);
+      await tester.pump();
+      state.calculateForTest();
+      await tester.pumpAndSettle();
+      expect(state.lastResultForTest, 'Error');
+      expect(state.displayForTest, '12+');
+
+      // DEL po chybě smaže pouze poslední znak (oprava, ne reset).
+      await state.handleButtonPressedForTest('DEL');
+      await tester.pumpAndSettle();
+      expect(state.displayForTest, '12');
+
+      // Pokračování přes operátor i číslici na zachovaném výrazu.
+      await state.handleButtonPressedForTest('+');
+      await tester.pumpAndSettle();
+      await state.handleButtonPressedForTest('5');
+      await tester.pumpAndSettle();
+      expect(state.displayForTest, '12+5');
+
+      state.calculateForTest();
+      await tester.pumpAndSettle();
+      expect(state.lastResultForTest, '17');
+      expect(state.lastNumericForTest, 17.0);
+    });
+
+    testWidgets('platný výsledek: guard po úspěchu zůstává (5+5=, * -> ANS*)',
+        (tester) async {
+      final state = await pumpApp(tester);
+
+      state.setDisplayForTest('5+5', 3);
+      await tester.pump();
+      state.calculateForTest();
+      await tester.pumpAndSettle();
+      expect(state.lastResultForTest, '10');
+
+      // Po ÚSPĚŠNÉM výpočtu guard musí zůstat aktivní: operátor
+      // pokračuje přes ANS (regrese proti chybové větvi).
+      await state.handleButtonPressedForTest('*');
+      await tester.pumpAndSettle();
+      expect(state.displayForTest, 'ANS*');
+      expect(state.lastResultForTest, '10');
+    });
+  });
 }

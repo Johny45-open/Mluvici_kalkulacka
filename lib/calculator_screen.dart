@@ -10386,7 +10386,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _togglePeriod();
       return;
     }
-    if (_hasResult) {
+    // Chybový stav (_lastResult == 'Error') není platný výsledek: guard se
+    // záměrně přeskočí, aby rozpracovaný výraz i kurzor zůstaly a uživatel
+    // mohl pokračovat v opravě (identický idiom viz uložení do paměti).
+    if (_hasResult && _lastResult != 'Error') {
       setState(() {
         if (['+', '-', '*', '/', '^', '%', 'EXP', 'x²', 'x³'].contains(label)) {
           display = 'ANS';
