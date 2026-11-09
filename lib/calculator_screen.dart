@@ -15577,45 +15577,66 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             "Calculation: ${_spokenForDisplay(expression)}, result: $spokenResult. Tap to insert the result, hold to insert the whole calculation.",
                           );
 
-                          return Semantics(
-                            label: semanticDescription,
-                            container: true,
-                            child: ListTile(
-                              title: _PeriodicText(
-                                expression,
-                                style: const TextStyle(fontSize: 14),
-                                overlineThickness: _overlineThickness,
-                                overlineHeight: _overlineHeight,
-                              ),
-                              subtitle: displayResult.isNotEmpty
-                                  ? _PeriodicText(
-                                      displayResult,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                        color: Colors.blue,
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Semantics(
+                                    label: semanticDescription,
+                                    container: true,
+                                    child: InkWell(
+                                      onTap: () => _insertFromHistory(insertResult),
+                                      onLongPress: () => _insertFromHistory(expression),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16.0,
+                                          vertical: 12.0,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            _PeriodicText(
+                                              expression,
+                                              style: const TextStyle(fontSize: 14),
+                                              overlineThickness: _overlineThickness,
+                                              overlineHeight: _overlineHeight,
+                                            ),
+                                            if (displayResult.isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              _PeriodicText(
+                                                displayResult,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
+                                                  color: Colors.blue,
+                                                ),
+                                                overlineThickness: _overlineThickness,
+                                                overlineHeight: _overlineHeight,
+                                              ),
+                                            ],
+                                          ],
+                                        ),
                                       ),
-                                      overlineThickness: _overlineThickness,
-                                      overlineHeight: _overlineHeight,
-                                    )
-                                  : null,
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                tooltip: _s(
-                                  'Smazat záznam $expression',
-                                  'Delete record $expression',
+                                    ),
+                                  ),
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    _history.removeAt(index);
-                                    _saveHistory();
-                                  });
-                                  setStateDialog(() {});
-                                  speak(_s('Záznam smazán', 'Record deleted'));
-                                },
-                              ),
-                              onTap: () => _insertFromHistory(insertResult),
-                              onLongPress: () => _insertFromHistory(expression),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  tooltip: _s(
+                                    'Smazat záznam $expression',
+                                    'Delete record $expression',
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _history.removeAt(index);
+                                      _saveHistory();
+                                    });
+                                    setStateDialog(() {});
+                                    speak(_s('Záznam smazán', 'Record deleted'));
+                                  },
+                                ),
+                              ],
                             ),
                           );
                         },
