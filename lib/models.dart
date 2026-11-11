@@ -589,7 +589,9 @@ enum ScreenReaderMode { auto, on, off }
 /// Jedna významná uživatelská akce → jedno oznámení právě jedním kanálem.
 enum SpeechCategory {
   /// Změna editované hodnoty (číslice, operátor) – při aktivní čtečce
-  /// oznamuje změna displeje (liveRegion), bez vlastního TTS.
+  /// explicitně publikováno Semantics kanálem (dedikovaný oznamovací
+  /// liveRegion), bez vlastního TTS. Není odvoditelné od změny textu
+  /// displeje (ta není live region), proto se publikuje vždy.
   valueChange,
 
   /// Potvrzení akce (výsledek, uložení, převod) – vždy právě jedna hláška.

@@ -254,9 +254,9 @@ void main() {
         state.a11yProxyValueForTest.selection,
         const TextSelection.collapsed(offset: 3),
       );
-      // Editační cesta (vložení) nepřidává vlastní TTS ani publish hlášku.
+      // Editační cesta (vložení) nepřidává vlastní TTS, ale publikuje do Semantics kanálu.
       expect(ttsLog, isEmpty);
-      expect(state.lastAnnouncementForTest as String, before);
+      expect(state.lastAnnouncementForTest as String, '3');
       await tester.pump(const Duration(seconds: 3));
     });
 

@@ -279,13 +279,14 @@ void main() {
   });
 
   group('R1 – SR ON: žádný duplicitní event, displej oznamuje', () {
-    testWidgets('7 SR ON -> žádné TTS, displej obsahuje 7', (tester) async {
+    testWidgets('7 SR ON -> žádné TTS, Semantics oznámení 7', (tester) async {
       final state = await pumpApp(tester);
       await setScreenReader(tester, state, true);
       ttsLog.clear();
       await state.handleButtonPressedForTest('7');
       await tester.pumpAndSettle();
       expect(ttsLog, isEmpty, reason: 'TTS log: $ttsLog');
+      expect(state.lastAnnouncementForTest as String, '7');
       expect(displayValue(tester), contains('7'));
       expect(tester.takeException(), isNull);
     });
@@ -299,6 +300,7 @@ void main() {
       state.backspaceForTest();
       await tester.pumpAndSettle();
       expect(ttsLog, isEmpty, reason: 'TTS log: $ttsLog');
+      expect(state.lastAnnouncementForTest as String, contains('Smazáno'));
       expect(displayValue(tester), contains('1'));
       expect(tester.takeException(), isNull);
     });
