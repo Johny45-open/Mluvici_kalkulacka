@@ -15835,7 +15835,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                       _saveHistory();
                                     });
                                     setStateDialog(() {});
-                                    speak(_s('Záznam smazán', 'Record deleted'));
+                                    unawaited(
+                                      announceEvent(
+                                        _history.isEmpty
+                                            ? _s(
+                                                'Záznam smazán. Historie je nyní prázdná.',
+                                                'Record deleted. History is now empty.',
+                                              )
+                                            : _s(
+                                                'Záznam smazán.',
+                                                'Record deleted.',
+                                              ),
+                                        category: SpeechCategory.actionConfirm,
+                                      ),
+                                    );
                                   },
                                 ),
                               ],

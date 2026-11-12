@@ -65,7 +65,12 @@ void main() {
   Future<dynamic> pumpApp(
     WidgetTester tester, {
     Locale locale = const Locale('cs'),
+    List<String> history = const [],
   }) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'modeQuestionAsked': true,
+      'history': history,
+    });
     tester.view.physicalSize = const Size(412, 860);
     tester.view.devicePixelRatio = 1.0;
     tester.platformDispatcher.localeTestValue = locale;
@@ -74,7 +79,30 @@ void main() {
     addTearDown(tester.platformDispatcher.clearAllTestValues);
     await tester.pumpWidget(ScientificCalculatorApp(locale: locale));
     await tester.pumpAndSettle();
-    return tester.state(find.byType(CalculatorScreen)) as dynamic;
+    final state = tester.state(find.byType(CalculatorScreen)) as dynamic;
+    if (history.isNotEmpty) {
+      final expectedExpressions = history
+          .map(
+            (raw) => CalculationHistoryEntry.fromStorageString(raw).expression,
+          )
+          .toList();
+      final loadedExpressions = (state.historyForTest as List)
+          .map((entry) => entry.expression)
+          .toList();
+      if (loadedExpressions.isEmpty) {
+        for (final raw in history.reversed) {
+          state.addHistoryEntryForTest(
+            CalculationHistoryEntry.fromStorageString(raw),
+          );
+        }
+      } else {
+        expect(loadedExpressions, expectedExpressions);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('history', history);
+      await tester.pump();
+    }
+    return state;
   }
 
   Future<void> setReaderMode(
@@ -86,6 +114,17 @@ void main() {
       (s) => s.copyWith(screenReaderMode: mode),
     );
     await tester.pumpAndSettle();
+  }
+
+  Future<void> openHistoryDialog(WidgetTester tester, dynamic state) async {
+    state.showHistoryDialogForTest();
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> expectPersistedHistory(List<String> expected) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    expect(prefs.getStringList('history'), expected);
   }
 
   /// MC bez existující sady v režimu statistiky: potvrzený pár
@@ -173,6 +212,207 @@ void main() {
       final semBefore = await pressMcWithoutSet(tester, state);
       expect(ttsLog, isEmpty);
       expect(state.publishedAnnouncementCountForTest as int, semBefore);
+    });
+  });
+
+  group('Mazání historie: jedno oznámení a persistovaný stav', () {
+    testWidgets('ON: běžné smazání publikuje právě jedno Semantics oznámení', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester, history: const ['2+2|4', '3+3|6']);
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      await openHistoryDialog(tester, state);
+      expect((state.historyForTest as List).length, 2);
+
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await tester.tap(find.byTooltip('Smazat záznam 2+2'));
+      await tester.pumpAndSettle();
+
+      expect((state.historyForTest as List).map((entry) => entry.expression), [
+        '3+3',
+      ]);
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+      expect(state.lastAnnouncementForTest, 'Záznam smazán.');
+      expect(ttsLog, isEmpty);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await expectPersistedHistory(const ['3+3|6']);
+    });
+
+    testWidgets('ON s vypnutým TTS stále publikuje přes Semantics', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester, history: const ['2+2|4', '3+3|6']);
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      state.updateActiveSettingsForTest((s) => s.copyWith(ttsEnabled: false));
+      await tester.pumpAndSettle();
+      await openHistoryDialog(tester, state);
+
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await tester.tap(find.byTooltip('Smazat záznam 2+2'));
+      await tester.pumpAndSettle();
+
+      expect((state.historyForTest as List).single.expression, '3+3');
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+      expect(state.lastAnnouncementForTest, 'Záznam smazán.');
+      expect(ttsLog, isEmpty);
+      await expectPersistedHistory(const ['3+3|6']);
+    });
+
+    testWidgets('OFF: běžné smazání používá právě jedno vlastní TTS', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester, history: const ['2+2|4', '3+3|6']);
+      await setReaderMode(tester, state, ScreenReaderMode.off);
+      await openHistoryDialog(tester, state);
+
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await tester.tap(find.byTooltip('Smazat záznam 2+2'));
+      await tester.pumpAndSettle();
+
+      expect((state.historyForTest as List).single.expression, '3+3');
+      expect(state.publishedAnnouncementCountForTest as int, semBefore);
+      expect(ttsLog, ['Záznam smazán.']);
+      await expectPersistedHistory(const ['3+3|6']);
+    });
+
+    testWidgets('AUTO s aktivní čtečkou se chová jako ON', (tester) async {
+      accessibilityMockResult = true;
+      final state = await pumpApp(tester, history: const ['2+2|4', '3+3|6']);
+      expect(state.isScreenReaderActiveForTest, isTrue);
+      await openHistoryDialog(tester, state);
+
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await tester.tap(find.byTooltip('Smazat záznam 2+2'));
+      await tester.pumpAndSettle();
+
+      expect((state.historyForTest as List).single.expression, '3+3');
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+      expect(state.lastAnnouncementForTest, 'Záznam smazán.');
+      expect(ttsLog, isEmpty);
+      await expectPersistedHistory(const ['3+3|6']);
+    });
+
+    testWidgets('AUTO + UNKNOWN: smazání nevyvolá hlasové oznámení', (
+      tester,
+    ) async {
+      hangDetection = true;
+      final state = await pumpApp(tester, history: const ['2+2|4', '3+3|6']);
+      expect(state.isScreenReaderActiveForTest, isNull);
+      await openHistoryDialog(tester, state);
+
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await tester.tap(find.byTooltip('Smazat záznam 2+2'));
+      await tester.pumpAndSettle();
+
+      expect((state.historyForTest as List).single.expression, '3+3');
+      expect(state.publishedAnnouncementCountForTest as int, semBefore);
+      expect(ttsLog, isEmpty);
+      await expectPersistedHistory(const ['3+3|6']);
+    });
+
+    testWidgets('opakovaná smazání stejného textu publikují každé zvlášť', (
+      tester,
+    ) async {
+      final state = await pumpApp(
+        tester,
+        history: const ['2+2|4', '3+3|6', '4+4|8'],
+      );
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      await openHistoryDialog(tester, state);
+
+      for (final expression in ['2+2', '3+3']) {
+        ttsLog.clear();
+        final semBefore = state.publishedAnnouncementCountForTest as int;
+        await tester.tap(find.byTooltip('Smazat záznam $expression'));
+        await tester.pumpAndSettle();
+
+        expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+        expect(state.lastAnnouncementForTest, 'Záznam smazán.');
+        expect(ttsLog, isEmpty);
+        expect(
+          (state.historyForTest as List).map((entry) => entry.expression),
+          expression == '2+2' ? ['3+3', '4+4'] : ['4+4'],
+        );
+      }
+      await expectPersistedHistory(const ['4+4|8']);
+    });
+
+    testWidgets('smazání posledního záznamu oznámí i prázdnou historii', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester, history: const ['2+2|4']);
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      await openHistoryDialog(tester, state);
+
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await tester.tap(find.byTooltip('Smazat záznam 2+2'));
+      await tester.pumpAndSettle();
+
+      expect(state.historyForTest, isEmpty);
+      expect(find.text('Historie je prázdná.'), findsOneWidget);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+      expect(
+        state.lastAnnouncementForTest,
+        'Záznam smazán. Historie je nyní prázdná.',
+      );
+      expect(ttsLog, isEmpty);
+      await expectPersistedHistory(const []);
+    });
+
+    testWidgets('last deletion announces the empty history in English', (
+      tester,
+    ) async {
+      final state = await pumpApp(
+        tester,
+        locale: const Locale('en'),
+        history: const ['2+2|4'],
+      );
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      await openHistoryDialog(tester, state);
+
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await tester.tap(find.byTooltip('Delete record 2+2'));
+      await tester.pumpAndSettle();
+
+      expect(state.historyForTest, isEmpty);
+      expect(find.text('History is empty.'), findsOneWidget);
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+      expect(
+        state.lastAnnouncementForTest,
+        'Record deleted. History is now empty.',
+      );
+      expect(ttsLog, isEmpty);
+      await expectPersistedHistory(const []);
+    });
+
+    testWidgets('hromadné mazání publikuje právě jedno SnackBar oznámení', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester, history: const ['2+2|4', '3+3|6']);
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      await openHistoryDialog(tester, state);
+
+      await tester.tap(find.text('VYMAZAT HISTORII'));
+      await tester.pumpAndSettle();
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await tester.tap(find.text('ANO, SMAZAT'));
+      await tester.pumpAndSettle();
+
+      expect(state.historyForTest, isEmpty);
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+      expect(state.lastAnnouncementForTest, 'Historie smazána');
+      expect(ttsLog, isEmpty);
+      expect(find.text('Historie smazána'), findsOneWidget);
+      await expectPersistedHistory(const []);
     });
   });
 }
