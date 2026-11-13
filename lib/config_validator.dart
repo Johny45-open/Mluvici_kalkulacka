@@ -62,6 +62,7 @@ const Set<String> _knownGlobalKeys = {
   'defaultMode',
   'resultDisplayMode',
   'historyExactFormat',
+  'resultNotationPreference',
   'announceFractionAvailability',
   'statsSummaryOrder',
   'statsComputedOrder',

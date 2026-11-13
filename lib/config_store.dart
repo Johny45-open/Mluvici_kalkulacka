@@ -242,6 +242,7 @@ Future<void> persistCanonicalContract(
     else
       prefs.remove('devPinCode').then((_) => true),
     prefs.setInt('themeMode', parsed.themeMode.index),
+    prefs.setBool('announceFractionAvailability', parsed.announceFractionAvailability),
     prefs.setBool('modeQuestionAsked', true),
   ];
   for (final w in writes) {

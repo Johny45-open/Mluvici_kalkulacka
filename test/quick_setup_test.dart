@@ -572,6 +572,212 @@ void main() {
     });
   });
 
+  /// Simulace restartu aplikace: nová instance úložiště inicializovaná
+  /// hodnotami, která předchozí instance skutečně uložila (persistence).
+  Future<SharedPreferences> simulateAppRestart(SharedPreferences saved) async {
+    final stored = <String, Object>{};
+    for (final k in saved.getKeys()) {
+      final v = saved.get(k);
+      if (v != null) stored[k] = v;
+    }
+    SharedPreferences.setMockInitialValues(stored);
+    return SharedPreferences.getInstance();
+  }
+
+  Map<String, dynamic> makeContract({
+    bool? announceFractionAvailability,
+    String? resultNotationPreference,
+    Map<String, dynamic>? extraGlobalSettings,
+  }) {
+    final c = buildContractJson(
+      profiles: [
+        AccessibilityProfile(
+          id: 'standard',
+          name: 'Standard',
+          isBuiltIn: true,
+          settings: AccessibilitySettings.defaultsStandard(),
+        ),
+      ],
+      activeProfileId: 'standard',
+      themeMode: ThemeMode.dark,
+      isDegreeMode: true,
+      defaultMode: CalculatorMode.scientific,
+      statsSummaryOrder: const [
+        StatsSummarySection.header,
+        StatsSummarySection.dataValues,
+        StatsSummarySection.computed,
+      ],
+      statsComputedOrder: StatsComputedItem.values,
+      currencyFrom: 'CZK',
+      currencyTo: 'EUR',
+      devEnabled: false,
+      devAutoDiagnostic: false,
+      devDiagnosticDurationMs: 700,
+      devPinCode: null,
+      resultDisplayMode: ResultDisplayMode.segment,
+      resultNotationPreference: ResultNotationPreference.decimal,
+      historyExactFormat: HistoryExactFormat.numeric,
+      announceFractionAvailability:
+          announceFractionAvailability ?? true,
+    );
+    final gs = Map<String, dynamic>.from(c['globalSettings'] as Map);
+    if (resultNotationPreference != null) {
+      gs['resultNotationPreference'] = resultNotationPreference;
+    }
+    if (extraGlobalSettings != null) {
+      gs.addAll(extraGlobalSettings);
+    }
+    c['globalSettings'] = gs;
+    return c;
+  }
+
+  group('Fáze 0 – validátor a uložení konfigurace', () {
+    test('T0-1) resultNotationPreference nevyvolava unknownKey', () {
+      final contract = makeContract(resultNotationPreference: 'fraction');
+      final res = validateContract(contract);
+      expect(
+        res.warnings
+            .where((w) => w.code == 'unknownKey' &&
+                w.path == 'globalSettings.resultNotationPreference'),
+        isEmpty,
+      );
+    });
+
+    test('T0-2) skutecne neznama klic nadale vyvolava unknownKey', () {
+      final contract = makeContract(
+        extraGlobalSettings: const {'neexistujiciKlicXyz': 'hodnota'},
+      );
+      final res = validateContract(contract);
+      expect(
+        res.warnings
+            .where(
+              (w) =>
+                  w.code == 'unknownKey' &&
+                  w.path == 'globalSettings.neexistujiciKlicXyz',
+            ),
+        isNotEmpty,
+      );
+    });
+
+    test(
+      'T0-3) persistCanonicalContract ulozi announceFractionAvailability (true i false)',
+      () async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        var prefs = await SharedPreferences.getInstance();
+        var contract = makeContract(announceFractionAvailability: false);
+        await persistCanonicalContract(prefs, contract);
+        expect(prefs.getBool('announceFractionAvailability'), isFalse);
+
+        prefs = await SharedPreferences.getInstance();
+        contract = makeContract(announceFractionAvailability: true);
+        await persistCanonicalContract(prefs, contract);
+        expect(prefs.getBool('announceFractionAvailability'), isTrue);
+      },
+    );
+
+    test(
+      'T0-4) Quick Setup na false + uložení + restart zachová false',
+      () async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final prefs = await SharedPreferences.getInstance();
+        final draft = QuickSetupDraft.defaults()
+            .applyPreset(QuickSetupPreset.blind)
+            .copyWith(announceFractionAvailability: false);
+        final contract = buildQuickSetupContract(
+          draft: draft,
+          profiles: [
+            AccessibilityProfile(
+              id: 'standard',
+              name: 'Standard',
+              isBuiltIn: true,
+              settings: AccessibilitySettings.defaultsStandard(),
+            ),
+          ],
+          activeProfileId: 'standard',
+          statsSummaryOrder: const [
+            StatsSummarySection.header,
+            StatsSummarySection.dataValues,
+            StatsSummarySection.computed,
+          ],
+          statsComputedOrder: StatsComputedItem.values,
+          currencyFrom: 'CZK',
+          currencyTo: 'EUR',
+          devEnabled: false,
+          devAutoDiagnostic: false,
+          devDiagnosticDurationMs: 700,
+          devPinCode: null,
+          historyExactFormat: HistoryExactFormat.numeric,
+        );
+        expect(
+          (contract['globalSettings'] as Map)['announceFractionAvailability'],
+          isFalse,
+        );
+        expect(validateQuickSetupContract(contract).ok, isTrue);
+        await persistCanonicalContract(prefs, contract);
+        expect(prefs.getBool('announceFractionAvailability'), isFalse);
+
+        // Restart: nova instance uloziste z persistovanych hodnot.
+        final reloaded = await simulateAppRestart(prefs);
+        expect(reloaded.getBool('announceFractionAvailability'), isFalse);
+      },
+    );
+
+    test(
+      'T0-5) chybějící hodnota v kontraktu použije výchozí true',
+      () {
+        final contract = makeContract(announceFractionAvailability: true);
+        final gs = Map<String, dynamic>.from(contract['globalSettings'] as Map)
+          ..remove('announceFractionAvailability');
+        contract['globalSettings'] = gs;
+        // Bez klíče validace nadále projde (volitelný klíč).
+        expect(validateContract(contract).ok, isTrue);
+        final parsed = parseContract(contract);
+        expect(parsed.announceFractionAvailability, isTrue);
+      },
+    );
+
+    test(
+      'T0-6) validateQuickSetupContract se chová konzistentně s validateContract',
+      () {
+        final valid = makeContract();
+        final a = validateQuickSetupContract(valid);
+        final b = validateContract(valid);
+        expect(a.ok, b.ok);
+        expect(a.errors.length, b.errors.length);
+        expect(a.warnings.length, b.warnings.length);
+
+        final broken = makeContract(extraGlobalSettings: const {
+          'defaultMode': 'neexistujici_rezim',
+        });
+        final c = validateQuickSetupContract(broken);
+        final d = validateContract(broken);
+        expect(c.ok, d.ok);
+        expect(c.errors.length, d.errors.length);
+        expect(c.warnings.length, d.warnings.length);
+        expect(c.ok, isFalse);
+      },
+    );
+
+    test(
+      'T0-7) import konfigurace s announceFractionAvailability: false prežije restart',
+      () async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final prefs = await SharedPreferences.getInstance();
+        // Simulovany import: cteni z „souboru" (JSON round-trip) s
+        // vypnutym upozornovanim na zlomek.
+        final imported = makeContract(announceFractionAvailability: false);
+        final round = jsonDecode(jsonEncode(imported)) as Map<String, dynamic>;
+        expect(validateContract(round).ok, isTrue);
+        await persistCanonicalContract(prefs, round);
+        expect(prefs.getBool('announceFractionAvailability'), isFalse);
+
+        // Restart: nova instance uloziste z persistovanych hodnot.
+        final reloaded = await simulateAppRestart(prefs);
+        expect(reloaded.getBool('announceFractionAvailability'), isFalse);
+      },
+    );
+  });
+
   group('startup widget', () {
     testWidgets('2) first run zobrazi Quick Setup pouze jednou s úvodem a tlačítkem Skip setup', (
       tester,
