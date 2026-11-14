@@ -70,48 +70,60 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets(
-    'Kontext vah se naráže jen jednou (u první vážené statistiky)',
-    (tester) async {
-      final state = await pumpApp(tester);
-      await switchToStatistics(tester);
-      // Dvěpole sada: pole 0 = hodnoty, pole 1 = váhy.
-      state.addStatsSetForTest(
-        StatisticsSet(
-          name: 'Vážená sada',
-          fieldNames: const ['Hodnoty', 'Váhy'],
-          records: [
-            StatisticsRecord(values: [10, 1]),
-            StatisticsRecord(values: [20, 2]),
-            StatisticsRecord(values: [30, 3]),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('Kontext vah se naráže jen jednou (u první vážené statistiky)', (
+    tester,
+  ) async {
+    final state = await pumpApp(tester);
+    await switchToStatistics(tester);
+    state.setStatsDisplayPresetForTest(StatsDisplayPreset.extended);
+    // Dvěpole sada: pole 0 = hodnoty, pole 1 = váhy.
+    state.addStatsSetForTest(
+      StatisticsSet(
+        name: 'Vážená sada',
+        fieldNames: const ['Hodnoty', 'Váhy'],
+        records: [
+          StatisticsRecord(values: [10, 1]),
+          StatisticsRecord(values: [20, 2]),
+          StatisticsRecord(values: [30, 3]),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final summary = state.orderedSpokenSummaryForTest(0) as String;
+    final summary = state.orderedSpokenSummaryForTest(0) as String;
 
-      // Všechny čtyři vážené charakteristiky musí být v souhrnu přítomny.
-      expect(summary.contains('Vážený průměr'), isTrue,
-          reason: 'Vážený průměr chybí v: $summary');
-      expect(summary.contains('Vážený rozptyl'), isTrue,
-          reason: 'Vážený rozptyl chybí v: $summary');
-      expect(summary.contains('Vážená směrodatná odchylka'), isTrue,
-          reason: 'Vážená směrodatná odchylka chybí v: $summary');
-      expect(summary.contains('Vážený variační koeficient'), isTrue,
-          reason: 'Vážený variační koeficient chybí v: $summary');
+    // Všechny čtyři vážené charakteristiky musí být v souhrnu přítomny.
+    expect(
+      summary.contains('Vážený průměr'),
+      isTrue,
+      reason: 'Vážený průměr chybí v: $summary',
+    );
+    expect(
+      summary.contains('Vážený rozptyl'),
+      isTrue,
+      reason: 'Vážený rozptyl chybí v: $summary',
+    );
+    expect(
+      summary.contains('Vážená směrodatná odchylka'),
+      isTrue,
+      reason: 'Vážená směrodatná odchylka chybí v: $summary',
+    );
+    expect(
+      summary.contains('Vážený variační koeficient'),
+      isTrue,
+      reason: 'Vážený variační koeficient chybí v: $summary',
+    );
 
-      // Kontext vah se vyskytne přesně jednou, ne u každé vážené statistiky.
-      final contextCount = 'pole Hodnoty váženo polem Váhy'
-          .allMatches(summary)
-          .length;
-      expect(
-        contextCount,
-        1,
-        reason: 'Kontext vah se opakuje $contextCount× v: $summary',
-      );
+    // Kontext vah se vyskytne přesně jednou, ne u každé vážené statistiky.
+    final contextCount = 'pole Hodnoty váženo polem Váhy'
+        .allMatches(summary)
+        .length;
+    expect(
+      contextCount,
+      1,
+      reason: 'Kontext vah se opakuje $contextCount× v: $summary',
+    );
 
-      await tester.pump(const Duration(seconds: 1));
-    },
-  );
+    await tester.pump(const Duration(seconds: 1));
+  });
 }

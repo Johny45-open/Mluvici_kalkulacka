@@ -300,5 +300,53 @@ void main() {
         await tester.pump(const Duration(seconds: 3));
       },
     );
+
+    testWidgets('custom percentiles can be added without quartile overlaps', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester, logicalSize: const Size(412, 860));
+      await switchToStatistics(tester);
+      seedSingleFieldSet(state);
+      await tester.pumpAndSettle();
+
+      state.showStatsSummaryDialogForTest();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Visible statistics'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Statistics settings'), findsOneWidget);
+      expect(find.text('Basic statistics'), findsOneWidget);
+      expect(find.text('Advanced statistics'), findsOneWidget);
+
+      final percentileField = find.byType(TextField).last;
+      await tester.ensureVisible(percentileField);
+      await tester.enterText(percentileField, '10');
+      final addButton = find.byTooltip('Add percentile');
+      await tester.ensureVisible(addButton);
+      await tester.tap(addButton);
+      await tester.pumpAndSettle();
+
+      var config = state.statsDisplayConfigForTest;
+      expect(config.preset, StatsDisplayPreset.custom);
+      expect(config.percentiles, hasLength(1));
+      expect(config.percentiles.single.p, 10);
+      final stableId = config.percentiles.single.id;
+      expect(stableId, isNot('10'));
+
+      await tester.enterText(percentileField, '25');
+      await tester.ensureVisible(addButton);
+      await tester.tap(addButton);
+      await tester.pumpAndSettle();
+      config = state.statsDisplayConfigForTest;
+      expect(config.percentiles, hasLength(1));
+      expect(config.percentiles.single.id, stableId);
+
+      await state.reloadGlobalSettingsForTest();
+      config = state.statsDisplayConfigForTest;
+      expect(config.preset, StatsDisplayPreset.custom);
+      expect(config.percentiles.single.id, stableId);
+
+      await tester.pump(const Duration(seconds: 3));
+    });
   });
 }

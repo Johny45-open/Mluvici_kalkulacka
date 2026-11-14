@@ -170,13 +170,19 @@ Map<String, dynamic> buildContractJson({
   required ResultNotationPreference resultNotationPreference,
   required HistoryExactFormat historyExactFormat,
   required bool announceFractionAvailability,
+  StatsDisplayConfig? statsDisplayConfig,
 }) {
   final now = DateTime.now().toUtc().toIso8601String().replaceAll(
     '+00:00',
     'Z',
   );
+  final compatibleStatsOrder = statsDisplayConfig == null
+      ? statsComputedOrder
+            .where((item) => item.index <= StatsComputedItem.wcv.index)
+            .toList()
+      : statsComputedOrder;
   return {
-    'schemaVersion': 1,
+    'schemaVersion': statsDisplayConfig == null ? 1 : 2,
     'createdAt': now,
     'generator': 'Mluvici_kalkulacka/12.1.0',
     'calculatorCompatibility': {'minVersion': '11.5.0', 'maxVersion': null},
@@ -202,9 +208,11 @@ Map<String, dynamic> buildContractJson({
       'statsSummaryOrder': statsSummaryOrder
           .map((e) => _statsSectionToString(e))
           .toList(),
-      'statsComputedOrder': statsComputedOrder
+      'statsComputedOrder': compatibleStatsOrder
           .map((e) => _statsComputedToString(e))
           .toList(),
+      if (statsDisplayConfig != null)
+        'statsDisplayConfig': statsDisplayConfig.toJson(),
       'currency': {'from': currencyFrom, 'to': currencyTo},
       'devMode': {
         'enabled': devEnabled,
@@ -228,6 +236,7 @@ class ParsedContract {
   final CalculatorMode defaultMode;
   final List<StatsSummarySection> statsSummaryOrder;
   final List<StatsComputedItem> statsComputedOrder;
+  final StatsDisplayConfig? statsDisplayConfig;
   final String currencyFrom;
   final String currencyTo;
   final bool devEnabled;
@@ -246,6 +255,7 @@ class ParsedContract {
     required this.defaultMode,
     required this.statsSummaryOrder,
     required this.statsComputedOrder,
+    this.statsDisplayConfig,
     required this.currencyFrom,
     required this.currencyTo,
     required this.devEnabled,
@@ -303,6 +313,12 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
       }
     }
   }
+  final statsComputedOrder = normalizeStatsComputedOrder(
+    (gs['statsComputedOrder'] as List)
+        .map((e) => _statsComputedFromString(e as String))
+        .toList(),
+  );
+  final statsDisplayRaw = gs['statsDisplayConfig'];
   return ParsedContract(
     profiles: profiles,
     activeProfileId: raw['activeProfileId'] as String,
@@ -316,11 +332,12 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
     statsSummaryOrder: (gs['statsSummaryOrder'] as List)
         .map((e) => _statsSectionFromString(e as String))
         .toList(),
-    statsComputedOrder: normalizeStatsComputedOrder(
-      (gs['statsComputedOrder'] as List)
-          .map((e) => _statsComputedFromString(e as String))
-          .toList(),
-    ),
+    statsComputedOrder: statsComputedOrder,
+    statsDisplayConfig: statsDisplayRaw is Map
+        ? StatsDisplayConfig.fromJson(
+            Map<String, dynamic>.from(statsDisplayRaw),
+          )
+        : StatsDisplayConfig.fromLegacyOrder(statsComputedOrder),
     currencyFrom: cur['from'] as String,
     currencyTo: cur['to'] as String,
     devEnabled: dev['enabled'] as bool,
@@ -332,12 +349,17 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
 
 Future<void> _saveContractToPrefs(Map<String, dynamic> contract) async {
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setString('config_contract_v1', jsonEncode(contract));
+  final key = contract['schemaVersion'] == 2
+      ? 'config_contract_v2'
+      : 'config_contract_v1';
+  await prefs.setString(key, jsonEncode(contract));
 }
 
 Future<Map<String, dynamic>?> _loadContractFromPrefs() async {
   final prefs = await SharedPreferences.getInstance();
-  final s = prefs.getString('config_contract_v1');
+  final s =
+      prefs.getString('config_contract_v2') ??
+      prefs.getString('config_contract_v1');
   if (s == null) return null;
   try {
     return jsonDecode(s) as Map<String, dynamic>;
@@ -348,17 +370,20 @@ Future<Map<String, dynamic>?> _loadContractFromPrefs() async {
 
 Future<void> _exportContractFile(
   Map<String, dynamic> contract, {
-  String fileName = 'mluvici_kalkulacka_config_v1.json',
+  String? fileName,
 }) async {
+  final exportName =
+      fileName ??
+      'mluvici_kalkulacka_config_v${contract['schemaVersion'] ?? 1}.json';
   final dir = await getTemporaryDirectory();
-  final path = '${dir.path}/$fileName';
+  final path = '${dir.path}/$exportName';
   final f = File(path);
   await f.writeAsString(
     const JsonEncoder.withIndent('  ').convert(contract),
     flush: true,
   );
   await SharePlus.instance.share(
-    ShareParams(files: [XFile(path)], text: fileName),
+    ShareParams(files: [XFile(path)], text: exportName),
   );
 }
 

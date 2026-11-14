@@ -50,11 +50,11 @@ class _StatsSummaryReadingOrderDialogState
   }
 
   void _moveItem(int index, int offset) {
-    final len = widget.parent._statsComputedOrder.length;
+    final len = widget.parent._statsDisplayConfig.order.length;
     final newIndex = index + offset;
     if (newIndex < 0 || newIndex >= len) return;
     setState(() {
-      widget.parent._moveStatsComputedItemByOffset(index, offset);
+      widget.parent._moveStatsOrderEntryByOffset(index, offset);
       _itemSelectedIdx = newIndex;
     });
     // R9: pozice je již součástí hlášky přesunu (žádný druhý event).
@@ -137,7 +137,7 @@ class _StatsSummaryReadingOrderDialogState
     final isAlt = HardwareKeyboard.instance.isAltPressed;
     final len = isSection
         ? widget.parent._statsSummaryOrder.length
-        : widget.parent._statsComputedOrder.length;
+        : widget.parent._statsDisplayConfig.order.length;
     int idx = isSection ? _sectionSelectedIdx : _itemSelectedIdx;
     if (isAlt && event.logicalKey == LogicalKeyboardKey.arrowUp) {
       if (idx > 0) (isSection ? _moveSection(idx, -1) : _moveItem(idx, -1));
@@ -210,10 +210,10 @@ class _StatsSummaryReadingOrderDialogState
                       .toLowerCase(),
                 )
                 .toList()
-          : widget.parent._statsComputedOrder
+          : widget.parent._statsDisplayConfig.order
                 .map(
-                  (it) => widget.parent
-                      ._getStatsComputedItemLabel(it)
+                  (entry) => widget.parent
+                      ._getStatsOrderEntryLabel(entry)
                       .toLowerCase(),
                 )
                 .toList();
@@ -257,10 +257,11 @@ class _StatsSummaryReadingOrderDialogState
   }
 
   void _announceItem() {
-    final it = widget.parent._statsComputedOrder[_itemSelectedIdx];
-    final label = widget.parent._getStatsComputedItemLabel(it);
+    final entry =
+        widget.parent._statsDisplayConfig.order[_itemSelectedIdx];
+    final label = widget.parent._getStatsOrderEntryLabel(entry);
     widget.parent._announce(
-      '$label, ${_itemSelectedIdx + 1} z ${widget.parent._statsComputedOrder.length}',
+      '$label, ${_itemSelectedIdx + 1} z ${widget.parent._statsDisplayConfig.order.length}',
     );
   }
 
@@ -717,8 +718,8 @@ class _StatsSummaryReadingOrderDialogState
                   ),
                   child: Text(
                     p._s(
-                      'Pořadí položek uvnitř Vypočtené (${p._statsComputedOrder.length} položek):',
-                      'Order inside Computed (${p._statsComputedOrder.length} items):',
+                      'Pořadí položek uvnitř Vypočtené (${p._statsDisplayConfig.order.length} položek):',
+                      'Order inside Computed (${p._statsDisplayConfig.order.length} items):',
                     ),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
@@ -755,16 +756,17 @@ class _StatsSummaryReadingOrderDialogState
                       ),
                       padding: const EdgeInsets.all(4),
                       child: Column(
-                        children: List.generate(p._statsComputedOrder.length, (
+                        children: List.generate(p._statsDisplayConfig.order.length, (
                           i,
                         ) {
-                          final item = p._statsComputedOrder[i];
-                          final label = p._getStatsComputedItemLabel(item);
-                          final desc = p._getStatsComputedItemDescription(item);
+                          final item = p._statsDisplayConfig.order[i];
+                          final label = p._getStatsOrderEntryLabel(item);
+                          final desc = p._getStatsOrderEntryDescription(item);
                           final isFirst = i == 0;
-                          final isLast = i == p._statsComputedOrder.length - 1;
+                          final isLast =
+                              i == p._statsDisplayConfig.order.length - 1;
                           final isSelected = i == _itemSelectedIdx;
-                          final total = p._statsComputedOrder.length;
+                          final total = p._statsDisplayConfig.order.length;
                           return Semantics(
                             selected: isSelected,
                             label:

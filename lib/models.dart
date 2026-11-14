@@ -625,6 +625,639 @@ enum StatsComputedItem {
   wvar,
   wsd,
   wcv,
+  sampleVariance,
+  sampleSd,
+  range,
+  q1,
+  q3,
+  iqr,
+  meanAbsoluteDeviation,
+  geometricMean,
+  harmonicMean,
+  populationSkewness,
+  sampleSkewness,
+  populationExcessKurtosis,
+  sampleExcessKurtosis,
+}
+
+enum StatsDisplayPreset { basic, extended, complete, custom }
+
+enum StatsItemCategory { basic, advanced }
+
+enum StatsUnitKind { sameAsData, squared, percent, dimensionless }
+
+class StatsItemDefinition {
+  final StatsComputedItem id;
+  final String nameCs;
+  final String nameEn;
+  final String descriptionCs;
+  final String descriptionEn;
+  final StatsItemCategory category;
+  final StatsUnitKind unit;
+  final bool inBasic;
+  final bool inExtended;
+  final bool defaultVisible;
+  final bool isAvailable;
+  final bool requiresTwoFields;
+  final String? domainCs;
+  final String? domainEn;
+
+  const StatsItemDefinition({
+    required this.id,
+    required this.nameCs,
+    required this.nameEn,
+    required this.descriptionCs,
+    required this.descriptionEn,
+    required this.category,
+    required this.unit,
+    required this.inBasic,
+    required this.inExtended,
+    required this.defaultVisible,
+    this.isAvailable = true,
+    this.requiresTwoFields = false,
+    this.domainCs,
+    this.domainEn,
+  });
+
+  String get stableId => id.name;
+  String name(bool english) => english ? nameEn : nameCs;
+  String description(bool english) => english ? descriptionEn : descriptionCs;
+
+  bool visibleIn(StatsDisplayPreset preset) {
+    switch (preset) {
+      case StatsDisplayPreset.basic:
+        return inBasic;
+      case StatsDisplayPreset.extended:
+        return inBasic || inExtended;
+      case StatsDisplayPreset.complete:
+        return true;
+      case StatsDisplayPreset.custom:
+        return false;
+    }
+  }
+}
+
+class StatsCatalog {
+  static const List<StatsItemDefinition> definitions = [
+    StatsItemDefinition(
+      id: StatsComputedItem.mean,
+      nameCs: 'Průměr',
+      nameEn: 'Mean',
+      descriptionCs: 'Aritmetický průměr',
+      descriptionEn: 'Arithmetic mean',
+      category: StatsItemCategory.basic,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: true,
+      inExtended: false,
+      defaultVisible: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.sum,
+      nameCs: 'Součet',
+      nameEn: 'Sum',
+      descriptionCs: 'Součet hodnot',
+      descriptionEn: 'Sum of values',
+      category: StatsItemCategory.basic,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: true,
+      inExtended: false,
+      defaultVisible: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.variance,
+      nameCs: 'Rozptyl',
+      nameEn: 'Variance',
+      descriptionCs: 'Populační rozptyl',
+      descriptionEn: 'Population variance',
+      category: StatsItemCategory.basic,
+      unit: StatsUnitKind.squared,
+      inBasic: true,
+      inExtended: false,
+      defaultVisible: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.sd,
+      nameCs: 'Směrodatná odchylka',
+      nameEn: 'Standard deviation',
+      descriptionCs: 'Populační směrodatná odchylka',
+      descriptionEn: 'Population standard deviation',
+      category: StatsItemCategory.basic,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: true,
+      inExtended: false,
+      defaultVisible: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.median,
+      nameCs: 'Medián (Q2)',
+      nameEn: 'Median (Q2)',
+      descriptionCs: 'Medián, druhý kvartil',
+      descriptionEn: 'Median, second quartile',
+      category: StatsItemCategory.basic,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: true,
+      inExtended: false,
+      defaultVisible: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.min,
+      nameCs: 'Minimum',
+      nameEn: 'Minimum',
+      descriptionCs: 'Nejmenší hodnota',
+      descriptionEn: 'Smallest value',
+      category: StatsItemCategory.basic,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: true,
+      inExtended: false,
+      defaultVisible: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.max,
+      nameCs: 'Maximum',
+      nameEn: 'Maximum',
+      descriptionCs: 'Největší hodnota',
+      descriptionEn: 'Largest value',
+      category: StatsItemCategory.basic,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: true,
+      inExtended: false,
+      defaultVisible: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.mode,
+      nameCs: 'Modus',
+      nameEn: 'Mode',
+      descriptionCs: 'Nejčastější hodnota',
+      descriptionEn: 'Most frequent value',
+      category: StatsItemCategory.basic,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: true,
+      inExtended: false,
+      defaultVisible: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.cv,
+      nameCs: 'Variační koeficient',
+      nameEn: 'Coefficient of variation',
+      descriptionCs: 'Směrodatná odchylka v procentech absolutního průměru',
+      descriptionEn: 'Standard deviation as a percentage of the absolute mean',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.percent,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+      requiresTwoFields: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.wmean,
+      nameCs: 'Vážený průměr',
+      nameEn: 'Weighted mean',
+      descriptionCs: 'Vážený průměr (2 pole)',
+      descriptionEn: 'Weighted mean (2 fields)',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+      requiresTwoFields: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.wvar,
+      nameCs: 'Vážený rozptyl',
+      nameEn: 'Weighted variance',
+      descriptionCs: 'Populační rozptyl vážený druhým polem',
+      descriptionEn: 'Population variance weighted by the second field',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.squared,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+      requiresTwoFields: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.wsd,
+      nameCs: 'Vážená směrodatná odchylka',
+      nameEn: 'Weighted standard deviation',
+      descriptionCs: 'Odmocnina z váženého rozptylu',
+      descriptionEn: 'Square root of weighted variance',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+      requiresTwoFields: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.wcv,
+      nameCs: 'Vážený variační koeficient',
+      nameEn: 'Weighted coefficient of variation',
+      descriptionCs: 'Vážená odchylka v procentech absolutního průměru',
+      descriptionEn: 'Weighted deviation as a percentage of the absolute mean',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.percent,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.sampleVariance,
+      nameCs: 'Výběrový rozptyl',
+      nameEn: 'Sample variance',
+      descriptionCs: 'Výběrový rozptyl s jmenovatelem n−1',
+      descriptionEn: 'Sample variance with denominator n−1',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.squared,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.sampleSd,
+      nameCs: 'Výběrová směrodatná odchylka',
+      nameEn: 'Sample standard deviation',
+      descriptionCs: 'Odmocnina z výběrového rozptylu',
+      descriptionEn: 'Square root of sample variance',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.range,
+      nameCs: 'Rozpětí',
+      nameEn: 'Range',
+      descriptionCs: 'Maximum minus minimum',
+      descriptionEn: 'Maximum minus minimum',
+      category: StatsItemCategory.basic,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: true,
+      inExtended: false,
+      defaultVisible: true,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.q1,
+      nameCs: 'První kvartil (Q1)',
+      nameEn: 'First quartile (Q1)',
+      descriptionCs: '25. percentil, metoda R-7',
+      descriptionEn: '25th percentile, R-7 method',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.q3,
+      nameCs: 'Třetí kvartil (Q3)',
+      nameEn: 'Third quartile (Q3)',
+      descriptionCs: '75. percentil, metoda R-7',
+      descriptionEn: '75th percentile, R-7 method',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.iqr,
+      nameCs: 'Mezikvartilové rozpětí (IQR)',
+      nameEn: 'Interquartile range (IQR)',
+      descriptionCs: 'Rozdíl Q3 a Q1',
+      descriptionEn: 'Difference between Q3 and Q1',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.meanAbsoluteDeviation,
+      nameCs: 'Průměrná absolutní odchylka',
+      nameEn: 'Mean absolute deviation',
+      descriptionCs: 'Průměrná absolutní odchylka od aritmetického průměru',
+      descriptionEn: 'Mean absolute deviation from the arithmetic mean',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.geometricMean,
+      nameCs: 'Geometrický průměr',
+      nameEn: 'Geometric mean',
+      descriptionCs: 'Nezáporné hodnoty; nula dává výsledek nula',
+      descriptionEn: 'Non-negative values; zero yields zero',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+      domainCs: 'Nezáporné hodnoty',
+      domainEn: 'Non-negative values',
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.harmonicMean,
+      nameCs: 'Harmonický průměr',
+      nameEn: 'Harmonic mean',
+      descriptionCs: 'Pouze kladné hodnoty',
+      descriptionEn: 'Positive values only',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.sameAsData,
+      inBasic: false,
+      inExtended: true,
+      defaultVisible: false,
+      domainCs: 'Kladné hodnoty',
+      domainEn: 'Positive values',
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.populationSkewness,
+      nameCs: 'Populační šikmost',
+      nameEn: 'Population skewness',
+      descriptionCs: 'Třetí standardizovaný centrální moment',
+      descriptionEn: 'Third standardized central moment',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.dimensionless,
+      inBasic: false,
+      inExtended: false,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.sampleSkewness,
+      nameCs: 'Výběrová šikmost (opravená)',
+      nameEn: 'Adjusted sample skewness',
+      descriptionCs: 'Výběrově opravená Fisherova–Pearsonova šikmost',
+      descriptionEn: 'Adjusted Fisher–Pearson sample skewness',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.dimensionless,
+      inBasic: false,
+      inExtended: false,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.populationExcessKurtosis,
+      nameCs: 'Populační excess kurtosis',
+      nameEn: 'Population excess kurtosis',
+      descriptionCs: 'Populační kurtosis minus 3',
+      descriptionEn: 'Population kurtosis minus 3',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.dimensionless,
+      inBasic: false,
+      inExtended: false,
+      defaultVisible: false,
+    ),
+    StatsItemDefinition(
+      id: StatsComputedItem.sampleExcessKurtosis,
+      nameCs: 'Výběrová excess kurtosis (opravená)',
+      nameEn: 'Adjusted sample excess kurtosis',
+      descriptionCs: 'Výběrově opravený Fisherův excess kurtosis',
+      descriptionEn: 'Adjusted Fisher sample excess kurtosis',
+      category: StatsItemCategory.advanced,
+      unit: StatsUnitKind.dimensionless,
+      inBasic: false,
+      inExtended: false,
+      defaultVisible: false,
+    ),
+  ];
+
+  static StatsItemDefinition definition(StatsComputedItem item) =>
+      definitions.firstWhere((definition) => definition.id == item);
+
+  static List<StatsComputedItem> forPreset(StatsDisplayPreset preset) =>
+      definitions
+          .where((definition) => definition.visibleIn(preset))
+          .map((definition) => definition.id)
+          .toList();
+}
+
+class CustomPercentile {
+  final String id;
+  final double p;
+  final bool visible;
+
+  const CustomPercentile({
+    required this.id,
+    required this.p,
+    this.visible = true,
+  });
+
+  factory CustomPercentile.create(
+    double p, {
+    Set<String> existingIds = const {},
+  }) {
+    var id = _generateStatsId();
+    while (existingIds.contains(id)) {
+      id = _generateStatsId();
+    }
+    return CustomPercentile(id: id, p: p);
+  }
+
+  CustomPercentile copyWith({double? p, bool? visible}) => CustomPercentile(
+    id: id,
+    p: p ?? this.p,
+    visible: visible ?? this.visible,
+  );
+
+  Map<String, dynamic> toJson() => {'id': id, 'p': p, 'visible': visible};
+
+  factory CustomPercentile.fromJson(Map<String, dynamic> json) =>
+      CustomPercentile(
+        id: json['id'] as String,
+        p: (json['p'] as num).toDouble(),
+        visible: json['visible'] as bool? ?? true,
+      );
+}
+
+class StatsOrderEntry {
+  final StatsComputedItem? fixedItem;
+  final String? percentileId;
+
+  const StatsOrderEntry.fixed(this.fixedItem) : percentileId = null;
+  const StatsOrderEntry.percentile(this.percentileId) : fixedItem = null;
+
+  Map<String, dynamic> toJson() => fixedItem != null
+    ? {
+        'kind': 'fixed',
+        'id': StatsCatalog.definition(fixedItem!).stableId,
+      }
+      : {'kind': 'percentile', 'id': percentileId};
+
+  factory StatsOrderEntry.fromJson(Map<String, dynamic> json) {
+    final kind = json['kind'];
+    final id = json['id'];
+    if (kind == 'fixed' && id is String) {
+      for (final item in StatsComputedItem.values) {
+        if (StatsCatalog.definition(item).stableId == id) {
+          return StatsOrderEntry.fixed(item);
+        }
+      }
+    } else if (kind == 'percentile' && id is String) {
+      return StatsOrderEntry.percentile(id);
+    }
+    throw const FormatException('Invalid statistics order entry.');
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is StatsOrderEntry &&
+      other.fixedItem == fixedItem &&
+      other.percentileId == percentileId;
+
+  @override
+  int get hashCode => Object.hash(fixedItem, percentileId);
+}
+
+List<StatsOrderEntry> normalizeStatsDisplayOrder(
+  Iterable<StatsOrderEntry> raw,
+  Iterable<CustomPercentile> percentiles,
+) {
+  final knownPercentileIds = percentiles.map((item) => item.id).toSet();
+  final result = <StatsOrderEntry>[];
+  for (final entry in raw) {
+    final isKnown =
+        entry.fixedItem != null ||
+        (entry.percentileId != null &&
+            knownPercentileIds.contains(entry.percentileId));
+    if (isKnown && !result.contains(entry)) result.add(entry);
+  }
+  for (final item in StatsComputedItem.values) {
+    final entry = StatsOrderEntry.fixed(item);
+    if (!result.contains(entry)) result.add(entry);
+  }
+  for (final item in percentiles) {
+    final entry = StatsOrderEntry.percentile(item.id);
+    if (!result.contains(entry)) result.add(entry);
+  }
+  return result;
+}
+
+class StatsDisplayConfig {
+  final StatsDisplayPreset preset;
+  final bool customShowN;
+  final Set<StatsComputedItem> customVisibleItems;
+  final List<CustomPercentile> percentiles;
+  final List<StatsOrderEntry> order;
+
+  StatsDisplayConfig({
+    required this.preset,
+    required this.customShowN,
+    required Set<StatsComputedItem> customVisibleItems,
+    required List<CustomPercentile> percentiles,
+    required List<StatsOrderEntry> order,
+  }) : customVisibleItems = Set.unmodifiable(customVisibleItems),
+       percentiles = List.unmodifiable(percentiles),
+       order = List.unmodifiable(
+         normalizeStatsDisplayOrder(order, percentiles),
+       );
+
+  factory StatsDisplayConfig.defaults() => StatsDisplayConfig(
+    preset: StatsDisplayPreset.basic,
+    customShowN: true,
+    customVisibleItems: StatsCatalog.forPreset(
+      StatsDisplayPreset.basic,
+    ).toSet(),
+    percentiles: const [],
+    order: const [],
+  );
+
+  factory StatsDisplayConfig.fromLegacyOrder(
+    Iterable<StatsComputedItem> legacyOrder,
+  ) {
+    const legacyVisibleItems = {
+      StatsComputedItem.mean,
+      StatsComputedItem.sum,
+      StatsComputedItem.variance,
+      StatsComputedItem.sd,
+      StatsComputedItem.median,
+      StatsComputedItem.min,
+      StatsComputedItem.max,
+      StatsComputedItem.mode,
+      StatsComputedItem.cv,
+      StatsComputedItem.wmean,
+      StatsComputedItem.wvar,
+      StatsComputedItem.wsd,
+      StatsComputedItem.wcv,
+    };
+    return StatsDisplayConfig(
+      preset: StatsDisplayPreset.custom,
+      customShowN: true,
+      customVisibleItems: legacyVisibleItems,
+      percentiles: const [],
+      order: legacyOrder.map(StatsOrderEntry.fixed).toList(),
+    );
+  }
+
+  bool get showN => preset == StatsDisplayPreset.custom ? customShowN : true;
+
+  Set<StatsComputedItem> get visibleItems => preset == StatsDisplayPreset.custom
+      ? customVisibleItems
+      : StatsCatalog.forPreset(preset).toSet();
+
+  List<CustomPercentile> get visiblePercentiles => switch (preset) {
+    StatsDisplayPreset.basic || StatsDisplayPreset.extended => const [],
+    StatsDisplayPreset.complete => percentiles,
+    StatsDisplayPreset.custom =>
+      percentiles.where((item) => item.visible).toList(),
+  };
+
+  Map<String, dynamic> toJson() => {
+    'preset': preset.name,
+    'customShowN': customShowN,
+    'customVisibleItems': customVisibleItems
+        .map((item) => StatsCatalog.definition(item).stableId)
+        .toList(),
+    'percentiles': percentiles.map((item) => item.toJson()).toList(),
+    'order': order.map((entry) => entry.toJson()).toList(),
+  };
+
+  factory StatsDisplayConfig.fromJson(Map<String, dynamic> json) {
+    final presetName = json['preset'];
+    final preset = StatsDisplayPreset.values.firstWhere(
+      (item) => item.name == presetName,
+      orElse: () => StatsDisplayPreset.custom,
+    );
+    final percentiles = (json['percentiles'] as List? ?? const [])
+        .whereType<Map>()
+        .map(
+          (item) => CustomPercentile.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .where(
+          (item) =>
+              item.id.isNotEmpty &&
+              item.p.isFinite &&
+              item.p >= 0 &&
+              item.p <= 100,
+        )
+        .toList();
+    final percentileIds = <String>{};
+    final uniquePercentiles = percentiles
+        .where((item) => percentileIds.add(item.id))
+        .toList();
+    final visibleNames = (json['customVisibleItems'] as List? ?? const [])
+        .whereType<String>()
+        .toSet();
+    final visibleItems = StatsCatalog.definitions
+        .where((definition) => visibleNames.contains(definition.stableId))
+        .map((definition) => definition.id)
+        .toSet();
+    final rawOrder = (json['order'] as List? ?? const []).whereType<Map>().map((
+      item,
+    ) {
+      try {
+        return StatsOrderEntry.fromJson(Map<String, dynamic>.from(item));
+      } on FormatException {
+        return null;
+      }
+    }).whereType<StatsOrderEntry>();
+    return StatsDisplayConfig(
+      preset: preset,
+      customShowN: json['customShowN'] as bool? ?? true,
+      customVisibleItems: visibleItems,
+      percentiles: uniquePercentiles,
+      order: rawOrder.toList(),
+    );
+  }
 }
 
 /// Doplň chybějící položky a odstraní duplicity.
@@ -669,8 +1302,8 @@ enum WeightedStatsFailure {
 
 /// Výsledek sdíleného výpočtu vážených charakteristik.
 ///
-/// Všechny čtyři hodnoty vznikají z jediného průchodu daty, takže mezi
-/// nimi nemůže dojít k rozporu. Při chybě jsou všechny hodnoty `null`
+/// Všechny čtyři hodnoty vznikají společně po jedné validaci a stabilním
+/// průchodu daty, takže mezi nimi nemůže dojít k rozporu. Při chybě jsou všechny hodnoty `null`
 /// a [failure] určuje důvod – nikdy se nevrací NaN ani Infinity.
 /// WCV může být `null` i při úspěchu, když je vážený průměr nulový.
 class WeightedStatsResult {
@@ -712,27 +1345,70 @@ WeightedStatsResult computeWeightedStats(
       failure: WeightedStatsFailure.missingRecord,
     );
   }
-  double sumW = 0;
-  double sumVW = 0;
+  var maxWeight = 0.0;
+  var anchor = 0.0;
+  var hasAnchor = false;
+  var maxDeviation = 0.0;
+  var maxAbsValue = 0.0;
+  var useCenteredValues = true;
   for (var i = 0; i < values.length; i++) {
     final x = values[i];
     final w = weights[i];
     if (!x.isFinite || !w.isFinite) {
-      return const WeightedStatsResult(
-        failure: WeightedStatsFailure.nonFinite,
-      );
+      return const WeightedStatsResult(failure: WeightedStatsFailure.nonFinite);
     }
     if (w < 0) {
       return const WeightedStatsResult(
         failure: WeightedStatsFailure.negativeWeight,
       );
     }
-    sumVW += x * w;
-    sumW += w;
-    if (!sumVW.isFinite || !sumW.isFinite) {
-      return const WeightedStatsResult(
-        failure: WeightedStatsFailure.overflow,
-      );
+    maxWeight = math.max(maxWeight, w);
+    if (w > 0) {
+      maxAbsValue = math.max(maxAbsValue, x.abs());
+      if (!hasAnchor) {
+        anchor = x;
+        hasAnchor = true;
+      } else {
+        final deviation = x - anchor;
+        if (deviation.isFinite) {
+          maxDeviation = math.max(maxDeviation, deviation.abs());
+        } else {
+          useCenteredValues = false;
+        }
+      }
+    }
+  }
+  if (maxWeight == 0) {
+    return const WeightedStatsResult(
+      failure: WeightedStatsFailure.zeroWeightSum,
+    );
+  }
+  if (useCenteredValues && maxDeviation == 0) {
+    return WeightedStatsResult(
+      wmean: anchor,
+      wvar: 0,
+      wsd: 0,
+      wcv: anchor == 0 ? null : 0,
+    );
+  }
+  var sumW = 0.0;
+  var meanScaled = 0.0;
+  var m2Scaled = 0.0;
+  final scale = useCenteredValues ? maxDeviation : maxAbsValue;
+  for (var i = 0; i < values.length; i++) {
+    final weight = weights[i] / maxWeight;
+    if (weight == 0) continue;
+    final nextSumW = sumW + weight;
+    final valueScaled = useCenteredValues
+        ? (values[i] - anchor) / scale
+        : values[i] / scale;
+    final delta = valueScaled - meanScaled;
+    final nextMean = meanScaled + delta * (weight / nextSumW);
+    m2Scaled += weight * delta * (valueScaled - nextMean);
+    sumW = nextSumW;
+    meanScaled = nextMean;
+    if (!sumW.isFinite || !meanScaled.isFinite || !m2Scaled.isFinite) {
+      return const WeightedStatsResult(failure: WeightedStatsFailure.overflow);
     }
   }
   if (sumW <= 0) {
@@ -740,35 +1416,25 @@ WeightedStatsResult computeWeightedStats(
       failure: WeightedStatsFailure.zeroWeightSum,
     );
   }
-  final wmean = sumVW / sumW;
-  if (!wmean.isFinite) {
+  final wmean = useCenteredValues
+      ? anchor + meanScaled * scale
+      : meanScaled * scale;
+  final varianceScaled = m2Scaled / sumW;
+  final sd = math.sqrt(varianceScaled) * scale;
+  final varianceIntermediate = varianceScaled * scale;
+  final wvar = varianceIntermediate * scale;
+  if (!wmean.isFinite ||
+      !sd.isFinite ||
+      !wvar.isFinite ||
+      wvar < 0 ||
+      varianceScaled < 0) {
     return const WeightedStatsResult(failure: WeightedStatsFailure.overflow);
   }
-  // Součet nezáporných členů wᵢ·(xᵢ−μw)² je v plovoucí čárce vždy
-  // nezáporný, takže záporný rozptyl znamená přetečení, ne šum.
-  double acc = 0;
-  for (var i = 0; i < values.length; i++) {
-    final dev = values[i] - wmean;
-    acc += weights[i] * dev * dev;
-    if (!acc.isFinite) {
-      return const WeightedStatsResult(
-        failure: WeightedStatsFailure.overflow,
-      );
-    }
-  }
-  final wvar = acc / sumW;
-  if (!wvar.isFinite || wvar < 0) {
-    return const WeightedStatsResult(failure: WeightedStatsFailure.overflow);
-  }
-  final wsd = math.sqrt(wvar);
-  if (!wsd.isFinite) {
-    return const WeightedStatsResult(failure: WeightedStatsFailure.overflow);
-  }
-  final wcv = wmean == 0 ? null : (wsd / wmean.abs()) * 100;
+  final wcv = wmean == 0 ? null : (sd / wmean.abs()) * 100;
   if (wcv != null && !wcv.isFinite) {
     return const WeightedStatsResult(failure: WeightedStatsFailure.overflow);
   }
-  return WeightedStatsResult(wmean: wmean, wvar: wvar, wsd: wsd, wcv: wcv);
+  return WeightedStatsResult(wmean: wmean, wvar: wvar, wsd: sd, wcv: wcv);
 }
 
 enum StatsOrderPreset { def, valuesFirst, statsFirst, headerLast, custom }
@@ -835,10 +1501,10 @@ class CalcError implements Exception {
 }
 
 class _StatisticsSnapshot {
-  final double sum;
+  final double? sum;
   final double mean;
-  final double variance;
-  final double sd;
+  final double? variance;
+  final double? sd;
   final double median;
   final double min;
   final double max;
@@ -851,6 +1517,20 @@ class _StatisticsSnapshot {
   final double? weightedSd;
   final double? weightedCv;
   final Map<double, int> frequencies;
+  final double? sampleVariance;
+  final double? sampleSd;
+  final double? range;
+  final double? q1;
+  final double? q3;
+  final double? iqr;
+  final double? meanAbsoluteDeviation;
+  final double? geometricMean;
+  final double? harmonicMean;
+  final double? populationSkewness;
+  final double? sampleSkewness;
+  final double? populationExcessKurtosis;
+  final double? sampleExcessKurtosis;
+  final Map<String, double> customPercentiles;
 
   const _StatisticsSnapshot({
     required this.sum,
@@ -868,6 +1548,20 @@ class _StatisticsSnapshot {
     this.weightedVariance,
     this.weightedSd,
     this.weightedCv,
+    this.sampleVariance,
+    this.sampleSd,
+    this.range,
+    this.q1,
+    this.q3,
+    this.iqr,
+    this.meanAbsoluteDeviation,
+    this.geometricMean,
+    this.harmonicMean,
+    this.populationSkewness,
+    this.sampleSkewness,
+    this.populationExcessKurtosis,
+    this.sampleExcessKurtosis,
+    this.customPercentiles = const {},
     required this.frequencies,
   });
 }

@@ -3,8 +3,8 @@ part of 'main.dart';
 /// Testovatelná persistence/migration/apply vrstva pro rychlé nastavení.
 ///
 /// Žádný nový persistentní formát: canonical source of truth je
-/// `config_contract_v1`, SharedPreferences legacy keys jsou pouze
-/// kompatibilní derivace.
+/// `config_contract_v2` (nebo zachovaný v1 snapshot pro starší import) je
+/// kanonický kontrakt; SharedPreferences legacy keys jsou kompatibilní derivace.
 ///
 /// Upozornění k „atomicitě": SharedPreferences není databázová transakce,
 /// proto se zde používá pojem **safe commit workflow / canonical snapshot
@@ -122,7 +122,7 @@ Map<String, String>? resolveVoice(
   return sameLocale;
 }
 
-/// Sestaví canonical `config_contract_v1` z QuickSetup draftu.
+/// Sestaví aktuální canonical kontrakt z QuickSetup draftu.
 ///
 /// Profily: nastavení aktivního profilu se nahradí `draft.settings`
 /// (id/name/isBuiltIn se zachovají). Ostatní profily, statistické sady,
@@ -134,6 +134,7 @@ Map<String, dynamic> buildQuickSetupContract({
   required String activeProfileId,
   required List<StatsSummarySection> statsSummaryOrder,
   required List<StatsComputedItem> statsComputedOrder,
+  StatsDisplayConfig? statsDisplayConfig,
   required String currencyFrom,
   required String currencyTo,
   required bool devEnabled,
@@ -171,6 +172,7 @@ Map<String, dynamic> buildQuickSetupContract({
     defaultMode: draft.defaultMode,
     statsSummaryOrder: statsSummaryOrder,
     statsComputedOrder: statsComputedOrder,
+    statsDisplayConfig: statsDisplayConfig,
     currencyFrom: currencyFrom,
     currencyTo: currencyTo,
     devEnabled: devEnabled,
@@ -192,7 +194,7 @@ ValidationResult validateQuickSetupContract(Map<String, dynamic> contract) {
 /// Zapíše canonical kontrakt do SharedPreferences (safe commit workflow).
 ///
 /// Zapisuje: profily v2 + activeId, globály (včetně theme jako int index
-/// pro `main.dart`), a nakonec parity snapshot `config_contract_v1`.
+/// pro `main.dart`), a nakonec parity snapshot ve verzi odpovídající kontraktu.
 /// Snapshot je pouze parita – jeho selhání commit neruší.
 /// Při selhání kteréhokoli povinného zápisu vyhodí výjimku a caller
 /// NESMÍ aplikovat nový runtime state ani nastavit completion marker.
@@ -232,6 +234,10 @@ Future<void> persistCanonicalContract(
       'statsComputedOrder',
       parsed.statsComputedOrder.map((e) => e.name).toList(),
     ),
+    prefs.setString(
+      'statsDisplayConfig',
+      jsonEncode(parsed.statsDisplayConfig!.toJson()),
+    ),
     prefs.setString('currencyFrom', parsed.currencyFrom),
     prefs.setString('currencyTo', parsed.currencyTo),
     prefs.setBool('devModeEnabled', parsed.devEnabled),
@@ -251,6 +257,9 @@ Future<void> persistCanonicalContract(
   }
   // Parity snapshot až po úspěchu povinných zápisů.
   try {
-    await prefs.setString('config_contract_v1', jsonEncode(contract));
+    final snapshotKey = contract['schemaVersion'] == 2
+        ? 'config_contract_v2'
+        : 'config_contract_v1';
+    await prefs.setString(snapshotKey, jsonEncode(contract));
   } catch (_) {}
 }

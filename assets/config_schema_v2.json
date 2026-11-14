@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Johny45-open/Mluvici_kalkulacka/config_schema_v2.json",
+  "title": "Mluvici kalkulacka config contract v2",
+  "description": "Config contract v2 adds persisted statistics visibility, presets, mixed ordering, and custom percentiles.",
+  "type": "object",
+  "required": ["schemaVersion", "activeProfileId", "profiles", "globalSettings"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 2 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "generator": { "type": "string" },
+    "calculatorCompatibility": {
+      "type": "object",
+      "required": ["minVersion"],
+      "properties": {
+        "minVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+.*$" },
+        "maxVersion": { "type": ["string", "null"] }
+      }
+    },
+    "activeProfileId": { "type": "string", "minLength": 1 },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/profile" }
+    },
+    "globalSettings": { "$ref": "#/$defs/globalSettings" }
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "required": ["id", "name", "isBuiltIn", "settings"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "isBuiltIn": { "type": "boolean" },
+        "settings": { "$ref": "#/$defs/accessibilitySettings" }
+      }
+    },
+    "accessibilitySettings": {
+      "type": "object",
+      "required": [
+        "accessibilityType", "screenReaderMode", "fontSizeMultiplier", "dialogFontScale",
+        "dotMatrixZoom", "resultZoom", "thousandGroupGap", "dialogSize",
+        "useSixteenSegment", "usePeriodicNotation", "announceExpression",
+        "readStatsMemoryValues", "autoReadStatsSummary", "showStatsNavigationHint",
+        "alignInputLeft", "overlineThickness", "overlineHeight",
+        "speechRate", "speechVolume", "ttsEnabled"
+      ],
+      "properties": {
+        "accessibilityType": { "type": "string", "enum": ["none", "blind", "visuallyImpaired"] },
+        "screenReaderMode": { "type": "string", "enum": ["auto", "on", "off"] },
+        "fontSizeMultiplier": { "type": "number", "minimum": 0.7, "maximum": 2.5 },
+        "dialogFontScale": { "type": "number", "minimum": 0.5, "maximum": 5.0 },
+        "dotMatrixZoom": { "type": "number", "minimum": 0.5, "maximum": 5.0 },
+        "resultZoom": { "type": "number", "minimum": 0.5, "maximum": 5.0 },
+        "thousandGroupGap": { "type": "string", "enum": ["small", "medium", "large"] },
+        "dialogSize": { "type": "string", "enum": ["compact", "wide", "fullscreen"] },
+        "useSixteenSegment": { "type": "boolean" },
+        "usePeriodicNotation": { "type": "boolean" },
+        "announceExpression": { "type": "boolean" },
+        "readStatsMemoryValues": { "type": "boolean" },
+        "autoReadStatsSummary": { "type": "boolean" },
+        "showStatsNavigationHint": { "type": "boolean" },
+        "alignInputLeft": { "type": "boolean" },
+        "overlineThickness": { "type": "number", "minimum": 0.8, "maximum": 4.0 },
+        "overlineHeight": { "type": "number", "minimum": 0.5, "maximum": 2.0 },
+        "speechRate": { "type": "number", "minimum": 0.1, "maximum": 1.0 },
+        "speechVolume": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "ttsEnabled": { "type": "boolean" },
+        "resultDisplayMode": { "type": "string", "enum": ["segment", "text", "auto"] },
+        "ttsEngine": { "type": ["string", "null"] },
+        "ttsVoice": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["name", "locale"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "locale": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
+        },
+        "ttsVoiceName": { "type": ["string", "null"] },
+        "inverseFormatPreference": {
+          "type": ["string", "null"],
+          "enum": ["dms", "decimal", null]
+        }
+      }
+    },
+    "globalSettings": {
+      "type": "object",
+      "required": [
+        "themeMode",
+        "isDegreeMode",
+        "defaultMode",
+        "statsSummaryOrder",
+        "statsComputedOrder",
+        "statsDisplayConfig",
+        "currency",
+        "devMode"
+      ],
+      "properties": {
+        "themeMode": { "type": "string", "enum": ["light", "dark"] },
+        "isDegreeMode": { "type": "boolean" },
+        "defaultMode": {
+          "type": "string",
+          "enum": ["basic", "scientific", "statistics", "electrician", "unitConversion", "time", "currency"]
+        },
+        "resultDisplayMode": { "type": "string", "enum": ["segment", "text", "auto"] },
+        "resultNotationPreference": { "type": "string", "enum": ["decimal", "fraction"] },
+        "historyExactFormat": { "type": "string", "enum": ["numeric", "exact"] },
+        "announceFractionAvailability": { "type": "boolean" },
+        "statsSummaryOrder": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["header", "dataValues", "computed"] }
+        },
+        "statsComputedOrder": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 26,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/statsItemId" }
+        },
+        "statsDisplayConfig": { "$ref": "#/$defs/statsDisplayConfig" },
+        "currency": {
+          "type": "object",
+          "required": ["from", "to"],
+          "properties": {
+            "from": { "type": "string", "minLength": 1 },
+            "to": { "type": "string", "minLength": 1 }
+          }
+        },
+        "devMode": {
+          "type": "object",
+          "required": ["enabled", "autoDiagnostic", "diagnosticDurationMs"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "autoDiagnostic": { "type": "boolean" },
+            "diagnosticDurationMs": { "type": "integer", "minimum": 200, "maximum": 3000 },
+            "pinCode": { "type": ["string", "null"], "pattern": "^\\d{4}$" }
+          }
+        }
+      }
+    },
+    "statsItemId": {
+      "type": "string",
+      "enum": [
+        "mean", "sum", "variance", "sd", "median", "min", "max", "mode", "cv",
+        "wmean", "wvar", "wsd", "wcv", "sampleVariance", "sampleSd", "range",
+        "q1", "q3", "iqr", "meanAbsoluteDeviation", "geometricMean", "harmonicMean",
+        "populationSkewness", "sampleSkewness", "populationExcessKurtosis",
+        "sampleExcessKurtosis"
+      ]
+    },
+    "statsDisplayConfig": {
+      "type": "object",
+      "required": ["preset", "customShowN", "customVisibleItems", "percentiles", "order"],
+      "properties": {
+        "preset": { "type": "string", "enum": ["basic", "extended", "complete", "custom"] },
+        "customShowN": { "type": "boolean" },
+        "customVisibleItems": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/statsItemId" }
+        },
+        "percentiles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/customPercentile" }
+        },
+        "order": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/statsOrderEntry" }
+        }
+      }
+    },
+    "customPercentile": {
+      "type": "object",
+      "required": ["id", "p", "visible"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "p": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 100,
+          "not": { "enum": [25, 50, 75] }
+        },
+        "visible": { "type": "boolean" }
+      }
+    },
+    "statsOrderEntry": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["fixed", "percentile"] },
+        "id": { "type": "string", "minLength": 1 }
+      },
+      "oneOf": [
+        { "properties": { "kind": { "const": "fixed" }, "id": { "$ref": "#/$defs/statsItemId" } } },
+        { "properties": { "kind": { "const": "percentile" }, "id": { "type": "string", "minLength": 1 } } }
+      ]
+    }
+  }
+}

@@ -66,6 +66,7 @@ const Set<String> _knownGlobalKeys = {
   'announceFractionAvailability',
   'statsSummaryOrder',
   'statsComputedOrder',
+  'statsDisplayConfig',
   'currency',
   'devMode',
 };
@@ -78,6 +79,204 @@ const Set<String> _knownDevModeKeys = {
 };
 
 bool _isVersionString(String s) => RegExp(r'^\d+\.\d+\.\d+.*$').hasMatch(s);
+
+const Set<String> _statsItemIds = {
+  'mean',
+  'sum',
+  'variance',
+  'sd',
+  'median',
+  'min',
+  'max',
+  'mode',
+  'cv',
+  'wmean',
+  'wvar',
+  'wsd',
+  'wcv',
+  'sampleVariance',
+  'sampleSd',
+  'range',
+  'q1',
+  'q3',
+  'iqr',
+  'meanAbsoluteDeviation',
+  'geometricMean',
+  'harmonicMean',
+  'populationSkewness',
+  'sampleSkewness',
+  'populationExcessKurtosis',
+  'sampleExcessKurtosis',
+};
+
+void _validateStatsDisplayConfig(dynamic raw, ValidationResult res) {
+  if (raw is! Map) {
+    res.errors.add(
+      ValidationIssue(
+        path: 'globalSettings.statsDisplayConfig',
+        message: 'statsDisplayConfig musi byt objekt.',
+        code: 'type',
+      ),
+    );
+    return;
+  }
+  final config = Map<String, dynamic>.from(raw);
+  final path = 'globalSettings.statsDisplayConfig';
+  if (!{'basic', 'extended', 'complete', 'custom'}.contains(config['preset'])) {
+    res.errors.add(
+      ValidationIssue(
+        path: '$path.preset',
+        message: 'Neplatne prednastaveni statistik.',
+        code: 'enum',
+      ),
+    );
+  }
+  if (config['customShowN'] is! bool) {
+    res.errors.add(
+      ValidationIssue(
+        path: '$path.customShowN',
+        message: 'customShowN musi byt bool.',
+        code: 'type',
+      ),
+    );
+  }
+  final visible = config['customVisibleItems'];
+  if (visible is! List) {
+    res.errors.add(
+      ValidationIssue(
+        path: '$path.customVisibleItems',
+        message: 'customVisibleItems musi byt pole.',
+        code: 'type',
+      ),
+    );
+  } else {
+    if (visible.toSet().length != visible.length) {
+      res.errors.add(
+        ValidationIssue(
+          path: '$path.customVisibleItems',
+          message: 'Polozky musi byt unikatni.',
+          code: 'unique',
+        ),
+      );
+    }
+    for (var i = 0; i < visible.length; i++) {
+      if (!_statsItemIds.contains(visible[i])) {
+        res.errors.add(
+          ValidationIssue(
+            path: '$path.customVisibleItems[$i]',
+            message: 'Neznamy identifikator statistiky.',
+            code: 'enum',
+          ),
+        );
+      }
+    }
+  }
+  final percentileRaw = config['percentiles'];
+  final percentileIds = <String>{};
+  final percentileValues = <double>{};
+  if (percentileRaw is! List) {
+    res.errors.add(
+      ValidationIssue(
+        path: '$path.percentiles',
+        message: 'percentiles musi byt pole.',
+        code: 'type',
+      ),
+    );
+  } else {
+    for (var i = 0; i < percentileRaw.length; i++) {
+      final item = percentileRaw[i];
+      final itemPath = '$path.percentiles[$i]';
+      if (item is! Map) {
+        res.errors.add(
+          ValidationIssue(
+            path: itemPath,
+            message: 'Percentil musi byt objekt.',
+            code: 'type',
+          ),
+        );
+        continue;
+      }
+      final map = Map<String, dynamic>.from(item);
+      final id = map['id'];
+      final p = map['p'];
+      if (id is! String || id.isEmpty || !percentileIds.add(id)) {
+        res.errors.add(
+          ValidationIssue(
+            path: '$itemPath.id',
+            message: 'ID percentilu musi byt neprazdne a unikatni.',
+            code: 'unique',
+          ),
+        );
+      }
+      if (p is! num ||
+          !p.toDouble().isFinite ||
+          p < 0 ||
+          p > 100 ||
+          {0, 25, 50, 75, 100}.contains(p.toDouble()) ||
+          !percentileValues.add(p.toDouble())) {
+        res.errors.add(
+          ValidationIssue(
+            path: '$itemPath.p',
+            message:
+                'p musi byt unikatni hodnota mezi 0 a 100 a nesmi byt 0, 25, 50, 75 ani 100.',
+            code: 'range',
+          ),
+        );
+      }
+      if (map['visible'] is! bool) {
+        res.errors.add(
+          ValidationIssue(
+            path: '$itemPath.visible',
+            message: 'visible musi byt bool.',
+            code: 'type',
+          ),
+        );
+      }
+    }
+  }
+  final order = config['order'];
+  if (order is! List) {
+    res.errors.add(
+      ValidationIssue(
+        path: '$path.order',
+        message: 'order musi byt pole.',
+        code: 'type',
+      ),
+    );
+  } else {
+    final orderIds = <String>{};
+    for (var i = 0; i < order.length; i++) {
+      final item = order[i];
+      final itemPath = '$path.order[$i]';
+      if (item is! Map) {
+        res.errors.add(
+          ValidationIssue(
+            path: itemPath,
+            message: 'Polozka poradi musi byt objekt.',
+            code: 'type',
+          ),
+        );
+        continue;
+      }
+      final map = Map<String, dynamic>.from(item);
+      final kind = map['kind'];
+      final id = map['id'];
+      final valid =
+          id is String &&
+          ((kind == 'fixed' && _statsItemIds.contains(id)) ||
+              (kind == 'percentile' && percentileIds.contains(id)));
+      if (!valid || !orderIds.add('$kind:$id')) {
+        res.errors.add(
+          ValidationIssue(
+            path: itemPath,
+            message: 'Neplatna nebo duplicitni polozka poradi.',
+            code: 'enum',
+          ),
+        );
+      }
+    }
+  }
+}
 
 void _collectUnknownKeys(Map<String, dynamic> data, ValidationResult res) {
   for (final k in data.keys) {
@@ -226,13 +425,13 @@ ValidationResult validateContract(dynamic data) {
     );
     return result;
   }
-  if (sv != 1) {
+  if (sv != 1 && sv != 2) {
     if (sv > 1) {
       result.errors.add(
         ValidationIssue(
           path: 'schemaVersion',
           message:
-              'Nepodporovana budouci verze schemaVersion=$sv (podporovana je 1). Aktualizujte kalkulacku.',
+              'Nepodporovana budouci verze schemaVersion=$sv (podporovane jsou 1 a 2). Aktualizujte kalkulacku.',
           code: 'futureVersion',
         ),
       );
@@ -241,7 +440,7 @@ ValidationResult validateContract(dynamic data) {
         ValidationIssue(
           path: 'schemaVersion',
           message:
-              'Nepodporovana stara verze schemaVersion=$sv (podporovana je 1).',
+              'Nepodporovana stara verze schemaVersion=$sv (podporovane jsou 1 a 2).',
           code: 'unsupportedVersion',
         ),
       );
@@ -392,7 +591,7 @@ ValidationResult validateContract(dynamic data) {
   }
   final gs = map['globalSettings'];
   if (gs is Map) {
-    _validateGlobalSettings(Map<String, dynamic>.from(gs as Map), result);
+    _validateGlobalSettings(Map<String, dynamic>.from(gs as Map), result, sv);
   } else if (gs != null) {
     result.errors.add(
       ValidationIssue(
@@ -591,7 +790,11 @@ void _validateSettings(
     );
 }
 
-void _validateGlobalSettings(Map<String, dynamic> gs, ValidationResult res) {
+void _validateGlobalSettings(
+  Map<String, dynamic> gs,
+  ValidationResult res,
+  int schemaVersion,
+) {
   for (final k in [
     'themeMode',
     'isDegreeMode',
@@ -726,17 +929,7 @@ void _validateGlobalSettings(Map<String, dynamic> gs, ValidationResult res) {
   }
   final corder = gs['statsComputedOrder'];
   if (corder is List) {
-    // 10 = původní konfigurace (zpětná kompatibilita), 13 = po rozšíření
-    // o WVAR/WSD/WCV. Chybějící položky doplní normalizeStatsComputedOrder.
-    if (corder.length < 10 || corder.length > 13)
-      res.errors.add(
-        ValidationIssue(
-          path: 'globalSettings.statsComputedOrder',
-          message: 'musi mit 10 az 13 polozek',
-          code: 'length',
-        ),
-      );
-    final allowed = {
+    final legacyAllowed = {
       'mean',
       'sum',
       'variance',
@@ -751,6 +944,20 @@ void _validateGlobalSettings(Map<String, dynamic> gs, ValidationResult res) {
       'wsd',
       'wcv',
     };
+    final v2Allowed = _statsItemIds;
+    final allowed = schemaVersion == 1 ? legacyAllowed : v2Allowed;
+    if (schemaVersion == 1
+        ? corder.length < 10 || corder.length > 13
+        : corder.isEmpty || corder.length > v2Allowed.length)
+      res.errors.add(
+        ValidationIssue(
+          path: 'globalSettings.statsComputedOrder',
+          message: schemaVersion == 1
+              ? 'musi mit 10 az 13 polozek'
+              : 'musi obsahovat 1 az ${v2Allowed.length} polozek',
+          code: 'length',
+        ),
+      );
     for (int i = 0; i < corder.length; i++)
       if (!allowed.contains(corder[i]))
         res.errors.add(
@@ -776,6 +983,19 @@ void _validateGlobalSettings(Map<String, dynamic> gs, ValidationResult res) {
         code: 'type',
       ),
     );
+  }
+  if (schemaVersion == 2) {
+    if (!gs.containsKey('statsDisplayConfig')) {
+      res.errors.add(
+        ValidationIssue(
+          path: 'globalSettings.statsDisplayConfig',
+          message: 'Chybi statsDisplayConfig pro schemaVersion 2.',
+          code: 'required',
+        ),
+      );
+    } else {
+      _validateStatsDisplayConfig(gs['statsDisplayConfig'], res);
+    }
   }
   final cur = gs['currency'];
   if (cur is Map) {

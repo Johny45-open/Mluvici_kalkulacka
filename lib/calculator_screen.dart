@@ -280,6 +280,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   List<StatsComputedItem> _statsComputedOrder = normalizeStatsComputedOrder(
     const [],
   );
+  StatsDisplayConfig _statsDisplayConfig = StatsDisplayConfig.defaults();
   final bool _sayWelcome = true;
   bool _welcomeAnnounced = false;
   final Completer<bool> _ttsReady = Completer<bool>();
@@ -307,7 +308,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // je _globalResultDisplayMode. Profily ho nikdy nečtou ani nezapisují
   // (pouze jednorázová migrace).
   ResultDisplayMode _globalResultDisplayMode = ResultDisplayMode.segment;
-  ResultNotationPreference _globalResultNotationPreference = ResultNotationPreference.decimal;
+  ResultNotationPreference _globalResultNotationPreference =
+      ResultNotationPreference.decimal;
   bool _globalAnnounceFractionAvailability = true;
 
   bool get _announceFractionAvailability => _globalAnnounceFractionAvailability;
@@ -322,9 +324,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setGlobalAnnounceFractionAvailability(v);
   }
 
-  bool get announceFractionAvailabilityForTest => _globalAnnounceFractionAvailability;
+  bool get announceFractionAvailabilityForTest =>
+      _globalAnnounceFractionAvailability;
 
-  ResultNotationPreference get _resultNotationPreference => _globalResultNotationPreference;
+  ResultNotationPreference get _resultNotationPreference =>
+      _globalResultNotationPreference;
 
   void setGlobalResultNotationPreference(ResultNotationPreference p) {
     if (_globalResultNotationPreference == p) return;
@@ -345,7 +349,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setGlobalResultNotationPreference(p);
   }
 
-  ResultNotationPreference get resultNotationPreferenceForTest => _globalResultNotationPreference;
+  ResultNotationPreference get resultNotationPreferenceForTest =>
+      _globalResultNotationPreference;
   // Legacy persistovaný údaj (persistence/contract/UI zachováno pro zpětnou
   // kompatibilitu). Není zdrojem pravdy pro aktivní renderer — aktivní
   // vykreslování historie řídí výhradně _globalResultDisplayMode.
@@ -1790,38 +1795,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (fieldIndex < 0) fieldIndex = _selectedFieldIndex;
     if (_statsMemory.isEmpty) return null;
     final data = List<double>.from(_getFieldValues(fieldIndex));
-    final sum = data.reduce((a, b) => a + b);
-    final mean = sum / data.length;
-    final variance =
-        data.map((x) => math.pow(x - mean, 2)).reduce((a, b) => a + b) /
-        data.length;
-    final sd = math.sqrt(variance);
-
-    final sorted = List<double>.from(data)..sort();
-    final middle = sorted.length ~/ 2;
-    final median = sorted.length % 2 == 1
-        ? sorted[middle]
-        : (sorted[middle - 1] + sorted[middle]) / 2;
-    final min = sorted.first;
-    final max = sorted.last;
-
-    final counts = <double, int>{};
-    for (final x in data) {
-      counts[x] = (counts[x] ?? 0) + 1;
-    }
-    final maxCount = counts.values.reduce((a, b) => a > b ? a : b);
-    final modeExists = maxCount > 1;
-    final modes = counts.entries
-        .where((e) => e.value == maxCount)
-        .map((e) => e.key)
-        .toList();
-    final sortedEntries = counts.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final frequencies = Map<double, int>.fromIterable(
-      sortedEntries,
-      key: (e) => e.key,
-      value: (e) => e.value,
-    );
+    if (data.isEmpty) return null;
+    final computed = StatisticsMath.compute(data);
 
     // Vážené charakteristiky: vždy z prvního a druhého pole, společná
     // validace i výpočet pro WMEAN, WVAR, WSD a WCV (viz
@@ -1833,23 +1808,59 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
 
     return _StatisticsSnapshot(
-      sum: sum,
-      mean: mean,
-      variance: variance,
-      sd: sd,
-      median: median,
-      min: min,
-      max: max,
-      modes: modes,
-      modeOccurrenceCount: maxCount,
-      modeExists: modeExists,
-      cv: mean == 0 ? null : (sd / mean) * 100,
+      sum: computed.sum,
+      mean: computed.mean,
+      variance: computed.populationVariance,
+      sd: computed.populationStandardDeviation,
+      median: computed.median,
+      min: computed.min,
+      max: computed.max,
+      modes: computed.modes,
+      modeOccurrenceCount: computed.modeOccurrenceCount,
+      modeExists: computed.modeExists,
+      cv: computed.coefficientOfVariation,
       wmean: weighted?.wmean,
       weightedVariance: weighted?.wvar,
       weightedSd: weighted?.wsd,
       weightedCv: weighted?.wcv,
-      frequencies: frequencies,
+      frequencies: computed.frequencies,
+      sampleVariance: computed.sampleVariance,
+      sampleSd: computed.sampleStandardDeviation,
+      range: computed.range,
+      q1: computed.q1,
+      q3: computed.q3,
+      iqr: computed.interquartileRange,
+      meanAbsoluteDeviation: computed.meanAbsoluteDeviation,
+      geometricMean: computed.geometricMean,
+      harmonicMean: computed.harmonicMean,
+      populationSkewness: computed.populationSkewness,
+      sampleSkewness: computed.sampleSkewness,
+      populationExcessKurtosis: computed.populationExcessKurtosis,
+      sampleExcessKurtosis: computed.sampleExcessKurtosis,
+      customPercentiles: {
+        for (final percentile in _statsDisplayConfig.percentiles)
+          percentile.id: StatisticsMath.percentile(
+            List<double>.of(data)..sort(),
+            percentile.p,
+          ),
+      },
     );
+  }
+
+  List<StatsOrderEntry> get _visibleStatsOrderEntries {
+    final visibleItems = _statsDisplayConfig.visibleItems;
+    final visiblePercentileIds = _statsDisplayConfig.visiblePercentiles
+        .map((item) => item.id)
+        .toSet();
+    return _statsDisplayConfig.order
+        .where(
+          (entry) =>
+              (entry.fixedItem != null &&
+                  visibleItems.contains(entry.fixedItem)) ||
+              (entry.percentileId != null &&
+                  visiblePercentileIds.contains(entry.percentileId)),
+        )
+        .toList();
   }
 
   String _toBarNotation(String text) {
@@ -3003,7 +3014,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Future<void> _checkForNews() async {
-    if (CalculatorScreen.skipNetworkUpdatesForTest || !mounted || _updateDialogShown) {
+    if (CalculatorScreen.skipNetworkUpdatesForTest ||
+        !mounted ||
+        _updateDialogShown) {
       return;
     }
     // Bez načtené verze nelze porovnávat – odloží se na dokončení loadu.
@@ -3144,7 +3157,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Future<void> _checkForUpdates() async {
-    if (CalculatorScreen.skipNetworkUpdatesForTest || _updateDialogShown || !mounted) {
+    if (CalculatorScreen.skipNetworkUpdatesForTest ||
+        _updateDialogShown ||
+        !mounted) {
       return;
     }
     // Bez načtené verze nelze porovnávat (prázdná by se jevila starší
@@ -3610,6 +3625,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         activeProfileId: _activeProfileId,
         statsSummaryOrder: _statsSummaryOrder,
         statsComputedOrder: _statsComputedOrder,
+        statsDisplayConfig: _statsDisplayConfig,
         currencyFrom: _currencyFrom,
         currencyTo: _currencyTo,
         devEnabled: _devModeEnabled,
@@ -4299,7 +4315,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         lastDigit.hasMatch(display.substring(0, _cursorPosition))) {
       append("'", silent: true);
       unawaited(
-        announceEvent(_l10n.minutesUnit, category: SpeechCategory.actionConfirm),
+        announceEvent(
+          _l10n.minutesUnit,
+          category: SpeechCategory.actionConfirm,
+        ),
       );
       return;
     }
@@ -4332,10 +4351,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _lastExactGeneration = _resultGeneration;
     });
     unawaited(
-      announceEvent(
-        _l10n.cleared,
-        category: SpeechCategory.actionConfirm,
-      ),
+      announceEvent(_l10n.cleared, category: SpeechCategory.actionConfirm),
     );
   }
 
@@ -4560,10 +4576,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // R-architektura: jedno potvrzení přes sdílený kanál (při čtečce
       // Semantics, jinak TTS) — `speak()` by tu při aktivní čtečce mlčel.
       unawaited(
-        announceEvent(
-          _l10n.deleted,
-          category: SpeechCategory.actionConfirm,
-        ),
+        announceEvent(_l10n.deleted, category: SpeechCategory.actionConfirm),
       );
     }
   }
@@ -5179,7 +5192,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (fracPart.isEmpty) {
       unawaited(
         announceEvent(
-          _s('Nejprve zadejte desetinnou část.', 'Enter the decimal part first.'),
+          _s(
+            'Nejprve zadejte desetinnou část.',
+            'Enter the decimal part first.',
+          ),
           category: SpeechCategory.error,
         ),
       );
@@ -5475,7 +5491,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
 
         final bool showFractionDirectly =
-            _globalResultNotationPreference == ResultNotationPreference.fraction &&
+            _globalResultNotationPreference ==
+                ResultNotationPreference.fraction &&
             statIsMeanExact &&
             statMeanExactRat != null;
         final spokenMean = showFractionDirectly
@@ -5645,7 +5662,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
 
         final bool showFractionDirectly =
-            _globalResultNotationPreference == ResultNotationPreference.fraction &&
+            _globalResultNotationPreference ==
+                ResultNotationPreference.fraction &&
             exactRational != null &&
             exactRational.denominator != BigInt.one;
         final bool showSurdDirectly =
@@ -6584,7 +6602,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (!_isFractionEligible) return false;
     final o = _fractionOverride;
     if (o == null || !_isFractionOverrideKeyValid) {
-      return _globalResultNotationPreference == ResultNotationPreference.fraction &&
+      return _globalResultNotationPreference ==
+              ResultNotationPreference.fraction &&
           _validRationalNonTrivial != null;
     }
     return o;
@@ -8030,6 +8049,62 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           _statsComputedOrder = normalizeStatsComputedOrder(parsed);
         }
       }
+      final statsDisplayJson = prefs.getString('statsDisplayConfig');
+      if (statsDisplayJson == null) {
+        final hasLegacyStatsPreferences =
+            prefs.containsKey('statsComputedOrder') ||
+            prefs.containsKey('statsSummaryOrder');
+        if (!hasLegacyStatsPreferences) {
+          _statsDisplayConfig = StatsDisplayConfig.defaults();
+        } else {
+          const legacyItems = {
+            StatsComputedItem.mean,
+            StatsComputedItem.sum,
+            StatsComputedItem.variance,
+            StatsComputedItem.sd,
+            StatsComputedItem.median,
+            StatsComputedItem.min,
+            StatsComputedItem.max,
+            StatsComputedItem.mode,
+            StatsComputedItem.cv,
+            StatsComputedItem.wmean,
+            StatsComputedItem.wvar,
+            StatsComputedItem.wsd,
+            StatsComputedItem.wcv,
+          };
+          _statsDisplayConfig = StatsDisplayConfig(
+            preset: StatsDisplayPreset.custom,
+            customShowN: true,
+            customVisibleItems: legacyItems,
+            percentiles: const [],
+            order: [
+              for (final item in _statsComputedOrder)
+                StatsOrderEntry.fixed(item),
+            ],
+          );
+        }
+      } else {
+        try {
+          final decoded = jsonDecode(statsDisplayJson);
+          if (decoded is! Map) {
+            throw const FormatException(
+              'Statistics display settings must be an object.',
+            );
+          }
+          _statsDisplayConfig = StatsDisplayConfig.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
+          _statsComputedOrder = normalizeStatsComputedOrder(
+            _statsDisplayConfig.order
+                .where((entry) => entry.fixedItem != null)
+                .map((entry) => entry.fixedItem!),
+          );
+        } on FormatException catch (error) {
+          debugPrint('Invalid saved statistics display settings: $error');
+        } on TypeError catch (error) {
+          debugPrint('Invalid saved statistics display settings: $error');
+        }
+      }
       // Měna
       final currencyJson = prefs.getString('currencyRates');
       if (currencyJson != null) {
@@ -8136,6 +8211,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       'statsComputedOrder',
       _statsComputedOrder.map((e) => e.name).toList(),
     );
+    await prefs.setString(
+      'statsDisplayConfig',
+      jsonEncode(_statsDisplayConfig.toJson()),
+    );
   }
 
   // Drží alias pro staré volání – nyní ukládá jen globál (per-profile už řeší _saveProfilesV2).
@@ -8232,7 +8311,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     try {
       final prefs = await SharedPreferences.getInstance();
-      final profilesJson = jsonEncode(_profiles.map((p) => p.toJson()).toList());
+      final profilesJson = jsonEncode(
+        _profiles.map((p) => p.toJson()).toList(),
+      );
       final res1 = await prefs.setString(
         'accessibility_profiles_v2',
         profilesJson,
@@ -9190,7 +9271,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
-  // --- Kontrakt v1: import/export (konfigurator) ---
+  // --- Kontrakt v1/v2: import/export (konfigurator) ---
   Future<void> _exportContract() async {
     try {
       final contract = buildContractJson(
@@ -9205,6 +9286,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         defaultMode: _defaultMode,
         statsSummaryOrder: _statsSummaryOrder,
         statsComputedOrder: _statsComputedOrder,
+        statsDisplayConfig: _statsDisplayConfig,
         currencyFrom: _currencyFrom,
         currencyTo: _currencyTo,
         devEnabled: _devModeEnabled,
@@ -9396,6 +9478,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       defaultMode: parsed.defaultMode,
       statsSummaryOrder: parsed.statsSummaryOrder,
       statsComputedOrder: parsed.statsComputedOrder,
+      statsDisplayConfig: parsed.statsDisplayConfig,
       currencyFrom: parsed.currencyFrom,
       currencyTo: parsed.currencyTo,
       devEnabled: parsed.devEnabled,
@@ -9418,13 +9501,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _globalResultDisplayMode = applied.resultDisplayMode;
       _globalResultNotationPreference = applied.resultNotationPreference;
       _historyExactFormat = applied.historyExactFormat;
-      _globalAnnounceFractionAvailability = applied.announceFractionAvailability;
+      _globalAnnounceFractionAvailability =
+          applied.announceFractionAvailability;
       _statsSummaryOrder = List<StatsSummarySection>.from(
         applied.statsSummaryOrder,
       );
       _statsComputedOrder = List<StatsComputedItem>.from(
         applied.statsComputedOrder,
       );
+      _statsDisplayConfig =
+          applied.statsDisplayConfig ??
+          StatsDisplayConfig(
+            preset: StatsDisplayPreset.custom,
+            customShowN: true,
+            customVisibleItems: StatsCatalog.definitions
+                .where(
+                  (definition) =>
+                      definition.id.index <= StatsComputedItem.wcv.index,
+                )
+                .map((definition) => definition.id)
+                .toSet(),
+            percentiles: const [],
+            order: [
+              for (final item in applied.statsComputedOrder)
+                StatsOrderEntry.fixed(item),
+            ],
+          );
       _isDegreeMode = applied.isDegreeMode;
       _defaultMode = applied.defaultMode;
       _currencyFrom = applied.currencyFrom;
@@ -9439,6 +9541,275 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _dialogFontScaleNotifier.value =
         activeAccessibilitySettings.dialogFontScale;
     if (mounted) setState(() {});
+  }
+
+  void _enterCustomStatsConfig() {
+    if (_statsDisplayConfig.preset == StatsDisplayPreset.custom) return;
+    final visibleItems = _statsDisplayConfig.visibleItems;
+    final showPercentiles =
+        _statsDisplayConfig.preset == StatsDisplayPreset.complete;
+    _statsDisplayConfig = StatsDisplayConfig(
+      preset: StatsDisplayPreset.custom,
+      customShowN: true,
+      customVisibleItems: visibleItems,
+      percentiles: _statsDisplayConfig.percentiles
+          .map((item) => item.copyWith(visible: showPercentiles))
+          .toList(),
+      order: _statsDisplayConfig.order,
+    );
+    _statsComputedOrder = normalizeStatsComputedOrder(
+      _statsDisplayConfig.order
+          .where((entry) => entry.fixedItem != null)
+          .map((entry) => entry.fixedItem!),
+    );
+  }
+
+  void _setStatsDisplayPreset(StatsDisplayPreset preset) {
+    setState(() {
+      _statsDisplayConfig = StatsDisplayConfig(
+        preset: preset,
+        customShowN: _statsDisplayConfig.customShowN,
+        customVisibleItems: _statsDisplayConfig.customVisibleItems,
+        percentiles: _statsDisplayConfig.percentiles,
+        order: _statsDisplayConfig.order,
+      );
+    });
+    _saveSettings();
+    final name = switch (preset) {
+      StatsDisplayPreset.basic => _s('Základní', 'Basic'),
+      StatsDisplayPreset.extended => _s('Rozšířená', 'Extended'),
+      StatsDisplayPreset.complete => _s('Kompletní', 'Complete'),
+      StatsDisplayPreset.custom => _s('Vlastní', 'Custom'),
+    };
+    unawaited(
+      announceEvent(
+        _s('Vybráno přednastavení $name', 'Selected $name preset'),
+        category: SpeechCategory.settings,
+      ),
+    );
+  }
+
+  void _setStatsItemVisibility(StatsComputedItem item, bool visible) {
+    setState(() {
+      _enterCustomStatsConfig();
+      final selection = Set<StatsComputedItem>.from(
+        _statsDisplayConfig.customVisibleItems,
+      );
+      if (visible) {
+        selection.add(item);
+      } else {
+        selection.remove(item);
+      }
+      _statsDisplayConfig = StatsDisplayConfig(
+        preset: StatsDisplayPreset.custom,
+        customShowN: _statsDisplayConfig.customShowN,
+        customVisibleItems: selection,
+        percentiles: _statsDisplayConfig.percentiles,
+        order: _statsDisplayConfig.order,
+      );
+    });
+    _saveSettings();
+    unawaited(
+      announceEvent(
+        _s(
+          '${_getStatsComputedItemLabel(item)} ${visible ? 'zapnuto' : 'vypnuto'}',
+          '${_getStatsComputedItemLabel(item)} ${visible ? 'enabled' : 'disabled'}',
+        ),
+        category: SpeechCategory.settings,
+      ),
+    );
+  }
+
+  void _setStatsCountVisibility(bool visible) {
+    setState(() {
+      _enterCustomStatsConfig();
+      _statsDisplayConfig = StatsDisplayConfig(
+        preset: StatsDisplayPreset.custom,
+        customShowN: visible,
+        customVisibleItems: _statsDisplayConfig.customVisibleItems,
+        percentiles: _statsDisplayConfig.percentiles,
+        order: _statsDisplayConfig.order,
+      );
+    });
+    _saveSettings();
+    unawaited(
+      announceEvent(
+        _s(
+          'Počet hodnot ${visible ? 'zapnut' : 'vypnut'}',
+          'Count ${visible ? 'enabled' : 'disabled'}',
+        ),
+        category: SpeechCategory.settings,
+      ),
+    );
+  }
+
+  bool _addCustomPercentile(String input) {
+    final p = double.tryParse(input.trim().replaceAll(',', '.'));
+    final error = _validateCustomPercentile(p);
+    if (error != null) {
+      unawaited(announceEvent(error, category: SpeechCategory.actionConfirm));
+      return false;
+    }
+    final percentile = CustomPercentile.create(
+      p!,
+      existingIds: _statsDisplayConfig.percentiles
+          .map((item) => item.id)
+          .toSet(),
+    );
+    setState(() {
+      _enterCustomStatsConfig();
+      _statsDisplayConfig = StatsDisplayConfig(
+        preset: StatsDisplayPreset.custom,
+        customShowN: _statsDisplayConfig.customShowN,
+        customVisibleItems: _statsDisplayConfig.customVisibleItems,
+        percentiles: [..._statsDisplayConfig.percentiles, percentile],
+        order: [
+          ..._statsDisplayConfig.order,
+          StatsOrderEntry.percentile(percentile.id),
+        ],
+      );
+    });
+    _saveSettings();
+    unawaited(
+      announceEvent(
+        _s(
+          'Percentil P${_formatNumberSmart(p)} přidán.',
+          'Percentile P${_formatNumberSmart(p)} added.',
+        ),
+        category: SpeechCategory.actionConfirm,
+      ),
+    );
+    return true;
+  }
+
+  String? _validateCustomPercentile(double? p, {String? excludingId}) {
+    if (p == null || !p.isFinite || p < 0 || p > 100) {
+      return _s(
+        'Zadejte percentil od 0 do 100.',
+        'Enter a percentile from 0 to 100.',
+      );
+    }
+    if (p == 0 || p == 100 || p == 25 || p == 50 || p == 75) {
+      return _s(
+        'Tento percentil je zakázán, protože se překrývá s minimem, maximem nebo kvartilem.',
+        'This percentile is not allowed because it overlaps the minimum, maximum, or a quartile.',
+      );
+    }
+    if (_statsDisplayConfig.percentiles.any(
+      (item) => item.id != excludingId && item.p == p,
+    )) {
+      return _s(
+        'Tento percentil již existuje.',
+        'This percentile already exists.',
+      );
+    }
+    return null;
+  }
+
+  bool _updateCustomPercentile(String id, String input) {
+    final p = double.tryParse(input.trim().replaceAll(',', '.'));
+    final error = _validateCustomPercentile(p, excludingId: id);
+    if (error != null) {
+      unawaited(announceEvent(error, category: SpeechCategory.actionConfirm));
+      return false;
+    }
+    final existing = _statsDisplayConfig.percentiles.where(
+      (item) => item.id == id,
+    );
+    if (existing.isEmpty) return false;
+    setState(() {
+      _enterCustomStatsConfig();
+      _statsDisplayConfig = StatsDisplayConfig(
+        preset: StatsDisplayPreset.custom,
+        customShowN: _statsDisplayConfig.customShowN,
+        customVisibleItems: _statsDisplayConfig.customVisibleItems,
+        percentiles: _statsDisplayConfig.percentiles
+            .map((item) => item.id == id ? item.copyWith(p: p!) : item)
+            .toList(),
+        order: _statsDisplayConfig.order,
+      );
+    });
+    _saveSettings();
+    unawaited(
+      announceEvent(
+        _s(
+          'Vlastní percentil upraven na P${_formatNumberSmart(p!)}.',
+          'Custom percentile updated to P${_formatNumberSmart(p)}.',
+        ),
+        category: SpeechCategory.actionConfirm,
+      ),
+    );
+    return true;
+  }
+
+  void _removeCustomPercentile(String id) {
+    CustomPercentile? removed;
+    for (final item in _statsDisplayConfig.percentiles) {
+      if (item.id == id) {
+        removed = item;
+        break;
+      }
+    }
+    if (removed == null) return;
+    setState(() {
+      _enterCustomStatsConfig();
+      _statsDisplayConfig = StatsDisplayConfig(
+        preset: StatsDisplayPreset.custom,
+        customShowN: _statsDisplayConfig.customShowN,
+        customVisibleItems: _statsDisplayConfig.customVisibleItems,
+        percentiles: _statsDisplayConfig.percentiles
+            .where((item) => item.id != id)
+            .toList(),
+        order: _statsDisplayConfig.order
+            .where((entry) => entry.percentileId != id)
+            .toList(),
+      );
+    });
+    _saveSettings();
+    unawaited(
+      announceEvent(
+        _s(
+          'Percentil P${_formatNumberSmart(removed.p)} odebrán.',
+          'Percentile P${_formatNumberSmart(removed.p)} removed.',
+        ),
+        category: SpeechCategory.actionConfirm,
+      ),
+    );
+  }
+
+  void _setCustomPercentileVisibility(String id, bool visible) {
+    setState(() {
+      _enterCustomStatsConfig();
+      _statsDisplayConfig = StatsDisplayConfig(
+        preset: StatsDisplayPreset.custom,
+        customShowN: _statsDisplayConfig.customShowN,
+        customVisibleItems: _statsDisplayConfig.customVisibleItems,
+        percentiles: _statsDisplayConfig.percentiles
+            .map(
+              (item) => item.id == id ? item.copyWith(visible: visible) : item,
+            )
+            .toList(),
+        order: _statsDisplayConfig.order,
+      );
+    });
+    _saveSettings();
+    unawaited(
+      announceEvent(
+        _s(
+          'Vlastní percentil ${visible ? 'zobrazen' : 'skryt'}',
+          'Custom percentile ${visible ? 'shown' : 'hidden'}',
+        ),
+        category: SpeechCategory.settings,
+      ),
+    );
+  }
+
+  void _showStatsVisibilityDialog() {
+    showAppDialog(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Nastavení statistik'),
+      builder: (context) => _StatsVisibilityDialog(parent: this),
+    );
   }
 
   void _showAccessibilityDialog() {
@@ -10905,7 +11276,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             meanEligible = isMeanExact || fracMean != null;
 
             final bool showFractionDirectly =
-                _globalResultNotationPreference == ResultNotationPreference.fraction &&
+                _globalResultNotationPreference ==
+                    ResultNotationPreference.fraction &&
                 isMeanExact &&
                 meanExactRat != null;
             final spokenVal = showFractionDirectly
@@ -10919,26 +11291,53 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               'Mean${fieldLabelSpoken} from memory is $spokenVal',
             );
           } else if (label == 'SUM') {
-            resStr = _formatNumberSmart(snapshot.sum);
-            numericResult = snapshot.sum;
-            spoken = _s(
-              'Součet hodnot${fieldLabelSpoken} je ${_formatSpokenNumber(snapshot.sum)}',
-              'Sum of values${fieldLabelSpoken} is ${_formatSpokenNumber(snapshot.sum)}',
-            );
+            final value = snapshot.sum;
+            if (value == null) {
+              resStr = 'Err';
+              spoken = _s(
+                'Součet hodnot${fieldLabelSpoken} nelze reprezentovat.',
+                'Sum of values${fieldLabelSpoken} cannot be represented.',
+              );
+            } else {
+              resStr = _formatNumberSmart(value);
+              numericResult = value;
+              spoken = _s(
+                'Součet hodnot${fieldLabelSpoken} je ${_formatSpokenNumber(value)}',
+                'Sum of values${fieldLabelSpoken} is ${_formatSpokenNumber(value)}',
+              );
+            }
           } else if (label == 'VAR') {
-            resStr = _formatNumberSmart(snapshot.variance);
-            numericResult = snapshot.variance;
-            spoken = _s(
-              'Rozptyl${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.variance)}',
-              'Variance${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.variance)}',
-            );
+            final value = snapshot.variance;
+            if (value == null) {
+              resStr = 'Err';
+              spoken = _s(
+                'Rozptyl nelze reprezentovat.',
+                'Variance cannot be represented.',
+              );
+            } else {
+              resStr = _formatNumberSmart(value);
+              numericResult = value;
+              spoken = _s(
+                'Rozptyl${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(value)}',
+                'Variance${fieldLabelSpoken} from memory is ${_formatSpokenNumber(value)}',
+              );
+            }
           } else if (label == 'SD') {
-            resStr = _formatNumberSmart(snapshot.sd);
-            numericResult = snapshot.sd;
-            spoken = _s(
-              'Směrodatná odchylka${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(snapshot.sd)}',
-              'Standard deviation${fieldLabelSpoken} from memory is ${_formatSpokenNumber(snapshot.sd)}',
-            );
+            final value = snapshot.sd;
+            if (value == null) {
+              resStr = 'Err';
+              spoken = _s(
+                'Směrodatnou odchylku nelze reprezentovat.',
+                'Standard deviation cannot be represented.',
+              );
+            } else {
+              resStr = _formatNumberSmart(value);
+              numericResult = value;
+              spoken = _s(
+                'Směrodatná odchylka${fieldLabelSpoken} z paměti je ${_formatSpokenNumber(value)}',
+                'Standard deviation${fieldLabelSpoken} from memory is ${_formatSpokenNumber(value)}',
+              );
+            }
           } else if (label == 'MED') {
             resStr = _formatNumberSmart(snapshot.median);
             numericResult = snapshot.median;
@@ -11185,7 +11584,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         // Nenalezeno žádné číslo před kurzorem, vložíme výchozí stupně
         append('°', silent: true);
         unawaited(
-          announceEvent(_l10n.degreesUnit, category: SpeechCategory.actionConfirm),
+          announceEvent(
+            _l10n.degreesUnit,
+            category: SpeechCategory.actionConfirm,
+          ),
         );
       }
     } else if (['°→\'', '\'→°', '°→RAD', 'RAD→°'].contains(label)) {
@@ -11892,7 +12294,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return buildButton(
         b,
         color: color,
-        semanticLabel: _getTimeButtonSemanticLabel(b) ?? _getElectricianButtonSemanticLabel(b),
+        semanticLabel:
+            _getTimeButtonSemanticLabel(b) ??
+            _getElectricianButtonSemanticLabel(b),
         expanded: false,
         fitScale: fitScale,
         isKeypadKey: true,
@@ -12686,10 +13090,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ? null
         : '${_formatSpokenNumber(snapshot.weightedCv!)} ${_s('procent', 'percent')}';
 
-    final header = _s(
-      'Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName. Počet hodnot: $dataCount. ',
-      'Statistics summary for set $currentSetName, field $selectedFieldName. Count: $dataCount. ',
-    );
+    final countHeader = _statsDisplayConfig.showN
+        ? _s(' Počet hodnot: $dataCount.', ' Count: $dataCount.')
+        : '';
+    final header =
+        '${_s('Statistický souhrn pro sadu $currentSetName, pole $selectedFieldName.', 'Statistics summary for set $currentSetName, field $selectedFieldName.')}$countHeader ';
 
     final values = _readStatsMemoryValues
         ? _s(
@@ -12714,6 +13119,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
 
     String computedFor(StatsComputedItem it) {
+      String spokenNumber(double? value) => value == null
+          ? _s('nelze vypočítat', 'not available')
+          : _formatSpokenNumber(value);
       switch (it) {
         case StatsComputedItem.mean:
           return _s(
@@ -12722,18 +13130,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           );
         case StatsComputedItem.sum:
           return _s(
-            'Součet: ${_formatSpokenNumber(snapshot.sum)}. ',
-            'Sum: ${_formatSpokenNumber(snapshot.sum)}. ',
+            'Součet: ${spokenNumber(snapshot.sum)}. ',
+            'Sum: ${spokenNumber(snapshot.sum)}. ',
           );
         case StatsComputedItem.variance:
           return _s(
-            'Rozptyl: ${_formatSpokenNumber(snapshot.variance)}. ',
-            'Variance: ${_formatSpokenNumber(snapshot.variance)}. ',
+            'Rozptyl: ${spokenNumber(snapshot.variance)}. ',
+            'Variance: ${spokenNumber(snapshot.variance)}. ',
           );
         case StatsComputedItem.sd:
           return _s(
-            'Směrodatná odchylka: ${_formatSpokenNumber(snapshot.sd)}. ',
-            'Standard deviation: ${_formatSpokenNumber(snapshot.sd)}. ',
+            'Směrodatná odchylka: ${spokenNumber(snapshot.sd)}. ',
+            'Standard deviation: ${spokenNumber(snapshot.sd)}. ',
           );
         case StatsComputedItem.median:
           return _s(
@@ -12785,12 +13193,93 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             'Vážený variační koeficient: $wcvSpoken$ctxSuffix. ',
             'Weighted coefficient of variation: $wcvSpoken$ctxSuffix. ',
           );
+        case StatsComputedItem.sampleVariance:
+          return _s(
+            'Výběrový rozptyl: ${snapshot.sampleVariance == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.sampleVariance!)}. ',
+            'Sample variance: ${snapshot.sampleVariance == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.sampleVariance!)}. ',
+          );
+        case StatsComputedItem.sampleSd:
+          return _s(
+            'Výběrová směrodatná odchylka: ${snapshot.sampleSd == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.sampleSd!)}. ',
+            'Sample standard deviation: ${snapshot.sampleSd == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.sampleSd!)}. ',
+          );
+        case StatsComputedItem.range:
+          return _s(
+            'Rozpětí: ${snapshot.range == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.range!)}. ',
+            'Range: ${snapshot.range == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.range!)}. ',
+          );
+        case StatsComputedItem.q1:
+          return _s(
+            'První kvartil Q1: ${_formatSpokenNumber(snapshot.q1!)}. ',
+            'First quartile Q1: ${_formatSpokenNumber(snapshot.q1!)}. ',
+          );
+        case StatsComputedItem.q3:
+          return _s(
+            'Třetí kvartil Q3: ${_formatSpokenNumber(snapshot.q3!)}. ',
+            'Third quartile Q3: ${_formatSpokenNumber(snapshot.q3!)}. ',
+          );
+        case StatsComputedItem.iqr:
+          return _s(
+            'Mezikvartilové rozpětí IQR: ${_formatSpokenNumber(snapshot.iqr!)}. ',
+            'Interquartile range IQR: ${_formatSpokenNumber(snapshot.iqr!)}. ',
+          );
+        case StatsComputedItem.meanAbsoluteDeviation:
+          return _s(
+            'Průměrná absolutní odchylka: ${snapshot.meanAbsoluteDeviation == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.meanAbsoluteDeviation!)}. ',
+            'Mean absolute deviation: ${snapshot.meanAbsoluteDeviation == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.meanAbsoluteDeviation!)}. ',
+          );
+        case StatsComputedItem.geometricMean:
+          return _s(
+            'Geometrický průměr: ${snapshot.geometricMean == null ? _s('mimo definiční obor', 'outside the domain') : _formatSpokenNumber(snapshot.geometricMean!)}. ',
+            'Geometric mean: ${snapshot.geometricMean == null ? _s('mimo definiční obor', 'outside the domain') : _formatSpokenNumber(snapshot.geometricMean!)}. ',
+          );
+        case StatsComputedItem.harmonicMean:
+          return _s(
+            'Harmonický průměr: ${snapshot.harmonicMean == null ? _s('mimo definiční obor', 'outside the domain') : _formatSpokenNumber(snapshot.harmonicMean!)}. ',
+            'Harmonic mean: ${snapshot.harmonicMean == null ? _s('outside the domain', 'outside the domain') : _formatSpokenNumber(snapshot.harmonicMean!)}. ',
+          );
+        case StatsComputedItem.populationSkewness:
+          return _s(
+            'Populační šikmost: ${snapshot.populationSkewness == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.populationSkewness!)}. ',
+            'Population skewness: ${snapshot.populationSkewness == null ? _s('not available', 'not available') : _formatSpokenNumber(snapshot.populationSkewness!)}. ',
+          );
+        case StatsComputedItem.sampleSkewness:
+          return _s(
+            'Výběrová šikmost: ${snapshot.sampleSkewness == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.sampleSkewness!)}. ',
+            'Adjusted sample skewness: ${snapshot.sampleSkewness == null ? _s('not available', 'not available') : _formatSpokenNumber(snapshot.sampleSkewness!)}. ',
+          );
+        case StatsComputedItem.populationExcessKurtosis:
+          return _s(
+            'Populační excess kurtosis: ${snapshot.populationExcessKurtosis == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.populationExcessKurtosis!)}. ',
+            'Population excess kurtosis: ${snapshot.populationExcessKurtosis == null ? _s('not available', 'not available') : _formatSpokenNumber(snapshot.populationExcessKurtosis!)}. ',
+          );
+        case StatsComputedItem.sampleExcessKurtosis:
+          return _s(
+            'Výběrová excess kurtosis: ${snapshot.sampleExcessKurtosis == null ? _s('nelze vypočítat', 'not available') : _formatSpokenNumber(snapshot.sampleExcessKurtosis!)}. ',
+            'Adjusted sample excess kurtosis: ${snapshot.sampleExcessKurtosis == null ? _s('not available', 'not available') : _formatSpokenNumber(snapshot.sampleExcessKurtosis!)}. ',
+          );
       }
     }
 
     final computedBuf = StringBuffer();
-    for (final it in _statsComputedOrder) {
-      computedBuf.write(computedFor(it));
+    for (final entry in _visibleStatsOrderEntries) {
+      if (entry.fixedItem case final item?) {
+        computedBuf.write(computedFor(item));
+      } else if (entry.percentileId case final id?) {
+        final percentile = _statsDisplayConfig.visiblePercentiles
+            .where((item) => item.id == id)
+            .firstOrNull;
+        if (percentile != null) {
+          final value = snapshot.customPercentiles[id];
+          if (value != null) {
+            final label = _s(
+              'Percentil P${_formatNumberSmart(percentile.p)}',
+              'Percentile P${_formatNumberSmart(percentile.p)}',
+            );
+            computedBuf.write('$label: ${_formatSpokenNumber(value)}. ');
+          }
+        }
+      }
     }
     final computed =
         computedBuf.toString().trim() + (computedBuf.isEmpty ? '' : '');
@@ -12848,8 +13337,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return _s('Seznam všech hodnot', 'List of all values');
       case StatsSummarySection.computed:
         return _s(
-          'Průměr, součet, rozptyl, odchylka, medián, min, max, modus, CV',
-          'Mean, sum, variance, SD, median, min, max, mode, CV',
+          'Vybrané statistické charakteristiky podle aktivního přednastavení a vlastního výběru',
+          'Selected statistical characteristics from the active preset or custom selection',
         );
     }
   }
@@ -12912,82 +13401,98 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   String _getStatsComputedItemLabel(StatsComputedItem it) {
-    switch (it) {
-      case StatsComputedItem.mean:
-        return _s('Průměr', 'Mean');
-      case StatsComputedItem.sum:
-        return _s('Součet', 'Sum');
-      case StatsComputedItem.variance:
-        return _s('Rozptyl', 'Variance');
-      case StatsComputedItem.sd:
-        return _s('Směrodatná odchylka', 'Standard deviation');
-      case StatsComputedItem.median:
-        return _s('Medián', 'Median');
-      case StatsComputedItem.min:
-        return _s('Minimum', 'Minimum');
-      case StatsComputedItem.max:
-        return _s('Maximum', 'Maximum');
-      case StatsComputedItem.mode:
-        return _s('Modus', 'Mode');
-      case StatsComputedItem.cv:
-        return _s('Variační koeficient', 'Coefficient of variation');
-      case StatsComputedItem.wmean:
-        return _s('Vážený průměr', 'Weighted mean');
-      case StatsComputedItem.wvar:
-        return _s('Vážený rozptyl', 'Weighted variance');
-      case StatsComputedItem.wsd:
-        return _s('Vážená směrodatná odchylka', 'Weighted standard deviation');
-      case StatsComputedItem.wcv:
-        return _s('Vážený variační koeficient', 'Weighted coefficient of variation');
-    }
+    return StatsCatalog.definition(it).name(_isEnglish());
   }
 
   String _getStatsComputedItemDescription(StatsComputedItem it) {
-    switch (it) {
-      case StatsComputedItem.mean:
-        return _s('Aritmetický průměr', 'Arithmetic mean');
-      case StatsComputedItem.sum:
-        return _s('Součet hodnot', 'Sum of values');
-      case StatsComputedItem.variance:
-        return _s('Rozptyl', 'Variance');
-      case StatsComputedItem.sd:
-        return _s('Směrodatná odchylka', 'Standard deviation');
-      case StatsComputedItem.median:
-        return _s('Prostřední hodnota', 'Middle value');
-      case StatsComputedItem.min:
-        return _s('Nejmenší hodnota', 'Smallest value');
-      case StatsComputedItem.max:
-        return _s('Největší hodnota', 'Largest value');
-      case StatsComputedItem.mode:
-        return _s('Nejčastější hodnota', 'Most frequent value');
-      case StatsComputedItem.cv:
-        return _s('Variační koeficient v procentech', 'CV in percent');
-      case StatsComputedItem.wmean:
-        return _s('Vážený průměr (2 pole)', 'Weighted mean (2 fields)');
-      case StatsComputedItem.wvar:
-        return _s(
-          'Populační rozptyl prvního pole vážený druhým polem',
-          'Population variance of the first field weighted by the second',
-        );
-      case StatsComputedItem.wsd:
-        return _s(
-          'Odmocnina z váženého rozptylu',
-          'Square root of the weighted variance',
-        );
-      case StatsComputedItem.wcv:
-        return _s(
-          'Vážená směrodatná odchylka v procentech váženého průměru',
-          'Weighted standard deviation in percent of the weighted mean',
-        );
+    final definition = StatsCatalog.definition(it);
+    final domain = _isEnglish() ? definition.domainEn : definition.domainCs;
+    return domain == null
+        ? definition.description(_isEnglish())
+        : '${definition.description(_isEnglish())} ($domain)';
+  }
+
+  String _getStatsOrderEntryLabel(StatsOrderEntry entry) {
+    if (entry.fixedItem != null) {
+      return _getStatsComputedItemLabel(entry.fixedItem!);
     }
+    for (final percentile in _statsDisplayConfig.percentiles) {
+      if (percentile.id == entry.percentileId) {
+        return 'P${_formatNumberSmart(percentile.p)}';
+      }
+    }
+    return _s('Neznámý percentil', 'Unknown percentile');
+  }
+
+  String _getStatsOrderEntryDescription(StatsOrderEntry entry) {
+    if (entry.fixedItem != null) {
+      return _getStatsComputedItemDescription(entry.fixedItem!);
+    }
+    return _s('Vlastní percentil', 'Custom percentile');
+  }
+
+  void _moveStatsOrderEntryByOffset(int index, int offset) {
+    final order = List<StatsOrderEntry>.from(_statsDisplayConfig.order);
+    final newIndex = index + offset;
+    if (newIndex < 0 || newIndex >= order.length) return;
+    setState(() {
+      final item = order.removeAt(index);
+      order.insert(newIndex, item);
+      _statsDisplayConfig = StatsDisplayConfig(
+        preset: _statsDisplayConfig.preset,
+        customShowN: _statsDisplayConfig.customShowN,
+        customVisibleItems: _statsDisplayConfig.customVisibleItems,
+        percentiles: _statsDisplayConfig.percentiles,
+        order: order,
+      );
+      _statsComputedOrder = normalizeStatsComputedOrder(
+        order
+            .where((entry) => entry.fixedItem != null)
+            .map((entry) => entry.fixedItem!),
+      );
+    });
+    _saveSettings();
+    final label = _getStatsOrderEntryLabel(_statsDisplayConfig.order[newIndex]);
+    final dir = offset < 0 ? _s('výše', 'up') : _s('níže', 'down');
+    final len = _statsDisplayConfig.order.length;
+    unawaited(
+      announceEvent(
+        _s(
+          '$label přesunuto $dir, pozice ${newIndex + 1} z $len',
+          '$label moved $dir, position ${newIndex + 1} of $len',
+        ),
+        category: SpeechCategory.settings,
+      ),
+    );
+  }
+
+  void _applyFixedStatsOrder(List<StatsComputedItem> fixedOrder) {
+    final normalized = normalizeStatsComputedOrder(fixedOrder);
+    var index = 0;
+    final mixedOrder = _statsDisplayConfig.order.map((entry) {
+      if (entry.fixedItem == null) return entry;
+      final replacement = StatsOrderEntry.fixed(normalized[index]);
+      index++;
+      return replacement;
+    }).toList();
+    _statsDisplayConfig = StatsDisplayConfig(
+      preset: _statsDisplayConfig.preset,
+      customShowN: _statsDisplayConfig.customShowN,
+      customVisibleItems: _statsDisplayConfig.customVisibleItems,
+      percentiles: _statsDisplayConfig.percentiles,
+      order: mixedOrder,
+    );
+    _statsComputedOrder = normalized;
   }
 
   void _moveStatsComputedItemByOffset(int index, int offset) {
     final newIndex = index + offset;
     if (newIndex < 0 || newIndex >= _statsComputedOrder.length) return;
     setState(() {
-      final item = _statsComputedOrder.removeAt(index);
-      _statsComputedOrder.insert(newIndex, item);
+      final reordered = List<StatsComputedItem>.from(_statsComputedOrder);
+      final item = reordered.removeAt(index);
+      reordered.insert(newIndex, item);
+      _applyFixedStatsOrder(reordered);
     });
     _saveSettings();
     final label = _getStatsComputedItemLabel(_statsComputedOrder[newIndex]);
@@ -13007,7 +13512,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   void _resetStatsComputedOrder() {
     setState(() {
-      _statsComputedOrder = normalizeStatsComputedOrder(const []);
+      _applyFixedStatsOrder(const []);
     });
     _saveSettings();
     final msg = _s(
@@ -15047,10 +15552,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   List<StatsComputedItem> get statsComputedOrderForTest =>
       List<StatsComputedItem>.unmodifiable(_statsComputedOrder);
 
+  @visibleForTesting
+  StatsDisplayConfig get statsDisplayConfigForTest => _statsDisplayConfig;
+
+  @visibleForTesting
+  void setStatsDisplayPresetForTest(StatsDisplayPreset preset) =>
+      _setStatsDisplayPreset(preset);
+
   /// Nastaví pořadí položek (testy migrace 10/13 položek).
   @visibleForTesting
   void setStatsComputedOrderForTest(List<StatsComputedItem> order) {
-    setState(() => _statsComputedOrder = normalizeStatsComputedOrder(order));
+    setState(() => _applyFixedStatsOrder(order));
   }
 
   /// Znovu načte globální nastavení z prefs stejným kódem jako startup.
@@ -15250,8 +15762,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ({String value, String unit}) timeSourcePhraseForTest(
     String src,
     int totalSeconds,
-  ) =>
-      _timeSourcePhrase(src, totalSeconds);
+  ) => _timeSourcePhrase(src, totalSeconds);
 
   /// Skloňovaná jednotka (pro testy; stejně řečeno jako v hláškách).
   @visibleForTesting
@@ -15259,12 +15770,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     String unitCode, {
     double? value,
     String context = 'base',
-  }) =>
-      _getUnitSpeech(
-        unitCode,
-        value: value,
-        context: context,
-      );
+  }) => _getUnitSpeech(unitCode, value: value, context: context);
 
   void _showDeleteStatsSetConfirmation(
     BuildContext context,
@@ -15788,20 +16294,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                     label: semanticDescription,
                                     container: true,
                                     child: InkWell(
-                                      onTap: () => _insertFromHistory(insertResult),
-                                      onLongPress: () => _insertFromHistory(expression),
+                                      onTap: () =>
+                                          _insertFromHistory(insertResult),
+                                      onLongPress: () =>
+                                          _insertFromHistory(expression),
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 16.0,
                                           vertical: 12.0,
                                         ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             _PeriodicText(
                                               expression,
-                                              style: const TextStyle(fontSize: 14),
-                                              overlineThickness: _overlineThickness,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                              overlineThickness:
+                                                  _overlineThickness,
                                               overlineHeight: _overlineHeight,
                                             ),
                                             if (displayResult.isNotEmpty) ...[
@@ -15813,7 +16325,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                                   fontSize: 18,
                                                   color: Colors.blue,
                                                 ),
-                                                overlineThickness: _overlineThickness,
+                                                overlineThickness:
+                                                    _overlineThickness,
                                                 overlineHeight: _overlineHeight,
                                               ),
                                             ],
@@ -17815,11 +18328,19 @@ class _FractionInputDialogState extends State<_FractionInputDialog> {
                 widget.screenState._pendingNegOpens.clear();
                 widget.screenState._fractionOverride = null;
               } else {
-                widget.screenState._cursorPosition = widget.insertPos.clamp(0, widget.screenState.display.length);
+                widget.screenState._cursorPosition = widget.insertPos.clamp(
+                  0,
+                  widget.screenState.display.length,
+                );
               }
             });
             widget.screenState._insertAtCursor('($n/$d)');
-            widget.screenState.speak(widget.screenState._s('Vloženo $n lomeno $d', 'Inserted $n over $d'));
+            widget.screenState.speak(
+              widget.screenState._s(
+                'Vloženo $n lomeno $d',
+                'Inserted $n over $d',
+              ),
+            );
             Navigator.pop(context);
           },
           child: Text(widget.screenState._l10n.confirmAction.toUpperCase()),

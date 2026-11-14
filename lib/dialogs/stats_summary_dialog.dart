@@ -85,66 +85,88 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
             : '${p._formatNumberSmart(snapshot.weightedCv!)} %';
 
         MapEntry<String, String>? entryForItem(StatsComputedItem it) {
+          String number(double? value) => value == null
+              ? p._s('nelze vypočítat', 'not available')
+              : p._formatNumberSmart(value);
+          final label = StatsCatalog.definition(it).name(p._isEnglish());
           switch (it) {
             case StatsComputedItem.mean:
-              return MapEntry(
-                l10n.statsMean,
-                p._formatNumberSmart(snapshot.mean),
-              );
+              return MapEntry(label, number(snapshot.mean));
             case StatsComputedItem.sum:
-              return MapEntry(
-                l10n.statsSum,
-                p._formatNumberSmart(snapshot.sum),
-              );
+              return MapEntry(label, number(snapshot.sum));
             case StatsComputedItem.variance:
-              return MapEntry(
-                l10n.statsVariance,
-                p._formatNumberSmart(snapshot.variance),
-              );
+              return MapEntry(label, number(snapshot.variance));
             case StatsComputedItem.sd:
-              return MapEntry(
-                l10n.statsStdDev,
-                p._formatNumberSmart(snapshot.sd),
-              );
+              return MapEntry(label, number(snapshot.sd));
             case StatsComputedItem.median:
-              return MapEntry(
-                l10n.statsMedian,
-                p._formatNumberSmart(snapshot.median),
-              );
+              return MapEntry(label, number(snapshot.median));
             case StatsComputedItem.min:
-              return MapEntry(
-                l10n.statsMin,
-                p._formatNumberSmart(snapshot.min),
-              );
+              return MapEntry(label, number(snapshot.min));
             case StatsComputedItem.max:
-              return MapEntry(
-                l10n.statsMax,
-                p._formatNumberSmart(snapshot.max),
-              );
+              return MapEntry(label, number(snapshot.max));
             case StatsComputedItem.mode:
-              return MapEntry(l10n.statsMode, modeText);
+              return MapEntry(label, modeText);
             case StatsComputedItem.cv:
-              return MapEntry(l10n.statsCv, cvText);
+              return MapEntry(label, cvText);
             case StatsComputedItem.wmean:
               if (snapshot.wmean == null) return null;
-              return MapEntry(l10n.statsWeightedMean, wmeanText!);
+              return MapEntry(label, wmeanText!);
             case StatsComputedItem.wvar:
               // Vážené řádky se skryjí, když nelze spočítat (žádné nuly).
               if (snapshot.weightedVariance == null) return null;
-              return MapEntry(l10n.statsWeightedVariance, wvarText!);
+              return MapEntry(label, wvarText!);
             case StatsComputedItem.wsd:
               if (snapshot.weightedSd == null) return null;
-              return MapEntry(l10n.statsWeightedSd, wsdText!);
+              return MapEntry(label, wsdText!);
             case StatsComputedItem.wcv:
               if (snapshot.weightedCv == null) return null;
-              return MapEntry(l10n.statsWeightedCv, wcvText!);
+              return MapEntry(label, wcvText!);
+            case StatsComputedItem.sampleVariance:
+              return MapEntry(label, number(snapshot.sampleVariance));
+            case StatsComputedItem.sampleSd:
+              return MapEntry(label, number(snapshot.sampleSd));
+            case StatsComputedItem.range:
+              return MapEntry(label, number(snapshot.range));
+            case StatsComputedItem.q1:
+              return MapEntry(label, number(snapshot.q1));
+            case StatsComputedItem.q3:
+              return MapEntry(label, number(snapshot.q3));
+            case StatsComputedItem.iqr:
+              return MapEntry(label, number(snapshot.iqr));
+            case StatsComputedItem.meanAbsoluteDeviation:
+              return MapEntry(label, number(snapshot.meanAbsoluteDeviation));
+            case StatsComputedItem.geometricMean:
+              return MapEntry(label, number(snapshot.geometricMean));
+            case StatsComputedItem.harmonicMean:
+              return MapEntry(label, number(snapshot.harmonicMean));
+            case StatsComputedItem.populationSkewness:
+              return MapEntry(label, number(snapshot.populationSkewness));
+            case StatsComputedItem.sampleSkewness:
+              return MapEntry(label, number(snapshot.sampleSkewness));
+            case StatsComputedItem.populationExcessKurtosis:
+              return MapEntry(label, number(snapshot.populationExcessKurtosis));
+            case StatsComputedItem.sampleExcessKurtosis:
+              return MapEntry(label, number(snapshot.sampleExcessKurtosis));
           }
         }
 
         final statRows = <MapEntry<String, String>>[
-          MapEntry(l10n.statsN, dataCount.toString()),
-          for (final it in p._statsComputedOrder)
-            if (entryForItem(it) != null) entryForItem(it)!,
+          if (p._statsDisplayConfig.showN)
+            MapEntry(l10n.statsN, dataCount.toString()),
+          for (final orderEntry in p._visibleStatsOrderEntries) ...[
+            if (orderEntry.fixedItem != null &&
+                entryForItem(orderEntry.fixedItem!) != null)
+              entryForItem(orderEntry.fixedItem!)!,
+            if (orderEntry.percentileId != null)
+              for (final percentile in p._statsDisplayConfig.visiblePercentiles)
+                if (percentile.id == orderEntry.percentileId)
+                  MapEntry(
+                    'P${p._formatNumberSmart(percentile.p)}',
+                    p._formatNumberSmart(
+                      snapshot.customPercentiles[percentile.id]!,
+                    ),
+                  ),
+          ],
         ];
 
         final spokenSummary = p._getOrderedSpokenSummary(p._selectedFieldIndex);
@@ -366,6 +388,40 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
                             },
                             icon: const Icon(Icons.reorder, size: 18),
                             label: Text(p._s('Pořadí čtení', 'Reading order')),
+                          ),
+                        ),
+                      ),
+                      Semantics(
+                        button: true,
+                        label: p._s(
+                          'Nastavit zobrazené statistiky',
+                          'Configure visible statistics',
+                        ),
+                        hint: p._s(
+                          'Otevře nastavení přednastavení a výběru statistik',
+                          'Opens preset and statistics visibility settings',
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              Navigator.pop(dialogContext);
+                              Future.delayed(
+                                const Duration(milliseconds: 300),
+                                () {
+                                  if (p.mounted) {
+                                    p._showStatsVisibilityDialog();
+                                  }
+                                },
+                              );
+                            },
+                            icon: const Icon(Icons.tune, size: 18),
+                            label: Text(
+                              p._s(
+                                'Zobrazené statistiky',
+                                'Visible statistics',
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -639,6 +695,261 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
         );
       },
     );
+  }
+}
+
+class _StatsVisibilityDialog extends StatefulWidget {
+  final _CalculatorScreenState parent;
+
+  const _StatsVisibilityDialog({required this.parent});
+
+  @override
+  State<_StatsVisibilityDialog> createState() => _StatsVisibilityDialogState();
+}
+
+class _StatsVisibilityDialogState extends State<_StatsVisibilityDialog> {
+  _CalculatorScreenState get p => widget.parent;
+  final TextEditingController _percentileController = TextEditingController();
+
+  @override
+  void dispose() {
+    _percentileController.dispose();
+    super.dispose();
+  }
+
+  String _presetName(StatsDisplayPreset preset) => switch (preset) {
+    StatsDisplayPreset.basic => p._s('Základní', 'Basic'),
+    StatsDisplayPreset.extended => p._s('Rozšířená', 'Extended'),
+    StatsDisplayPreset.complete => p._s('Kompletní', 'Complete'),
+    StatsDisplayPreset.custom => p._s('Vlastní', 'Custom'),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final config = p._statsDisplayConfig;
+    final english = p._isEnglish();
+    final basics = StatsCatalog.definitions
+        .where((definition) => definition.category == StatsItemCategory.basic)
+        .toList();
+    final advanced = StatsCatalog.definitions
+        .where(
+          (definition) => definition.category == StatsItemCategory.advanced,
+        )
+        .toList();
+
+    Widget categorySection(
+      String title,
+      List<StatsItemDefinition> definitions,
+    ) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(),
+        Semantics(
+          header: true,
+          child: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        for (final definition in definitions)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(definition.name(english)),
+            subtitle: Text(
+              definition.domainCs == null
+                  ? definition.description(english)
+                  : '${definition.description(english)} (${english ? definition.domainEn : definition.domainCs})',
+            ),
+            value: config.visibleItems.contains(definition.id),
+            onChanged: (value) {
+              p._setStatsItemVisibility(definition.id, value ?? false);
+              setState(() {});
+            },
+          ),
+      ],
+    );
+
+    return AlertDialog(
+      insetPadding: p._dialogInsetPadding(),
+      title: Semantics(
+        header: true,
+        child: Text(p._s('Nastavení statistik', 'Statistics settings')),
+      ),
+      content: FocusTraversalGroup(
+        policy: ReadingOrderTraversalPolicy(),
+        child: SizedBox(
+          width: double.maxFinite,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.72,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  DropdownButtonFormField<StatsDisplayPreset>(
+                    initialValue: config.preset,
+                    decoration: InputDecoration(
+                      labelText: p._s('Přednastavení', 'Preset'),
+                    ),
+                    items: StatsDisplayPreset.values
+                        .map(
+                          (preset) => DropdownMenuItem(
+                            value: preset,
+                            child: Text(_presetName(preset)),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (preset) {
+                      if (preset == null) return;
+                      p._setStatsDisplayPreset(preset);
+                      setState(() {});
+                    },
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      p._s('Počet hodnot (N)', 'Number of values (N)'),
+                    ),
+                    value: config.showN,
+                    onChanged: (value) {
+                      p._setStatsCountVisibility(value ?? false);
+                      setState(() {});
+                    },
+                  ),
+                  categorySection(
+                    p._s('Základní statistiky', 'Basic statistics'),
+                    basics,
+                  ),
+                  categorySection(
+                    p._s('Pokročilé statistiky', 'Advanced statistics'),
+                    advanced,
+                  ),
+                  const Divider(),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      p._s('Vlastní percentily', 'Custom percentiles'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  for (final percentile in config.percentiles)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('P${p._formatNumberSmart(percentile.p)}'),
+                      value: config.preset == StatsDisplayPreset.complete
+                          ? true
+                          : config.preset == StatsDisplayPreset.custom &&
+                                percentile.visible,
+                      onChanged: (value) {
+                        p._setCustomPercentileVisibility(
+                          percentile.id,
+                          value ?? false,
+                        );
+                        setState(() {});
+                      },
+                      secondary: IconButton(
+                        tooltip: p._s(
+                          'Upravit nebo odebrat percentil P${p._formatNumberSmart(percentile.p)}',
+                          'Edit or remove percentile P${p._formatNumberSmart(percentile.p)}',
+                        ),
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => _editPercentile(percentile),
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _percentileController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          textInputAction: TextInputAction.done,
+                          decoration: InputDecoration(
+                            labelText: p._s(
+                              'Percentil p (0–100)',
+                              'Percentile p (0–100)',
+                            ),
+                            hintText: '10, 25, 75',
+                          ),
+                          onSubmitted: (_) => _addPercentile(),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: p._s('Přidat percentil', 'Add percentile'),
+                        icon: const Icon(Icons.add),
+                        onPressed: _addPercentile,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(p._l10n.close),
+        ),
+      ],
+    );
+  }
+
+  void _addPercentile() {
+    if (p._addCustomPercentile(_percentileController.text)) {
+      _percentileController.clear();
+    }
+    setState(() {});
+  }
+
+  Future<void> _editPercentile(CustomPercentile percentile) async {
+    final controller = TextEditingController(
+      text: p._formatNumberSmart(percentile.p),
+    );
+    final action = await p.showAppDialog<String>(
+      context: context,
+      routeSettings: const RouteSettings(name: 'Upravit vlastní percentil'),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          p._s(
+            'Vlastní percentil P${p._formatNumberSmart(percentile.p)}',
+            'Custom percentile P${p._formatNumberSmart(percentile.p)}',
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: p._s('Nová hodnota p (0–100)', 'New p value (0–100)'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'delete'),
+            child: Text(p._s('Odebrat', 'Remove')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(p._l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, 'update'),
+            child: Text(p._s('Uložit', 'Save')),
+          ),
+        ],
+      ),
+    );
+    if (action == 'delete') {
+      p._removeCustomPercentile(percentile.id);
+    } else if (action == 'update') {
+      p._updateCustomPercentile(percentile.id, controller.text);
+    }
+    controller.dispose();
+    if (mounted) setState(() {});
   }
 }
 
