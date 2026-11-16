@@ -31,6 +31,87 @@ enum _ExpressionControlOffReason { none, traversal, dialog }
 /// - surd: po stisku se ukáže exaktní surd tvar základu.
 enum _FractionTargetKind { fraction, numeric, surd }
 
+class _TransientAnnouncementController extends ChangeNotifier {
+  static const Duration _lifetime = Duration(seconds: 5);
+
+  Timer? _timer;
+  int _generation = 0;
+  String? _message;
+  bool _disposed = false;
+
+  String? get message => _message;
+
+  void publish(String message) {
+    if (_disposed || message.isEmpty) return;
+
+    final generation = ++_generation;
+    _timer?.cancel();
+    _timer = null;
+    _message = null;
+    notifyListeners();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed || generation != _generation) return;
+      _message = message;
+      notifyListeners();
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_disposed || generation != _generation) return;
+        _timer = Timer(_lifetime, () => _expire(generation));
+      });
+    });
+  }
+
+  void clear() {
+    if (_disposed) return;
+    _generation++;
+    _timer?.cancel();
+    _timer = null;
+    if (_message == null) return;
+    _message = null;
+    notifyListeners();
+  }
+
+  void _expire(int generation) {
+    if (_disposed || generation != _generation) return;
+    _timer = null;
+    _message = null;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _generation++;
+    _timer?.cancel();
+    _timer = null;
+    super.dispose();
+  }
+}
+
+Widget _buildTransientAnnouncementRegion(
+  _TransientAnnouncementController controller, {
+  required Key semanticsKey,
+}) {
+  return ListenableBuilder(
+    listenable: controller,
+    builder: (context, _) {
+      final message = controller.message;
+      if (message == null) {
+        return const SizedBox(width: 1, height: 1);
+      }
+      return Semantics(
+        key: semanticsKey,
+        container: true,
+        liveRegion: true,
+        label: message,
+        excludeSemantics: true,
+        child: const SizedBox(width: 1, height: 1),
+      );
+    },
+  );
+}
+
 class _HistoryAnnouncementRegion extends StatefulWidget {
   const _HistoryAnnouncementRegion({required this.parent});
 
@@ -43,10 +124,11 @@ class _HistoryAnnouncementRegion extends StatefulWidget {
 
 class _HistoryAnnouncementRegionState
     extends State<_HistoryAnnouncementRegion> {
-  String _announcement = '';
-  int _announcementGeneration = 0;
+  final _TransientAnnouncementController _announcementController =
+      _TransientAnnouncementController();
 
-  late final void Function(String) _publisher = _publish;
+  late final void Function(String) _publisher =
+      _announcementController.publish;
 
   @override
   void initState() {
@@ -54,32 +136,18 @@ class _HistoryAnnouncementRegionState
     widget.parent._registerHistoryAnnouncementPublisher(this, _publisher);
   }
 
-  void _publish(String message) {
-    if (!mounted || message.isEmpty) return;
-    final generation = ++_announcementGeneration;
-    setState(() => _announcement = '');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || generation != _announcementGeneration) return;
-      setState(() => _announcement = message);
-    });
-  }
-
   @override
   void dispose() {
-    _announcementGeneration++;
     widget.parent._unregisterHistoryAnnouncementPublisher(this);
+    _announcementController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      key: const ValueKey<String>('history_announcement_live_region'),
-      container: true,
-      liveRegion: true,
-      label: _announcement,
-      excludeSemantics: true,
-      child: const SizedBox(width: 1, height: 1),
+    return _buildTransientAnnouncementRegion(
+      _announcementController,
+      semanticsKey: const ValueKey<String>('history_announcement_live_region'),
     );
   }
 }
@@ -811,8 +879,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   StreamSubscription<bool>? _accessibilityEventsSubscription;
 
   /// Dedikovaný oznamovací liveRegion (primární kanál při aktivní čtečce
-  /// na Androidu; fallback na Windows). Změna hodnoty = jedno oznámení.
-  String _lastAnnouncement = '';
+  /// na Androidu; fallback na Windows).
+  final _TransientAnnouncementController _globalAnnouncementController =
+      _TransientAnnouncementController();
 
   /// Poslední publikované oznámení bez ohledu na kanál (i pro testy).
   String _lastPublishedAnnouncement = '';
@@ -828,7 +897,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void Function(String)? _historyAnnouncementPublisher;
 
   bool _scientificFunctionsPage = false;
-  String? _scientificPageAnnouncement;
+  final _TransientAnnouncementController _scientificAnnouncementController =
+      _TransientAnnouncementController();
 
   DisplayFormat _displayFormat = DisplayFormat.standard;
 
@@ -3162,6 +3232,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     FocusManager.instance.removeListener(_handlePrimaryFocusChanged);
     _historyAnnouncementOwner = null;
     _historyAnnouncementPublisher = null;
+    _globalAnnouncementController.dispose();
+    _scientificAnnouncementController.dispose();
     final accessibilityEventsSubscription = _accessibilityEventsSubscription;
     _accessibilityEventsSubscription = null;
     if (accessibilityEventsSubscription != null) {
@@ -4006,7 +4078,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       historyPublisher(formatted);
       return;
     }
-    if (Platform.isWindows) {
+    if (defaultTargetPlatform == TargetPlatform.windows) {
+      _globalAnnouncementController.clear();
       bool delivered = false;
       try {
         final view = View.of(context);
@@ -4023,31 +4096,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         delivered = false;
       }
       if (!delivered && mounted) {
-        setState(() {
-          _lastAnnouncement = formatted;
-        });
+        _globalAnnouncementController.publish(formatted);
       }
       return;
     }
-    // Android/iOS: live region oznamí, když se ZMĚNÍ label uzelu
-    // (engine: AccessibilityBridge posílá content-change jen při
-    // didChangeLabel). Opakování stejného textu (stisk „7" třikrát) by
-    // jinak po prvním vyznění zůstalo němé – Semantics uzlu by se
-    // textem nezměnil. Proto dvoustupňový přechod: v tomto frame je
-    // label vyprázdněn, v následujícím frame dostane novou hodnotu.
-    // Každé publikování je tím reálnou změnou „… → text" a čtečka ji
-    // vysloví právě jednou. Prázdný mezikrok nevydává žádný slyšitelný
-    // obsah (uzel je 1×1, bez textu) a žádné skryté technické texty
-    // se uživateli nenechávají vyslechnout.
-    setState(() {
-      _lastAnnouncement = '';
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      setState(() {
-        _lastAnnouncement = formatted;
-      });
-    });
+    _globalAnnouncementController.publish(formatted);
   }
 
   void _registerHistoryAnnouncementPublisher(
@@ -7939,7 +7992,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       display = '';
       _cursorPosition = 0;
       _scientificFunctionsPage = false;
-      _scientificPageAnnouncement = null;
+      _scientificAnnouncementController.clear();
       // Rozpracované STO/RCL nesmí přežít změnu režimu: cílová proměnná
       // by se jinak vybrala v jiném kontextu, než kde byl záměr potvrzen.
       // Zrušení je tiché – změna režimu má vlastní hlasové potvrzení
@@ -12537,8 +12590,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         : _s('Číselná stránka', 'Numbers page');
     setState(() {
       _scientificFunctionsPage = !_scientificFunctionsPage;
-      _scientificPageAnnouncement = msg;
     });
+    _scientificAnnouncementController.publish(msg);
     speak(msg);
   }
 
@@ -16354,6 +16407,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _showHistoryDialog() {
+    _globalAnnouncementController.clear();
     showAppDialog(
       context: context,
       routeSettings: const RouteSettings(name: 'Historie výpočtů'),
@@ -17773,11 +17827,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       _buildCurrencyPanel(),
                     if (_currentMode == CalculatorMode.scientific) ...[
                       _buildScientificPageToggle(),
-                      Semantics(
-                        liveRegion: true,
-                        label: _scientificPageAnnouncement ?? '',
-                        excludeSemantics: true,
-                        child: const SizedBox(width: 1, height: 1),
+                      _buildTransientAnnouncementRegion(
+                        _scientificAnnouncementController,
+                        semanticsKey: const ValueKey<String>(
+                          'scientific_announcement_live_region',
+                        ),
                       ),
                     ],
                     // R-architektura: dedikovaný oznamovací liveRegion.
@@ -17785,11 +17839,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     // (doporučení Flutteru místo announcement eventů),
                     // fallback na Windows. Změna labelu = jedno oznámení.
                     // Mimo keypad rastr i focus order, bez vizuálního dopadu.
-                    Semantics(
-                      liveRegion: true,
-                      label: _lastAnnouncement,
-                      excludeSemantics: true,
-                      child: const SizedBox(width: 1, height: 1),
+                    _buildTransientAnnouncementRegion(
+                      _globalAnnouncementController,
+                      semanticsKey: const ValueKey<String>(
+                        'global_announcement_live_region',
+                      ),
                     ),
                     // Klávesnice
                     Expanded(

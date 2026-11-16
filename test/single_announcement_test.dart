@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/foundation.dart'
     show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mluvici_kalkulacka/main.dart';
@@ -184,11 +186,48 @@ void main() {
     }
   }
 
-  void expectHistoryAnnouncement(WidgetTester tester, String expected) {
+  Future<void> pumpAnnouncement(WidgetTester tester) async {
+    await tester.pump(Duration.zero);
+    await tester.pump(Duration.zero);
+  }
+
+  List<SemanticsNode> semanticsNodes(WidgetTester tester) {
+    // The test binding exposes its active semantics tree through this owner.
+    // ignore: deprecated_member_use
+    final owner = tester.binding.pipelineOwner.semanticsOwner;
+    expect(owner, isNotNull, reason: 'Vyžaduje ensureSemantics()');
+    final nodes = <SemanticsNode>[];
+    void visit(SemanticsNode node) {
+      nodes.add(node);
+      node.visitChildren((child) {
+        visit(child);
+        return true;
+      });
+    }
+
+    visit(owner!.rootSemanticsNode!);
+    return nodes;
+  }
+
+  List<SemanticsNode> liveRegionNodes(WidgetTester tester) =>
+      semanticsNodes(tester)
+          .where((node) => node.getSemanticsData().flagsCollection.isLiveRegion)
+          .toList();
+
+  List<SemanticsNode> nodesWithLabel(WidgetTester tester, String label) =>
+      semanticsNodes(
+        tester,
+      ).where((node) => node.getSemanticsData().label == label).toList();
+
+  void expectHistoryAnnouncement(WidgetTester tester, String? expected) {
     final liveRegion = find.descendant(
       of: find.byType(AlertDialog),
       matching: find.byKey(_historyAnnouncementKey),
     );
+    if (expected == null) {
+      expect(liveRegion, findsNothing);
+      return;
+    }
     expect(liveRegion, findsOneWidget);
     final node = tester.getSemantics(liveRegion);
     expect(node.getSemanticsData().flagsCollection.isLiveRegion, isTrue);
@@ -517,7 +556,7 @@ void main() {
         expect((state.historyForTest as List).single.expression, '3+3');
         expect(state.publishedAnnouncementCountForTest as int, semBefore);
         expect(ttsLog, ['Záznam 2 plus 2 byl smazán.']);
-        expectHistoryAnnouncement(tester, '');
+        expectHistoryAnnouncement(tester, null);
         await expectPersistedHistory(const ['3+3|6']);
       });
     });
@@ -557,7 +596,7 @@ void main() {
         expect((state.historyForTest as List).single.expression, '3+3');
         expect(state.publishedAnnouncementCountForTest as int, semBefore);
         expect(ttsLog, isEmpty);
-        expectHistoryAnnouncement(tester, '');
+        expectHistoryAnnouncement(tester, null);
         await expectPersistedHistory(const ['3+3|6']);
       });
     });
@@ -601,20 +640,254 @@ void main() {
       await withHistoryDialog(tester, state, () async {
         const message = 'Záznam 2 plus 2 byl smazán.';
         final semBefore = state.publishedAnnouncementCountForTest as int;
+        final nodesBefore = semanticsNodes(tester).length;
+        final liveRegionsBefore = liveRegionNodes(tester).length;
         for (var i = 0; i < 2; i++) {
           await state.announceEvent(
             message,
             category: SpeechCategory.actionConfirm,
           );
-          await tester.pump();
-          expectHistoryAnnouncement(tester, '');
-          await tester.pump();
+          await tester.pump(Duration.zero);
+          expectHistoryAnnouncement(tester, null);
+          await tester.pump(Duration.zero);
           expectHistoryAnnouncement(tester, message);
+          expect(nodesWithLabel(tester, message), hasLength(1));
+          expect(semanticsNodes(tester), hasLength(nodesBefore + 1));
+          expect(liveRegionNodes(tester), hasLength(liveRegionsBefore + 1));
         }
 
         expect(state.publishedAnnouncementCountForTest as int, semBefore + 2);
         expect(ttsLog, isEmpty);
+
+        await tester.pump(const Duration(seconds: 5));
+        expectHistoryAnnouncement(tester, null);
+        expect(nodesWithLabel(tester, message), isEmpty);
+        expect(semanticsNodes(tester), hasLength(nodesBefore));
+        expect(liveRegionNodes(tester), hasLength(liveRegionsBefore));
+
+        await state.announceEvent(
+          message,
+          category: SpeechCategory.actionConfirm,
+        );
+        await pumpAnnouncement(tester);
+        expectHistoryAnnouncement(tester, message);
+        expect(liveRegionNodes(tester), hasLength(liveRegionsBefore + 1));
       });
+    });
+
+    testWidgets('zastaralý timer neodstraní novější oznámení', (tester) async {
+      final state = await pumpApp(tester, history: const ['2+2|4']);
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      await withHistoryDialog(tester, state, () async {
+        const first = 'První oznámení';
+        const second = 'Druhé oznámení';
+        final liveRegionsBefore = liveRegionNodes(tester).length;
+
+        await state.announceEvent(
+          first,
+          category: SpeechCategory.actionConfirm,
+        );
+        await pumpAnnouncement(tester);
+        expect(nodesWithLabel(tester, first), hasLength(1));
+
+        await tester.pump(const Duration(milliseconds: 4900));
+        await state.announceEvent(
+          second,
+          category: SpeechCategory.actionConfirm,
+        );
+        await pumpAnnouncement(tester);
+        expect(nodesWithLabel(tester, first), isEmpty);
+        expect(nodesWithLabel(tester, second), hasLength(1));
+
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(nodesWithLabel(tester, second), hasLength(1));
+        expect(liveRegionNodes(tester), hasLength(liveRegionsBefore + 1));
+
+        await tester.pump(const Duration(milliseconds: 4900));
+        expect(nodesWithLabel(tester, second), isEmpty);
+        expect(liveRegionNodes(tester), hasLength(liveRegionsBefore));
+      });
+    });
+
+    testWidgets('rychlé publikování použije nejnovější callback', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester, history: const ['2+2|4']);
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      await withHistoryDialog(tester, state, () async {
+        const first = 'Starší oznámení';
+        const second = 'Novější oznámení';
+        final semBefore = state.publishedAnnouncementCountForTest as int;
+        final liveRegionsBefore = liveRegionNodes(tester).length;
+
+        await state.announceEvent(
+          first,
+          category: SpeechCategory.actionConfirm,
+        );
+        await state.announceEvent(
+          second,
+          category: SpeechCategory.actionConfirm,
+        );
+        await pumpAnnouncement(tester);
+
+        expect(state.publishedAnnouncementCountForTest as int, semBefore + 2);
+        expect(nodesWithLabel(tester, first), isEmpty);
+        expect(nodesWithLabel(tester, second), hasLength(1));
+        expect(liveRegionNodes(tester), hasLength(liveRegionsBefore + 1));
+      });
+    });
+
+    testWidgets('zavření během čekání bezpečně zneplatní callback', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      try {
+        final state = await pumpApp(tester, history: const ['2+2|4']);
+        await setReaderMode(tester, state, ScreenReaderMode.on);
+        state.showHistoryDialogForTest();
+        await tester.pumpAndSettle();
+
+        const message = 'Oznámení při zavírání';
+        await state.announceEvent(
+          message,
+          category: SpeechCategory.actionConfirm,
+        );
+        Navigator.of(state.contextForTest as BuildContext).pop();
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+
+        await tester.pump(const Duration(seconds: 5));
+        expect(nodesWithLabel(tester, message), isEmpty);
+        expect(tester.takeException(), isNull);
+      } finally {
+        handle.dispose();
+      }
+    });
+
+    testWidgets('dispose kalkulačky zruší globální a vědecký timer', (
+      tester,
+    ) async {
+      enableAndroidAccessibilityEvents();
+      final handle = tester.ensureSemantics();
+      try {
+        final state = await pumpApp(tester);
+        state.switchModeForTest(CalculatorMode.scientific);
+        await tester.pumpAndSettle();
+        await setReaderMode(tester, state, ScreenReaderMode.on);
+
+        state.toggleScientificPageForTest();
+        await pumpAnnouncement(tester);
+        await state.announceEvent(
+          'Oznámení před dispose',
+          category: SpeechCategory.actionConfirm,
+        );
+        await pumpAnnouncement(tester);
+
+        expect(nodesWithLabel(tester, 'Stránka funkcí'), hasLength(1));
+        expect(nodesWithLabel(tester, 'Oznámení před dispose'), hasLength(1));
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(Duration.zero);
+        await tester.pump(const Duration(seconds: 5));
+        expect(tester.takeException(), isNull);
+        expect(nodesWithLabel(tester, 'Stránka funkcí'), isEmpty);
+        expect(nodesWithLabel(tester, 'Oznámení před dispose'), isEmpty);
+      } finally {
+        handle.dispose();
+      }
+    });
+
+    testWidgets('globální live region po expiraci zmizí z celého stromu', (
+      tester,
+    ) async {
+      enableAndroidAccessibilityEvents();
+      final handle = tester.ensureSemantics();
+      try {
+        final state = await pumpApp(tester);
+        expect(debugDefaultTargetPlatformOverride, TargetPlatform.android);
+        await setReaderMode(tester, state, ScreenReaderMode.on);
+        const message = 'Globální přechodné oznámení';
+        final nodesBefore = semanticsNodes(tester).length;
+        final liveRegionsBefore = liveRegionNodes(tester).length;
+
+        await state.announceEvent(
+          message,
+          category: SpeechCategory.actionConfirm,
+        );
+        await pumpAnnouncement(tester);
+        expect(nodesWithLabel(tester, message), hasLength(1));
+        expect(semanticsNodes(tester), hasLength(nodesBefore + 1));
+        expect(liveRegionNodes(tester), hasLength(liveRegionsBefore + 1));
+        expect(ttsLog, isEmpty);
+
+        await tester.pump(const Duration(seconds: 5));
+        expect(nodesWithLabel(tester, message), isEmpty);
+        expect(semanticsNodes(tester), hasLength(nodesBefore));
+        expect(liveRegionNodes(tester), hasLength(liveRegionsBefore));
+      } finally {
+        handle.dispose();
+      }
+    });
+
+    testWidgets('starší globální oznámení se po dialogu nevrátí', (
+      tester,
+    ) async {
+      enableAndroidAccessibilityEvents();
+      final handle = tester.ensureSemantics();
+      try {
+        final state = await pumpApp(tester, history: const ['2+2|4']);
+        await setReaderMode(tester, state, ScreenReaderMode.on);
+        const message = 'Předchozí globální oznámení';
+
+        await state.announceEvent(
+          message,
+          category: SpeechCategory.actionConfirm,
+        );
+        await pumpAnnouncement(tester);
+        expect(nodesWithLabel(tester, message), hasLength(1));
+
+        state.showHistoryDialogForTest();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('ZAVŘÍT'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(nodesWithLabel(tester, message), isEmpty);
+        expect(tester.takeException(), isNull);
+      } finally {
+        handle.dispose();
+      }
+    });
+
+    testWidgets('vědecké oznámení po expiraci zmizí z celého stromu', (
+      tester,
+    ) async {
+      enableAndroidAccessibilityEvents();
+      final handle = tester.ensureSemantics();
+      try {
+        final state = await pumpApp(tester);
+        state.switchModeForTest(CalculatorMode.scientific);
+        await tester.pumpAndSettle();
+        await setReaderMode(tester, state, ScreenReaderMode.on);
+        ttsLog.clear();
+
+        state.toggleScientificPageForTest();
+        await tester.pump(Duration.zero);
+        final nodesBefore = semanticsNodes(tester).length;
+        final liveRegionsBefore = liveRegionNodes(tester).length;
+        await tester.pump(Duration.zero);
+
+        const message = 'Stránka funkcí';
+        expect(nodesWithLabel(tester, message), hasLength(1));
+        expect(semanticsNodes(tester), hasLength(nodesBefore + 1));
+        expect(liveRegionNodes(tester), hasLength(liveRegionsBefore + 1));
+        expect(ttsLog, isEmpty);
+
+        await tester.pump(const Duration(seconds: 5));
+        expect(nodesWithLabel(tester, message), isEmpty);
+        expect(semanticsNodes(tester), hasLength(nodesBefore));
+        expect(liveRegionNodes(tester), hasLength(liveRegionsBefore));
+      } finally {
+        handle.dispose();
+      }
     });
 
     testWidgets(
@@ -710,7 +983,63 @@ void main() {
         expect(state.lastAnnouncementForTest, message);
         expectHistoryAnnouncement(tester, message);
         expect(ttsLog, isEmpty);
+        final tree = semanticsNodes(tester);
+        expect(
+          tree.any(
+            (node) =>
+                node.getSemanticsData().label.contains('Historie je prázdná.'),
+          ),
+          isTrue,
+        );
+        final clearButton = tree.singleWhere((node) {
+          final data = node.getSemanticsData();
+          return data.flagsCollection.isButton == true &&
+              data.label.contains('VYMAZAT HISTORII');
+        });
+        expect(
+          clearButton.getSemanticsData().flagsCollection.isEnabled,
+          Tristate.isFalse,
+        );
+        final closeButton = tree.singleWhere((node) {
+          final data = node.getSemanticsData();
+          return data.flagsCollection.isButton == true &&
+              data.label.contains('ZAVŘÍT');
+        });
+        expect(
+          closeButton.getSemanticsData().flagsCollection.isEnabled,
+          Tristate.isTrue,
+        );
         await expectPersistedHistory(const []);
+
+        await tester.pump(const Duration(seconds: 5));
+        expectHistoryAnnouncement(tester, null);
+        expect(nodesWithLabel(tester, message), isEmpty);
+        final afterExpiration = semanticsNodes(tester);
+        expect(
+          afterExpiration.any(
+            (node) =>
+                node.getSemanticsData().label.contains('Historie je prázdná.'),
+          ),
+          isTrue,
+        );
+        expect(
+          afterExpiration.any((node) {
+            final data = node.getSemanticsData();
+            return data.flagsCollection.isButton == true &&
+                data.label.contains('VYMAZAT HISTORII') &&
+                data.flagsCollection.isEnabled == Tristate.isFalse;
+          }),
+          isTrue,
+        );
+        expect(
+          afterExpiration.any((node) {
+            final data = node.getSemanticsData();
+            return data.flagsCollection.isButton == true &&
+                data.label.contains('ZAVŘÍT') &&
+                data.flagsCollection.isEnabled == Tristate.isTrue;
+          }),
+          isTrue,
+        );
       });
     });
 
