@@ -53,6 +53,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   static const MethodChannel _accessibilityChannel = MethodChannel(
     'com.example.mluvici_kalkulacka/accessibility',
   );
+  static const EventChannel _accessibilityEventsChannel = EventChannel(
+    'com.example.mluvici_kalkulacka/accessibility_events',
+  );
 
   final FlutterTts tts = FlutterTts();
   final FocusNode _mainFocusNode = FocusNode();
@@ -418,6 +421,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     AccessibilitySettings? previous,
   }) {
     final prev = previous;
+    if (updated.screenReaderMode == ScreenReaderMode.auto &&
+        (prev == null || prev.screenReaderMode != ScreenReaderMode.auto)) {
+      unawaited(_refreshAccessibilityState());
+    }
     _dialogFontScaleNotifier.value = updated.dialogFontScale;
     if (prev == null || updated.speechRate != prev.speechRate) {
       tts.setSpeechRate(updated.speechRate).catchError((e) {
@@ -748,6 +755,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool? _accessibleNavigation;
   int _srRefreshSeq = 0;
   bool? _lastMqAccessibleNavigation;
+  StreamSubscription<bool>? _accessibilityEventsSubscription;
 
   /// Dedikovaný oznamovací liveRegion (primární kanál při aktivní čtečce
   /// na Androidu; fallback na Windows). Změna hodnoty = jedno oznámení.
@@ -2916,6 +2924,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // Počáteční fokus + režim Z1 nezávisí na načtení verze (dříve visely na
     // dokončení PackageInfo v _initAppVersion). Viz [_initPrimaryFocus].
     _initPrimaryFocus();
+    _listenForAccessibilityStateChanges();
     _refreshAccessibilityState();
     _initTts();
     _initAppVersion();
@@ -3095,6 +3104,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     FocusManager.instance.removeListener(_handlePrimaryFocusChanged);
+    final accessibilityEventsSubscription = _accessibilityEventsSubscription;
+    _accessibilityEventsSubscription = null;
+    if (accessibilityEventsSubscription != null) {
+      unawaited(accessibilityEventsSubscription.cancel());
+    }
     _quickSetupTimer?.cancel();
     _devTapTimer?.cancel();
     _voiceCreationSession?.dispose();
@@ -3815,14 +3829,38 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         .accessibleNavigation;
   }
 
+  void _listenForAccessibilityStateChanges() {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+
+    _accessibilityEventsSubscription = _accessibilityEventsChannel
+        .receiveBroadcastStream()
+        .cast<bool>()
+        .listen(
+          (enabled) => _updateAccessibleNavigation(enabled, fromEvent: true),
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('Accessibility event stream error: $error');
+            unawaited(_refreshAccessibilityState());
+          },
+        );
+  }
+
+  void _updateAccessibleNavigation(bool enabled, {bool fromEvent = false}) {
+    if (fromEvent) {
+      // Nativní událost je novější než každý právě probíhající jednorázový dotaz.
+      _srRefreshSeq++;
+    }
+    if (!mounted || _accessibleNavigation == enabled) return;
+    setState(() {
+      _accessibleNavigation = enabled;
+    });
+  }
+
   Future<void> _refreshAccessibilityState() async {
     // R5: sekvenční token – starší výsledek nesmí přepsat novější stav.
     final seq = ++_srRefreshSeq;
     final enabled = await _isScreenReaderEnabled();
     if (!mounted || seq != _srRefreshSeq) return;
-    setState(() {
-      _accessibleNavigation = enabled;
-    });
+    _updateAccessibleNavigation(enabled);
   }
 
   /// Stav detekce čtečky (R5): true = aktivní, false = neaktivní,
@@ -15635,6 +15673,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   @visibleForTesting
   bool? get isScreenReaderActiveForTest => _isScreenReaderActive;
+
+  @visibleForTesting
+  Future<void> refreshAccessibilityStateForTest() =>
+      _refreshAccessibilityState();
 
   @visibleForTesting
   String formatSpokenNumberForTest(double v) => _formatSpokenNumber(v);

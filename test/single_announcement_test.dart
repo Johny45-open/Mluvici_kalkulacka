@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,15 +19,28 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final List<String> ttsLog = [];
+  const accessibilityEventsChannel = EventChannel(
+    'com.example.mluvici_kalkulacka/accessibility_events',
+  );
 
   /// Chování mocku detekce čtečky; null = metoda visí (stav UNKNOWN).
   bool? accessibilityMockResult = false;
   bool hangDetection = false;
+  Completer<bool?>? delayedAccessibilityDetection;
+  bool accessibilityEventsInitialValue = false;
+  MockStreamHandlerEventSink? accessibilityEventSink;
+  int accessibilityEventsListenCount = 0;
+  int accessibilityEventsCancelCount = 0;
 
   setUp(() {
     ttsLog.clear();
     accessibilityMockResult = false;
     hangDetection = false;
+    delayedAccessibilityDetection = null;
+    accessibilityEventsInitialValue = false;
+    accessibilityEventSink = null;
+    accessibilityEventsListenCount = 0;
+    accessibilityEventsCancelCount = 0;
     SharedPreferences.setMockInitialValues(<String, Object>{
       'modeQuestionAsked': true,
     });
@@ -48,8 +63,24 @@ void main() {
           await Completer<bool?>().future;
           return null;
         }
+        final delayedDetection = delayedAccessibilityDetection;
+        if (delayedDetection != null) return delayedDetection.future;
         return accessibilityMockResult;
       },
+    );
+    messenger.setMockStreamHandler(
+      accessibilityEventsChannel,
+      MockStreamHandler.inline(
+        onListen: (_, events) {
+          accessibilityEventsListenCount++;
+          accessibilityEventSink = events;
+          events.success(accessibilityEventsInitialValue);
+        },
+        onCancel: (_) {
+          accessibilityEventsCancelCount++;
+          accessibilityEventSink = null;
+        },
+      ),
     );
     messenger.setMockMethodCallHandler(
       const MethodChannel('dev.fluttercommunity.plus/package_info'),
@@ -70,6 +101,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'modeQuestionAsked': true,
       'history': history,
+      'currencyLastUpdate': DateTime.now().toIso8601String(),
     });
     tester.view.physicalSize = const Size(412, 860);
     tester.view.devicePixelRatio = 1.0;
@@ -113,6 +145,23 @@ void main() {
     state.updateActiveSettingsForTest(
       (s) => s.copyWith(screenReaderMode: mode),
     );
+    await tester.pumpAndSettle();
+  }
+
+  void enableAndroidAccessibilityEvents() {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+    });
+  }
+
+  Future<void> emitAccessibilityState(WidgetTester tester, bool enabled) async {
+    accessibilityMockResult = enabled;
+    final sink = accessibilityEventSink;
+    expect(sink, isNotNull);
+    sink!.success(enabled);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
     await tester.pumpAndSettle();
   }
 
@@ -212,6 +261,169 @@ void main() {
       final semBefore = await pressMcWithoutSet(tester, state);
       expect(ttsLog, isEmpty);
       expect(state.publishedAnnouncementCountForTest as int, semBefore);
+    });
+  });
+
+  group('Změny systémového stavu čtečky za běhu', () {
+    testWidgets('auto false → true používá právě Semantics', (tester) async {
+      enableAndroidAccessibilityEvents();
+      accessibilityEventsInitialValue = false;
+      accessibilityMockResult = false;
+      final state = await pumpApp(tester);
+      await setReaderMode(tester, state, ScreenReaderMode.auto);
+      expect(accessibilityEventsListenCount, 1);
+      expect(state.isScreenReaderActiveForTest, isFalse);
+
+      await emitAccessibilityState(tester, true);
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await state.handleButtonPressedForTest('7');
+      await tester.pumpAndSettle();
+
+      expect(state.isScreenReaderActiveForTest, isTrue);
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+      expect(state.lastAnnouncementForTest, '7');
+      expect(ttsLog, isEmpty);
+    });
+
+    testWidgets('auto true → false používá právě vlastní TTS', (tester) async {
+      enableAndroidAccessibilityEvents();
+      accessibilityEventsInitialValue = true;
+      accessibilityMockResult = true;
+      final state = await pumpApp(tester);
+      await setReaderMode(tester, state, ScreenReaderMode.auto);
+      expect(state.isScreenReaderActiveForTest, isTrue);
+
+      await emitAccessibilityState(tester, false);
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await state.handleButtonPressedForTest('7');
+      await tester.pumpAndSettle();
+
+      expect(state.isScreenReaderActiveForTest, isFalse);
+      expect(state.publishedAnnouncementCountForTest as int, semBefore);
+      expect(ttsLog, ['7']);
+    });
+
+    testWidgets('opakované přepínání mění kanál po každé události', (
+      tester,
+    ) async {
+      enableAndroidAccessibilityEvents();
+      accessibilityEventsInitialValue = false;
+      accessibilityMockResult = false;
+      final state = await pumpApp(tester);
+      await setReaderMode(tester, state, ScreenReaderMode.auto);
+
+      for (final enabled in [true, false, true]) {
+        await emitAccessibilityState(tester, enabled);
+        ttsLog.clear();
+        final semBefore = state.publishedAnnouncementCountForTest as int;
+        await state.handleButtonPressedForTest('7');
+        await tester.pumpAndSettle();
+
+        expect(state.isScreenReaderActiveForTest, enabled);
+        if (enabled) {
+          expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+          expect(ttsLog, isEmpty);
+        } else {
+          expect(state.publishedAnnouncementCountForTest as int, semBefore);
+          expect(ttsLog, ['7']);
+        }
+      }
+    });
+
+    testWidgets('vynucené režimy ignorují změnu systémového routování', (
+      tester,
+    ) async {
+      enableAndroidAccessibilityEvents();
+      accessibilityEventsInitialValue = false;
+      accessibilityMockResult = false;
+      final state = await pumpApp(tester);
+
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      await emitAccessibilityState(tester, false);
+      final semBeforeOn = state.publishedAnnouncementCountForTest as int;
+      ttsLog.clear();
+      await state.handleButtonPressedForTest('7');
+      await tester.pumpAndSettle();
+      expect(state.isScreenReaderActiveForTest, isTrue);
+      expect(state.publishedAnnouncementCountForTest as int, semBeforeOn + 1);
+      expect(ttsLog, isEmpty);
+
+      await setReaderMode(tester, state, ScreenReaderMode.off);
+      await emitAccessibilityState(tester, true);
+      final semBeforeOff = state.publishedAnnouncementCountForTest as int;
+      ttsLog.clear();
+      await state.handleButtonPressedForTest('7');
+      await tester.pumpAndSettle();
+      expect(state.isScreenReaderActiveForTest, isFalse);
+      expect(state.publishedAnnouncementCountForTest as int, semBeforeOff);
+      expect(ttsLog, ['7']);
+    });
+
+    testWidgets('přechod off → auto znovu načte systémový stav', (
+      tester,
+    ) async {
+      enableAndroidAccessibilityEvents();
+      accessibilityEventsInitialValue = false;
+      accessibilityMockResult = false;
+      final state = await pumpApp(tester);
+      await setReaderMode(tester, state, ScreenReaderMode.off);
+      expect(state.isScreenReaderActiveForTest, isFalse);
+
+      accessibilityMockResult = true;
+      await setReaderMode(tester, state, ScreenReaderMode.auto);
+      expect(state.isScreenReaderActiveForTest, isTrue);
+
+      ttsLog.clear();
+      final semBefore = state.publishedAnnouncementCountForTest as int;
+      await state.handleButtonPressedForTest('7');
+      await tester.pumpAndSettle();
+      expect(state.publishedAnnouncementCountForTest as int, semBefore + 1);
+      expect(ttsLog, isEmpty);
+    });
+
+    testWidgets('starší MethodChannel odpověď nepřepíše novější událost', (
+      tester,
+    ) async {
+      enableAndroidAccessibilityEvents();
+      accessibilityEventsInitialValue = false;
+      accessibilityMockResult = false;
+      final state = await pumpApp(tester);
+      await setReaderMode(tester, state, ScreenReaderMode.auto);
+
+      final delayedDetection = Completer<bool?>();
+      delayedAccessibilityDetection = delayedDetection;
+      final staleRefresh =
+          state.refreshAccessibilityStateForTest() as Future<void>;
+      await tester.pump();
+
+      await emitAccessibilityState(tester, true);
+      delayedDetection.complete(false);
+      await staleRefresh;
+      await tester.pumpAndSettle();
+
+      expect(state.isScreenReaderActiveForTest, isTrue);
+    });
+
+    testWidgets('dispose zruší odběr a pozdní event nezpůsobí výjimku', (
+      tester,
+    ) async {
+      enableAndroidAccessibilityEvents();
+      accessibilityEventsInitialValue = false;
+      final state = await pumpApp(tester);
+      expect(accessibilityEventsListenCount, 1);
+      final staleSink = accessibilityEventSink!;
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await tester.pump();
+
+      expect(accessibilityEventsCancelCount, greaterThan(0));
+      staleSink.success(true);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(state.mounted, isFalse);
     });
   });
 
