@@ -31,6 +31,59 @@ enum _ExpressionControlOffReason { none, traversal, dialog }
 /// - surd: po stisku se ukáže exaktní surd tvar základu.
 enum _FractionTargetKind { fraction, numeric, surd }
 
+class _HistoryAnnouncementRegion extends StatefulWidget {
+  const _HistoryAnnouncementRegion({required this.parent});
+
+  final _CalculatorScreenState parent;
+
+  @override
+  State<_HistoryAnnouncementRegion> createState() =>
+      _HistoryAnnouncementRegionState();
+}
+
+class _HistoryAnnouncementRegionState
+    extends State<_HistoryAnnouncementRegion> {
+  String _announcement = '';
+  int _announcementGeneration = 0;
+
+  late final void Function(String) _publisher = _publish;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.parent._registerHistoryAnnouncementPublisher(this, _publisher);
+  }
+
+  void _publish(String message) {
+    if (!mounted || message.isEmpty) return;
+    final generation = ++_announcementGeneration;
+    setState(() => _announcement = '');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || generation != _announcementGeneration) return;
+      setState(() => _announcement = message);
+    });
+  }
+
+  @override
+  void dispose() {
+    _announcementGeneration++;
+    widget.parent._unregisterHistoryAnnouncementPublisher(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      key: const ValueKey<String>('history_announcement_live_region'),
+      container: true,
+      liveRegion: true,
+      label: _announcement,
+      excludeSemantics: true,
+      child: const SizedBox(width: 1, height: 1),
+    );
+  }
+}
+
 class _CalculatorScreenState extends State<CalculatorScreen>
     with WidgetsBindingObserver {
   static const int _kKeypadColumns = 4;
@@ -770,6 +823,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// kanálu, obsah zpráv ani chování čtečky — měří publikování na straně
   /// aplikace, nikoli skutečný počet vyslovení NVDA/TalkBack.
   int _publishedAnnouncementCount = 0;
+
+  Object? _historyAnnouncementOwner;
+  void Function(String)? _historyAnnouncementPublisher;
 
   bool _scientificFunctionsPage = false;
   String? _scientificPageAnnouncement;
@@ -3104,6 +3160,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     FocusManager.instance.removeListener(_handlePrimaryFocusChanged);
+    _historyAnnouncementOwner = null;
+    _historyAnnouncementPublisher = null;
     final accessibilityEventsSubscription = _accessibilityEventsSubscription;
     _accessibilityEventsSubscription = null;
     if (accessibilityEventsSubscription != null) {
@@ -3931,16 +3989,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   /// Publikace oznámení Semantics kanálem (při aktivní čtečce).
+  /// Pokud je otevřen dialog historie, použije nejprve jeho vlastní live
+  /// region na všech platformách a dál už nic nepublikuje.
   /// Android/iOS: dedikovaný liveRegion (doporučení Flutteru místo
   /// deprecated announcement eventů) – viz níže proč dvoustupňově.
-  /// Windows: přednostně SemanticsService.sendAnnouncement
+  /// Bez aktivního dialogu Windows přednostně SemanticsService.sendAnnouncement
   /// (jasný per-call event, NVDA ho vysloví i při opakování stejného
   /// textu), fallback liveRegion.
   /// Nikdy současně s vlastním TTS stejné události.
   void _publishSemanticsAnnouncement(String formatted) {
     if (formatted.isEmpty || !mounted) return;
+    final historyPublisher = _historyAnnouncementPublisher;
     _lastPublishedAnnouncement = formatted;
     _publishedAnnouncementCount++;
+    if (historyPublisher != null) {
+      historyPublisher(formatted);
+      return;
+    }
     if (Platform.isWindows) {
       bool delivered = false;
       try {
@@ -3983,6 +4048,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         _lastAnnouncement = formatted;
       });
     });
+  }
+
+  void _registerHistoryAnnouncementPublisher(
+    Object owner,
+    void Function(String) publisher,
+  ) {
+    _historyAnnouncementOwner = owner;
+    _historyAnnouncementPublisher = publisher;
+  }
+
+  void _unregisterHistoryAnnouncementPublisher(Object owner) {
+    if (!identical(_historyAnnouncementOwner, owner)) return;
+    _historyAnnouncementOwner = null;
+    _historyAnnouncementPublisher = null;
   }
 
   Future<int?> speak(String text, {bool force = false}) async {
@@ -16385,22 +16464,27 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                     'Delete record $expression',
                                   ),
                                   onPressed: () {
+                                    final spokenExpression =
+                                        _expressionToSpeech(
+                                          expression,
+                                        ).toLowerCase();
                                     setState(() {
                                       _history.removeAt(index);
                                       _saveHistory();
                                     });
                                     setStateDialog(() {});
+                                    final message = _history.isEmpty
+                                        ? _s(
+                                            'Záznam $spokenExpression byl smazán. Historie je nyní prázdná.',
+                                            'Record $spokenExpression was deleted. The history is now empty.',
+                                          )
+                                        : _s(
+                                            'Záznam $spokenExpression byl smazán.',
+                                            'Record $spokenExpression was deleted.',
+                                          );
                                     unawaited(
                                       announceEvent(
-                                        _history.isEmpty
-                                            ? _s(
-                                                'Záznam smazán. Historie je nyní prázdná.',
-                                                'Record deleted. History is now empty.',
-                                              )
-                                            : _s(
-                                                'Záznam smazán.',
-                                                'Record deleted.',
-                                              ),
+                                        message,
                                         category: SpeechCategory.actionConfirm,
                                       ),
                                     );
@@ -16414,6 +16498,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     ),
             ),
             actions: [
+              _HistoryAnnouncementRegion(parent: this),
               TextButton(
                 onPressed: historyEmpty
                     ? null
