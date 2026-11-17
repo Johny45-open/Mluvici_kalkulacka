@@ -12422,6 +12422,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             '%',
             'DEL',
             '=',
+            'DMS',
           ];
         }
         break;

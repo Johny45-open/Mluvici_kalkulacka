@@ -278,6 +278,47 @@ void main() {
     });
   });
 
+  testWidgets('DMS na ciselne strance oznami jednotku prave jednou', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      final state = await pumpApp(tester);
+      state.switchModeForTest(CalculatorMode.scientific);
+      await tester.pumpAndSettle();
+      await setReaderMode(tester, state, ScreenReaderMode.on);
+      state.setDisplayForTest('36', 2);
+      await tester.pump();
+      ttsLog.clear();
+      final announcementsBefore =
+          state.publishedAnnouncementCountForTest as int;
+      final dmsButton = find.descendant(
+        of: find.byKey(const ValueKey('keypad_grid')),
+        matching: find.text('DMS'),
+      );
+
+      expect(state.scientificFunctionsPageForTest, isFalse);
+      expect(dmsButton, findsOneWidget);
+      await tester.tap(dmsButton);
+      await tester.pumpAndSettle();
+
+      expect(state.displayForTest, '36°');
+      expect(state.scientificFunctionsPageForTest, isFalse);
+      expect(
+        state.publishedAnnouncementCountForTest as int,
+        announcementsBefore + 1,
+      );
+      expect(
+        (state.lastAnnouncementForTest as String).toLowerCase(),
+        contains('stupňů'),
+      );
+      expect(ttsLog, isEmpty);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   group('Z3: MC bez sady = právě jedno oznámení', () {
     testWidgets('OFF: právě jedno TTS, žádné Semantics publikování', (
       tester,

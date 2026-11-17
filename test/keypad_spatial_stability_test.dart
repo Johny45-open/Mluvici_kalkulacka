@@ -236,6 +236,7 @@ void main() {
     '%',
     'DEL',
     '=',
+    'DMS',
   ];
   const expectedScientificFunc = [
     'SIN',
@@ -275,6 +276,38 @@ void main() {
 
   Finder keypadGrid() => find.byKey(const ValueKey('keypad_grid'));
   Finder keypadRow(int r) => find.byKey(ValueKey('keypad_row_$r'));
+
+  void expectScientificButtonPosition(
+    WidgetTester tester,
+    String label,
+    int index,
+  ) {
+    final row = index ~/ 4;
+    final column = index % 4;
+    final button = find.descendant(
+      of: keypadGrid(),
+      matching: find.text(label),
+    );
+    expect(button, findsOneWidget, reason: '$label missing at index $index');
+
+    final rowRect = tester.getRect(keypadRow(row));
+    final center = tester.getCenter(button);
+    const gap = 2.0;
+    final cellWidth = (rowRect.width - 3 * gap) / 4;
+    expect(
+      center.dx,
+      closeTo(
+        rowRect.left + column * (cellWidth + gap) + cellWidth / 2,
+        1.0,
+      ),
+      reason: '$label is not in column $column',
+    );
+    expect(
+      center.dy,
+      closeTo(rowRect.center.dy, 1.0),
+      reason: '$label is not in row $row',
+    );
+  }
 
   group('Keypad spatial stability 7x4', () {
     testWidgets('T1 - vzdy 7 referencnich radku x 4 sloupce', (tester) async {
@@ -414,17 +447,7 @@ void main() {
           // check numeric
           for (int i = 0; i < expectedScientificNum.length; i++) {
             final label = expectedScientificNum[i];
-            expect(
-              find.text(label).evaluate().isNotEmpty,
-              isTrue,
-              reason: 'numeric $label missing at index $i',
-            );
-            final expRow = i ~/ 4, expCol = i % 4;
-            // Verify that row/col mapping is consistent with grid construction:
-            // cell at row*4+col should be buttonFor(label) if exists, else placeholder
-            // We indirectly verify by checking that no button moved index
-            expect(expRow, lessThan(7));
-            expect(expCol, lessThan(4));
+            expectScientificButtonPosition(tester, label, i);
           }
           // switch to func via test hook (avoid locale)
           bool toggled = false;
@@ -445,13 +468,7 @@ void main() {
           if (toggled) {
             for (int i = 0; i < expectedScientificFunc.length; i++) {
               final label = expectedScientificFunc[i];
-              expect(
-                find.text(label).evaluate().isNotEmpty,
-                isTrue,
-                reason: 'func $label missing at index $i',
-              );
-              expect(i ~/ 4, lessThan(7));
-              expect(i % 4, lessThan(4));
+              expectScientificButtonPosition(tester, label, i);
             }
             try {
               state.toggleScientificPageForTest();
@@ -495,6 +512,43 @@ void main() {
           }
         }
       }
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('DMS postupne vklada stupne, minuty a sekundy na cislech', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({'modeQuestionAsked': true});
+      mockChannels();
+      final state = await pumpApp(tester);
+      await switchMode(tester, state, CalculatorMode.scientific);
+
+      Future<void> tapKey(String label) async {
+        final button = find.descendant(
+          of: keypadGrid(),
+          matching: find.text(label),
+        );
+        expect(button, findsOneWidget, reason: '$label is not on the keypad');
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+      }
+
+      expect(state.scientificFunctionsPageForTest, isFalse);
+      await tapKey('3');
+      await tapKey('6');
+      await tapKey('DMS');
+      expect(state.displayForTest, '36°');
+
+      await tapKey('2');
+      await tapKey('5');
+      await tapKey('DMS');
+      expect(state.displayForTest, "36°25'");
+
+      await tapKey('1');
+      await tapKey('2');
+      await tapKey('DMS');
+      expect(state.displayForTest, '36°25\'12"');
+      expect(state.scientificFunctionsPageForTest, isFalse);
       expect(tester.takeException(), isNull);
     });
 
