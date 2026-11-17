@@ -6471,15 +6471,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       );
     });
 
-    // DMS ZPRACOVÁNÍ
+    // DMS ZPRACOVÁNÍ. Explicitní sekundy jsou před neoznačenými minutami,
+    // aby např. 30°25" zůstalo zápisem sekund. Holé minuty se přijmou pouze
+    // před operátorem nebo koncem výrazu; implicitní násobení už předtím
+    // vložilo '*' před navazující operand.
     processed = processed.replaceAllMapped(
       RegExp(
-        r'''(?<![\d.])(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\')?(?:(\d+(?:\.\d+)?)\")?''',
+        r'''(?<![\d.])(-?\d+(?:\.\d+)?)°(?:(\d+(?:\.\d+)?)\'(?:(\d+(?:\.\d+)?)\")?|(\d+(?:\.\d+)?)\"|(\d+(?:\.\d+)?)(?=$|[+\-*/^)%]))?''',
       ),
       (m) {
         double d = double.parse(m[1]!);
-        double mn = m[2] != null ? double.parse(m[2]!) : 0.0;
-        double sc = m[3] != null ? double.parse(m[3]!) : 0.0;
+        double mn = double.parse(m[2] ?? m[5] ?? '0');
+        double sc = double.parse(m[3] ?? m[4] ?? '0');
         double sign = d < 0 ? -1.0 : 1.0;
         return '(${sign * (d.abs() + mn / 60.0 + sc / 3600.0)})';
       },
