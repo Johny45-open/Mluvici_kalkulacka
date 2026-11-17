@@ -148,8 +148,8 @@ void main() {
     dynamic state,
     ScreenReaderMode mode,
   ) async {
-    state.updateActiveSettingsForTest(
-      (s) => s.copyWith(screenReaderMode: mode),
+    await state.updateGlobalSettingsForTest(
+      (GlobalSettings s) => s.copyWith(screenReaderMode: mode),
     );
     await tester.pumpAndSettle();
   }
@@ -524,7 +524,9 @@ void main() {
     ) async {
       final state = await pumpApp(tester, history: const ['2+2|4', '3+3|6']);
       await setReaderMode(tester, state, ScreenReaderMode.on);
-      state.updateActiveSettingsForTest((s) => s.copyWith(ttsEnabled: false));
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) => s.copyWith(ttsEnabled: false),
+      );
       await tester.pumpAndSettle();
       await withHistoryDialog(tester, state, () async {
         ttsLog.clear();

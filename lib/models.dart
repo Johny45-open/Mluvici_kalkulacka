@@ -21,9 +21,134 @@ class _TimeInputException implements Exception {
 
 enum AccessibilityType { none, blind, visuallyImpaired }
 
+class GlobalSettings {
+  final ScreenReaderMode screenReaderMode;
+  final bool ttsEnabled;
+  final double speechRate;
+  final double speechVolume;
+  final String? ttsEngine;
+  final Map<String, String>? ttsVoice;
+  final String? ttsVoiceName;
+  final ThemeMode themeMode;
+  final ResultDisplayMode resultDisplayMode;
+  final bool announceFractionAvailability;
+
+  const GlobalSettings({
+    required this.screenReaderMode,
+    required this.ttsEnabled,
+    required this.speechRate,
+    required this.speechVolume,
+    required this.ttsEngine,
+    required this.ttsVoice,
+    required this.ttsVoiceName,
+    required this.themeMode,
+    required this.resultDisplayMode,
+    required this.announceFractionAvailability,
+  });
+
+  factory GlobalSettings.defaults({ThemeMode themeMode = ThemeMode.dark}) =>
+      GlobalSettings(
+        screenReaderMode: ScreenReaderMode.auto,
+        ttsEnabled: true,
+        speechRate: 0.5,
+        speechVolume: 1.0,
+        ttsEngine: null,
+        ttsVoice: null,
+        ttsVoiceName: null,
+        themeMode: themeMode,
+        resultDisplayMode: ResultDisplayMode.segment,
+        announceFractionAvailability: true,
+      );
+
+  GlobalSettings copyWith({
+    ScreenReaderMode? screenReaderMode,
+    bool? ttsEnabled,
+    double? speechRate,
+    double? speechVolume,
+    String? ttsEngine,
+    bool clearTtsEngine = false,
+    Map<String, String>? ttsVoice,
+    bool clearTtsVoice = false,
+    String? ttsVoiceName,
+    bool clearTtsVoiceName = false,
+    ThemeMode? themeMode,
+    ResultDisplayMode? resultDisplayMode,
+    bool? announceFractionAvailability,
+  }) => GlobalSettings(
+    screenReaderMode: screenReaderMode ?? this.screenReaderMode,
+    ttsEnabled: ttsEnabled ?? this.ttsEnabled,
+    speechRate: speechRate ?? this.speechRate,
+    speechVolume: speechVolume ?? this.speechVolume,
+    ttsEngine: clearTtsEngine ? null : (ttsEngine ?? this.ttsEngine),
+    ttsVoice: clearTtsVoice
+        ? null
+        : ttsVoice != null
+        ? Map<String, String>.from(ttsVoice)
+        : this.ttsVoice == null
+        ? null
+        : Map<String, String>.from(this.ttsVoice!),
+    ttsVoiceName: clearTtsVoiceName
+        ? null
+        : (ttsVoiceName ?? this.ttsVoiceName),
+    themeMode: themeMode ?? this.themeMode,
+    resultDisplayMode: resultDisplayMode ?? this.resultDisplayMode,
+    announceFractionAvailability:
+        announceFractionAvailability ?? this.announceFractionAvailability,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'screenReaderMode': screenReaderMode.name,
+    'ttsEnabled': ttsEnabled,
+    'speechRate': speechRate,
+    'speechVolume': speechVolume,
+    'ttsEngine': ttsEngine,
+    'ttsVoice': ttsVoice == null ? null : Map<String, String>.from(ttsVoice!),
+    'ttsVoiceName': ttsVoiceName,
+    'themeMode': themeMode == ThemeMode.light ? 'light' : 'dark',
+    'resultDisplayMode': resultDisplayMode.name,
+    'announceFractionAvailability': announceFractionAvailability,
+  };
+
+  factory GlobalSettings.fromJson(
+    Map<String, dynamic> json, {
+    ThemeMode fallbackThemeMode = ThemeMode.dark,
+  }) {
+    final mode = ScreenReaderMode.values.where(
+      (v) => v.name == json['screenReaderMode'],
+    );
+    final resultMode = ResultDisplayMode.values.where(
+      (v) => v.name == json['resultDisplayMode'],
+    );
+    final voice = json['ttsVoice'];
+    Map<String, String>? parsedVoice;
+    if (voice is Map && voice['name'] is String && voice['locale'] is String) {
+      parsedVoice = {
+        'name': voice['name'] as String,
+        'locale': voice['locale'] as String,
+      };
+    }
+    return GlobalSettings(
+      screenReaderMode: mode.firstOrNull ?? ScreenReaderMode.auto,
+      ttsEnabled: json['ttsEnabled'] as bool? ?? true,
+      speechRate: (json['speechRate'] as num?)?.toDouble() ?? 0.5,
+      speechVolume: (json['speechVolume'] as num?)?.toDouble() ?? 1.0,
+      ttsEngine: json['ttsEngine'] as String?,
+      ttsVoice: parsedVoice,
+      ttsVoiceName: json['ttsVoiceName'] as String?,
+      themeMode: json['themeMode'] == 'light'
+          ? ThemeMode.light
+          : json['themeMode'] == 'dark'
+          ? ThemeMode.dark
+          : fallbackThemeMode,
+      resultDisplayMode: resultMode.firstOrNull ?? ResultDisplayMode.segment,
+      announceFractionAvailability:
+          json['announceFractionAvailability'] as bool? ?? true,
+    );
+  }
+}
+
 class AccessibilitySettings {
   final AccessibilityType accessibilityType;
-  final ScreenReaderMode screenReaderMode;
   final double fontSizeMultiplier;
   final double dialogFontScale;
   final double dotMatrixZoom;
@@ -33,25 +158,16 @@ class AccessibilitySettings {
   final bool useSixteenSegment;
   final bool usePeriodicNotation;
   final bool announceExpression;
-  final bool announceFractionAvailability;
   final bool readStatsMemoryValues;
   final bool autoReadStatsSummary;
   final bool showStatsNavigationHint;
   final bool alignInputLeft;
   final double overlineThickness;
   final double overlineHeight;
-  final double speechRate;
-  final double speechVolume;
-  final bool ttsEnabled;
-  final ResultDisplayMode resultDisplayMode;
-  final String? ttsEngine;
-  final Map<String, String>? ttsVoice;
-  final String? ttsVoiceName;
   final int? inverseFormatPreference;
 
   const AccessibilitySettings({
     required this.accessibilityType,
-    required this.screenReaderMode,
     required this.fontSizeMultiplier,
     required this.dialogFontScale,
     required this.dotMatrixZoom,
@@ -61,27 +177,18 @@ class AccessibilitySettings {
     required this.useSixteenSegment,
     required this.usePeriodicNotation,
     required this.announceExpression,
-    required this.announceFractionAvailability,
     required this.readStatsMemoryValues,
     required this.autoReadStatsSummary,
     required this.showStatsNavigationHint,
     required this.alignInputLeft,
     required this.overlineThickness,
     required this.overlineHeight,
-    required this.speechRate,
-    required this.speechVolume,
-    required this.ttsEnabled,
-    required this.resultDisplayMode,
-    this.ttsEngine,
-    this.ttsVoice,
-    this.ttsVoiceName,
     this.inverseFormatPreference,
   });
 
   factory AccessibilitySettings.defaultsStandard() {
     return AccessibilitySettings(
       accessibilityType: AccessibilityType.none,
-      screenReaderMode: ScreenReaderMode.auto,
       fontSizeMultiplier: 1.0,
       dialogFontScale: 1.0,
       dotMatrixZoom: 1.0,
@@ -91,20 +198,12 @@ class AccessibilitySettings {
       useSixteenSegment: false,
       usePeriodicNotation: true,
       announceExpression: false,
-      announceFractionAvailability: true,
       readStatsMemoryValues: true,
       autoReadStatsSummary: true,
       showStatsNavigationHint: true,
       alignInputLeft: true,
       overlineThickness: 1.0,
       overlineHeight: 1.0,
-      speechRate: 0.5,
-      speechVolume: 1.0,
-      ttsEnabled: true,
-      resultDisplayMode: ResultDisplayMode.segment,
-      ttsEngine: null,
-      ttsVoice: null,
-      ttsVoiceName: null,
       inverseFormatPreference: null,
     );
   }
@@ -112,7 +211,6 @@ class AccessibilitySettings {
   factory AccessibilitySettings.defaultsBlind() {
     return AccessibilitySettings(
       accessibilityType: AccessibilityType.blind,
-      screenReaderMode: ScreenReaderMode.auto,
       fontSizeMultiplier: 1.0,
       dialogFontScale: 1.0,
       dotMatrixZoom: 1.0,
@@ -122,20 +220,12 @@ class AccessibilitySettings {
       useSixteenSegment: false,
       usePeriodicNotation: true,
       announceExpression: true,
-      announceFractionAvailability: true,
       readStatsMemoryValues: true,
       autoReadStatsSummary: true,
       showStatsNavigationHint: true,
       alignInputLeft: true,
       overlineThickness: 1.0,
       overlineHeight: 1.0,
-      speechRate: 0.5,
-      speechVolume: 1.0,
-      ttsEnabled: true,
-      resultDisplayMode: ResultDisplayMode.segment,
-      ttsEngine: null,
-      ttsVoice: null,
-      ttsVoiceName: null,
       inverseFormatPreference: null,
     );
   }
@@ -143,7 +233,6 @@ class AccessibilitySettings {
   factory AccessibilitySettings.defaultsLowVision() {
     return AccessibilitySettings(
       accessibilityType: AccessibilityType.visuallyImpaired,
-      screenReaderMode: ScreenReaderMode.auto,
       fontSizeMultiplier: 1.75,
       dialogFontScale: 1.5,
       dotMatrixZoom: 1.25,
@@ -153,27 +242,18 @@ class AccessibilitySettings {
       useSixteenSegment: true,
       usePeriodicNotation: true,
       announceExpression: false,
-      announceFractionAvailability: true,
       readStatsMemoryValues: true,
       autoReadStatsSummary: true,
       showStatsNavigationHint: true,
       alignInputLeft: true,
       overlineThickness: 1.0,
       overlineHeight: 1.0,
-      speechRate: 0.5,
-      speechVolume: 1.0,
-      ttsEnabled: true,
-      resultDisplayMode: ResultDisplayMode.segment,
-      ttsEngine: null,
-      ttsVoice: null,
-      ttsVoiceName: null,
       inverseFormatPreference: null,
     );
   }
 
   AccessibilitySettings copyWith({
     AccessibilityType? accessibilityType,
-    ScreenReaderMode? screenReaderMode,
     double? fontSizeMultiplier,
     double? dialogFontScale,
     double? dotMatrixZoom,
@@ -183,29 +263,17 @@ class AccessibilitySettings {
     bool? useSixteenSegment,
     bool? usePeriodicNotation,
     bool? announceExpression,
-    bool? announceFractionAvailability,
     bool? readStatsMemoryValues,
     bool? autoReadStatsSummary,
     bool? showStatsNavigationHint,
     bool? alignInputLeft,
     double? overlineThickness,
     double? overlineHeight,
-    double? speechRate,
-    double? speechVolume,
-    bool? ttsEnabled,
-    ResultDisplayMode? resultDisplayMode,
-    String? ttsEngine,
-    bool clearTtsEngine = false,
-    Map<String, String>? ttsVoice,
-    bool clearTtsVoice = false,
-    String? ttsVoiceName,
-    bool clearTtsVoiceName = false,
     int? inverseFormatPreference,
     bool clearInverseFormatPreference = false,
   }) {
     return AccessibilitySettings(
       accessibilityType: accessibilityType ?? this.accessibilityType,
-      screenReaderMode: screenReaderMode ?? this.screenReaderMode,
       fontSizeMultiplier: fontSizeMultiplier ?? this.fontSizeMultiplier,
       dialogFontScale: dialogFontScale ?? this.dialogFontScale,
       dotMatrixZoom: dotMatrixZoom ?? this.dotMatrixZoom,
@@ -215,8 +283,6 @@ class AccessibilitySettings {
       useSixteenSegment: useSixteenSegment ?? this.useSixteenSegment,
       usePeriodicNotation: usePeriodicNotation ?? this.usePeriodicNotation,
       announceExpression: announceExpression ?? this.announceExpression,
-      announceFractionAvailability:
-          announceFractionAvailability ?? this.announceFractionAvailability,
       readStatsMemoryValues:
           readStatsMemoryValues ?? this.readStatsMemoryValues,
       autoReadStatsSummary: autoReadStatsSummary ?? this.autoReadStatsSummary,
@@ -225,34 +291,14 @@ class AccessibilitySettings {
       alignInputLeft: alignInputLeft ?? this.alignInputLeft,
       overlineThickness: overlineThickness ?? this.overlineThickness,
       overlineHeight: overlineHeight ?? this.overlineHeight,
-      speechRate: speechRate ?? this.speechRate,
-      speechVolume: speechVolume ?? this.speechVolume,
-      ttsEnabled: ttsEnabled ?? this.ttsEnabled,
-      resultDisplayMode: resultDisplayMode ?? this.resultDisplayMode,
-      ttsEngine: clearTtsEngine ? null : (ttsEngine ?? this.ttsEngine),
-      ttsVoice: clearTtsVoice
-          ? null
-          : (ttsVoice != null
-                ? Map<String, String>.from(ttsVoice)
-                : (this.ttsVoice != null
-                      ? Map<String, String>.from(this.ttsVoice!)
-                      : null)),
-      ttsVoiceName: clearTtsVoiceName
-          ? null
-          : (ttsVoiceName ?? this.ttsVoiceName),
       inverseFormatPreference: clearInverseFormatPreference
           ? null
           : (inverseFormatPreference ?? this.inverseFormatPreference),
     );
   }
 
-  // resultDisplayMode je GLOBÁLNÍ nastavení aplikace (viz
-  // _CalculatorScreenState._globalResultDisplayMode). Do profilu se již
-  // nezapisuje; fromJson ho dál čte pouze pro jednorázovou migraci
-  // starých profilů. Runtime ho nikdy nesmí číst z profilu.
   Map<String, dynamic> toJson() => {
     'accessibilityType': accessibilityType.index,
-    'screenReaderMode': screenReaderMode.index,
     'fontSizeMultiplier': fontSizeMultiplier,
     'dialogFontScale': dialogFontScale,
     'dotMatrixZoom': dotMatrixZoom,
@@ -262,19 +308,12 @@ class AccessibilitySettings {
     'useSixteenSegment': useSixteenSegment,
     'usePeriodicNotation': usePeriodicNotation,
     'announceExpression': announceExpression,
-    'announceFractionAvailability': announceFractionAvailability,
     'readStatsMemoryValues': readStatsMemoryValues,
     'autoReadStatsSummary': autoReadStatsSummary,
     'showStatsNavigationHint': showStatsNavigationHint,
     'alignInputLeft': alignInputLeft,
     'overlineThickness': overlineThickness,
     'overlineHeight': overlineHeight,
-    'speechRate': speechRate,
-    'speechVolume': speechVolume,
-    'ttsEnabled': ttsEnabled,
-    'ttsEngine': ttsEngine,
-    'ttsVoice': ttsVoice,
-    'ttsVoiceName': ttsVoiceName,
     'inverseFormatPreference': inverseFormatPreference,
   };
 
@@ -284,13 +323,6 @@ class AccessibilitySettings {
         return AccessibilityType.values[v];
       }
       return AccessibilityType.none;
-    }
-
-    ScreenReaderMode parseMode(dynamic v) {
-      if (v is int && v >= 0 && v < ScreenReaderMode.values.length) {
-        return ScreenReaderMode.values[v];
-      }
-      return ScreenReaderMode.auto;
     }
 
     ThousandGroupGap parseGap(dynamic v) {
@@ -307,31 +339,8 @@ class AccessibilitySettings {
       return DialogSize.compact;
     }
 
-    // Chybějící starší klíč nebo neznámá hodnota -> segment (původní vzhled).
-    ResultDisplayMode parseResultDisplayMode(dynamic v) {
-      if (v is int && v >= 0 && v < ResultDisplayMode.values.length) {
-        return ResultDisplayMode.values[v];
-      }
-      return ResultDisplayMode.segment;
-    }
-
-    Map<String, String>? parseVoice(dynamic v) {
-      if (v == null) return null;
-      if (v is Map) {
-        try {
-          return Map<String, String>.from(
-            v.map((k, val) => MapEntry(k.toString(), val.toString())),
-          );
-        } catch (_) {
-          return null;
-        }
-      }
-      return null;
-    }
-
     return AccessibilitySettings(
       accessibilityType: parseType(json['accessibilityType']),
-      screenReaderMode: parseMode(json['screenReaderMode']),
       fontSizeMultiplier:
           (json['fontSizeMultiplier'] as num?)?.toDouble() ?? 1.0,
       dialogFontScale: (json['dialogFontScale'] as num?)?.toDouble() ?? 1.0,
@@ -342,21 +351,12 @@ class AccessibilitySettings {
       useSixteenSegment: json['useSixteenSegment'] as bool? ?? false,
       usePeriodicNotation: json['usePeriodicNotation'] as bool? ?? true,
       announceExpression: json['announceExpression'] as bool? ?? false,
-      announceFractionAvailability:
-          json['announceFractionAvailability'] as bool? ?? true,
       readStatsMemoryValues: json['readStatsMemoryValues'] as bool? ?? true,
       autoReadStatsSummary: json['autoReadStatsSummary'] as bool? ?? true,
       showStatsNavigationHint: json['showStatsNavigationHint'] as bool? ?? true,
       alignInputLeft: json['alignInputLeft'] as bool? ?? true,
       overlineThickness: (json['overlineThickness'] as num?)?.toDouble() ?? 1.0,
       overlineHeight: (json['overlineHeight'] as num?)?.toDouble() ?? 1.0,
-      speechRate: (json['speechRate'] as num?)?.toDouble() ?? 0.5,
-      speechVolume: (json['speechVolume'] as num?)?.toDouble() ?? 1.0,
-      ttsEnabled: json['ttsEnabled'] as bool? ?? true,
-      resultDisplayMode: parseResultDisplayMode(json['resultDisplayMode']),
-      ttsEngine: json['ttsEngine'] as String?,
-      ttsVoice: parseVoice(json['ttsVoice']),
-      ttsVoiceName: json['ttsVoiceName'] as String?,
       inverseFormatPreference: (json['inverseFormatPreference'] as num?)
           ?.toInt(),
     );
@@ -1077,10 +1077,7 @@ class StatsOrderEntry {
   const StatsOrderEntry.percentile(this.percentileId) : fixedItem = null;
 
   Map<String, dynamic> toJson() => fixedItem != null
-    ? {
-        'kind': 'fixed',
-        'id': StatsCatalog.definition(fixedItem!).stableId,
-      }
+      ? {'kind': 'fixed', 'id': StatsCatalog.definition(fixedItem!).stableId}
       : {'kind': 'percentile', 'id': percentileId};
 
   factory StatsOrderEntry.fromJson(Map<String, dynamic> json) {

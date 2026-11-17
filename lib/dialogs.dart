@@ -1,11 +1,6 @@
 part of 'main.dart';
 
-// Jeden společný picker vzhledu výsledkového displeje pro obě cesty:
-// A) Pokročilé funkce → Vzhled výsledkového displeje,
-// B) Nastavení přístupnosti → Vzhled výsledkového displeje.
-// Obě cesty používají stejný _globalResultDisplayMode, stejný setter
-// i persistenci. Profily zůstávají beze změny (žádné pole resultDisplayMode
-// v AccessibilityProfile, editor ho nenačítá ani neukládá).
+// Result-display preferences are edited only in Global settings.
 class _ResultDisplayModePicker extends StatelessWidget {
   final _CalculatorScreenState parent;
   final VoidCallback? onChanged;
@@ -96,6 +91,13 @@ class _ResultDisplayAppearanceSection extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Semantics(
+          header: true,
+          child: Text(
+            parent._l10n.resultDisplayTitle,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
         _ResultDisplayModePicker(parent: parent, onChanged: onChanged),
         const Divider(),
         Semantics(
@@ -110,18 +112,12 @@ class _ResultDisplayAppearanceSection extends StatelessWidget {
         Semantics(
           header: true,
           child: Text(
-            parent._s(
-              'Formát exaktního výsledku v historii',
-              'History exact result format',
-            ),
+            parent._l10n.historyExactResultFormat,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
         Semantics(
-          label: parent._s(
-            'Formát exaktního výsledku v historii, globální nastavení',
-            'History exact result format, global setting',
-          ),
+          label: parent._l10n.historyExactResultFormatGlobal,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -149,24 +145,227 @@ class _ResultDisplayAppearanceSection extends StatelessWidget {
         Semantics(
           header: true,
           child: Text(
-            parent._s('Hlasové oznámení zlomku', 'Fraction voice announcement'),
+            parent._l10n.fractionVoiceAnnouncement,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
         SwitchListTile(
-          title: Text(parent._s('Upozorňovat na dostupný zlomek', 'Announce available fraction')),
-          subtitle: Text(parent._s('Globální nastavení doplňkové věty o zlomku ve výsledku.', 'Global setting for additional fraction notice in speech.')),
+          title: Text(parent._l10n.announceAvailableFraction),
+          subtitle: Text(parent._l10n.fractionAnnouncementDescription),
           value: parent._announceFractionAvailability,
           onChanged: (v) {
             parent.setGlobalAnnounceFractionAvailability(v);
             parent.say(
               parent._s(
-                v ? 'Upozorňování na zlomek zapnuto' : 'Upozorňování na zlomek vypnuto',
-                v ? 'Announce fraction availability on' : 'Announce fraction availability off',
+                v
+                    ? 'Upozorňování na zlomek zapnuto'
+                    : 'Upozorňování na zlomek vypnuto',
+                v
+                    ? 'Announce fraction availability on'
+                    : 'Announce fraction availability off',
               ),
             );
             onChanged?.call();
           },
+        ),
+      ],
+    );
+  }
+}
+
+class _GlobalSettingsControls extends StatelessWidget {
+  final _CalculatorScreenState parent;
+  final VoidCallback onChanged;
+
+  const _GlobalSettingsControls({
+    required this.parent,
+    required this.onChanged,
+  });
+
+  Future<void> _update(GlobalSettings next, String announcement) async {
+    if (await parent._updateGlobalSettings(next)) {
+      onChanged();
+      unawaited(
+        parent.announceEvent(
+          announcement,
+          category: SpeechCategory.settings,
+          interruptCurrentSpeech: true,
+        ),
+      );
+    }
+  }
+
+  Widget _stepper(
+    BuildContext context, {
+    required String label,
+    required double value,
+    required String decreaseLabel,
+    required String increaseLabel,
+    required double min,
+    required double max,
+    required ValueChanged<double> onValue,
+  }) {
+    return Row(
+      children: [
+        Expanded(child: Text('$label: ${(value * 100).round()}%')),
+        IconButton(
+          tooltip: decreaseLabel,
+          onPressed: () => onValue((value - 0.1).clamp(min, max)),
+          icon: const Icon(Icons.remove),
+        ),
+        IconButton(
+          tooltip: increaseLabel,
+          onPressed: () => onValue((value + 0.1).clamp(min, max)),
+          icon: const Icon(Icons.add),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!parent._globalSettingsReady) {
+      return Text(parent._l10n.globalSettingsRestoring);
+    }
+    final settings = parent._globalSettings;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(header: true, child: Text(parent._l10n.themeTitle)),
+        SegmentedButton<ThemeMode>(
+          segments: [
+            ButtonSegment(
+              value: ThemeMode.light,
+              label: Text(parent._l10n.themeLightLabel),
+            ),
+            ButtonSegment(
+              value: ThemeMode.dark,
+              label: Text(parent._l10n.themeDarkLabel),
+            ),
+          ],
+          selected: {settings.themeMode},
+          showSelectedIcon: false,
+          onSelectionChanged: (selected) => _update(
+            settings.copyWith(themeMode: selected.first),
+            parent._s('Motiv změněn', 'Theme changed'),
+          ),
+        ),
+        const Divider(),
+        Semantics(header: true, child: Text(parent._l10n.screenReaderSection)),
+        SegmentedButton<ScreenReaderMode>(
+          segments: [
+            ButtonSegment(
+              value: ScreenReaderMode.auto,
+              label: Text(parent._l10n.screenReaderAutoLabel),
+            ),
+            ButtonSegment(
+              value: ScreenReaderMode.on,
+              label: Text(parent._l10n.screenReaderOnLabel),
+            ),
+            ButtonSegment(
+              value: ScreenReaderMode.off,
+              label: Text(parent._l10n.screenReaderOffLabel),
+            ),
+          ],
+          selected: {settings.screenReaderMode},
+          showSelectedIcon: false,
+          onSelectionChanged: (selected) => _update(
+            settings.copyWith(screenReaderMode: selected.first),
+            parent._s(
+              'Režim čtečky: ${selected.first.name}',
+              'Screen reader mode: ${selected.first.name}',
+            ),
+          ),
+        ),
+        const Divider(),
+        Semantics(
+          label: parent._l10n.voiceOutput(
+            settings.ttsEnabled
+                ? parent._s('Zapnuto', 'On')
+                : parent._s('Vypnuto', 'Off'),
+          ),
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(parent._l10n.voiceOutputTitle),
+            value: settings.ttsEnabled,
+            onChanged: (enabled) async {
+              if (!enabled) {
+                await parent.announceEvent(
+                  parent._l10n.voiceOff,
+                  category: SpeechCategory.settings,
+                  interruptCurrentSpeech: true,
+                );
+              }
+              final saved = await parent._updateGlobalSettings(
+                settings.copyWith(ttsEnabled: enabled),
+              );
+              if (!saved) return;
+              onChanged();
+              if (enabled) {
+                unawaited(
+                  parent.announceEvent(
+                    parent._l10n.voiceOn,
+                    category: SpeechCategory.settings,
+                    interruptCurrentSpeech: true,
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+        Semantics(
+          button: true,
+          label: parent._l10n.selectTtsEngine,
+          child: OutlinedButton(
+            onPressed: parent._showTtsEngineDialog,
+            child: Text(
+              '${parent._s('Engine', 'Engine')}: ${settings.ttsEngine ?? parent._s('Výchozí', 'Default')}',
+            ),
+          ),
+        ),
+        Semantics(
+          button: true,
+          label: parent._l10n.selectTtsVoice,
+          child: OutlinedButton(
+            onPressed: parent._showTtsVoiceDialog,
+            child: Text(
+              '${parent._s('Hlas', 'Voice')}: ${settings.ttsVoiceName ?? parent._s('Výchozí', 'Default')}',
+            ),
+          ),
+        ),
+        Semantics(
+          button: true,
+          label: parent._l10n.openSystemTtsSettings,
+          child: OutlinedButton(
+            onPressed: parent._openTtsSystemSettings,
+            child: Text(parent._l10n.systemTtsSettingsButton),
+          ),
+        ),
+        _stepper(
+          context,
+          label: parent._l10n.speechRate,
+          value: settings.speechRate,
+          decreaseLabel: parent._l10n.decreaseSpeechRate,
+          increaseLabel: parent._l10n.increaseSpeechRate,
+          min: 0.1,
+          max: 1.0,
+          onValue: (value) => _update(
+            settings.copyWith(speechRate: value),
+            parent._l10n.speechRatePct((value * 100).round()),
+          ),
+        ),
+        _stepper(
+          context,
+          label: parent._l10n.volume,
+          value: settings.speechVolume,
+          decreaseLabel: parent._l10n.decreaseVolume,
+          increaseLabel: parent._l10n.increaseVolume,
+          min: 0.0,
+          max: 1.0,
+          onValue: (value) => _update(
+            settings.copyWith(speechVolume: value),
+            parent._l10n.volumePct((value * 100).round()),
+          ),
         ),
       ],
     );
@@ -1138,91 +1337,6 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
       ),
     );
 
-    sections.add(
-      _CollapsibleSection(
-        title: parent._s('Vzhled výsledkového displeje', 'Result display'),
-        children: [
-          _ResultDisplayModePicker(
-            parent: parent,
-            onChanged: () => setState(() {}),
-          ),
-          const Divider(),
-          Semantics(
-            header: true,
-            child: Text(
-              parent._l10n.resultNotationPreferenceTitle,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          _ResultNotationPreferencePicker(
-            parent: parent,
-            onChanged: () => setState(() {}),
-          ),
-          const Divider(),
-          Semantics(
-            header: true,
-            child: Text(
-              parent._s(
-                'Formát exaktního výsledku v historii',
-                'History exact result format',
-              ),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          Semantics(
-            label: parent._s(
-              'Formát exaktního výsledku v historii, globální nastavení',
-              'History exact result format, global setting',
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final f in HistoryExactFormat.values)
-                  RadioListTile<HistoryExactFormat>(
-                    title: Text(parent._historyExactFormatName(f)),
-                    value: f,
-                    groupValue: parent._historyExactFormat,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      parent.setHistoryExactFormat(v);
-                      parent.say(
-                        parent._s(
-                          'Formát historie: ${parent._historyExactFormatName(v)}',
-                          'History format: ${parent._historyExactFormatName(v)}',
-                        ),
-                      );
-                      setState(() {});
-                    },
-                  ),
-              ],
-            ),
-          ),
-          const Divider(),
-          Semantics(
-            header: true,
-            child: Text(
-              parent._s('Hlasové oznámení zlomku', 'Fraction voice announcement'),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          SwitchListTile(
-            title: Text(parent._s('Upozorňovat na dostupný zlomek', 'Announce available fraction')),
-            subtitle: Text(parent._s('Globální nastavení doplňkové věty o zlomku ve výsledku.', 'Global setting for additional fraction notice in speech.')),
-            value: parent._announceFractionAvailability,
-            onChanged: (v) {
-              parent.setGlobalAnnounceFractionAvailability(v);
-              parent.say(
-                parent._s(
-                  v ? 'Upozorňování na zlomek zapnuto' : 'Upozorňování na zlomek vypnuto',
-                  v ? 'Announce fraction availability on' : 'Announce fraction availability off',
-                ),
-              );
-              setState(() {});
-            },
-          ),
-        ],
-      ),
-    );
     sections.add(
       _CollapsibleSection(
         title: parent._s('Zobrazení', 'Display'),
@@ -2597,6 +2711,21 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 ),
               ),
             ],
+            _CollapsibleSection(
+              title: widget.parent._l10n.globalSettingsSection,
+              children: [
+                _GlobalSettingsControls(
+                  parent: widget.parent,
+                  onChanged: () => setState(() {}),
+                ),
+                const Divider(),
+                _ResultDisplayAppearanceSection(
+                  parent: widget.parent,
+                  onChanged: () => setState(() {}),
+                ),
+              ],
+            ),
+            const Divider(),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2928,23 +3057,6 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
                 ),
               ],
             ),
-            const Divider(),
-            // Druhá cesta ke stejnému globálnímu nastavení (první je
-            // v Pokročilých funkcích). Stejný widget, stejný source of truth,
-            // profily se nemění.
-            _CollapsibleSection(
-              title: widget.parent._s(
-                'Vzhled výsledkového displeje',
-                'Result display',
-              ),
-              children: [
-                _ResultDisplayAppearanceSection(
-                  parent: widget.parent,
-                  onChanged: () => setState(() {}),
-                ),
-              ],
-            ),
-            const Divider(),
             Semantics(
               header: true,
               label: widget.parent._l10n.dataManagementSection,

@@ -114,6 +114,63 @@ class AppLocalizationsCs extends AppLocalizations {
   String get accessibilitySettings => 'Nastavení přístupnosti';
 
   @override
+  String get globalSettingsSection => 'Globální nastavení';
+
+  @override
+  String get voiceOutputTitle => 'Hlasový výstup';
+
+  @override
+  String get screenReaderOnLabel => 'Zapnuto';
+
+  @override
+  String get screenReaderOffLabel => 'Vypnuto';
+
+  @override
+  String get selectTtsEngine => 'Výběr TTS enginu';
+
+  @override
+  String get selectTtsVoice => 'Výběr hlasu';
+
+  @override
+  String get openSystemTtsSettings => 'Otevřít systémové nastavení TTS';
+
+  @override
+  String get systemTtsSettingsButton => 'Systémové nastavení TTS';
+
+  @override
+  String get decreaseSpeechRate => 'Snížit rychlost';
+
+  @override
+  String get increaseSpeechRate => 'Zvýšit rychlost';
+
+  @override
+  String get decreaseVolume => 'Snížit hlasitost';
+
+  @override
+  String get increaseVolume => 'Zvýšit hlasitost';
+
+  @override
+  String get globalSettingsRestoring => 'Globální nastavení se bezpečně obnovují.';
+
+  @override
+  String get resultDisplayTitle => 'Vzhled výsledkového displeje';
+
+  @override
+  String get historyExactResultFormat => 'Formát exaktního výsledku v historii';
+
+  @override
+  String get historyExactResultFormatGlobal => 'Formát exaktního výsledku v historii, globální nastavení';
+
+  @override
+  String get fractionVoiceAnnouncement => 'Hlasové oznámení zlomku';
+
+  @override
+  String get announceAvailableFraction => 'Upozorňovat na dostupný zlomek';
+
+  @override
+  String get fractionAnnouncementDescription => 'Globální nastavení doplňkové věty o zlomku ve výsledku.';
+
+  @override
   String displayType(Object type) {
     return 'Displej: $type';
   }
@@ -1077,24 +1134,12 @@ class AppLocalizationsCs extends AppLocalizations {
   String get speechRateControls => 'Ovládání rychlosti hlasu';
 
   @override
-  String get decreaseSpeechRate => 'Snížit rychlost';
-
-  @override
-  String get increaseSpeechRate => 'Zvýšit rychlost';
-
-  @override
   String speechRateValue(int value) {
     return 'Aktuální rychlost: $value %';
   }
 
   @override
   String get volumeControls => 'Ovládání hlasitosti';
-
-  @override
-  String get decreaseVolume => 'Snížit hlasitost';
-
-  @override
-  String get increaseVolume => 'Zvýšit hlasitost';
 
   @override
   String volumeValue(int value) {

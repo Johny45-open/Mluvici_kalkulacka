@@ -70,7 +70,7 @@ void main() {
       },
     );
 
-    test('v2 contract validates and round-trips statistics configuration', () {
+    test('v3 contract validates and round-trips statistics configuration', () {
       const percentile = CustomPercentile(id: 'custom-p-90-id', p: 90);
       final config = StatsDisplayConfig(
         preset: StatsDisplayPreset.custom,
@@ -98,7 +98,7 @@ void main() {
         historyExactFormat: HistoryExactFormat.numeric,
       );
 
-      expect(contract['schemaVersion'], 2);
+      expect(contract['schemaVersion'], 3);
       expect(validateContract(contract).ok, isTrue);
       final restored = parseContract(contract).statsDisplayConfig!;
       expect(restored.preset, StatsDisplayPreset.custom);

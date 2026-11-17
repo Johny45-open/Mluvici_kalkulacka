@@ -179,11 +179,11 @@ void main() {
           .applyPreset(QuickSetupPreset.standard)
           .copyWith(
             settings: AccessibilitySettings.defaultsStandard().copyWith(
-              speechRate: 0.9,
+              fontSizeMultiplier: 1.2,
             ),
           );
       expect(d.detectedPreset, QuickSetupPreset.custom);
-      expect(d.settings.speechRate, 0.9);
+      expect(d.settings.fontSizeMultiplier, 1.2);
     });
 
     test('9) draft mutace nemeni prefs', () async {
@@ -258,7 +258,11 @@ void main() {
       expect(prefs.getString('activeProfileId'), 'standard');
       expect(prefs.getBool('isDegreeMode'), isFalse);
       expect(prefs.getInt('defaultMode'), CalculatorMode.basic.index);
-      expect(prefs.getString('resultDisplayMode'), 'text');
+      expect(
+        (jsonDecode(prefs.getString('globalSettingsV3')!)
+            as Map)['resultDisplayMode'],
+        'text',
+      );
       expect(prefs.getInt('themeMode'), ThemeMode.light.index);
       expect(prefs.getBool('modeQuestionAsked'), isTrue);
       expect(prefs.getBool('quickSetupCompleted'), isTrue);
@@ -267,7 +271,7 @@ void main() {
       final reloaded = await SharedPreferences.getInstance();
       expect(reloaded.getBool('isDegreeMode'), isFalse);
       final snapshot =
-          jsonDecode(reloaded.getString('config_contract_v1')!)
+          jsonDecode(reloaded.getString('config_contract_v3')!)
               as Map<String, dynamic>;
       final parsed = parseContract(snapshot);
       expect(parsed.isDegreeMode, isFalse);
@@ -359,10 +363,7 @@ void main() {
             id: 'standard',
             name: 'Standard',
             isBuiltIn: true,
-            settings: AccessibilitySettings.defaultsStandard().copyWith(
-              ttsVoice: {'name': 'Mrtvy hlas', 'locale': 'xx-XX'},
-              ttsVoiceName: 'Mrtvy hlas',
-            ),
+            settings: AccessibilitySettings.defaultsStandard(),
           ),
         ],
         activeProfileId: 'standard',
@@ -385,13 +386,14 @@ void main() {
         resultNotationPreference: ResultNotationPreference.decimal,
         historyExactFormat: HistoryExactFormat.numeric,
         announceFractionAvailability: true,
+        globalSettings: GlobalSettings.defaults().copyWith(
+          ttsVoice: {'name': 'Mrtvy hlas', 'locale': 'xx-XX'},
+          ttsVoiceName: 'Mrtvy hlas',
+        ),
       );
       expect(validateContract(contract).ok, isTrue);
       final parsed = parseContract(contract);
-      final resolved = resolveVoice(
-        parsed.profiles.first.settings.ttsVoice,
-        available,
-      );
+      final resolved = resolveVoice(parsed.globalSettings.ttsVoice, available);
       expect(resolved, isNull); // default hlas, zadny pad
     });
   });
@@ -433,11 +435,6 @@ void main() {
       expect((contract['globalSettings'] as Map)['resultDisplayMode'], 'auto');
       final parsed = parseContract(contract);
       expect(parsed.resultDisplayMode, ResultDisplayMode.auto);
-      // Profil zustava na migracnim defaultu.
-      expect(
-        parsed.profiles.first.settings.resultDisplayMode,
-        ResultDisplayMode.segment,
-      );
       // Stary export s profilovym rdm se migruje do globalu.
       final legacySettings = Map<String, dynamic>.from(settings)
         ..['resultDisplayMode'] = 'text';
@@ -454,6 +451,7 @@ void main() {
       final gs = Map<String, dynamic>.from(contract['globalSettings'] as Map)
         ..remove('resultDisplayMode');
       legacy['globalSettings'] = gs;
+      legacy['schemaVersion'] = 2;
       expect(parseContract(legacy).resultDisplayMode, ResultDisplayMode.text);
     });
 
@@ -495,7 +493,7 @@ void main() {
         await persistCanonicalContract(prefs, contract);
         expect(prefs.getString('historyExactFormat'), 'exact');
         final snapshot =
-            jsonDecode(prefs.getString('config_contract_v1')!)
+            jsonDecode(prefs.getString('config_contract_v3')!)
                 as Map<String, dynamic>;
         expect(
           (snapshot['globalSettings'] as Map)['historyExactFormat'],
@@ -505,10 +503,10 @@ void main() {
     );
 
     test('21) schema obsahuje nove globalni klice', () async {
-      final raw = await rootBundle.loadString('assets/config_schema_v1.json');
+      final raw = await rootBundle.loadString('assets/config_schema_v3.json');
       final schema = jsonDecode(raw) as Map<String, dynamic>;
-      final defs = schema[r'$defs'] as Map<String, dynamic>;
-      final global = defs['globalSettings'] as Map<String, dynamic>;
+      final properties = schema['properties'] as Map<String, dynamic>;
+      final global = properties['globalSettings'] as Map<String, dynamic>;
       final props = global['properties'] as Map<String, dynamic>;
       expect(props.containsKey('resultDisplayMode'), isTrue);
       expect(props.containsKey('historyExactFormat'), isTrue);
@@ -556,7 +554,7 @@ void main() {
       expect(validateContract(exported).ok, isTrue);
       await persistCanonicalContract(prefs, exported);
       final snapshot =
-          jsonDecode(prefs.getString('config_contract_v1')!)
+          jsonDecode(prefs.getString('config_contract_v3')!)
               as Map<String, dynamic>;
       final reparsed = parseContract(snapshot);
       expect(reparsed.resultDisplayMode, ResultDisplayMode.auto);
@@ -617,8 +615,7 @@ void main() {
       resultDisplayMode: ResultDisplayMode.segment,
       resultNotationPreference: ResultNotationPreference.decimal,
       historyExactFormat: HistoryExactFormat.numeric,
-      announceFractionAvailability:
-          announceFractionAvailability ?? true,
+      announceFractionAvailability: announceFractionAvailability ?? true,
     );
     final gs = Map<String, dynamic>.from(c['globalSettings'] as Map);
     if (resultNotationPreference != null) {
@@ -636,9 +633,11 @@ void main() {
       final contract = makeContract(resultNotationPreference: 'fraction');
       final res = validateContract(contract);
       expect(
-        res.warnings
-            .where((w) => w.code == 'unknownKey' &&
-                w.path == 'globalSettings.resultNotationPreference'),
+        res.warnings.where(
+          (w) =>
+              w.code == 'unknownKey' &&
+              w.path == 'globalSettings.resultNotationPreference',
+        ),
         isEmpty,
       );
     });
@@ -649,12 +648,11 @@ void main() {
       );
       final res = validateContract(contract);
       expect(
-        res.warnings
-            .where(
-              (w) =>
-                  w.code == 'unknownKey' &&
-                  w.path == 'globalSettings.neexistujiciKlicXyz',
-            ),
+        res.warnings.where(
+          (w) =>
+              w.code == 'unknownKey' &&
+              w.path == 'globalSettings.neexistujiciKlicXyz',
+        ),
         isNotEmpty,
       );
     });
@@ -666,12 +664,20 @@ void main() {
         var prefs = await SharedPreferences.getInstance();
         var contract = makeContract(announceFractionAvailability: false);
         await persistCanonicalContract(prefs, contract);
-        expect(prefs.getBool('announceFractionAvailability'), isFalse);
+        expect(
+          (jsonDecode(prefs.getString('globalSettingsV3')!)
+              as Map)['announceFractionAvailability'],
+          isFalse,
+        );
 
         prefs = await SharedPreferences.getInstance();
         contract = makeContract(announceFractionAvailability: true);
         await persistCanonicalContract(prefs, contract);
-        expect(prefs.getBool('announceFractionAvailability'), isTrue);
+        expect(
+          (jsonDecode(prefs.getString('globalSettingsV3')!)
+              as Map)['announceFractionAvailability'],
+          isTrue,
+        );
       },
     );
 
@@ -714,27 +720,32 @@ void main() {
         );
         expect(validateQuickSetupContract(contract).ok, isTrue);
         await persistCanonicalContract(prefs, contract);
-        expect(prefs.getBool('announceFractionAvailability'), isFalse);
+        expect(
+          (jsonDecode(prefs.getString('globalSettingsV3')!)
+              as Map)['announceFractionAvailability'],
+          isFalse,
+        );
 
         // Restart: nova instance uloziste z persistovanych hodnot.
         final reloaded = await simulateAppRestart(prefs);
-        expect(reloaded.getBool('announceFractionAvailability'), isFalse);
+        expect(
+          (jsonDecode(reloaded.getString('globalSettingsV3')!)
+              as Map)['announceFractionAvailability'],
+          isFalse,
+        );
       },
     );
 
-    test(
-      'T0-5) chybějící hodnota v kontraktu použije výchozí true',
-      () {
-        final contract = makeContract(announceFractionAvailability: true);
-        final gs = Map<String, dynamic>.from(contract['globalSettings'] as Map)
-          ..remove('announceFractionAvailability');
-        contract['globalSettings'] = gs;
-        // Bez klíče validace nadále projde (volitelný klíč).
-        expect(validateContract(contract).ok, isTrue);
-        final parsed = parseContract(contract);
-        expect(parsed.announceFractionAvailability, isTrue);
-      },
-    );
+    test('T0-5) chybějící hodnota v kontraktu použije výchozí true', () {
+      final contract = makeContract(announceFractionAvailability: true);
+      final gs = Map<String, dynamic>.from(contract['globalSettings'] as Map)
+        ..remove('announceFractionAvailability');
+      contract['globalSettings'] = gs;
+      // V3 exports require the key; parsing still provides the safe default.
+      expect(validateContract(contract).ok, isFalse);
+      final parsed = parseContract(contract);
+      expect(parsed.announceFractionAvailability, isTrue);
+    });
 
     test(
       'T0-6) validateQuickSetupContract se chová konzistentně s validateContract',
@@ -746,9 +757,9 @@ void main() {
         expect(a.errors.length, b.errors.length);
         expect(a.warnings.length, b.warnings.length);
 
-        final broken = makeContract(extraGlobalSettings: const {
-          'defaultMode': 'neexistujici_rezim',
-        });
+        final broken = makeContract(
+          extraGlobalSettings: const {'defaultMode': 'neexistujici_rezim'},
+        );
         final c = validateQuickSetupContract(broken);
         final d = validateContract(broken);
         expect(c.ok, d.ok);
@@ -769,45 +780,220 @@ void main() {
         final round = jsonDecode(jsonEncode(imported)) as Map<String, dynamic>;
         expect(validateContract(round).ok, isTrue);
         await persistCanonicalContract(prefs, round);
-        expect(prefs.getBool('announceFractionAvailability'), isFalse);
+        expect(
+          (jsonDecode(prefs.getString('globalSettingsV3')!)
+              as Map)['announceFractionAvailability'],
+          isFalse,
+        );
 
         // Restart: nova instance uloziste z persistovanych hodnot.
         final reloaded = await simulateAppRestart(prefs);
-        expect(reloaded.getBool('announceFractionAvailability'), isFalse);
+        expect(
+          (jsonDecode(reloaded.getString('globalSettingsV3')!)
+              as Map)['announceFractionAvailability'],
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'v2 backup imports active-profile globals and re-exports canonically as v3',
+      () async {
+        final legacy = makeContract();
+        legacy['schemaVersion'] = 2;
+        legacy['activeProfileId'] = 'blind';
+        final baseSettings = Map<String, dynamic>.from(
+          ((legacy['profiles'] as List).first as Map)['settings'] as Map,
+        );
+        final standardSettings = Map<String, dynamic>.from(baseSettings)
+          ..addAll({
+            'screenReaderMode': 'off',
+            'ttsEnabled': true,
+            'speechRate': 0.3,
+            'speechVolume': 0.8,
+            'ttsEngine': 'standard-engine',
+            'ttsVoice': {'name': 'Standard', 'locale': 'en-US'},
+            'ttsVoiceName': 'Standard',
+            'resultDisplayMode': 'segment',
+            'announceFractionAvailability': true,
+          });
+        final blindSettings = Map<String, dynamic>.from(baseSettings)
+          ..['accessibilityType'] = 'blind'
+          ..['dialogFontScale'] = 1.6
+          ..addAll({
+            'screenReaderMode': 'on',
+            'ttsEnabled': false,
+            'speechRate': 0.75,
+            'speechVolume': 0.35,
+            'ttsEngine': 'blind-engine',
+            'ttsVoice': {'name': 'Blind', 'locale': 'cs-CZ'},
+            'ttsVoiceName': 'Blind',
+            'resultDisplayMode': 'text',
+            'announceFractionAvailability': false,
+          });
+        legacy['profiles'] = [
+          {
+            'id': 'standard',
+            'name': 'Standard',
+            'isBuiltIn': true,
+            'settings': standardSettings,
+          },
+          {
+            'id': 'blind',
+            'name': 'Blind',
+            'isBuiltIn': true,
+            'settings': blindSettings,
+          },
+        ];
+        final globals =
+            Map<String, dynamic>.from(legacy['globalSettings'] as Map)..addAll({
+              'statsDisplayConfig': StatsDisplayConfig.defaults().toJson(),
+            });
+        for (final key in [
+          'screenReaderMode',
+          'ttsEnabled',
+          'speechRate',
+          'speechVolume',
+          'ttsEngine',
+          'ttsVoice',
+          'ttsVoiceName',
+          'resultDisplayMode',
+          'announceFractionAvailability',
+        ]) {
+          globals.remove(key);
+        }
+        legacy['globalSettings'] = globals;
+
+        final validation = validateContract(legacy);
+        expect(
+          validation.ok,
+          isTrue,
+          reason: validation.errors
+              .map((error) => '${error.path}: ${error.message} (${error.code})')
+              .join('\n'),
+        );
+        final imported = parseContract(legacy);
+        expect(imported.globalSettings.screenReaderMode, ScreenReaderMode.on);
+        expect(imported.globalSettings.ttsEnabled, isFalse);
+        expect(imported.globalSettings.speechRate, 0.75);
+        expect(imported.globalSettings.speechVolume, 0.35);
+        expect(imported.globalSettings.ttsVoice, {
+          'name': 'Blind',
+          'locale': 'cs-CZ',
+        });
+        expect(
+          imported.globalSettings.resultDisplayMode,
+          ResultDisplayMode.text,
+        );
+        expect(imported.globalSettings.announceFractionAvailability, isFalse);
+        expect(
+          imported.profiles
+              .firstWhere((p) => p.id == 'blind')
+              .settings
+              .dialogFontScale,
+          1.6,
+        );
+
+        final v1 = jsonDecode(jsonEncode(legacy)) as Map<String, dynamic>;
+        v1['schemaVersion'] = 1;
+        final v1Globals = Map<String, dynamic>.from(v1['globalSettings'] as Map)
+          ..remove('statsDisplayConfig')
+          ..['statsComputedOrder'] = [
+            'mean',
+            'sum',
+            'variance',
+            'sd',
+            'median',
+            'min',
+            'max',
+            'mode',
+            'cv',
+            'wmean',
+          ];
+        v1['globalSettings'] = v1Globals;
+        expect(validateContract(v1).ok, isTrue);
+        final importedV1 = parseContract(v1);
+        expect(importedV1.globalSettings.ttsEnabled, isFalse);
+        expect(importedV1.globalSettings.speechRate, 0.75);
+        expect(
+          importedV1.globalSettings.resultDisplayMode,
+          ResultDisplayMode.text,
+        );
+
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final oldPrefs = await SharedPreferences.getInstance();
+        await persistCanonicalContract(oldPrefs, legacy);
+        final exported =
+            jsonDecode(oldPrefs.getString('config_contract_v3')!)
+                as Map<String, dynamic>;
+        expect(exported['schemaVersion'], 3);
+        expect(
+          ((exported['profiles'] as List).last as Map)['settings'].containsKey(
+            'ttsEnabled',
+          ),
+          isFalse,
+        );
+        final newPrefs = await simulateAppRestart(oldPrefs);
+        await persistCanonicalContract(newPrefs, exported);
+        final restored = parseContract(
+          jsonDecode(newPrefs.getString('config_contract_v3')!)
+              as Map<String, dynamic>,
+        );
+        expect(restored.globalSettings.ttsEnabled, isFalse);
+        expect(restored.globalSettings.speechRate, 0.75);
+        expect(restored.globalSettings.speechVolume, 0.35);
+        expect(restored.globalSettings.ttsVoiceName, 'Blind');
+        expect(
+          restored.globalSettings.resultDisplayMode,
+          ResultDisplayMode.text,
+        );
+        expect(
+          restored.profiles
+              .firstWhere((p) => p.id == 'blind')
+              .settings
+              .dialogFontScale,
+          1.6,
+        );
       },
     );
   });
 
   group('startup widget', () {
-    testWidgets('2) first run zobrazi Quick Setup pouze jednou s úvodem a tlačítkem Skip setup', (
-      tester,
-    ) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-      mockChannels();
-      await pumpApp(tester);
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pumpAndSettle();
-      expect(find.text('Quick calculator setup'), findsOneWidget);
-      expect(find.text('Apply settings'), findsOneWidget);
-      expect(find.text('Skip setup'), findsOneWidget);
-      expect(find.text('Welcome to Talking Calculator. Choose an accessibility preset. You can adjust advanced settings in the expandable section or anytime later in the menu.'), findsOneWidget);
-      expect(find.text('Advanced settings'), findsOneWidget);
+    testWidgets(
+      '2) first run zobrazi Quick Setup pouze jednou s úvodem a tlačítkem Skip setup',
+      (tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        mockChannels();
+        await pumpApp(tester);
+        await tester.pump(const Duration(seconds: 3));
+        await tester.pumpAndSettle();
+        expect(find.text('Quick calculator setup'), findsOneWidget);
+        expect(find.text('Apply settings'), findsOneWidget);
+        expect(find.text('Skip setup'), findsOneWidget);
+        expect(
+          find.text(
+            'Welcome to Talking Calculator. Choose an accessibility preset. You can adjust advanced settings in the expandable section or anytime later in the menu.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Advanced settings'), findsOneWidget);
 
-      // Přeskočit: dialog zmizi, marker se ulozi, konfigurace se nemění.
-      await tester.tap(find.text('Skip setup'));
-      await tester.pumpAndSettle();
-      expect(find.text('Quick calculator setup'), findsNothing);
-      var prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('quickSetupCompleted'), isTrue);
+        // Přeskočit: dialog zmizi, marker se ulozi, konfigurace se nemění.
+        await tester.tap(find.text('Skip setup'));
+        await tester.pumpAndSettle();
+        expect(find.text('Quick calculator setup'), findsNothing);
+        var prefs = await SharedPreferences.getInstance();
+        expect(prefs.getBool('quickSetupCompleted'), isTrue);
 
-      // Restart: dialog se uz neukaze.
-      await tester.pumpWidget(const ScientificCalculatorApp());
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pumpAndSettle();
-      expect(find.text('Quick calculator setup'), findsNothing);
-      prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('quickSetupCompleted'), isTrue);
-    });
+        // Restart: dialog se uz neukaze.
+        await tester.pumpWidget(const ScientificCalculatorApp());
+        await tester.pump(const Duration(seconds: 3));
+        await tester.pumpAndSettle();
+        expect(find.text('Quick calculator setup'), findsNothing);
+        prefs = await SharedPreferences.getInstance();
+        expect(prefs.getBool('quickSetupCompleted'), isTrue);
+      },
+    );
 
     testWidgets('stara instalace neukazuje onboarding', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
@@ -824,7 +1010,9 @@ void main() {
       expect(prefs.getString('activeProfileId'), 'standard');
     });
 
-    testWidgets('poškozená nebo neúplná konfigurace se nedetekuje jako validní', (tester) async {
+    testWidgets('poškozená nebo neúplná konfigurace se nedetekuje jako validní', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'accessibility_profiles_v2': '{invalid json',
         'activeProfileId': 'standard',

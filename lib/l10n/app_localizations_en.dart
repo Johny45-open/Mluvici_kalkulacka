@@ -114,6 +114,63 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accessibilitySettings => 'Accessibility Settings';
 
   @override
+  String get globalSettingsSection => 'Global settings';
+
+  @override
+  String get voiceOutputTitle => 'Voice output';
+
+  @override
+  String get screenReaderOnLabel => 'On';
+
+  @override
+  String get screenReaderOffLabel => 'Off';
+
+  @override
+  String get selectTtsEngine => 'Select TTS engine';
+
+  @override
+  String get selectTtsVoice => 'Select voice';
+
+  @override
+  String get openSystemTtsSettings => 'Open system TTS settings';
+
+  @override
+  String get systemTtsSettingsButton => 'System TTS settings';
+
+  @override
+  String get decreaseSpeechRate => 'Decrease speech rate';
+
+  @override
+  String get increaseSpeechRate => 'Increase speech rate';
+
+  @override
+  String get decreaseVolume => 'Decrease volume';
+
+  @override
+  String get increaseVolume => 'Increase volume';
+
+  @override
+  String get globalSettingsRestoring => 'Global settings are being safely restored.';
+
+  @override
+  String get resultDisplayTitle => 'Result display';
+
+  @override
+  String get historyExactResultFormat => 'History exact result format';
+
+  @override
+  String get historyExactResultFormatGlobal => 'History exact result format, global setting';
+
+  @override
+  String get fractionVoiceAnnouncement => 'Fraction voice announcement';
+
+  @override
+  String get announceAvailableFraction => 'Announce available fraction';
+
+  @override
+  String get fractionAnnouncementDescription => 'Global setting for the additional fraction sentence in results.';
+
+  @override
   String displayType(Object type) {
     return 'Display: $type';
   }
@@ -1077,24 +1134,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get speechRateControls => 'Speech rate controls';
 
   @override
-  String get decreaseSpeechRate => 'Decrease speech rate';
-
-  @override
-  String get increaseSpeechRate => 'Increase speech rate';
-
-  @override
   String speechRateValue(int value) {
     return 'Current speech rate: $value %';
   }
 
   @override
   String get volumeControls => 'Volume controls';
-
-  @override
-  String get decreaseVolume => 'Decrease volume';
-
-  @override
-  String get increaseVolume => 'Increase volume';
 
   @override
   String volumeValue(int value) {

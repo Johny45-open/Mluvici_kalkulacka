@@ -81,8 +81,8 @@ void main() {
     dynamic state,
     bool enabled,
   ) async {
-    state.updateActiveSettingsForTest(
-      (s) => s.copyWith(
+    await state.updateGlobalSettingsForTest(
+      (GlobalSettings s) => s.copyWith(
         screenReaderMode: enabled ? ScreenReaderMode.on : ScreenReaderMode.off,
       ),
     );

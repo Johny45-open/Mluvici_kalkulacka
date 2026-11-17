@@ -6,12 +6,6 @@ AccessibilityType _accessibilityTypeFromString(String s) {
   return AccessibilityType.none;
 }
 
-String _screenReaderModeToString(ScreenReaderMode v) => v.name;
-ScreenReaderMode _screenReaderModeFromString(String s) {
-  for (final v in ScreenReaderMode.values) if (v.name == s) return v;
-  return ScreenReaderMode.auto;
-}
-
 String _gapToString(ThousandGroupGap v) => v.name;
 ThousandGroupGap _gapFromString(String s) {
   for (final v in ThousandGroupGap.values) if (v.name == s) return v;
@@ -25,7 +19,6 @@ DialogSize _dialogSizeFromString(String s) {
 }
 
 // Neznámá/chybějící hodnota -> segment (bezpečný fallback na původní vzhled).
-String _resultDisplayModeToString(ResultDisplayMode v) => v.name;
 ResultDisplayMode _resultDisplayModeFromString(String? s) {
   for (final v in ResultDisplayMode.values) if (v.name == s) return v;
   return ResultDisplayMode.segment;
@@ -78,7 +71,6 @@ StatsComputedItem _statsComputedFromString(String s) {
 
 Map<String, dynamic> _settingsToContract(AccessibilitySettings s) => {
   'accessibilityType': _accessibilityTypeToString(s.accessibilityType),
-  'screenReaderMode': _screenReaderModeToString(s.screenReaderMode),
   'fontSizeMultiplier': s.fontSizeMultiplier,
   'dialogFontScale': s.dialogFontScale,
   'dotMatrixZoom': s.dotMatrixZoom,
@@ -94,14 +86,6 @@ Map<String, dynamic> _settingsToContract(AccessibilitySettings s) => {
   'alignInputLeft': s.alignInputLeft,
   'overlineThickness': s.overlineThickness,
   'overlineHeight': s.overlineHeight,
-  'speechRate': s.speechRate,
-  'speechVolume': s.speechVolume,
-  'ttsEnabled': s.ttsEnabled,
-  'ttsEngine': s.ttsEngine,
-  'ttsVoice': s.ttsVoice == null
-      ? null
-      : {'name': s.ttsVoice!['name'], 'locale': s.ttsVoice!['locale']},
-  'ttsVoiceName': s.ttsVoiceName,
   'inverseFormatPreference': _inverseToString(s.inverseFormatPreference),
 };
 
@@ -109,9 +93,6 @@ AccessibilitySettings _settingsFromContract(Map<String, dynamic> m) =>
     AccessibilitySettings(
       accessibilityType: _accessibilityTypeFromString(
         m['accessibilityType'] as String,
-      ),
-      screenReaderMode: _screenReaderModeFromString(
-        m['screenReaderMode'] as String,
       ),
       fontSizeMultiplier: (m['fontSizeMultiplier'] as num).toDouble(),
       dialogFontScale: (m['dialogFontScale'] as num).toDouble(),
@@ -122,31 +103,12 @@ AccessibilitySettings _settingsFromContract(Map<String, dynamic> m) =>
       useSixteenSegment: m['useSixteenSegment'] as bool,
       usePeriodicNotation: m['usePeriodicNotation'] as bool,
       announceExpression: m['announceExpression'] as bool,
-      announceFractionAvailability:
-          m['announceFractionAvailability'] as bool? ?? true,
       readStatsMemoryValues: m['readStatsMemoryValues'] as bool,
       autoReadStatsSummary: m['autoReadStatsSummary'] as bool,
       showStatsNavigationHint: m['showStatsNavigationHint'] as bool,
       alignInputLeft: m['alignInputLeft'] as bool,
       overlineThickness: (m['overlineThickness'] as num).toDouble(),
       overlineHeight: (m['overlineHeight'] as num).toDouble(),
-      speechRate: (m['speechRate'] as num).toDouble(),
-      speechVolume: (m['speechVolume'] as num).toDouble(),
-      ttsEnabled: m['ttsEnabled'] as bool,
-      // Legacy per-profil klíč: čti pro migraci starých exportů,
-      // ale runtime ho ignoruje (globál je jediný zdroj pravdy).
-      resultDisplayMode: _resultDisplayModeFromString(
-        m['resultDisplayMode'] as String?,
-      ),
-      ttsEngine: m['ttsEngine'] as String?,
-      ttsVoice: m['ttsVoice'] == null
-          ? null
-          : Map<String, String>.from(
-              (m['ttsVoice'] as Map).map(
-                (k, v) => MapEntry(k.toString(), v.toString()),
-              ),
-            ),
-      ttsVoiceName: m['ttsVoiceName'] as String?,
       inverseFormatPreference: _inverseFromString(
         m['inverseFormatPreference'] as String?,
       ),
@@ -170,6 +132,7 @@ Map<String, dynamic> buildContractJson({
   required ResultNotationPreference resultNotationPreference,
   required HistoryExactFormat historyExactFormat,
   required bool announceFractionAvailability,
+  GlobalSettings? globalSettings,
   StatsDisplayConfig? statsDisplayConfig,
 }) {
   final now = DateTime.now().toUtc().toIso8601String().replaceAll(
@@ -181,8 +144,14 @@ Map<String, dynamic> buildContractJson({
             .where((item) => item.index <= StatsComputedItem.wcv.index)
             .toList()
       : statsComputedOrder;
+  final globals =
+      globalSettings ??
+      GlobalSettings.defaults(themeMode: themeMode).copyWith(
+        resultDisplayMode: resultDisplayMode,
+        announceFractionAvailability: announceFractionAvailability,
+      );
   return {
-    'schemaVersion': statsDisplayConfig == null ? 1 : 2,
+    'schemaVersion': 3,
     'createdAt': now,
     'generator': 'Mluvici_kalkulacka/12.1.0',
     'calculatorCompatibility': {'minVersion': '11.5.0', 'maxVersion': null},
@@ -198,13 +167,14 @@ Map<String, dynamic> buildContractJson({
         )
         .toList(),
     'globalSettings': {
+      ...globals.toJson(),
       'themeMode': _themeToString(themeMode),
       'isDegreeMode': isDegreeMode,
       'defaultMode': _calcModeToString(defaultMode),
-      'resultDisplayMode': _resultDisplayModeToString(resultDisplayMode),
-      'resultNotationPreference': _resultNotationPreferenceToString(resultNotationPreference),
+      'resultNotationPreference': _resultNotationPreferenceToString(
+        resultNotationPreference,
+      ),
       'historyExactFormat': _historyExactFormatToString(historyExactFormat),
-      'announceFractionAvailability': announceFractionAvailability,
       'statsSummaryOrder': statsSummaryOrder
           .map((e) => _statsSectionToString(e))
           .toList(),
@@ -227,12 +197,14 @@ Map<String, dynamic> buildContractJson({
 class ParsedContract {
   final List<AccessibilityProfile> profiles;
   final String activeProfileId;
-  final ThemeMode themeMode;
+  final GlobalSettings globalSettings;
+  ThemeMode get themeMode => globalSettings.themeMode;
   final bool isDegreeMode;
-  final ResultDisplayMode resultDisplayMode;
+  ResultDisplayMode get resultDisplayMode => globalSettings.resultDisplayMode;
   final ResultNotationPreference resultNotationPreference;
   final HistoryExactFormat historyExactFormat;
-  final bool announceFractionAvailability;
+  bool get announceFractionAvailability =>
+      globalSettings.announceFractionAvailability;
   final CalculatorMode defaultMode;
   final List<StatsSummarySection> statsSummaryOrder;
   final List<StatsComputedItem> statsComputedOrder;
@@ -246,12 +218,10 @@ class ParsedContract {
   ParsedContract({
     required this.profiles,
     required this.activeProfileId,
-    required this.themeMode,
+    required this.globalSettings,
     required this.isDegreeMode,
-    required this.resultDisplayMode,
     required this.resultNotationPreference,
     required this.historyExactFormat,
-    required this.announceFractionAvailability,
     required this.defaultMode,
     required this.statsSummaryOrder,
     required this.statsComputedOrder,
@@ -266,6 +236,7 @@ class ParsedContract {
 }
 
 ParsedContract parseContract(Map<String, dynamic> raw) {
+  final schemaVersion = raw['schemaVersion'] as int;
   final profilesRaw = raw['profiles'] as List;
   final profiles = profilesRaw.map((e) {
     final m = Map<String, dynamic>.from(e as Map);
@@ -279,40 +250,79 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
     );
   }).toList();
   final gs = Map<String, dynamic>.from(raw['globalSettings'] as Map);
+  final activeProfileId = raw['activeProfileId'] is String
+      ? raw['activeProfileId'] as String
+      : null;
+  final selectedId = profiles.any((p) => p.id == activeProfileId)
+      ? activeProfileId!
+      : profiles.isNotEmpty
+      ? profiles.first.id
+      : 'standard';
+  Map<String, dynamic>? selectedLegacySettings;
+  if (schemaVersion < 3) {
+    for (final rawProfile in profilesRaw) {
+      final profile = Map<String, dynamic>.from(rawProfile as Map);
+      if (profile['id'] == selectedId) {
+        selectedLegacySettings = Map<String, dynamic>.from(
+          profile['settings'] as Map,
+        );
+        break;
+      }
+    }
+  }
+  final defaults = GlobalSettings.defaults(
+    themeMode: _themeFromString(gs['themeMode'] as String? ?? 'dark'),
+  );
+  final globalJson = <String, dynamic>{...defaults.toJson(), ...gs};
+  if (schemaVersion < 3 && selectedLegacySettings != null) {
+    for (final key in [
+      'screenReaderMode',
+      'ttsEnabled',
+      'speechRate',
+      'speechVolume',
+      'ttsEngine',
+      'ttsVoice',
+      'ttsVoiceName',
+      'resultDisplayMode',
+      'announceFractionAvailability',
+    ]) {
+      if (!gs.containsKey(key) && selectedLegacySettings.containsKey(key)) {
+        globalJson[key] = selectedLegacySettings[key];
+      }
+    }
+  }
+  if (globalJson['screenReaderMode'] is int) {
+    final modeIndex = globalJson['screenReaderMode'] as int;
+    globalJson['screenReaderMode'] =
+        modeIndex >= 0 && modeIndex < ScreenReaderMode.values.length
+        ? ScreenReaderMode.values[modeIndex].name
+        : ScreenReaderMode.auto.name;
+  }
+  if (globalJson['resultDisplayMode'] is int) {
+    final modeIndex = globalJson['resultDisplayMode'] as int;
+    globalJson['resultDisplayMode'] =
+        modeIndex >= 0 && modeIndex < ResultDisplayMode.values.length
+        ? ResultDisplayMode.values[modeIndex].name
+        : ResultDisplayMode.segment.name;
+  }
+  if (globalJson['ttsVoice'] is Map) {
+    final voice = Map<String, dynamic>.from(globalJson['ttsVoice'] as Map);
+    globalJson['ttsVoice'] = {
+      'name': voice['name']?.toString(),
+      'locale': voice['locale']?.toString(),
+    };
+  }
+  final parsedGlobal = GlobalSettings.fromJson(globalJson);
   final cur = Map<String, dynamic>.from(gs['currency'] as Map);
   final dev = Map<String, dynamic>.from(gs['devMode'] as Map);
   // Globál je jediný zdroj pravdy. Starý export globál nemá ->
   // fallback z aktivního profilu (migrace bez ztráty nastavení).
-  ResultDisplayMode resolvedRdm = _resultDisplayModeFromString(
-    gs['resultDisplayMode'] as String?,
-  );
   ResultNotationPreference resolvedRnp = _resultNotationPreferenceFromString(
     gs['resultNotationPreference'] as String?,
   );
   HistoryExactFormat resolvedHef = _historyExactFormatFromString(
     gs['historyExactFormat'] as String?,
   );
-  bool resolvedAfa = gs['announceFractionAvailability'] as bool? ?? true;
-  if (!gs.containsKey('resultDisplayMode')) {
-    final activeId = raw['activeProfileId'] as String?;
-    for (final p in profiles) {
-      if (p.id == activeId) {
-        if (p.settings.resultDisplayMode != ResultDisplayMode.segment) {
-          resolvedRdm = p.settings.resultDisplayMode;
-        }
-        break;
-      }
-    }
-  }
-  if (!gs.containsKey('announceFractionAvailability')) {
-    final activeId = raw['activeProfileId'] as String?;
-    for (final p in profiles) {
-      if (p.id == activeId) {
-        resolvedAfa = p.settings.announceFractionAvailability;
-        break;
-      }
-    }
-  }
   final statsComputedOrder = normalizeStatsComputedOrder(
     (gs['statsComputedOrder'] as List)
         .map((e) => _statsComputedFromString(e as String))
@@ -321,13 +331,11 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
   final statsDisplayRaw = gs['statsDisplayConfig'];
   return ParsedContract(
     profiles: profiles,
-    activeProfileId: raw['activeProfileId'] as String,
-    themeMode: _themeFromString(gs['themeMode'] as String),
+    activeProfileId: selectedId,
+    globalSettings: parsedGlobal,
     isDegreeMode: gs['isDegreeMode'] as bool,
-    resultDisplayMode: resolvedRdm,
     resultNotationPreference: resolvedRnp,
     historyExactFormat: resolvedHef,
-    announceFractionAvailability: resolvedAfa,
     defaultMode: _calcModeFromString(gs['defaultMode'] as String),
     statsSummaryOrder: (gs['statsSummaryOrder'] as List)
         .map((e) => _statsSectionFromString(e as String))
@@ -349,15 +357,15 @@ ParsedContract parseContract(Map<String, dynamic> raw) {
 
 Future<void> _saveContractToPrefs(Map<String, dynamic> contract) async {
   final prefs = await SharedPreferences.getInstance();
-  final key = contract['schemaVersion'] == 2
-      ? 'config_contract_v2'
-      : 'config_contract_v1';
+  final version = contract['schemaVersion'] as int? ?? 1;
+  final key = 'config_contract_v$version';
   await prefs.setString(key, jsonEncode(contract));
 }
 
 Future<Map<String, dynamic>?> _loadContractFromPrefs() async {
   final prefs = await SharedPreferences.getInstance();
   final s =
+      prefs.getString('config_contract_v3') ??
       prefs.getString('config_contract_v2') ??
       prefs.getString('config_contract_v1');
   if (s == null) return null;

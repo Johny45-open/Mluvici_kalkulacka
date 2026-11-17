@@ -82,34 +82,6 @@ class _AccessibilityProfileEditorDialogState
     );
   }
 
-  void _adjustSpeechRate(double delta) {
-    final nv = (editingSettings.speechRate + delta).clamp(0.1, 1.0);
-    _onUpdate((s) => s.copyWith(speechRate: nv));
-    setState(() {});
-    // R9: jedna hláška jednotným kanálem (při SR liveRegion, jinak TTS).
-    unawaited(
-      parent.announceEvent(
-        parent._l10n.speechRatePct((nv * 100).toInt()),
-        category: SpeechCategory.settings,
-        interruptCurrentSpeech: true,
-      ),
-    );
-  }
-
-  void _adjustSpeechVolume(double delta) {
-    final nv = (editingSettings.speechVolume + delta).clamp(0.0, 1.0);
-    _onUpdate((s) => s.copyWith(speechVolume: nv));
-    setState(() {});
-    // R9: jedna hláška jednotným kanálem (při SR liveRegion, jinak TTS).
-    unawaited(
-      parent.announceEvent(
-        parent._l10n.volumePct((nv * 100).toInt()),
-        category: SpeechCategory.settings,
-        interruptCurrentSpeech: true,
-      ),
-    );
-  }
-
   void _adjustDialogFontScale(double delta) {
     final nv = (editingSettings.dialogFontScale + delta).clamp(0.5, 5.0);
     _onUpdate((s) => s.copyWith(dialogFontScale: nv));
@@ -201,10 +173,7 @@ class _AccessibilityProfileEditorDialogState
   }) {
     return ElevatedButton(
       onPressed: onPressed,
-      child: Text(
-        text,
-        semanticsLabel: label,
-      ),
+      child: Text(text, semanticsLabel: label),
     );
   }
 
@@ -243,19 +212,9 @@ class _AccessibilityProfileEditorDialogState
       draft.usePeriodicNotation != orig.usePeriodicNotation,
     );
     add(
-      'Hlasový výstup: ${draft.ttsEnabled ? 'Zapnuto' : 'Vypnuto'}',
-      'Voice output: ${draft.ttsEnabled ? 'On' : 'Off'}',
-      draft.ttsEnabled != orig.ttsEnabled,
-    );
-    add(
       'Oznamování příkladu: ${draft.announceExpression ? 'Zapnuto' : 'Vypnuto'}',
       'Announce expression: ${draft.announceExpression ? 'On' : 'Off'}',
       draft.announceExpression != orig.announceExpression,
-    );
-    add(
-      'Upozorňování na zlomek: ${parent._announceFractionAvailability ? 'Zapnuto' : 'Vypnuto'}',
-      'Announce fraction availability: ${parent._announceFractionAvailability ? 'On' : 'Off'}',
-      false,
     );
     add(
       'Auto-čtení souhrnu: ${draft.autoReadStatsSummary ? 'Zapnuto' : 'Vypnuto'}',
@@ -267,13 +226,6 @@ class _AccessibilityProfileEditorDialogState
       'Tab hint: ${draft.showStatsNavigationHint ? 'On' : 'Off'}',
       draft.showStatsNavigationHint != orig.showStatsNavigationHint,
     );
-    if (draft.screenReaderMode != orig.screenReaderMode)
-      out.add(
-        parent._s(
-          'Režim čtečky: ${draft.screenReaderMode.name}',
-          'Screen reader: ${draft.screenReaderMode.name}',
-        ),
-      );
     if (draft.dialogSize != orig.dialogSize)
       out.add(
         parent._s(
@@ -309,20 +261,6 @@ class _AccessibilityProfileEditorDialogState
           'Result zoom: ${(draft.resultZoom * 100).toInt()}%',
         ),
       );
-    if ((draft.speechRate - orig.speechRate).abs() > 0.001)
-      out.add(
-        parent._s(
-          'Rychlost řeči: ${(draft.speechRate * 100).toInt()}%',
-          'Speech rate: ${(draft.speechRate * 100).toInt()}%',
-        ),
-      );
-    if ((draft.speechVolume - orig.speechVolume).abs() > 0.001)
-      out.add(
-        parent._s(
-          'Hlasitost: ${(draft.speechVolume * 100).toInt()}%',
-          'Volume: ${(draft.speechVolume * 100).toInt()}%',
-        ),
-      );
     if ((draft.overlineHeight - orig.overlineHeight).abs() > 0.001 ||
         (draft.overlineThickness - orig.overlineThickness).abs() > 0.001)
       out.add(
@@ -352,20 +290,6 @@ class _AccessibilityProfileEditorDialogState
           'Accessibility: ${draft.accessibilityType.name}',
         ),
       );
-    if (draft.ttsEngine != orig.ttsEngine)
-      out.add(
-        parent._s(
-          'Engine: ${draft.ttsEngine ?? 'Výchozí'}',
-          'Engine: ${draft.ttsEngine ?? 'Default'}',
-        ),
-      );
-    if (draft.ttsVoiceName != orig.ttsVoiceName)
-      out.add(
-        parent._s(
-          'Hlas: ${draft.ttsVoiceName ?? 'Výchozí'}',
-          'Voice: ${draft.ttsVoiceName ?? 'Default'}',
-        ),
-      );
     if (draft.inverseFormatPreference != orig.inverseFormatPreference)
       out.add(
         parent._s(
@@ -391,10 +315,7 @@ class _AccessibilityProfileEditorDialogState
 
     if (isNoChange) {
       if (mounted) {
-        Navigator.pop(
-          context,
-          const AccessibilityEditorResult(noChange: true),
-        );
+        Navigator.pop(context, const AccessibilityEditorResult(noChange: true));
       }
       if (parent.editingProfile != null) {
         parent.discardEditingProfile();
@@ -423,10 +344,7 @@ class _AccessibilityProfileEditorDialogState
     if (mounted) {
       Navigator.pop(
         context,
-        AccessibilityEditorResult(
-          saved: true,
-          profileName: nameBeforeSave,
-        ),
+        AccessibilityEditorResult(saved: true, profileName: nameBeforeSave),
       );
     }
   }
@@ -595,38 +513,6 @@ class _AccessibilityProfileEditorDialogState
                   ),
                 ),
               ),
-              const Divider(),
-              Semantics(
-                label: parent._s(
-                  'Přepnutí hlasového výstupu',
-                  'Switch voice output',
-                ),
-                child: ElevatedButton(
-                  onPressed: () {
-                    // R9: oznámit PŘED aplikací – po vypnutí TTS by speak
-                    // mlčel (ttsEnabled se čte z draftu aktivního profilu).
-                    // Při SR jde potvrzení Semantics kanálem.
-                    final nv = !editingSettings.ttsEnabled;
-                    unawaited(
-                      parent.announceEvent(
-                        nv ? parent._l10n.voiceOn : parent._l10n.voiceOff,
-                        category: SpeechCategory.settings,
-                        interruptCurrentSpeech: true,
-                      ),
-                    );
-                    _onUpdate((v) => v.copyWith(ttsEnabled: nv));
-                    setState(() {});
-                  },
-                  child: Text(
-                    parent._l10n.voiceOutput(
-                      s.ttsEnabled
-                          ? parent._s('Zapnuto', 'On')
-                          : parent._s('Vypnuto', 'Off'),
-                    ),
-                  ),
-                ),
-              ),
-              const Divider(),
               Semantics(
                 label: parent._s(
                   'Přepnutí oznamování příkladu před výpočtem',
@@ -662,39 +548,6 @@ class _AccessibilityProfileEditorDialogState
                   ),
                 ),
               ),
-              const Divider(),
-              Semantics(
-                label: parent._s(
-                  'Přepnutí upozorňování na dostupný zlomek',
-                  'Toggle announcing fraction availability',
-                ),
-                child: ElevatedButton(
-                  onPressed: () {
-                    final nv = !parent._announceFractionAvailability;
-                    parent.setGlobalAnnounceFractionAvailability(nv);
-                    unawaited(
-                      parent.announceEvent(
-                        parent._l10n.announceFractionAvailabilityState(
-                          nv
-                              ? parent._s('Zapnuto', 'On')
-                              : parent._s('Vypnuto', 'Off'),
-                        ),
-                        category: SpeechCategory.settings,
-                        interruptCurrentSpeech: true,
-                      ),
-                    );
-                    setState(() {});
-                  },
-                  child: Text(
-                    parent._l10n.announceFractionAvailabilityState(
-                      parent._announceFractionAvailability
-                          ? parent._s('Zapnuto', 'On')
-                          : parent._s('Vypnuto', 'Off'),
-                    ),
-                  ),
-                ),
-              ),
-              const Divider(),
               Semantics(
                 label: parent._s(
                   'Přepnutí automatického čtení statistického souhrnu při otevření',
@@ -768,104 +621,6 @@ class _AccessibilityProfileEditorDialogState
                   ),
                 ),
               ),
-              const Divider(),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      parent._s('Režim čtečky obrazovky', 'Screen reader mode'),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedButton<ScreenReaderMode>(
-                    segments: [
-                      ButtonSegment(
-                        value: ScreenReaderMode.auto,
-                        label: Text(parent._s('Auto', 'Auto')),
-                        tooltip: parent._s(
-                          'Automaticky podle čtečky',
-                          'Automatic according to screen reader',
-                        ),
-                      ),
-                      ButtonSegment(
-                        value: ScreenReaderMode.on,
-                        label: Text(parent._s('Zapnuto', 'On')),
-                        tooltip: parent._s(
-                          'Režim čtečky obrazovky zapnut',
-                          'Screen reader mode on',
-                        ),
-                      ),
-                      ButtonSegment(
-                        value: ScreenReaderMode.off,
-                        label: Text(parent._s('Vypnuto', 'Off')),
-                        tooltip: parent._s(
-                          'Režim čtečky obrazovky vypnut',
-                          'Screen reader mode off',
-                        ),
-                      ),
-                    ],
-                    selected: {s.screenReaderMode},
-                    onSelectionChanged: (Set<ScreenReaderMode> sel) {
-                      _onUpdate((v) => v.copyWith(screenReaderMode: sel.first));
-                      // R9: jedna hláška jednotným kanálem.
-                      unawaited(
-                        parent.announceEvent(
-                          parent._s(
-                            'Režim čtečky: ${sel.first.name}',
-                            'Screen reader: ${sel.first.name}',
-                          ),
-                          category: SpeechCategory.settings,
-                          interruptCurrentSpeech: true,
-                        ),
-                      );
-                      setState(() {});
-                    },
-                  ),
-                ],
-              ),
-              const Divider(),
-              Semantics(
-                label: parent._s(
-                  'Nastavení hlasového engine',
-                  'Voice engine settings',
-                ),
-                child: ElevatedButton(
-                  onPressed: () {
-                    parent._showTtsEngineDialog();
-                  },
-                  child: Text(
-                    '${parent._s('Engine', 'Engine')}: ${s.ttsEngine ?? parent._s('Výchozí', 'Default')}',
-                  ),
-                ),
-              ),
-              const Divider(),
-              Semantics(
-                label: parent._s(
-                  'Otevřít systémové nastavení TTS',
-                  'Open system TTS settings',
-                ),
-                child: ElevatedButton(
-                  onPressed: () {
-                    parent._openTtsSystemSettings();
-                  },
-                  child: Text(parent._s('Nastavení TTS', 'TTS settings')),
-                ),
-              ),
-              const Divider(),
-              Semantics(
-                label: parent._s('Nastavení hlasu', 'Voice settings'),
-                child: ElevatedButton(
-                  onPressed: () {
-                    parent._showTtsVoiceDialog();
-                  },
-                  child: Text(
-                    '${parent._s('Hlas', 'Voice')}: ${s.ttsVoiceName ?? parent._s('Výchozí', 'Default')}',
-                  ),
-                ),
-              ),
-              const Divider(),
               Semantics(
                 label: parent._s(
                   'Přepnutí formátu úhlů',
@@ -1322,73 +1077,6 @@ class _AccessibilityProfileEditorDialogState
                 ],
               ),
               const SizedBox(height: 16),
-              Column(
-                children: [
-                  Semantics(header: true, child: Text(parent._l10n.speechRate)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildStepperButton(
-                        label: parent._s(
-                          'Zmenšit rychlost řeči',
-                          'Decrease speech rate',
-                        ),
-                        onPressed: () => _adjustSpeechRate(-0.1),
-                        text: '-',
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Semantics(
-                          liveRegion: true,
-                          child: Text('${(s.speechRate * 100).toInt()}%'),
-                        ),
-                      ),
-                      _buildStepperButton(
-                        label: parent._s(
-                          'Zvýšit rychlost řeči',
-                          'Increase speech rate',
-                        ),
-                        onPressed: () => _adjustSpeechRate(0.1),
-                        text: '+',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Column(
-                children: [
-                  Semantics(header: true, child: Text(parent._l10n.volume)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildStepperButton(
-                        label: parent._s(
-                          'Snížit hlasitost řeči',
-                          'Decrease speech volume',
-                        ),
-                        onPressed: () => _adjustSpeechVolume(-0.1),
-                        text: '-',
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Semantics(
-                          liveRegion: true,
-                          child: Text('${(s.speechVolume * 100).toInt()}%'),
-                        ),
-                      ),
-                      _buildStepperButton(
-                        label: parent._s(
-                          'Zvýšit hlasitost řeči',
-                          'Increase speech volume',
-                        ),
-                        onPressed: () => _adjustSpeechVolume(0.1),
-                        text: '+',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
             ],
           ),
         ),

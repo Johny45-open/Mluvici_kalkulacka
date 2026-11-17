@@ -84,8 +84,8 @@ void main() {
     dynamic state,
     ScreenReaderMode mode,
   ) async {
-    state.updateActiveSettingsForTest(
-      (s) => s.copyWith(screenReaderMode: mode),
+    await state.updateGlobalSettingsForTest(
+      (GlobalSettings s) => s.copyWith(screenReaderMode: mode),
     );
     await tester.pumpAndSettle();
   }

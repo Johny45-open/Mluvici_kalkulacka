@@ -305,6 +305,120 @@ abstract class AppLocalizations {
   /// **'Accessibility Settings'**
   String get accessibilitySettings;
 
+  /// No description provided for @globalSettingsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Global settings'**
+  String get globalSettingsSection;
+
+  /// No description provided for @voiceOutputTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice output'**
+  String get voiceOutputTitle;
+
+  /// No description provided for @screenReaderOnLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get screenReaderOnLabel;
+
+  /// No description provided for @screenReaderOffLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get screenReaderOffLabel;
+
+  /// No description provided for @selectTtsEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'Select TTS engine'**
+  String get selectTtsEngine;
+
+  /// No description provided for @selectTtsVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Select voice'**
+  String get selectTtsVoice;
+
+  /// No description provided for @openSystemTtsSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open system TTS settings'**
+  String get openSystemTtsSettings;
+
+  /// No description provided for @systemTtsSettingsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'System TTS settings'**
+  String get systemTtsSettingsButton;
+
+  /// No description provided for @decreaseSpeechRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease speech rate'**
+  String get decreaseSpeechRate;
+
+  /// No description provided for @increaseSpeechRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase speech rate'**
+  String get increaseSpeechRate;
+
+  /// No description provided for @decreaseVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease volume'**
+  String get decreaseVolume;
+
+  /// No description provided for @increaseVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase volume'**
+  String get increaseVolume;
+
+  /// No description provided for @globalSettingsRestoring.
+  ///
+  /// In en, this message translates to:
+  /// **'Global settings are being safely restored.'**
+  String get globalSettingsRestoring;
+
+  /// No description provided for @resultDisplayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Result display'**
+  String get resultDisplayTitle;
+
+  /// No description provided for @historyExactResultFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'History exact result format'**
+  String get historyExactResultFormat;
+
+  /// No description provided for @historyExactResultFormatGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'History exact result format, global setting'**
+  String get historyExactResultFormatGlobal;
+
+  /// No description provided for @fractionVoiceAnnouncement.
+  ///
+  /// In en, this message translates to:
+  /// **'Fraction voice announcement'**
+  String get fractionVoiceAnnouncement;
+
+  /// No description provided for @announceAvailableFraction.
+  ///
+  /// In en, this message translates to:
+  /// **'Announce available fraction'**
+  String get announceAvailableFraction;
+
+  /// No description provided for @fractionAnnouncementDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Global setting for the additional fraction sentence in results.'**
+  String get fractionAnnouncementDescription;
+
   /// No description provided for @displayType.
   ///
   /// In en, this message translates to:
@@ -2039,18 +2153,6 @@ abstract class AppLocalizations {
   /// **'Speech rate controls'**
   String get speechRateControls;
 
-  /// No description provided for @decreaseSpeechRate.
-  ///
-  /// In en, this message translates to:
-  /// **'Decrease speech rate'**
-  String get decreaseSpeechRate;
-
-  /// No description provided for @increaseSpeechRate.
-  ///
-  /// In en, this message translates to:
-  /// **'Increase speech rate'**
-  String get increaseSpeechRate;
-
   /// No description provided for @speechRateValue.
   ///
   /// In en, this message translates to:
@@ -2062,18 +2164,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Volume controls'**
   String get volumeControls;
-
-  /// No description provided for @decreaseVolume.
-  ///
-  /// In en, this message translates to:
-  /// **'Decrease volume'**
-  String get decreaseVolume;
-
-  /// No description provided for @increaseVolume.
-  ///
-  /// In en, this message translates to:
-  /// **'Increase volume'**
-  String get increaseVolume;
 
   /// No description provided for @volumeValue.
   ///

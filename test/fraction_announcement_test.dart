@@ -76,8 +76,8 @@ void main() {
     dynamic state,
     bool on,
   ) async {
-    state.updateActiveSettingsForTest(
-      (s) => s.copyWith(
+    await state.updateGlobalSettingsForTest(
+      (GlobalSettings s) => s.copyWith(
         screenReaderMode: on ? ScreenReaderMode.on : ScreenReaderMode.off,
       ),
     );
@@ -152,7 +152,9 @@ void main() {
     ) async {
       final state = await pumpApp(tester);
       state.setResultDisplayModeForTest(ResultDisplayMode.text);
-      state.setResultNotationPreferenceForTest(ResultNotationPreference.fraction);
+      state.setResultNotationPreferenceForTest(
+        ResultNotationPreference.fraction,
+      );
       await tester.pump();
       await setScreenReader(tester, state, true);
       await calculate(tester, state, '3/4');
@@ -442,20 +444,21 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('I. announceFractionAvailability vypnuto -> 0,75 bez doplňkové věty', (
-      tester,
-    ) async {
-      final state = await pumpApp(tester);
-      await setScreenReader(tester, state, false);
-      state.setAnnounceFractionAvailabilityForTest(false);
-      await calculate(tester, state, '0.75');
-      expect(state.fractionStringForTest, '3/4');
-      final speeches = resultSpeeches('Výsledek je', 'The result is');
-      expect(speeches, hasLength(1), reason: 'TTS log: $ttsLog');
-      expect(speeches.single, contains('Výsledek je'));
-      expect(speeches.single.contains('dostupný zlomek'), isFalse);
-      expect(speeches.single.contains('is available'), isFalse);
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'I. announceFractionAvailability vypnuto -> 0,75 bez doplňkové věty',
+      (tester) async {
+        final state = await pumpApp(tester);
+        await setScreenReader(tester, state, false);
+        state.setAnnounceFractionAvailabilityForTest(false);
+        await calculate(tester, state, '0.75');
+        expect(state.fractionStringForTest, '3/4');
+        final speeches = resultSpeeches('Výsledek je', 'The result is');
+        expect(speeches, hasLength(1), reason: 'TTS log: $ttsLog');
+        expect(speeches.single, contains('Výsledek je'));
+        expect(speeches.single.contains('dostupný zlomek'), isFalse);
+        expect(speeches.single.contains('is available'), isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

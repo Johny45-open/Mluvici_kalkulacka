@@ -305,7 +305,11 @@ void main() {
       );
       expect(state.resultDisplayModeForTest, ResultDisplayMode.text);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('resultDisplayMode'), 'text');
+      expect(
+        (jsonDecode(prefs.getString('globalSettingsV3')!)
+            as Map)['resultDisplayMode'],
+        'text',
+      );
       expect(tester.takeException(), isNull);
     });
 
@@ -326,7 +330,7 @@ void main() {
       final state = await pumpApp(tester);
       expect(state.startEditingForTest('standard'), isTrue);
       state.updateEditingForTest(
-        (AccessibilitySettings s) => s.copyWith(speechRate: 0.9),
+        (AccessibilitySettings s) => s.copyWith(dialogFontScale: 1.2),
       );
       await tester.pump();
       expect(state.editingDraftForTest, isNotNull);
@@ -347,7 +351,7 @@ void main() {
         final state = await pumpApp(tester);
         expect(state.startEditingForTest('standard'), isTrue);
         state.updateEditingForTest(
-          (AccessibilitySettings s) => s.copyWith(speechRate: 0.9),
+          (AccessibilitySettings s) => s.copyWith(dialogFontScale: 1.2),
         );
         await tester.pump();
         final dialogFuture = state.openEditorDialogForTest();
@@ -373,9 +377,9 @@ void main() {
         final standard =
             profilesJson.firstWhere((p) => p['id'] == 'standard') as Map;
         expect(
-          (standard['settings'] as Map)['speechRate'],
-          0.9,
-          reason: 'speechRate 0.9 se musí uložit do profilu standard',
+          (standard['settings'] as Map)['dialogFontScale'],
+          1.2,
+          reason: 'dialogFontScale 1.2 se musí uložit do profilu standard',
         );
         // Žádný liveRegion s textem uložení profilu (duplicita pro TalkBack).
         final liveSummary = find.byWidgetPredicate(

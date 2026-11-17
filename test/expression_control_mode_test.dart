@@ -328,8 +328,8 @@ void main() {
       tester,
     ) async {
       final state = await pumpApp(tester);
-      state.updateActiveSettingsForTest(
-        (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
       );
       await tester.pumpAndSettle();
       expect(state.isScreenReaderActiveForTest, isTrue);
@@ -415,8 +415,8 @@ void main() {
 
     testWidgets('9. právě jedno oznámení, žádná smyčka', (tester) async {
       final state = await pumpApp(tester);
-      state.updateActiveSettingsForTest(
-        (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
       );
       await tester.pumpAndSettle();
       state.setDisplayForTest('12+3', 2);
@@ -580,8 +580,8 @@ void main() {
 
     testWidgets('T4. reaktivace funguje i při aktivní čtečce', (tester) async {
       final state = await pumpApp(tester);
-      state.updateActiveSettingsForTest(
-        (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
       );
       await tester.pumpAndSettle();
       expect(state.isScreenReaderActiveForTest, isTrue);

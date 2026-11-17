@@ -141,12 +141,15 @@ class _ScientificCalculatorAppState extends State<ScientificCalculatorApp> {
     }
   }
 
-  void _updateThemeMode(ThemeMode mode) async {
-    setState(() {
-      _themeMode = mode;
-    });
+  Future<void> _updateThemeMode(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('themeMode', mode.index);
+    if (!await prefs.setInt('themeMode', mode.index)) {
+      throw StateError('Unable to persist theme mode.');
+    }
+    if (mounted)
+      setState(() => _themeMode = mode);
+    else
+      _themeMode = mode;
   }
 
   @override

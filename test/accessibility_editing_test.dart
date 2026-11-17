@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,7 +45,9 @@ void main() {
   }
 
   group('Editing draft', () {
-    testWidgets('B theme revert', (tester) async {
+    testWidgets('editing a profile does not change global settings', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
         'themeMode': ThemeMode.light.index,
@@ -61,22 +62,20 @@ void main() {
       await tester.pumpAndSettle();
       state.updateEditingForTest(
         (AccessibilitySettings s) => s.copyWith(
-          speechRate: 0.9,
           dialogFontScale: 2.0,
-          speechVolume: 0.3,
           accessibilityType: AccessibilityType.visuallyImpaired,
         ),
       );
       await tester.pumpAndSettle();
-      expect(state.editingDraftForTest.settings.speechRate, 0.9);
       expect(state.dialogFontScaleNotifierForTest.value, 2.0);
-      expect(state.themeModeForTest, ThemeMode.dark);
+      expect(state.themeModeForTest, ThemeMode.light);
+      expect(state.globalSettingsForTest.speechRate, 0.5);
       expect(
         state.profilesForTest
             .firstWhere((p) => p.id == 'standard')
             .settings
-            .speechRate,
-        0.5,
+            .dialogFontScale,
+        1.0,
       );
       final midV2 = (await SharedPreferences.getInstance()).getString(
         'accessibility_profiles_v2',

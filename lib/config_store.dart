@@ -3,16 +3,16 @@ part of 'main.dart';
 /// Testovatelná persistence/migration/apply vrstva pro rychlé nastavení.
 ///
 /// Žádný nový persistentní formát: canonical source of truth je
-/// `config_contract_v2` (nebo zachovaný v1 snapshot pro starší import) je
+/// `config_contract_v3` (nebo zachované starší snapshoty) je
 /// kanonický kontrakt; SharedPreferences legacy keys jsou kompatibilní derivace.
 ///
 /// Upozornění k „atomicitě": SharedPreferences není databázová transakce,
 /// proto se zde používá pojem **safe commit workflow / canonical snapshot
 /// commit**, nikoli „true atomic transaction".
 ///
-/// Pořadí commitu: draft → validate → canonical snapshot → persist →
-/// runtime apply (volá caller) → completion marker. Při chybě persistu
-/// se runtime nesmí měnit a marker se nesmí nastavit.
+/// Pořadí commitu: draft → validate → persist canonical settings (migration
+/// marker last) → runtime apply by the caller. A persistence failure rolls
+/// back written preferences and must not change runtime state.
 const String kQuickSetupCompletedKey = 'quickSetupCompleted';
 
 /// Čistá detekce skutečně uložené uživatelské konfigurace.
@@ -183,6 +183,7 @@ Map<String, dynamic> buildQuickSetupContract({
     resultNotationPreference: draft.resultNotationPreference,
     historyExactFormat: historyExactFormat,
     announceFractionAvailability: draft.announceFractionAvailability,
+    globalSettings: draft.globalSettings,
   );
 }
 
@@ -203,63 +204,114 @@ Future<void> persistCanonicalContract(
   Map<String, dynamic> contract,
 ) async {
   final parsed = parseContract(contract);
+  final canonicalSnapshot = buildContractJson(
+    profiles: parsed.profiles,
+    activeProfileId: parsed.activeProfileId,
+    themeMode: parsed.themeMode,
+    isDegreeMode: parsed.isDegreeMode,
+    defaultMode: parsed.defaultMode,
+    statsSummaryOrder: parsed.statsSummaryOrder,
+    statsComputedOrder: parsed.statsComputedOrder,
+    currencyFrom: parsed.currencyFrom,
+    currencyTo: parsed.currencyTo,
+    devEnabled: parsed.devEnabled,
+    devAutoDiagnostic: parsed.devAutoDiagnostic,
+    devDiagnosticDurationMs: parsed.devDiagnosticDurationMs,
+    devPinCode: parsed.devPinCode,
+    resultDisplayMode: parsed.resultDisplayMode,
+    resultNotationPreference: parsed.resultNotationPreference,
+    historyExactFormat: parsed.historyExactFormat,
+    announceFractionAvailability: parsed.announceFractionAvailability,
+    globalSettings: parsed.globalSettings,
+    statsDisplayConfig:
+        parsed.statsDisplayConfig ?? StatsDisplayConfig.defaults(),
+  );
   final profileJson = jsonEncode(
     parsed.profiles.map((p) => p.toJson()).toList(),
   );
-  // Povinné zápisy – každý awaitovaný. SharedPreferences na podporovaných
-  // platformách zapisuje synchronně do paměti, takže částečný stav po
-  // chybě znamená výhradně výjimku (žádné tiché „napůl").
-  final writes = <Future<bool>>[
-    prefs.setString('accessibility_profiles_v2', profileJson),
-    prefs.setString('activeProfileId', parsed.activeProfileId),
-    prefs.setBool('isDegreeMode', parsed.isDegreeMode),
-    prefs.setString(
-      'resultDisplayMode',
-      _resultDisplayModeToString(parsed.resultDisplayMode),
-    ),
-    prefs.setString(
+  final writes = <String, Future<bool> Function()>{
+    'accessibility_profiles_v2': () =>
+        prefs.setString('accessibility_profiles_v2', profileJson),
+    'activeProfileId': () =>
+        prefs.setString('activeProfileId', parsed.activeProfileId),
+    'isDegreeMode': () => prefs.setBool('isDegreeMode', parsed.isDegreeMode),
+    'resultNotationPreference': () => prefs.setString(
       'resultNotationPreference',
       _resultNotationPreferenceToString(parsed.resultNotationPreference),
     ),
-    prefs.setString(
+    'historyExactFormat': () => prefs.setString(
       'historyExactFormat',
       _historyExactFormatToString(parsed.historyExactFormat),
     ),
-    prefs.setInt('defaultMode', parsed.defaultMode.index),
-    prefs.setStringList(
+    'defaultMode': () => prefs.setInt('defaultMode', parsed.defaultMode.index),
+    'statsSummaryOrder': () => prefs.setStringList(
       'statsSummaryOrder',
       parsed.statsSummaryOrder.map((e) => e.name).toList(),
     ),
-    prefs.setStringList(
+    'statsComputedOrder': () => prefs.setStringList(
       'statsComputedOrder',
       parsed.statsComputedOrder.map((e) => e.name).toList(),
     ),
-    prefs.setString(
+    'statsDisplayConfig': () => prefs.setString(
       'statsDisplayConfig',
-      jsonEncode(parsed.statsDisplayConfig!.toJson()),
+      jsonEncode(
+        (parsed.statsDisplayConfig ?? StatsDisplayConfig.defaults()).toJson(),
+      ),
     ),
-    prefs.setString('currencyFrom', parsed.currencyFrom),
-    prefs.setString('currencyTo', parsed.currencyTo),
-    prefs.setBool('devModeEnabled', parsed.devEnabled),
-    prefs.setBool('devAutoDiagnosticEnabled', parsed.devAutoDiagnostic),
-    prefs.setInt('devDiagnosticDurationMs', parsed.devDiagnosticDurationMs),
-    if (parsed.devPinCode != null)
-      prefs.setString('devPinCode', parsed.devPinCode!)
-    else
-      prefs.remove('devPinCode').then((_) => true),
-    prefs.setInt('themeMode', parsed.themeMode.index),
-    prefs.setBool('announceFractionAvailability', parsed.announceFractionAvailability),
-    prefs.setBool('modeQuestionAsked', true),
-  ];
-  for (final w in writes) {
-    final ok = await w;
-    if (!ok) throw StateError('QuickSetup persist failed');
+    'currencyFrom': () => prefs.setString('currencyFrom', parsed.currencyFrom),
+    'currencyTo': () => prefs.setString('currencyTo', parsed.currencyTo),
+    'devModeEnabled': () => prefs.setBool('devModeEnabled', parsed.devEnabled),
+    'devAutoDiagnosticEnabled': () =>
+        prefs.setBool('devAutoDiagnosticEnabled', parsed.devAutoDiagnostic),
+    'devDiagnosticDurationMs': () =>
+        prefs.setInt('devDiagnosticDurationMs', parsed.devDiagnosticDurationMs),
+    'devPinCode': () => parsed.devPinCode != null
+        ? prefs.setString('devPinCode', parsed.devPinCode!)
+        : prefs.remove('devPinCode'),
+    'themeMode': () => prefs.setInt('themeMode', parsed.themeMode.index),
+    'globalSettingsV3': () => prefs.setString(
+      'globalSettingsV3',
+      jsonEncode(parsed.globalSettings.toJson()..remove('themeMode')),
+    ),
+    'modeQuestionAsked': () => prefs.setBool('modeQuestionAsked', true),
+    'globalSettingsMigratedV3': () =>
+        prefs.setBool('globalSettingsMigratedV3', true),
+  };
+  final previous = {for (final key in writes.keys) key: prefs.get(key)};
+  try {
+    for (final entry in writes.entries) {
+      if (!await entry.value()) {
+        throw StateError('QuickSetup persist failed for ${entry.key}');
+      }
+    }
+  } catch (error, stackTrace) {
+    for (final key in writes.keys.toList().reversed) {
+      final value = previous[key];
+      try {
+        final restored = switch (value) {
+          null => await prefs.remove(key),
+          String() => await prefs.setString(key, value),
+          bool() => await prefs.setBool(key, value),
+          int() => await prefs.setInt(key, value),
+          List<String>() => await prefs.setStringList(key, value),
+          _ => throw StateError('Unsupported SharedPreferences value for $key'),
+        };
+        if (!restored) {
+          debugPrint('QuickSetup persistence rollback failed for $key.');
+        }
+      } catch (rollbackError) {
+        debugPrint(
+          'QuickSetup persistence rollback failed for $key: $rollbackError',
+        );
+      }
+    }
+    Error.throwWithStackTrace(error, stackTrace);
   }
   // Parity snapshot až po úspěchu povinných zápisů.
   try {
-    final snapshotKey = contract['schemaVersion'] == 2
-        ? 'config_contract_v2'
-        : 'config_contract_v1';
-    await prefs.setString(snapshotKey, jsonEncode(contract));
-  } catch (_) {}
+    const snapshotKey = 'config_contract_v3';
+    await prefs.setString(snapshotKey, jsonEncode(canonicalSnapshot));
+  } catch (error) {
+    debugPrint('QuickSetup contract snapshot failed: $error');
+  }
 }

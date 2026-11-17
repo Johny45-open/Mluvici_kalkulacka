@@ -759,8 +759,8 @@ void main() {
       tester,
     ) async {
       final state = await pumpApp(tester);
-      state.updateActiveSettingsForTest(
-        (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
       );
       await tester.pumpAndSettle();
       expect(state.isScreenReaderActiveForTest, isTrue);
@@ -836,8 +836,9 @@ void main() {
       tester,
     ) async {
       final state = await pumpApp(tester);
-      state.updateActiveSettingsForTest(
-        (s) => s.copyWith(screenReaderMode: ScreenReaderMode.off),
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) =>
+            s.copyWith(screenReaderMode: ScreenReaderMode.off),
       );
       await tester.pumpAndSettle();
       await openQuickMemory(tester);
@@ -855,8 +856,9 @@ void main() {
       tester,
     ) async {
       final state = await pumpApp(tester);
-      state.updateActiveSettingsForTest(
-        (s) => s.copyWith(screenReaderMode: ScreenReaderMode.off),
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) =>
+            s.copyWith(screenReaderMode: ScreenReaderMode.off),
       );
       await tester.pumpAndSettle();
       expect(state.isScreenReaderActiveForTest, isFalse);

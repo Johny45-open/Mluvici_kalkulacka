@@ -83,8 +83,8 @@ void main() {
     dynamic state,
     ScreenReaderMode mode,
   ) async {
-    state.updateActiveSettingsForTest(
-      (s) => s.copyWith(screenReaderMode: mode),
+    await state.updateGlobalSettingsForTest(
+      (GlobalSettings s) => s.copyWith(screenReaderMode: mode),
     );
     await tester.pumpAndSettle();
   }
@@ -111,76 +111,83 @@ void main() {
   }
 
   group('Spolehlivé oznámení stisknutých tlačítek (scénáře A-H)', () {
-    testWidgets('1. TalkBack ON – stisk číslice 7: Semantics oznámení a nulový ttsLog', (
-      tester,
-    ) async {
-      final state = await pumpApp(tester);
-      await setReaderMode(tester, state, ScreenReaderMode.on);
-      expect(state.isScreenReaderActiveForTest, isTrue);
+    testWidgets(
+      '1. TalkBack ON – stisk číslice 7: Semantics oznámení a nulový ttsLog',
+      (tester) async {
+        final state = await pumpApp(tester);
+        await setReaderMode(tester, state, ScreenReaderMode.on);
+        expect(state.isScreenReaderActiveForTest, isTrue);
 
-      final countBefore = state.publishedAnnouncementCountForTest as int;
-      ttsLog.clear();
+        final countBefore = state.publishedAnnouncementCountForTest as int;
+        ttsLog.clear();
 
-      await state.handleButtonPressedForTest('7');
-      await tester.pumpAndSettle();
+        await state.handleButtonPressedForTest('7');
+        await tester.pumpAndSettle();
 
-      expect(ttsLog, isEmpty, reason: 'Při aktivní čtečce nesmí běžet paralelní TTS');
-      expect(state.lastAnnouncementForTest as String, '7');
-      expect(state.publishedAnnouncementCountForTest as int, countBefore + 1);
-      expect(displayValue(tester), '7');
-      expect(tester.takeException(), isNull);
-    });
+        expect(
+          ttsLog,
+          isEmpty,
+          reason: 'Při aktivní čtečce nesmí běžet paralelní TTS',
+        );
+        expect(state.lastAnnouncementForTest as String, '7');
+        expect(state.publishedAnnouncementCountForTest as int, countBefore + 1);
+        expect(displayValue(tester), '7');
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('2. TalkBack ON – posloupnost 7, +, 3: každá akce vygeneruje právě jedno Semantics oznámení', (
-      tester,
-    ) async {
-      final state = await pumpApp(tester);
-      await setReaderMode(tester, state, ScreenReaderMode.on);
-      expect(state.isScreenReaderActiveForTest, isTrue);
+    testWidgets(
+      '2. TalkBack ON – posloupnost 7, +, 3: každá akce vygeneruje právě jedno Semantics oznámení',
+      (tester) async {
+        final state = await pumpApp(tester);
+        await setReaderMode(tester, state, ScreenReaderMode.on);
+        expect(state.isScreenReaderActiveForTest, isTrue);
 
-      ttsLog.clear();
-      final countBefore = state.publishedAnnouncementCountForTest as int;
+        ttsLog.clear();
+        final countBefore = state.publishedAnnouncementCountForTest as int;
 
-      await state.handleButtonPressedForTest('7');
-      await tester.pumpAndSettle();
-      expect(ttsLog, isEmpty);
-      expect(state.lastAnnouncementForTest as String, '7');
-      expect(state.publishedAnnouncementCountForTest as int, countBefore + 1);
+        await state.handleButtonPressedForTest('7');
+        await tester.pumpAndSettle();
+        expect(ttsLog, isEmpty);
+        expect(state.lastAnnouncementForTest as String, '7');
+        expect(state.publishedAnnouncementCountForTest as int, countBefore + 1);
 
-      await state.handleButtonPressedForTest('+');
-      await tester.pumpAndSettle();
-      expect(ttsLog, isEmpty);
-      expect(state.lastAnnouncementForTest as String, 'Plus');
-      expect(state.publishedAnnouncementCountForTest as int, countBefore + 2);
+        await state.handleButtonPressedForTest('+');
+        await tester.pumpAndSettle();
+        expect(ttsLog, isEmpty);
+        expect(state.lastAnnouncementForTest as String, 'Plus');
+        expect(state.publishedAnnouncementCountForTest as int, countBefore + 2);
 
-      await state.handleButtonPressedForTest('3');
-      await tester.pumpAndSettle();
-      expect(ttsLog, isEmpty);
-      expect(state.lastAnnouncementForTest as String, '3');
-      expect(state.publishedAnnouncementCountForTest as int, countBefore + 3);
+        await state.handleButtonPressedForTest('3');
+        await tester.pumpAndSettle();
+        expect(ttsLog, isEmpty);
+        expect(state.lastAnnouncementForTest as String, '3');
+        expect(state.publishedAnnouncementCountForTest as int, countBefore + 3);
 
-      expect(displayValue(tester), '7+3');
-      expect(tester.takeException(), isNull);
-    });
+        expect(displayValue(tester), '7+3');
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('3. TalkBack OFF – stisk 7: právě jedno TTS volání, žádné Semantics publikování pro tlačítko', (
-      tester,
-    ) async {
-      final state = await pumpApp(tester);
-      await setReaderMode(tester, state, ScreenReaderMode.off);
-      expect(state.isScreenReaderActiveForTest, isFalse);
+    testWidgets(
+      '3. TalkBack OFF – stisk 7: právě jedno TTS volání, žádné Semantics publikování pro tlačítko',
+      (tester) async {
+        final state = await pumpApp(tester);
+        await setReaderMode(tester, state, ScreenReaderMode.off);
+        expect(state.isScreenReaderActiveForTest, isFalse);
 
-      final semBefore = state.publishedAnnouncementCountForTest as int;
-      ttsLog.clear();
+        final semBefore = state.publishedAnnouncementCountForTest as int;
+        ttsLog.clear();
 
-      await state.handleButtonPressedForTest('7');
-      await tester.pumpAndSettle();
+        await state.handleButtonPressedForTest('7');
+        await tester.pumpAndSettle();
 
-      expect(ttsLog, hasLength(1), reason: 'TTS log: $ttsLog');
-      expect(ttsLog.single, '7');
-      expect(state.publishedAnnouncementCountForTest as int, semBefore);
-      expect(tester.takeException(), isNull);
-    });
+        expect(ttsLog, hasLength(1), reason: 'TTS log: $ttsLog');
+        expect(ttsLog.single, '7');
+        expect(state.publishedAnnouncementCountForTest as int, semBefore);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets('4. Auto + detekce true: chování shodné s SR ON', (
       tester,
@@ -223,80 +230,95 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(ttsLog, isEmpty, reason: 'V UNKNOWN stavu nesmí běžet TTS');
-      expect(state.publishedAnnouncementCountForTest as int, countBefore,
-          reason: 'V UNKNOWN stavu se stisk tlačítka nepublikuje přes Semantics');
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('6. Tlačítka DEL a C: správná a právě jedna hláška odpovídající akci', (
-      tester,
-    ) async {
-      final state = await pumpApp(tester);
-      await setReaderMode(tester, state, ScreenReaderMode.on);
-
-      state.setDisplayForTest('12', 2);
-      await tester.pumpAndSettle();
-
-      ttsLog.clear();
-      final countBeforeDel = state.publishedAnnouncementCountForTest as int;
-
-      await state.handleButtonPressedForTest('DEL');
-      await tester.pumpAndSettle();
-
-      expect(ttsLog, isEmpty);
-      expect(state.lastAnnouncementForTest as String, contains('Smazáno'));
-      expect(state.publishedAnnouncementCountForTest as int, countBeforeDel + 1);
-      expect(state.displayForTest, '1');
-
-      ttsLog.clear();
-      final countBeforeC = state.publishedAnnouncementCountForTest as int;
-
-      await state.handleButtonPressedForTest('C');
-      await tester.pumpAndSettle();
-
-      expect(ttsLog, isEmpty);
-      expect(state.lastAnnouncementForTest as String, contains('Vymazáno'));
-      expect(state.publishedAnnouncementCountForTest as int, countBeforeC + 1);
-      expect(state.displayForTest, '');
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('7. Fyzická klávesnice: silent=true i KeyEvent při TalkBack ON', (
-      tester,
-    ) async {
-      final state = await pumpApp(tester);
-      await setReaderMode(tester, state, ScreenReaderMode.on);
-
-      // 7a: silent: true nevydá žádné oznámení
-      final countBeforeSilent = state.publishedAnnouncementCountForTest as int;
-      ttsLog.clear();
-      state.append('5', silent: true);
-      await tester.pumpAndSettle();
-
-      expect(ttsLog, isEmpty);
-      expect(state.publishedAnnouncementCountForTest as int, countBeforeSilent);
-
-      // 7b: fyzická klávesnice přes KeyEvent: propouští se do čtečky (ignored)
-      // a používá silent: true, aby nedošlo k dvojímu čtení s odečítačem.
-      final countBeforeKey = state.publishedAnnouncementCountForTest as int;
-      ttsLog.clear();
-
-      final result = state.handleKeyEventForTest(
-        const KeyDownEvent(
-          physicalKey: PhysicalKeyboardKey.digit7,
-          logicalKey: LogicalKeyboardKey.digit7,
-          timeStamp: Duration.zero,
-          character: '7',
-        ),
+      expect(
+        state.publishedAnnouncementCountForTest as int,
+        countBefore,
+        reason: 'V UNKNOWN stavu se stisk tlačítka nepublikuje přes Semantics',
       );
-      await tester.pumpAndSettle();
-
-      expect(result, KeyEventResult.ignored);
-      expect(ttsLog, isEmpty);
-      expect(state.publishedAnnouncementCountForTest as int, countBeforeKey);
-      expect(state.displayForTest, '57');
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      '6. Tlačítka DEL a C: správná a právě jedna hláška odpovídající akci',
+      (tester) async {
+        final state = await pumpApp(tester);
+        await setReaderMode(tester, state, ScreenReaderMode.on);
+
+        state.setDisplayForTest('12', 2);
+        await tester.pumpAndSettle();
+
+        ttsLog.clear();
+        final countBeforeDel = state.publishedAnnouncementCountForTest as int;
+
+        await state.handleButtonPressedForTest('DEL');
+        await tester.pumpAndSettle();
+
+        expect(ttsLog, isEmpty);
+        expect(state.lastAnnouncementForTest as String, contains('Smazáno'));
+        expect(
+          state.publishedAnnouncementCountForTest as int,
+          countBeforeDel + 1,
+        );
+        expect(state.displayForTest, '1');
+
+        ttsLog.clear();
+        final countBeforeC = state.publishedAnnouncementCountForTest as int;
+
+        await state.handleButtonPressedForTest('C');
+        await tester.pumpAndSettle();
+
+        expect(ttsLog, isEmpty);
+        expect(state.lastAnnouncementForTest as String, contains('Vymazáno'));
+        expect(
+          state.publishedAnnouncementCountForTest as int,
+          countBeforeC + 1,
+        );
+        expect(state.displayForTest, '');
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      '7. Fyzická klávesnice: silent=true i KeyEvent při TalkBack ON',
+      (tester) async {
+        final state = await pumpApp(tester);
+        await setReaderMode(tester, state, ScreenReaderMode.on);
+
+        // 7a: silent: true nevydá žádné oznámení
+        final countBeforeSilent =
+            state.publishedAnnouncementCountForTest as int;
+        ttsLog.clear();
+        state.append('5', silent: true);
+        await tester.pumpAndSettle();
+
+        expect(ttsLog, isEmpty);
+        expect(
+          state.publishedAnnouncementCountForTest as int,
+          countBeforeSilent,
+        );
+
+        // 7b: fyzická klávesnice přes KeyEvent: propouští se do čtečky (ignored)
+        // a používá silent: true, aby nedošlo k dvojímu čtení s odečítačem.
+        final countBeforeKey = state.publishedAnnouncementCountForTest as int;
+        ttsLog.clear();
+
+        final result = state.handleKeyEventForTest(
+          const KeyDownEvent(
+            physicalKey: PhysicalKeyboardKey.digit7,
+            logicalKey: LogicalKeyboardKey.digit7,
+            timeStamp: Duration.zero,
+            character: '7',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(result, KeyEventResult.ignored);
+        expect(ttsLog, isEmpty);
+        expect(state.publishedAnnouncementCountForTest as int, countBeforeKey);
+        expect(state.displayForTest, '57');
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets('8. Displej vs. tlačítko: kontrola duplicity hlášek', (
       tester,

@@ -65,57 +65,17 @@ void main() {
   }
 
   group('ResultDisplayMode – model a persistence', () {
-    test('default všech profilů je segment (původní vzhled)', () {
+    test('result display setting belongs to GlobalSettings only', () {
+      final global = GlobalSettings.defaults();
+      expect(global.resultDisplayMode, ResultDisplayMode.segment);
       expect(
-        AccessibilitySettings.defaultsStandard().resultDisplayMode,
-        ResultDisplayMode.segment,
+        global
+            .copyWith(resultDisplayMode: ResultDisplayMode.text)
+            .resultDisplayMode,
+        ResultDisplayMode.text,
       );
-      expect(
-        AccessibilitySettings.defaultsBlind().resultDisplayMode,
-        ResultDisplayMode.segment,
-      );
-      expect(
-        AccessibilitySettings.defaultsLowVision().resultDisplayMode,
-        ResultDisplayMode.segment,
-      );
-    });
-
-    test('copyWith mění jen resultDisplayMode', () {
-      final a = AccessibilitySettings.defaultsStandard();
-      final b = a.copyWith(resultDisplayMode: ResultDisplayMode.text);
-      expect(a.resultDisplayMode, ResultDisplayMode.segment);
-      expect(b.resultDisplayMode, ResultDisplayMode.text);
-    });
-
-    test('fromJson čte legacy klíč (migrace), toJson ho nezapisuje', () {
-      for (final m in ResultDisplayMode.values) {
-        final restored = AccessibilitySettings.fromJson({
-          'resultDisplayMode': m.index,
-        });
-        expect(restored.resultDisplayMode, m);
-      }
-      // Nově uložený profil klíč neobsahuje (globál je jediný zdroj).
-      final fresh = AccessibilitySettings.defaultsStandard().toJson();
-      expect(fresh.containsKey('resultDisplayMode'), isFalse);
-    });
-
-    test('starý profil bez klíče a neznámá hodnota -> segment', () {
-      expect(
-        AccessibilitySettings.fromJson({}).resultDisplayMode,
-        ResultDisplayMode.segment,
-      );
-      expect(
-        AccessibilitySettings.fromJson({
-          'resultDisplayMode': 99,
-        }).resultDisplayMode,
-        ResultDisplayMode.segment,
-      );
-      expect(
-        AccessibilitySettings.fromJson({
-          'resultDisplayMode': 'text',
-        }).resultDisplayMode,
-        ResultDisplayMode.segment,
-      );
+      final freshProfile = AccessibilitySettings.defaultsStandard().toJson();
+      expect(freshProfile.containsKey('resultDisplayMode'), isFalse);
     });
   });
 
@@ -179,6 +139,20 @@ void main() {
       final c = contractWith(ResultDisplayMode.segment);
       (c['globalSettings'] as Map).remove('resultDisplayMode');
       (c['globalSettings'] as Map).remove('historyExactFormat');
+      c['schemaVersion'] = 2;
+      (c['globalSettings'] as Map)['statsDisplayConfig'] =
+          StatsDisplayConfig.defaults().toJson();
+      final profiles = c['profiles'] as List;
+      final profile = Map<String, dynamic>.from(profiles.first as Map);
+      final settings = Map<String, dynamic>.from(profile['settings'] as Map)
+        ..addAll({
+          'screenReaderMode': 'auto',
+          'ttsEnabled': true,
+          'speechRate': 0.5,
+          'speechVolume': 1.0,
+        });
+      profile['settings'] = settings;
+      c['profiles'] = [profile];
       expect(validateContract(c).ok, isTrue);
       final parsed = parseContract(
         jsonDecode(jsonEncode(c)) as Map<String, dynamic>,
@@ -349,14 +323,19 @@ void main() {
       expect(state.profilesLoadedForTest, isTrue);
       state.setResultDisplayModeForTest(ResultDisplayMode.auto);
       // _saveGlobalSettings je async: počkej na persistenci klíče.
-      for (
-        var i = 0;
-        i < 100 && prefs.getString('resultDisplayMode') != 'auto';
-        i++
-      ) {
+      for (var i = 0; i < 100; i++) {
+        final saved = prefs.getString('globalSettingsV3');
+        if (saved != null &&
+            (jsonDecode(saved) as Map)['resultDisplayMode'] == 'auto') {
+          break;
+        }
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(prefs.getString('resultDisplayMode'), 'auto');
+      expect(
+        (jsonDecode(prefs.getString('globalSettingsV3')!)
+            as Map)['resultDisplayMode'],
+        'auto',
+      );
       // Restart: znovu build BEZ resetu mock prefs (setMockInitialValues
       // se nevolá) — druhá instance musí načíst 'auto'.
       await tester.pumpWidget(
@@ -373,7 +352,7 @@ void main() {
       final state = await pumpApp(tester);
       expect(state.startEditingForTest('standard'), isTrue);
       state.updateEditingForTest(
-        (AccessibilitySettings s) => s.copyWith(speechRate: 0.9),
+        (AccessibilitySettings s) => s.copyWith(dialogFontScale: 1.2),
       );
       await tester.pump();
       expect(await state.saveEditingForTest(), isTrue);

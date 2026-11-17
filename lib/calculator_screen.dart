@@ -2,7 +2,7 @@ part of 'main.dart';
 
 class CalculatorScreen extends StatefulWidget {
   final ThemeMode themeMode;
-  final ValueChanged<ThemeMode> onThemeModeChanged;
+  final Future<void> Function(ThemeMode) onThemeModeChanged;
   static bool skipNetworkUpdatesForTest = false;
   @visibleForTesting
   static Future<bool> Function()? mockSaveProfilesErrorForTest;
@@ -127,8 +127,7 @@ class _HistoryAnnouncementRegionState
   final _TransientAnnouncementController _announcementController =
       _TransientAnnouncementController();
 
-  late final void Function(String) _publisher =
-      _announcementController.publish;
+  late final void Function(String) _publisher = _announcementController.publish;
 
   @override
   void initState() {
@@ -427,21 +426,28 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   List<AccessibilityProfile> _profiles = [];
   bool _profilesLoaded = false;
 
-  // --- Globální nastavení vzhledu (nezávislé na profilu) ---
-  // Jediný runtime source of truth pro výsledkový displej i historii
-  // je _globalResultDisplayMode. Profily ho nikdy nečtou ani nezapisují
-  // (pouze jednorázová migrace).
-  ResultDisplayMode _globalResultDisplayMode = ResultDisplayMode.segment;
+  // --- Globální nastavení (nezávislé na profilu) ---
+  // Result display mode and fraction announcements are part of GlobalSettings;
+  // profiles never read or write them (except for one-time migration).
   ResultNotationPreference _globalResultNotationPreference =
       ResultNotationPreference.decimal;
-  bool _globalAnnounceFractionAvailability = true;
+  GlobalSettings _globalSettings = GlobalSettings.defaults();
+  bool _globalSettingsReady = false;
 
-  bool get _announceFractionAvailability => _globalAnnounceFractionAvailability;
+  ResultDisplayMode get _globalResultDisplayMode =>
+      _globalSettings.resultDisplayMode;
+  bool get _globalAnnounceFractionAvailability =>
+      _globalSettings.announceFractionAvailability;
+  bool get _announceFractionAvailability =>
+      _globalSettings.announceFractionAvailability;
 
   void setGlobalAnnounceFractionAvailability(bool v) {
-    if (_globalAnnounceFractionAvailability == v) return;
-    setState(() => _globalAnnounceFractionAvailability = v);
-    unawaited(_saveGlobalSettings());
+    if (_globalSettings.announceFractionAvailability == v) return;
+    unawaited(
+      _updateGlobalSettings(
+        _globalSettings.copyWith(announceFractionAvailability: v),
+      ),
+    );
   }
 
   void setAnnounceFractionAvailabilityForTest(bool v) {
@@ -484,7 +490,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String? _editingProfileId;
   AccessibilityProfile? _editingDraft;
   AccessibilitySettings? _editingPreviewSnapshot;
-  ThemeMode? _editingPreviewThemeSnapshot;
 
   // Editing getters (pro UI / testy)
   AccessibilityProfile? get editingProfile => _editingDraft;
@@ -520,6 +525,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void updateActiveAccessibilitySettings(
     AccessibilitySettings Function(AccessibilitySettings current) update,
   ) {
+    if (!_globalSettingsReady) return;
     if (_editingDraft != null && _editingProfileId == _activeProfileId) {
       updateEditingSettings(update);
       return;
@@ -532,21 +538,61 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() {
       _profiles[idx] = _profiles[idx].copyWith(settings: updated);
     });
-    _applySettingsToRuntime(updated, previous: current);
+    _applyProfileSettingsToRuntime(updated);
     _saveProfilesV2();
   }
 
-  // Sjednocená aplikace runtime efektů (TTS, notifier, theme) – bez perzistence
-  void _applySettingsToRuntime(
-    AccessibilitySettings updated, {
-    AccessibilitySettings? previous,
+  void _applyProfileSettingsToRuntime(AccessibilitySettings updated) {
+    _dialogFontScaleNotifier.value = updated.dialogFontScale;
+  }
+
+  Future<bool> _persistGlobalSettings(GlobalSettings settings) async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = settings.toJson()..remove('themeMode');
+    return prefs.setString('globalSettingsV3', jsonEncode(json));
+  }
+
+  Future<bool> _updateGlobalSettings(GlobalSettings updated) async {
+    if (!_globalSettingsReady || !_isValidGlobalSettings(updated)) return false;
+    final previous = _globalSettings;
+    try {
+      if (!await _persistGlobalSettings(updated)) {
+        throw StateError('Unable to persist global settings.');
+      }
+      if (updated.themeMode != previous.themeMode) {
+        await widget.onThemeModeChanged(updated.themeMode);
+      }
+    } catch (error) {
+      try {
+        await _persistGlobalSettings(previous);
+      } catch (rollbackError) {
+        debugPrint('Global settings rollback failed: $rollbackError');
+      }
+      debugPrint('Global settings save failed: $error');
+      return false;
+    }
+    if (!mounted) return false;
+    setState(() => _globalSettings = updated);
+    _applyGlobalSettingsToRuntime(updated, previous: previous);
+    return true;
+  }
+
+  bool _isValidGlobalSettings(GlobalSettings settings) =>
+      settings.speechRate.isFinite &&
+      settings.speechRate >= 0.1 &&
+      settings.speechRate <= 1.0 &&
+      settings.speechVolume.isFinite &&
+      settings.speechVolume >= 0.0 &&
+      settings.speechVolume <= 1.0;
+
+  void _applyGlobalSettingsToRuntime(
+    GlobalSettings updated, {
+    GlobalSettings? previous,
   }) {
     final prev = previous;
-    if (updated.screenReaderMode == ScreenReaderMode.auto &&
-        (prev == null || prev.screenReaderMode != ScreenReaderMode.auto)) {
+    if (prev == null || updated.screenReaderMode != prev.screenReaderMode) {
       unawaited(_refreshAccessibilityState());
     }
-    _dialogFontScaleNotifier.value = updated.dialogFontScale;
     if (prev == null || updated.speechRate != prev.speechRate) {
       tts.setSpeechRate(updated.speechRate).catchError((e) {
         debugPrint('TTS setSpeechRate Error: $e');
@@ -562,11 +608,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         tts.setEngine(updated.ttsEngine!).catchError((e) {
           debugPrint('TTS setEngine Error: $e');
         });
-      } else if (!Platform.isWindows &&
-          updated.ttsEngine == null &&
-          prev != null &&
-          prev.ttsEngine != null) {
-        // reset na výchozí engine není podporován, ponechat
       }
     }
     if (prev == null || updated.ttsVoice != prev.ttsVoice) {
@@ -574,16 +615,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         tts.setVoice(updated.ttsVoice!).catchError((e) {
           debugPrint('TTS setVoice Error: $e');
         });
-      } else {
-        if (prev == null || prev.ttsVoice != null) {
-          tts.clearVoice();
-        }
-      }
-    }
-    if (updated.accessibilityType == AccessibilityType.visuallyImpaired) {
-      if (prev == null ||
-          prev.accessibilityType != AccessibilityType.visuallyImpaired) {
-        widget.onThemeModeChanged(ThemeMode.dark);
+      } else if (prev == null || prev.ttsVoice != null) {
+        tts.clearVoice();
       }
     }
   }
@@ -591,7 +624,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // === Editing draft API – 8 operací ===
 
   bool startEditingProfile(String id) {
-    if (!_profilesLoaded) {
+    if (!_profilesLoaded || !_globalSettingsReady) {
       debugPrint('startEditingProfile: profiles not loaded yet, id=$id');
       _showAccessibleSnackBar(
         _s(
@@ -614,10 +647,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _editingDraft = src.copyWith();
     if (src.id == _activeProfileId) {
       _editingPreviewSnapshot = src.settings.copyWith();
-      _editingPreviewThemeSnapshot = widget.themeMode;
     } else {
       _editingPreviewSnapshot = null;
-      _editingPreviewThemeSnapshot = null;
     }
     if (mounted) setState(() {});
     return true;
@@ -631,7 +662,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final updated = update(prevDraftSettings);
     _editingDraft = _editingDraft!.copyWith(settings: updated);
     if (_editingProfileId == _activeProfileId) {
-      _applySettingsToRuntime(updated, previous: prevDraftSettings);
+      _applyProfileSettingsToRuntime(updated);
       if (mounted) setState(() {});
     } else {
       if (mounted) setState(() {});
@@ -639,6 +670,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Future<bool> saveEditingProfile() async {
+    if (!_globalSettingsReady) return false;
     if (_editingDraft == null || _editingProfileId == null) {
       debugPrint('saveEditingProfile: no draft');
       return false;
@@ -679,13 +711,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       return false;
     }
     if (wasActive) {
-      _applySettingsToRuntime(_editingDraft!.settings);
+      _applyProfileSettingsToRuntime(_editingDraft!.settings);
       _applyActiveProfileToState();
     }
     _editingDraft = null;
     _editingProfileId = null;
     _editingPreviewSnapshot = null;
-    _editingPreviewThemeSnapshot = null;
     if (mounted) setState(() {});
     return true;
   }
@@ -693,25 +724,18 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void discardEditingProfile() {
     if (_editingProfileId == _activeProfileId &&
         _editingPreviewSnapshot != null) {
-      _applySettingsToRuntime(
-        _editingPreviewSnapshot!,
-        previous: _editingDraft?.settings,
-      );
-      if (_editingPreviewThemeSnapshot != null &&
-          _editingPreviewThemeSnapshot != widget.themeMode) {
-        widget.onThemeModeChanged(_editingPreviewThemeSnapshot!);
-      }
+      _applyProfileSettingsToRuntime(_editingPreviewSnapshot!);
       _dialogFontScaleNotifier.value = _editingPreviewSnapshot!.dialogFontScale;
       if (mounted) setState(() {});
     }
     _editingDraft = null;
     _editingProfileId = null;
     _editingPreviewSnapshot = null;
-    _editingPreviewThemeSnapshot = null;
     if (mounted) setState(() {});
   }
 
   Future<void> renameProfile(String id, String newName) async {
+    if (!_globalSettingsReady) return;
     final idx = _profiles.indexWhere((p) => p.id == id);
     if (idx == -1) return;
     if (_profiles[idx].isBuiltIn) return;
@@ -724,6 +748,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Future<void> resetProfile(String id) async {
+    if (!_globalSettingsReady) return;
     final idx = _profiles.indexWhere((p) => p.id == id);
     if (idx == -1) return;
     if (_editingProfileId == id && _editingDraft != null) {
@@ -737,10 +762,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       } else {
         defaults = AccessibilitySettings.defaultsStandard();
       }
-      final prevDraftSettings = _editingDraft!.settings;
       _editingDraft = _editingDraft!.copyWith(settings: defaults.copyWith());
       if (id == _activeProfileId) {
-        _applySettingsToRuntime(defaults, previous: prevDraftSettings);
+        _applyProfileSettingsToRuntime(defaults);
       }
       // Snapshot zůstává původní před editací – Cancel vrátí původní stav (dokumentováno).
       // Save po resetu uloží defaults. Runtime již odpovídá draftu (defaults).
@@ -778,8 +802,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // Read-only aliasy pro minimalizaci diffu (všechna čtení zůstanou funkční)
   AccessibilityType get _accessibilityType =>
       activeAccessibilitySettings.accessibilityType;
-  ScreenReaderMode get _screenReaderMode =>
-      activeAccessibilitySettings.screenReaderMode;
+  ScreenReaderMode get _screenReaderMode => _globalSettings.screenReaderMode;
   double get _fontSizeMultiplier =>
       activeAccessibilitySettings.fontSizeMultiplier;
   double get _keyboardFontScale => _fontSizeMultiplier;
@@ -805,11 +828,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   double get _dialogFontScale => activeAccessibilitySettings.dialogFontScale;
   late final ValueNotifier<double> _dialogFontScaleNotifier =
       ValueNotifier<double>(1.0);
-  double get _speechRate => activeAccessibilitySettings.speechRate;
-  double get _speechVolume => activeAccessibilitySettings.speechVolume;
-  String? get _ttsEngine => activeAccessibilitySettings.ttsEngine;
-  Map<String, String>? get _ttsVoice => activeAccessibilitySettings.ttsVoice;
-  String? get _ttsVoiceName => activeAccessibilitySettings.ttsVoiceName;
+  double get _speechRate => _globalSettings.speechRate;
+  double get _speechVolume => _globalSettings.speechVolume;
+  String? get _ttsEngine => _globalSettings.ttsEngine;
+  Map<String, String>? get _ttsVoice => _globalSettings.ttsVoice;
+  String? get _ttsVoiceName => _globalSettings.ttsVoiceName;
   int? get _inverseFormatPreference =>
       activeAccessibilitySettings.inverseFormatPreference;
   bool get _useSixteenSegment => activeAccessibilitySettings.useSixteenSegment;
@@ -817,9 +840,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ResultDisplayMode get _resultDisplayMode => _globalResultDisplayMode;
 
   void setGlobalResultDisplayMode(ResultDisplayMode m) {
-    if (_globalResultDisplayMode == m) return;
-    setState(() => _globalResultDisplayMode = m);
-    unawaited(_saveGlobalSettings());
+    if (_globalSettings.resultDisplayMode == m) return;
+    unawaited(
+      _updateGlobalSettings(_globalSettings.copyWith(resultDisplayMode: m)),
+    );
   }
 
   void setHistoryExactFormat(HistoryExactFormat f) {
@@ -865,7 +889,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool get _showStatsNavigationHint =>
       activeAccessibilitySettings.showStatsNavigationHint;
   DialogSize get _dialogSize => activeAccessibilitySettings.dialogSize;
-  bool get ttsEnabled => activeAccessibilitySettings.ttsEnabled;
+  bool get ttsEnabled => _globalSettings.ttsEnabled;
   // pro zpětnou kompatibilitu s testy / starým voláním setteru
   set _keyboardFontScale(double v) => updateActiveAccessibilitySettings(
     (s) => s.copyWith(fontSizeMultiplier: v),
@@ -1918,10 +1942,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _lastTtsLocale = lang;
     tts.setLanguage(lang);
     if (_ttsVoice != null) {
-      updateActiveAccessibilitySettings(
-        (s) => s.copyWith(clearTtsVoice: true, clearTtsVoiceName: true),
+      unawaited(
+        _updateGlobalSettings(
+          _globalSettings.copyWith(
+            clearTtsVoice: true,
+            clearTtsVoiceName: true,
+          ),
+        ),
       );
-      tts.clearVoice();
     }
   }
 
@@ -3650,12 +3678,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _quickSetupShown = true;
     final draft = QuickSetupDraft.fromRuntime(
       settings: _getActiveAccessibilityProfile().settings,
-      themeMode: widget.themeMode,
+      globalSettings: _globalSettings,
       isDegreeMode: _isDegreeMode,
       defaultMode: _defaultMode,
-      resultDisplayMode: _globalResultDisplayMode,
       resultNotationPreference: _globalResultNotationPreference,
-      announceFractionAvailability: _globalAnnounceFractionAvailability,
     );
     await showAppDialog<void>(
       context: context,
@@ -3677,12 +3703,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void _openQuickSetupManually() {
     final draft = QuickSetupDraft.fromRuntime(
       settings: _getActiveAccessibilityProfile().settings,
-      themeMode: widget.themeMode,
+      globalSettings: _globalSettings,
       isDegreeMode: _isDegreeMode,
       defaultMode: _defaultMode,
-      resultDisplayMode: _globalResultDisplayMode,
       resultNotationPreference: _globalResultNotationPreference,
-      announceFractionAvailability: _globalAnnounceFractionAvailability,
     );
     showAppDialog<void>(
       context: context,
@@ -3735,16 +3759,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     QuickSetupDraft draft,
     BuildContext dialogContext,
   ) async {
+    if (!_globalSettingsReady) {
+      _showAccessibleSnackBar(
+        _s(
+          'Globální nastavení se ještě obnovují. Rychlé nastavení nebylo použito.',
+          'Global settings are still being restored. Quick setup was not applied.',
+        ),
+      );
+      return;
+    }
     // Voice resolution proti skutečně dostupným hlasům zařízení.
     QuickSetupDraft effective = draft;
     try {
       final available = await _loadAvailableVoices();
-      final requested = draft.settings.ttsVoice;
+      final requested = draft.globalSettings.ttsVoice;
       if (requested != null) {
         final resolved = resolveVoice(requested, available);
         if (resolved == null) {
           effective = draft.copyWith(
-            settings: draft.settings.copyWith(
+            globalSettings: draft.globalSettings.copyWith(
               clearTtsVoice: true,
               clearTtsVoiceName: true,
             ),
@@ -3752,7 +3785,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         } else if (resolved['name'] != requested['name'] ||
             resolved['locale'] != requested['locale']) {
           effective = draft.copyWith(
-            settings: draft.settings.copyWith(
+            globalSettings: draft.globalSettings.copyWith(
               ttsVoice: resolved,
               ttsVoiceName: resolved['name'],
             ),
@@ -3814,28 +3847,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() {
       _profiles = parsed.profiles;
       _activeProfileId = parsed.activeProfileId;
-      _globalResultDisplayMode = parsed.resultDisplayMode;
       _globalResultNotationPreference = parsed.resultNotationPreference;
-      _globalAnnounceFractionAvailability = parsed.announceFractionAvailability;
+      _globalSettings = parsed.globalSettings;
+      _globalSettingsReady = true;
       _isDegreeMode = parsed.isDegreeMode;
       _defaultMode = parsed.defaultMode;
       _currentMode = parsed.defaultMode;
     });
-    widget.onThemeModeChanged(parsed.themeMode);
+    await widget.onThemeModeChanged(parsed.themeMode);
     final activeSettings = _getActiveAccessibilityProfile().settings;
-    _applySettingsToRuntime(activeSettings);
-    // Hlas s fallbackem: selhání setVoice nesmí shodit apply.
-    try {
-      if (activeSettings.ttsVoice != null) {
-        await tts.setVoice(activeSettings.ttsVoice!);
-      } else {
-        await tts.clearVoice();
-      }
-    } catch (_) {
-      try {
-        await tts.clearVoice();
-      } catch (_) {}
-    }
+    _applyProfileSettingsToRuntime(activeSettings);
+    _applyGlobalSettingsToRuntime(parsed.globalSettings);
     _dialogFontScaleNotifier.value = activeSettings.dialogFontScale;
     if (mounted) setState(() {});
     try {
@@ -8142,6 +8164,40 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   Future<void> _loadGlobalSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedThemeIndex = prefs.getInt('themeMode');
+    final loadedThemeMode =
+        savedThemeIndex != null &&
+            savedThemeIndex >= 0 &&
+            savedThemeIndex < ThemeMode.values.length
+        ? ThemeMode.values[savedThemeIndex]
+        : widget.themeMode;
+    final savedGlobalJson = prefs.getString('globalSettingsV3');
+    if (savedGlobalJson != null) {
+      try {
+        final decoded = jsonDecode(savedGlobalJson);
+        if (decoded is! Map) {
+          throw const FormatException('Global settings must be an object.');
+        }
+        _globalSettings = GlobalSettings.fromJson(
+          Map<String, dynamic>.from(decoded),
+          fallbackThemeMode: loadedThemeMode,
+        );
+        _globalSettingsReady = true;
+      } on FormatException catch (error) {
+        debugPrint('Invalid saved global settings: $error');
+      } on TypeError catch (error) {
+        debugPrint('Invalid saved global settings: $error');
+      }
+    } else {
+      _globalSettings = GlobalSettings.defaults(themeMode: loadedThemeMode)
+          .copyWith(
+            resultDisplayMode: _resultDisplayModeFromString(
+              prefs.getString('resultDisplayMode'),
+            ),
+            announceFractionAvailability:
+                prefs.getBool('announceFractionAvailability') ?? true,
+          );
+    }
     setState(() {
       _isDegreeMode = prefs.getBool('isDegreeMode') ?? true;
       final savedDefaultMode = prefs.getInt('defaultMode');
@@ -8181,8 +8237,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _devDiagnosticDurationMs =
           (prefs.getInt('devDiagnosticDurationMs') ?? 700).clamp(200, 3000);
       _devPinCode = prefs.getString('devPinCode');
-      _globalAnnounceFractionAvailability =
-          prefs.getBool('announceFractionAvailability') ?? true;
       // Pořadí statistického souhrnu
       final orderList = prefs.getStringList('statsSummaryOrder');
       if (orderList != null && orderList.isNotEmpty) {
@@ -8286,9 +8340,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           if (map.containsKey('CZK')) _currencyRates = map;
         } catch (_) {}
       }
-      _globalResultDisplayMode = _resultDisplayModeFromString(
-        prefs.getString('resultDisplayMode'),
-      );
       _globalResultNotationPreference = _resultNotationPreferenceFromString(
         prefs.getString('resultNotationPreference'),
       );
@@ -8305,30 +8356,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
     _dialogFontScaleNotifier.value = _dialogFontScale;
     try {
-      await tts.setSpeechRate(_speechRate);
-    } catch (e) {
-      debugPrint('TTS setSpeechRate Error: $e');
-    }
-    try {
-      await tts.setVolume(_speechVolume);
-    } catch (e) {
-      debugPrint('TTS setVolume Error: $e');
-    }
-    if (!Platform.isWindows && _ttsEngine != null) {
-      try {
-        await tts.setEngine(_ttsEngine!);
-      } catch (e) {
-        debugPrint('TTS setEngine Error: $e');
-      }
-    }
-    if (_ttsVoice != null) {
-      try {
-        await tts.setVoice(_ttsVoice!);
-      } catch (e) {
-        debugPrint('TTS setVoice Error: $e');
-      }
-    }
-    try {
       await tts.setQueueMode(0);
     } catch (e) {
       debugPrint('TTS setQueueMode Error: $e');
@@ -8339,10 +8366,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Future<void> _saveGlobalSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDegreeMode', _isDegreeMode);
-    await prefs.setString(
-      'resultDisplayMode',
-      _resultDisplayModeToString(_globalResultDisplayMode),
-    );
+    await _persistGlobalSettings(_globalSettings);
     await prefs.setString(
       'resultNotationPreference',
       _resultNotationPreferenceToString(_globalResultNotationPreference),
@@ -8350,10 +8374,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     await prefs.setString(
       'historyExactFormat',
       _historyExactFormatToString(_historyExactFormat),
-    );
-    await prefs.setBool(
-      'announceFractionAvailability',
-      _globalAnnounceFractionAvailability,
     );
     await prefs.setInt('defaultMode', _defaultMode.index);
     await prefs.setBool('devModeEnabled', _devModeEnabled);
@@ -8565,86 +8585,49 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         } catch (_) {}
       }
     }
-    // cleanup starých klíčů (neglobálních)
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      const oldKeys = [
-        'accessibilityType',
-        'keyboardFontScale',
-        'fontSizeMultiplier',
-        'dotMatrixZoom',
-        'resultZoom',
-        'thousandGroupGap',
-        'overlineThickness',
-        'overlineHeight',
-        'alignInputLeft',
-        'dialogFontScale',
-        'ttsEnabled',
-        'usePeriodicNotation',
-        'useSixteenSegment',
-        'announceExpression',
-        'readStatsMemoryValues',
-        'autoReadStatsSummary',
-        'showStatsNavigationHint',
-        'screenReaderModeState',
-        'screenReaderMode',
-        'dialogSize',
-        'speechRate',
-        'speechVolume',
-        'ttsEngine',
-        'ttsVoice',
-        'inverseFormatPreference',
-        'accessibility_profiles',
-      ];
-      for (final k in oldKeys) {
-        if (prefs.containsKey(k) && k != 'activeProfileId') {
-          // activeProfileId zůstává jako nová perzistence, ostatní mažeme jen pokud je v2 již uložen
+    final migrationSucceeded = await _migrateGlobalSettingsFromLegacyProfile(
+      jsonStr,
+      loadedActiveId,
+    );
+    if (migrationSucceeded && loaded == null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        const oldKeys = [
+          'accessibilityType',
+          'keyboardFontScale',
+          'fontSizeMultiplier',
+          'dotMatrixZoom',
+          'resultZoom',
+          'thousandGroupGap',
+          'overlineThickness',
+          'overlineHeight',
+          'alignInputLeft',
+          'dialogFontScale',
+          'usePeriodicNotation',
+          'useSixteenSegment',
+          'announceExpression',
+          'readStatsMemoryValues',
+          'autoReadStatsSummary',
+          'showStatsNavigationHint',
+          'screenReaderModeState',
+          'dialogSize',
+          'inverseFormatPreference',
+          'accessibility_profiles',
+        ];
+        for (final key in oldKeys) {
+          await prefs.remove(key);
         }
+      } catch (error) {
+        debugPrint('Legacy profile cleanup failed: $error');
       }
-      // Po úspěšném vytvoření v2 smaž staré a11y per-profile klíče (ponech activeProfileId)
-      if (loaded == null) {
-        for (final k in oldKeys) {
-          if (k == 'activeProfileId') continue;
-          await prefs.remove(k);
-        }
-      }
-    } catch (_) {}
-    _profilesLoaded = true;
-    // Jednorázová bezpečná migrace ResultDisplayMode z profilů do globálu:
-    // pouze pokud globál ještě neexistuje; staré hodnoty v profilech
-    // globální stav nikdy nepřepisují. Opakovatelná, bez ztráty dat.
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (!prefs.containsKey('resultDisplayMode')) {
-        var seeded = ResultDisplayMode.segment;
-        for (final p in _profiles) {
-          if (p.id == _activeProfileId &&
-              p.settings.resultDisplayMode != ResultDisplayMode.segment) {
-            seeded = p.settings.resultDisplayMode;
-            break;
-          }
-        }
-        // Pokud aktivní profil nemá non-segment, hledej napříč profily.
-        if (seeded == ResultDisplayMode.segment) {
-          for (final p in _profiles) {
-            if (p.settings.resultDisplayMode != ResultDisplayMode.segment) {
-              seeded = p.settings.resultDisplayMode;
-              break;
-            }
-          }
-        }
-        _globalResultDisplayMode = seeded;
-        await prefs.setString(
-          'resultDisplayMode',
-          _resultDisplayModeToString(seeded),
-        );
-      }
-    } catch (_) {}
+    }
+    _profilesLoaded = migrationSucceeded;
+    if (_globalSettingsReady) {}
     _applyActiveProfileToState();
     if (mounted) setState(() {});
     // aplikovat TTS
     try {
-      final s = activeAccessibilitySettings;
+      final s = _globalSettings;
       await tts.setSpeechRate(s.speechRate);
       await tts.setVolume(s.speechVolume);
       if (!Platform.isWindows && s.ttsEngine != null) {
@@ -8661,10 +8644,260 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  Future<bool> _migrateGlobalSettingsFromLegacyProfile(
+    String? profilesJson,
+    String? savedActiveId,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    const snapshotKey = 'globalSettingsMigrationSnapshotV1';
+    const migratedKey = 'globalSettingsMigratedV3';
+    const settingsKey = 'globalSettingsV3';
+
+    if (prefs.getBool(migratedKey) == true) {
+      if (prefs.getString(settingsKey) == null) {
+        debugPrint('Global settings migration marker exists without settings.');
+        _globalSettingsReady = false;
+        return false;
+      }
+      return true;
+    }
+
+    try {
+      final currentSettings = prefs.getString(settingsKey);
+      if (currentSettings != null) {
+        final decoded = jsonDecode(currentSettings);
+        if (decoded is! Map) {
+          throw const FormatException('Global settings must be an object.');
+        }
+        final current = Map<String, dynamic>.from(decoded);
+        _validateGlobalSettingsSnapshot(current);
+        if (!await prefs.setBool(migratedKey, true)) {
+          throw StateError(
+            'Unable to mark global settings migration complete.',
+          );
+        }
+        await prefs.remove(snapshotKey);
+        _globalSettings = GlobalSettings.fromJson(
+          current,
+          fallbackThemeMode: widget.themeMode,
+        );
+        _globalSettingsReady = true;
+        return true;
+      }
+
+      String snapshotJson;
+      final savedSnapshot = prefs.getString(snapshotKey);
+      if (savedSnapshot != null) {
+        snapshotJson = savedSnapshot;
+      } else {
+        final legacy = GlobalSettings.defaults(
+          themeMode: widget.themeMode,
+        ).toJson();
+        if (profilesJson != null) {
+          final decoded = jsonDecode(profilesJson);
+          if (decoded is! List) {
+            throw const FormatException('Legacy profiles must be a list.');
+          }
+          final profileMaps = decoded
+              .whereType<Map>()
+              .map((profile) => Map<String, dynamic>.from(profile))
+              .toList();
+          final requestedId = savedActiveId ?? _activeProfileId;
+          final selected = profileMaps.where((p) => p['id'] == requestedId);
+          final profile = selected.isNotEmpty
+              ? selected.first
+              : profileMaps.firstWhere(
+                  (p) => p['id'] == _activeProfileId,
+                  orElse: () => profileMaps.isEmpty
+                      ? <String, dynamic>{}
+                      : profileMaps.first,
+                );
+          final oldSettings = profile['settings'];
+          if (oldSettings is Map) {
+            final old = Map<String, dynamic>.from(oldSettings);
+            for (final key in [
+              'screenReaderMode',
+              'ttsEnabled',
+              'speechRate',
+              'speechVolume',
+              'ttsEngine',
+              'ttsVoice',
+              'ttsVoiceName',
+              'resultDisplayMode',
+              'announceFractionAvailability',
+            ]) {
+              if (old.containsKey(key)) legacy[key] = old[key];
+            }
+          }
+        } else if (savedActiveId != null) {
+          throw const FormatException('Legacy profiles could not be read.');
+        }
+
+        if (legacy['screenReaderMode'] is int) {
+          final index = legacy['screenReaderMode'] as int;
+          if (index < 0 || index >= ScreenReaderMode.values.length) {
+            throw const FormatException('Invalid legacy screen reader mode.');
+          }
+          legacy['screenReaderMode'] = ScreenReaderMode.values[index].name;
+        }
+        if (legacy['resultDisplayMode'] is int) {
+          final index = legacy['resultDisplayMode'] as int;
+          if (index < 0 || index >= ResultDisplayMode.values.length) {
+            throw const FormatException('Invalid legacy result display mode.');
+          }
+          legacy['resultDisplayMode'] = ResultDisplayMode.values[index].name;
+        }
+        if (prefs.containsKey('screenReaderMode')) {
+          final value = prefs.get('screenReaderMode');
+          if (value is int &&
+              value >= 0 &&
+              value < ScreenReaderMode.values.length) {
+            legacy['screenReaderMode'] = ScreenReaderMode.values[value].name;
+          } else if (value is String) {
+            legacy['screenReaderMode'] = value;
+          } else {
+            throw const FormatException('Invalid saved screen reader mode.');
+          }
+        }
+        for (final key in [
+          'ttsEnabled',
+          'speechRate',
+          'speechVolume',
+          'ttsEngine',
+          'ttsVoice',
+          'ttsVoiceName',
+          'resultDisplayMode',
+          'announceFractionAvailability',
+        ]) {
+          if (prefs.containsKey(key)) legacy[key] = prefs.get(key);
+        }
+        if (legacy['resultDisplayMode'] is String) {
+          final value = legacy['resultDisplayMode'] as String;
+          if (!{'segment', 'text', 'auto'}.contains(value)) {
+            throw const FormatException('Invalid saved result display mode.');
+          }
+        } else if (legacy['resultDisplayMode'] is int) {
+          final index = legacy['resultDisplayMode'] as int;
+          if (index < 0 || index >= ResultDisplayMode.values.length) {
+            throw const FormatException('Invalid saved result display mode.');
+          }
+          legacy['resultDisplayMode'] = ResultDisplayMode.values[index].name;
+        }
+
+        _validateGlobalSettingsSnapshot(legacy);
+        legacy.remove('themeMode');
+        snapshotJson = jsonEncode(legacy);
+        if (!await prefs.setString(snapshotKey, snapshotJson)) {
+          throw StateError(
+            'Unable to persist global settings migration snapshot.',
+          );
+        }
+      }
+
+      final decodedSnapshot = jsonDecode(snapshotJson);
+      if (decodedSnapshot is! Map) {
+        throw const FormatException(
+          'Global settings snapshot must be an object.',
+        );
+      }
+      final snapshot = Map<String, dynamic>.from(decodedSnapshot);
+      _validateGlobalSettingsSnapshot(snapshot);
+      if (prefs.getString(settingsKey) == null &&
+          !await prefs.setString(settingsKey, jsonEncode(snapshot))) {
+        throw StateError('Unable to persist migrated global settings.');
+      }
+
+      final persisted = prefs.getString(settingsKey);
+      if (persisted == null) {
+        throw StateError('Migrated global settings are missing.');
+      }
+      final persistedJson = jsonDecode(persisted);
+      if (persistedJson is! Map) {
+        throw const FormatException(
+          'Persisted global settings must be an object.',
+        );
+      }
+      final persistedMap = Map<String, dynamic>.from(persistedJson);
+      _validateGlobalSettingsSnapshot(persistedMap);
+      if (!await prefs.setBool(migratedKey, true)) {
+        throw StateError('Unable to mark global settings migration complete.');
+      }
+      await prefs.remove(snapshotKey);
+      _globalSettings = GlobalSettings.fromJson(
+        persistedMap,
+        fallbackThemeMode: widget.themeMode,
+      );
+      _globalSettingsReady = true;
+      return true;
+    } on FormatException catch (error) {
+      debugPrint('Global settings migration paused: $error');
+    } on TypeError catch (error) {
+      debugPrint('Global settings migration paused: $error');
+    } catch (error) {
+      debugPrint('Global settings migration failed: $error');
+    }
+    _globalSettingsReady = false;
+    return false;
+  }
+
+  void _validateGlobalSettingsSnapshot(Map<String, dynamic> value) {
+    for (final key in [
+      'screenReaderMode',
+      'ttsEnabled',
+      'speechRate',
+      'speechVolume',
+      'ttsEngine',
+      'ttsVoice',
+      'ttsVoiceName',
+      'resultDisplayMode',
+      'announceFractionAvailability',
+    ]) {
+      if (!value.containsKey(key)) {
+        throw FormatException('Missing $key in global settings snapshot.');
+      }
+    }
+    if (!{'auto', 'on', 'off'}.contains(value['screenReaderMode']) ||
+        value['ttsEnabled'] is! bool ||
+        value['speechRate'] is! num ||
+        !(value['speechRate'] as num).toDouble().isFinite ||
+        (value['speechRate'] as num) < 0.1 ||
+        (value['speechRate'] as num) > 1.0 ||
+        value['speechVolume'] is! num ||
+        !(value['speechVolume'] as num).toDouble().isFinite ||
+        (value['speechVolume'] as num) < 0.0 ||
+        (value['speechVolume'] as num) > 1.0 ||
+        (value['ttsEngine'] != null && value['ttsEngine'] is! String) ||
+        (value['ttsVoiceName'] != null && value['ttsVoiceName'] is! String) ||
+        !{'segment', 'text', 'auto'}.contains(value['resultDisplayMode']) ||
+        value['announceFractionAvailability'] is! bool) {
+      throw const FormatException(
+        'Invalid global settings migration snapshot.',
+      );
+    }
+    final voice = value['ttsVoice'];
+    if (voice != null &&
+        (voice is! Map ||
+            voice['name'] is! String ||
+            (voice['name'] as String).isEmpty ||
+            voice['locale'] is! String ||
+            (voice['locale'] as String).isEmpty)) {
+      throw const FormatException('Invalid voice in global settings snapshot.');
+    }
+  }
+
   Future<void> applyAccessibilityProfile(
     AccessibilityProfile profile, {
     String? announcement,
   }) async {
+    if (!_globalSettingsReady) {
+      _showAccessibleSnackBar(
+        _s(
+          'Globální nastavení se ještě obnovují. Zkuste to znovu později.',
+          'Global settings are still being restored. Try again later.',
+        ),
+      );
+      return;
+    }
     if (!_profiles.any((p) => p.id == profile.id)) {
       debugPrint('applyAccessibilityProfile: id not found: ${profile.id}');
       _showAccessibleSnackBar(
@@ -8679,36 +8912,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _activeProfileId = profile.id;
     });
     _applyActiveProfileToState();
-    final s = activeAccessibilitySettings;
-    try {
-      await tts.setSpeechRate(s.speechRate);
-    } catch (e) {
-      debugPrint('TTS setSpeechRate Error: $e');
-    }
-    try {
-      await tts.setVolume(s.speechVolume);
-    } catch (e) {
-      debugPrint('TTS setVolume Error: $e');
-    }
-    if (!Platform.isWindows && s.ttsEngine != null) {
-      try {
-        await tts.setEngine(s.ttsEngine!);
-      } catch (e) {
-        debugPrint('TTS setEngine Error: $e');
-      }
-    }
-    if (s.ttsVoice != null) {
-      try {
-        await tts.setVoice(s.ttsVoice!);
-      } catch (e) {
-        debugPrint('TTS setVoice Error: $e');
-      }
-    } else {
-      tts.clearVoice();
-    }
-    if (s.accessibilityType == AccessibilityType.visuallyImpaired) {
-      widget.onThemeModeChanged(ThemeMode.dark);
-    }
     await _saveActiveProfileId();
     if (announcement != null && announcement.isNotEmpty && mounted) {
       // R9: oznamuje pouze SnackBar jednotným kanálem
@@ -9066,15 +9269,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       }
     });
     _saveProfilesV2();
-    // aplikovat TTS pro nový aktivní
-    final s = activeAccessibilitySettings;
-    tts.setSpeechRate(s.speechRate);
-    tts.setVolume(s.speechVolume);
-    if (s.ttsVoice != null) {
-      tts.setVoice(s.ttsVoice!);
-    } else {
-      tts.clearVoice();
-    }
     speak(_s('Profil smazán', 'Profile deleted'));
   }
 
@@ -9169,10 +9363,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
-  void _toggleTts() {
+  Future<void> _toggleTts() async {
     final newVal = !ttsEnabled;
-    updateActiveAccessibilitySettings((s) => s.copyWith(ttsEnabled: newVal));
-    speak(newVal ? _l10n.voiceOn : _l10n.voiceOff);
+    if (!newVal) {
+      await announceEvent(
+        _l10n.voiceOff,
+        category: SpeechCategory.settings,
+        interruptCurrentSpeech: true,
+      );
+    }
+    if (await _updateGlobalSettings(
+      _globalSettings.copyWith(ttsEnabled: newVal),
+    )) {
+      if (newVal) {
+        await announceEvent(
+          _l10n.voiceOn,
+          category: SpeechCategory.settings,
+          interruptCurrentSpeech: true,
+        );
+      }
+    }
   }
 
   Future<void> _loadHistory() async {
@@ -9593,55 +9803,26 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     ParsedContract parsed,
     Map<String, dynamic> raw,
   ) async {
-    // Voice tolerance: vyřeš hlas aktivního profilu proti dostupným hlasům.
-    var profiles = parsed.profiles;
+    if (!_globalSettingsReady) {
+      throw StateError('Global settings migration is not complete.');
+    }
+    var importedGlobalSettings = parsed.globalSettings;
     try {
       final available = await _loadAvailableVoices();
-      final idx = profiles.indexWhere((p) => p.id == parsed.activeProfileId);
-      if (idx != -1) {
-        final requested = profiles[idx].settings.ttsVoice;
-        if (requested != null) {
-          final resolved = resolveVoice(requested, available);
-          if (resolved == null) {
-            profiles = profiles
-                .map(
-                  (p) => p.id == parsed.activeProfileId
-                      ? AccessibilityProfile(
-                          id: p.id,
-                          name: p.name,
-                          isBuiltIn: p.isBuiltIn,
-                          settings: p.settings.copyWith(
-                            clearTtsVoice: true,
-                            clearTtsVoiceName: true,
-                          ),
-                        )
-                      : p,
-                )
-                .toList();
-          } else if (resolved['name'] != requested['name'] ||
-              resolved['locale'] != requested['locale']) {
-            profiles = profiles
-                .map(
-                  (p) => p.id == parsed.activeProfileId
-                      ? AccessibilityProfile(
-                          id: p.id,
-                          name: p.name,
-                          isBuiltIn: p.isBuiltIn,
-                          settings: p.settings.copyWith(
-                            ttsVoice: resolved,
-                            ttsVoiceName: resolved['name'],
-                          ),
-                        )
-                      : p,
-                )
-                .toList();
-          }
-        }
+      final requested = importedGlobalSettings.ttsVoice;
+      if (requested != null) {
+        final resolved = resolveVoice(requested, available);
+        importedGlobalSettings = importedGlobalSettings.copyWith(
+          ttsVoice: resolved,
+          ttsVoiceName: resolved?['name'],
+          clearTtsVoice: resolved == null,
+          clearTtsVoiceName: resolved == null,
+        );
       }
     } catch (_) {}
     // Canonical snapshot z (případně hlasově upraveného) kontraktu.
     final contract = buildContractJson(
-      profiles: profiles,
+      profiles: parsed.profiles,
       activeProfileId: parsed.activeProfileId,
       themeMode: parsed.themeMode,
       isDegreeMode: parsed.isDegreeMode,
@@ -9659,6 +9840,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       resultNotationPreference: parsed.resultNotationPreference,
       historyExactFormat: parsed.historyExactFormat,
       announceFractionAvailability: parsed.announceFractionAvailability,
+      globalSettings: importedGlobalSettings,
     );
     // Persist PŘED jakoukoli změnou runtime (safe commit workflow).
     final prefs = await SharedPreferences.getInstance();
@@ -9668,11 +9850,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() {
       _profiles = applied.profiles;
       _activeProfileId = applied.activeProfileId;
-      _globalResultDisplayMode = applied.resultDisplayMode;
       _globalResultNotationPreference = applied.resultNotationPreference;
       _historyExactFormat = applied.historyExactFormat;
-      _globalAnnounceFractionAvailability =
-          applied.announceFractionAvailability;
+      _globalSettings = applied.globalSettings;
+      _globalSettingsReady = true;
       _statsSummaryOrder = List<StatsSummarySection>.from(
         applied.statsSummaryOrder,
       );
@@ -9706,8 +9887,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _devDiagnosticDurationMs = applied.devDiagnosticDurationMs;
       _devPinCode = applied.devPinCode;
     });
-    widget.onThemeModeChanged(applied.themeMode);
-    _applySettingsToRuntime(_getActiveAccessibilityProfile().settings);
+    await widget.onThemeModeChanged(applied.themeMode);
+    _applyProfileSettingsToRuntime(_getActiveAccessibilityProfile().settings);
+    _applyGlobalSettingsToRuntime(applied.globalSettings);
     _dialogFontScaleNotifier.value =
         activeAccessibilitySettings.dialogFontScale;
     if (mounted) setState(() {});
@@ -10279,47 +10461,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     title: Text(engine),
                     selected: isSelected,
                     onTap: () {
-                      if (_editingDraft != null && _editingProfileId != null) {
-                        final prev = _editingDraft!.settings;
-                        updateEditingSettings(
-                          (s) => s.copyWith(ttsEngine: engine),
-                        );
-                        if (_editingProfileId == _activeProfileId &&
-                            !Platform.isWindows) {
-                          tts.setEngine(engine).catchError((e) {
-                            debugPrint('TTS setEngine Error: $e');
-                          });
-                        }
-                        // R9: jedna hláška jednotným kanálem.
-                        unawaited(
-                          announceEvent(
-                            _s(
-                              'Engine $engine vybrán',
-                              'Engine $engine selected',
-                            ),
-                            category: SpeechCategory.settings,
-                            interruptCurrentSpeech: true,
+                      unawaited(
+                        _updateGlobalSettings(
+                          _globalSettings.copyWith(ttsEngine: engine),
+                        ),
+                      );
+                      unawaited(
+                        announceEvent(
+                          _s(
+                            'Engine $engine vybrán',
+                            'Engine $engine selected',
                           ),
-                        );
-                      } else {
-                        updateActiveAccessibilitySettings(
-                          (s) => s.copyWith(ttsEngine: engine),
-                        );
-                        if (!Platform.isWindows) {
-                          tts.setEngine(engine);
-                        }
-                        // R9: jedna hláška jednotným kanálem.
-                        unawaited(
-                          announceEvent(
-                            _s(
-                              'Engine $engine vybrán',
-                              'Engine $engine selected',
-                            ),
-                            category: SpeechCategory.settings,
-                            interruptCurrentSpeech: true,
-                          ),
-                        );
-                      }
+                          category: SpeechCategory.settings,
+                          interruptCurrentSpeech: true,
+                        ),
+                      );
                       Navigator.pop(context);
                     },
                   ),
@@ -10442,48 +10598,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       title: Text(_s('Výchozí', 'Default')),
                       selected: isSelected,
                       onTap: () {
-                        if (_editingDraft != null &&
-                            _editingProfileId != null) {
-                          updateEditingSettings(
-                            (s) => s.copyWith(
+                        unawaited(
+                          _updateGlobalSettings(
+                            _globalSettings.copyWith(
                               clearTtsVoice: true,
                               clearTtsVoiceName: true,
                             ),
-                          );
-                          if (_editingProfileId == _activeProfileId) {
-                            tts.clearVoice();
-                          }
-                          // R9: jedna hláška jednotným kanálem.
-                          unawaited(
-                            announceEvent(
-                              _s(
-                                'Hlas nastaven na výchozí',
-                                'Voice set to default',
-                              ),
-                              category: SpeechCategory.settings,
-                              interruptCurrentSpeech: true,
+                          ),
+                        );
+                        unawaited(
+                          announceEvent(
+                            _s(
+                              'Hlas nastaven na výchozí',
+                              'Voice set to default',
                             ),
-                          );
-                        } else {
-                          updateActiveAccessibilitySettings(
-                            (s) => s.copyWith(
-                              clearTtsVoice: true,
-                              clearTtsVoiceName: true,
-                            ),
-                          );
-                          tts.clearVoice();
-                          // R9: jedna hláška jednotným kanálem.
-                          unawaited(
-                            announceEvent(
-                              _s(
-                                'Hlas nastaven na výchozí',
-                                'Voice set to default',
-                              ),
-                              category: SpeechCategory.settings,
-                              interruptCurrentSpeech: true,
-                            ),
-                          );
-                        }
+                            category: SpeechCategory.settings,
+                            interruptCurrentSpeech: true,
+                          ),
+                        );
                         Navigator.pop(context);
                       },
                     ),
@@ -10519,43 +10651,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                         'name': name,
                         'locale': voice['locale']?.toString() ?? '',
                       };
-                      if (_editingDraft != null && _editingProfileId != null) {
-                        updateEditingSettings(
-                          (s) => s.copyWith(
+                      unawaited(
+                        _updateGlobalSettings(
+                          _globalSettings.copyWith(
                             ttsVoice: voiceMap,
                             ttsVoiceName: name,
                           ),
-                        );
-                        if (_editingProfileId == _activeProfileId) {
-                          tts.setVoice(voiceMap).catchError((e) {
-                            debugPrint('TTS setVoice Error: $e');
-                          });
-                        }
-                        // R9: jedna hláška jednotným kanálem.
-                        unawaited(
-                          announceEvent(
-                            _s('Hlas $name vybrán', 'Voice $name selected'),
-                            category: SpeechCategory.settings,
-                            interruptCurrentSpeech: true,
-                          ),
-                        );
-                      } else {
-                        updateActiveAccessibilitySettings(
-                          (s) => s.copyWith(
-                            ttsVoice: voiceMap,
-                            ttsVoiceName: name,
-                          ),
-                        );
-                        tts.setVoice(voiceMap);
-                        // R9: jedna hláška jednotným kanálem.
-                        unawaited(
-                          announceEvent(
-                            _s('Hlas $name vybrán', 'Voice $name selected'),
-                            category: SpeechCategory.settings,
-                            interruptCurrentSpeech: true,
-                          ),
-                        );
-                      }
+                        ),
+                      );
+                      unawaited(
+                        announceEvent(
+                          _s('Hlas $name vybrán', 'Voice $name selected'),
+                          category: SpeechCategory.settings,
+                          interruptCurrentSpeech: true,
+                        ),
+                      );
                       Navigator.pop(context);
                     },
                   ),
@@ -15374,12 +15484,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   Future<void> showQuickSetupDialogForTest({bool isFirstRun = false}) async {
     final draft = QuickSetupDraft.fromRuntime(
       settings: _getActiveAccessibilityProfile().settings,
-      themeMode: widget.themeMode,
+      globalSettings: _globalSettings,
       isDegreeMode: _isDegreeMode,
       defaultMode: _defaultMode,
-      resultDisplayMode: _globalResultDisplayMode,
       resultNotationPreference: _globalResultNotationPreference,
-      announceFractionAvailability: _globalAnnounceFractionAvailability,
     );
     return showAppDialog<void>(
       context: context,
@@ -15446,6 +15554,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void updateActiveSettingsForTest(dynamic Function(dynamic) upd) {
     updateActiveAccessibilitySettings((s) => upd(s) as AccessibilitySettings);
   }
+
+  @visibleForTesting
+  GlobalSettings get globalSettingsForTest => _globalSettings;
+
+  @visibleForTesting
+  Future<bool> updateGlobalSettingsForTest(
+    GlobalSettings Function(GlobalSettings) update,
+  ) => _updateGlobalSettings(update(_globalSettings));
 
   @visibleForTesting
   void createProfileForTest(String name, String baseId) {

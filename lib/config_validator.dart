@@ -1,6 +1,4 @@
 // Validace kontraktu - lehka implementace bez externiho package, zrcadli Python validator.
-import 'dart:convert';
-
 class ValidationIssue {
   final String path;
   final String message;
@@ -58,6 +56,13 @@ const Set<String> _knownSettingsKeys = {
 };
 const Set<String> _knownGlobalKeys = {
   'themeMode',
+  'screenReaderMode',
+  'ttsEnabled',
+  'speechRate',
+  'speechVolume',
+  'ttsEngine',
+  'ttsVoice',
+  'ttsVoiceName',
   'isDegreeMode',
   'defaultMode',
   'resultDisplayMode',
@@ -425,13 +430,13 @@ ValidationResult validateContract(dynamic data) {
     );
     return result;
   }
-  if (sv != 1 && sv != 2) {
+  if (sv != 1 && sv != 2 && sv != 3) {
     if (sv > 1) {
       result.errors.add(
         ValidationIssue(
           path: 'schemaVersion',
           message:
-              'Nepodporovana budouci verze schemaVersion=$sv (podporovane jsou 1 a 2). Aktualizujte kalkulacku.',
+              'Nepodporovana budouci verze schemaVersion=$sv (podporovane jsou 1, 2 a 3). Aktualizujte kalkulacku.',
           code: 'futureVersion',
         ),
       );
@@ -440,7 +445,7 @@ ValidationResult validateContract(dynamic data) {
         ValidationIssue(
           path: 'schemaVersion',
           message:
-              'Nepodporovana stara verze schemaVersion=$sv (podporovane jsou 1 a 2).',
+              'Nepodporovana stara verze schemaVersion=$sv (podporovane jsou 1, 2 a 3).',
           code: 'unsupportedVersion',
         ),
       );
@@ -448,7 +453,11 @@ ValidationResult validateContract(dynamic data) {
     return result;
   }
   // required keys
-  for (final k in ['activeProfileId', 'profiles', 'globalSettings']) {
+  for (final k in [
+    if (sv >= 3) 'activeProfileId',
+    'profiles',
+    'globalSettings',
+  ]) {
     if (!map.containsKey(k)) {
       result.errors.add(
         ValidationIssue(
@@ -543,6 +552,7 @@ ValidationResult validateContract(dynamic data) {
             Map<String, dynamic>.from(settings as Map),
             'profiles[$i].settings',
             result,
+            sv,
           );
         }
       }
@@ -578,7 +588,7 @@ ValidationResult validateContract(dynamic data) {
         }
       }
       final active = map['activeProfileId'];
-      if (active is String && !ids.contains(active)) {
+      if (sv >= 3 && active is String && !ids.contains(active)) {
         result.errors.add(
           ValidationIssue(
             path: 'activeProfileId',
@@ -622,10 +632,10 @@ void _validateSettings(
   Map<String, dynamic> s,
   String path,
   ValidationResult res,
+  int schemaVersion,
 ) {
-  const requiredKeys = [
+  final requiredKeys = [
     'accessibilityType',
-    'screenReaderMode',
     'fontSizeMultiplier',
     'dialogFontScale',
     'dotMatrixZoom',
@@ -641,10 +651,15 @@ void _validateSettings(
     'alignInputLeft',
     'overlineThickness',
     'overlineHeight',
-    'speechRate',
-    'speechVolume',
-    'ttsEnabled',
   ];
+  if (schemaVersion < 3) {
+    requiredKeys.addAll([
+      'screenReaderMode',
+      'speechRate',
+      'speechVolume',
+      'ttsEnabled',
+    ]);
+  }
   for (final k in requiredKeys) {
     if (!s.containsKey(k))
       res.errors.add(
@@ -669,12 +684,38 @@ void _validateSettings(
   }
 
   checkEnum('accessibilityType', {'none', 'blind', 'visuallyImpaired'});
-  checkEnum('screenReaderMode', {'auto', 'on', 'off'});
+  if (schemaVersion < 3) {
+    checkEnum('screenReaderMode', {'auto', 'on', 'off'});
+  }
   checkEnum('thousandGroupGap', {'small', 'medium', 'large'});
   checkEnum('dialogSize', {'compact', 'wide', 'fullscreen'});
   // Volitelný klíč (starší exporty ho nemají) — neznámá hodnota je chyba,
   // chybějící klíč znamená segment (řeší _resultDisplayModeFromString).
-  checkEnum('resultDisplayMode', {'segment', 'text', 'auto'});
+  if (schemaVersion < 3) {
+    checkEnum('resultDisplayMode', {'segment', 'text', 'auto'});
+  } else {
+    for (final key in [
+      'screenReaderMode',
+      'ttsEnabled',
+      'speechRate',
+      'speechVolume',
+      'ttsEngine',
+      'ttsVoice',
+      'ttsVoiceName',
+      'resultDisplayMode',
+      'announceFractionAvailability',
+    ]) {
+      if (s.containsKey(key)) {
+        res.errors.add(
+          ValidationIssue(
+            path: '$path.$key',
+            message: '$key je v kontraktu v3 globální nastavení.',
+            code: 'profileGlobalSetting',
+          ),
+        );
+      }
+    }
+  }
   if (s['inverseFormatPreference'] != null &&
       s['inverseFormatPreference'] != 'dms' &&
       s['inverseFormatPreference'] != 'decimal') {
@@ -715,8 +756,10 @@ void _validateSettings(
   checkRange('resultZoom', 0.5, 5.0);
   checkRange('overlineThickness', 0.8, 4.0);
   checkRange('overlineHeight', 0.5, 2.0);
-  checkRange('speechRate', 0.1, 1.0);
-  checkRange('speechVolume', 0.0, 1.0);
+  if (schemaVersion < 3) {
+    checkRange('speechRate', 0.1, 1.0);
+    checkRange('speechVolume', 0.0, 1.0);
+  }
   for (final k in [
     'useSixteenSegment',
     'usePeriodicNotation',
@@ -725,7 +768,6 @@ void _validateSettings(
     'autoReadStatsSummary',
     'showStatsNavigationHint',
     'alignInputLeft',
-    'ttsEnabled',
   ]) {
     if (s.containsKey(k) && s[k] is! bool)
       res.errors.add(
@@ -736,7 +778,18 @@ void _validateSettings(
         ),
       );
   }
-  final ttsVoice = s['ttsVoice'];
+  if (schemaVersion < 3 &&
+      s.containsKey('ttsEnabled') &&
+      s['ttsEnabled'] is! bool) {
+    res.errors.add(
+      ValidationIssue(
+        path: '$path.ttsEnabled',
+        message: 'ttsEnabled musi byt bool.',
+        code: 'type',
+      ),
+    );
+  }
+  final ttsVoice = schemaVersion < 3 ? s['ttsVoice'] : null;
   if (ttsVoice != null && ttsVoice is! Map) {
     res.errors.add(
       ValidationIssue(
@@ -772,7 +825,7 @@ void _validateSettings(
         ),
       );
   }
-  if (s['ttsEngine'] != null && s['ttsEngine'] is! String)
+  if (schemaVersion < 3 && s['ttsEngine'] != null && s['ttsEngine'] is! String)
     res.errors.add(
       ValidationIssue(
         path: '$path.ttsEngine',
@@ -780,7 +833,9 @@ void _validateSettings(
         code: 'type',
       ),
     );
-  if (s['ttsVoiceName'] != null && s['ttsVoiceName'] is! String)
+  if (schemaVersion < 3 &&
+      s['ttsVoiceName'] != null &&
+      s['ttsVoiceName'] is! String)
     res.errors.add(
       ValidationIssue(
         path: '$path.ttsVoiceName',
@@ -812,6 +867,111 @@ void _validateGlobalSettings(
           code: 'required',
         ),
       );
+  }
+  if (schemaVersion >= 3) {
+    for (final k in [
+      'screenReaderMode',
+      'ttsEnabled',
+      'speechRate',
+      'speechVolume',
+      'ttsEngine',
+      'ttsVoice',
+      'ttsVoiceName',
+      'resultDisplayMode',
+      'announceFractionAvailability',
+    ]) {
+      if (!gs.containsKey(k)) {
+        res.errors.add(
+          ValidationIssue(
+            path: 'globalSettings.$k',
+            message: 'Chybi $k',
+            code: 'required',
+          ),
+        );
+      }
+    }
+    if (!{'auto', 'on', 'off'}.contains(gs['screenReaderMode'])) {
+      res.errors.add(
+        ValidationIssue(
+          path: 'globalSettings.screenReaderMode',
+          message: 'screenReaderMode musi byt auto/on/off',
+          code: 'enum',
+        ),
+      );
+    }
+    for (final key in ['ttsEnabled', 'announceFractionAvailability']) {
+      if (gs[key] is! bool) {
+        res.errors.add(
+          ValidationIssue(
+            path: 'globalSettings.$key',
+            message: '$key musi byt bool',
+            code: 'type',
+          ),
+        );
+      }
+    }
+    for (final (key, min, max) in [
+      ('speechRate', 0.1, 1.0),
+      ('speechVolume', 0.0, 1.0),
+    ]) {
+      final value = gs[key];
+      if (value is! num ||
+          !value.toDouble().isFinite ||
+          value < min ||
+          value > max) {
+        res.errors.add(
+          ValidationIssue(
+            path: 'globalSettings.$key',
+            message: '$key musi být číslo v rozsahu $min..$max',
+            code: 'range',
+          ),
+        );
+      }
+    }
+    if (gs['ttsEngine'] != null && gs['ttsEngine'] is! String) {
+      res.errors.add(
+        ValidationIssue(
+          path: 'globalSettings.ttsEngine',
+          message: 'ttsEngine musí být string/null',
+          code: 'type',
+        ),
+      );
+    }
+    if (gs['ttsVoiceName'] != null && gs['ttsVoiceName'] is! String) {
+      res.errors.add(
+        ValidationIssue(
+          path: 'globalSettings.ttsVoiceName',
+          message: 'ttsVoiceName musí být string/null',
+          code: 'type',
+        ),
+      );
+    }
+    final voice = gs['ttsVoice'];
+    if (voice != null) {
+      if (voice is! Map ||
+          voice['name'] is! String ||
+          (voice['name'] as String).isEmpty ||
+          voice['locale'] is! String ||
+          (voice['locale'] as String).isEmpty) {
+        res.errors.add(
+          ValidationIssue(
+            path: 'globalSettings.ttsVoice',
+            message: 'ttsVoice musí být null nebo objekt {name, locale}',
+            code: 'type',
+          ),
+        );
+      }
+    }
+    final displayMode = gs['resultDisplayMode'];
+    if (!{'segment', 'text', 'auto'}.contains(displayMode)) {
+      res.errors.add(
+        ValidationIssue(
+          path: 'globalSettings.resultDisplayMode',
+          message: 'resultDisplayMode musí být segment/text/auto',
+          code: 'enum',
+        ),
+      );
+    }
   }
   final tm = gs['themeMode'];
   if (tm != null && tm != 'light' && tm != 'dark')

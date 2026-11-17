@@ -1,78 +1,74 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mluvici_kalkulacka/main.dart';
+import 'package:mluvici_kalkulacka/surd.dart';
 
 void main() {
-  group('AccessibilitySettings copyWith independence', () {
-    test('copyWith creates independent instance – fontSizeMultiplier', () {
-      final a = AccessibilitySettings.defaultsStandard();
-      final b = a.copyWith(fontSizeMultiplier: 2.0);
-      expect(a.fontSizeMultiplier, 1.0);
-      expect(b.fontSizeMultiplier, 2.0);
-      expect(identical(a, b), isFalse);
+  group('AccessibilitySettings profile-only model', () {
+    test('copyWith creates independent profile settings', () {
+      final standard = AccessibilitySettings.defaultsStandard();
+      final updated = standard.copyWith(fontSizeMultiplier: 2.0);
+      expect(standard.fontSizeMultiplier, 1.0);
+      expect(updated.fontSizeMultiplier, 2.0);
+      expect(identical(standard, updated), isFalse);
     });
 
-    test('copyWith deep copies ttsVoice map', () {
-      final a = AccessibilitySettings.defaultsStandard().copyWith(
-        ttsVoice: {'name': 'voice1', 'locale': 'cs-CZ'},
-        ttsVoiceName: 'voice1',
-      );
-      final b = a.copyWith();
-      // mutate b's voice via new map
-      final c = b.copyWith(ttsVoice: {'name': 'voice2', 'locale': 'en-US'});
-      expect(a.ttsVoice!['name'], 'voice1');
-      expect(b.ttsVoice!['name'], 'voice1');
-      expect(c.ttsVoice!['name'], 'voice2');
-      // ensure not shared reference
-      b.ttsVoice!['name'] = 'mutated';
-      expect(a.ttsVoice!['name'], 'voice1');
+    test('profile serialization excludes global settings', () {
+      final settings = AccessibilitySettings.fromJson({
+        ...AccessibilitySettings.defaultsStandard().toJson(),
+        'screenReaderMode': 1,
+        'ttsEnabled': false,
+        'speechRate': 0.8,
+        'resultDisplayMode': 2,
+        'announceFractionAvailability': false,
+      });
+      final json = settings.toJson();
+      expect(json.containsKey('screenReaderMode'), isFalse);
+      expect(json.containsKey('ttsEnabled'), isFalse);
+      expect(json.containsKey('speechRate'), isFalse);
+      expect(json.containsKey('resultDisplayMode'), isFalse);
+      expect(json.containsKey('announceFractionAvailability'), isFalse);
     });
 
-    test('defaults factories create independent instances', () {
-      final a = AccessibilitySettings.defaultsBlind();
-      final b = AccessibilitySettings.defaultsBlind();
-      expect(identical(a, b), isFalse);
-      final c = b.copyWith(speechRate: 0.9);
-      expect(a.speechRate, 0.5);
-      expect(c.speechRate, 0.9);
-    });
-
-    test('profile copyWith does not share settings', () {
-      final base = AccessibilitySettings.defaultsStandard();
-      final p1 = AccessibilityProfile(
-        id: 'a',
-        name: 'A',
-        settings: base,
-        isBuiltIn: false,
-      );
-      final p2 = AccessibilityProfile(
-        id: 'b',
-        name: 'B',
-        settings: base,
-        isBuiltIn: false,
-      );
-      // p1 and p2 currently share same base instance – copyWith should break sharing
-      final p1Updated = p1.copyWith(
-        settings: p1.settings.copyWith(fontSizeMultiplier: 2.5),
-      );
-      expect(p1.settings.fontSizeMultiplier, 1.0);
-      expect(p1Updated.settings.fontSizeMultiplier, 2.5);
-      expect(p2.settings.fontSizeMultiplier, 1.0);
-    });
-
-    test('settings JSON roundtrip', () {
-      final orig = AccessibilitySettings.defaultsLowVision().copyWith(
-        speechRate: 0.77,
-        ttsVoice: {'name': 'v', 'locale': 'cs-CZ'},
-        ttsVoiceName: 'v',
+    test('profile JSON roundtrip preserves profile values', () {
+      final original = AccessibilitySettings.defaultsLowVision().copyWith(
+        dialogFontScale: 2.2,
         inverseFormatPreference: 0,
       );
-      final json = orig.toJson();
-      final restored = AccessibilitySettings.fromJson(json);
-      expect(restored.fontSizeMultiplier, orig.fontSizeMultiplier);
-      expect(restored.speechRate, orig.speechRate);
-      expect(restored.ttsVoice, orig.ttsVoice);
+      final restored = AccessibilitySettings.fromJson(original.toJson());
+      expect(restored.dialogFontScale, 2.2);
       expect(restored.inverseFormatPreference, 0);
-      expect(restored.thousandGroupGap, orig.thousandGroupGap);
+      expect(restored.thousandGroupGap, original.thousandGroupGap);
+    });
+  });
+
+  group('GlobalSettings', () {
+    test('copyWith and JSON preserve global values independently', () {
+      final original = GlobalSettings.defaults().copyWith(
+        screenReaderMode: ScreenReaderMode.on,
+        ttsEnabled: false,
+        speechRate: 0.0 + 0.5,
+        speechVolume: 0.0,
+        ttsVoice: {'name': 'voice', 'locale': 'cs-CZ'},
+        ttsVoiceName: 'voice',
+        resultDisplayMode: ResultDisplayMode.auto,
+        announceFractionAvailability: false,
+        themeMode: ThemeMode.light,
+      );
+      final restored = GlobalSettings.fromJson(original.toJson());
+      expect(restored.screenReaderMode, ScreenReaderMode.on);
+      expect(restored.ttsEnabled, isFalse);
+      expect(restored.speechRate, 0.5);
+      expect(restored.speechVolume, 0.0);
+      expect(restored.ttsVoice, {'name': 'voice', 'locale': 'cs-CZ'});
+      expect(restored.ttsVoiceName, 'voice');
+      expect(restored.resultDisplayMode, ResultDisplayMode.auto);
+      expect(restored.announceFractionAvailability, isFalse);
+      expect(restored.themeMode, ThemeMode.light);
+
+      final changed = original.copyWith(ttsEnabled: true);
+      expect(original.ttsEnabled, isFalse);
+      expect(changed.ttsEnabled, isTrue);
     });
   });
 }

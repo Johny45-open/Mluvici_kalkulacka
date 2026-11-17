@@ -5,10 +5,7 @@ import 'package:mluvici_kalkulacka/main.dart';
 import 'package:mluvici_kalkulacka/surd.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Regrese: dve cesty ke stejnemu globalnimu ResultDisplayMode.
-// A) Pokrocile funkce -> Vzhled vysledkoveho displeje (stavajici).
-// B) Nastaveni pristupnosti -> Vzhled vysledkoveho displeje (nova).
-// Obe sdileji _ResultDisplayModePicker, stejny source of truth, profily beze zmeny.
+// ResultDisplayMode has a single editing path in Global settings.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -73,10 +70,17 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> expandResultSection(WidgetTester tester) async {
-    final title = tr(tester, 'Vzhled výsledkového displeje', 'Result display');
+  Future<void> expandGlobalSection(WidgetTester tester) async {
+    const title = 'Globální nastavení';
     await scrollToText(tester, title);
     await tester.tap(find.text(title).first);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> expandResultSection(WidgetTester tester) async {
+    await expandGlobalSection(tester);
+    const title = 'Vzhled výsledkového displeje';
+    await scrollToText(tester, title);
     await tester.pumpAndSettle();
   }
 
@@ -96,45 +100,40 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  group('dve cesty – stejny global', () {
-    testWidgets('A -> B: zmena z Pokrocilych je videt v Pristupnosti', (
-      tester,
-    ) async {
+  group('jediná cesta ke globálnímu vzhledu výsledku', () {
+    testWidgets('Global settings updates the shared value', (tester) async {
       final state = await pumpApp(tester);
       expect(state.resultDisplayModeForTest, ResultDisplayMode.segment);
 
-      // Cesta A: Pokrocile funkce.
-      state.showAdvancedDialogForTest();
+      state.showAccessibilityDialogForTest();
       await tester.pumpAndSettle();
       await expandResultSection(tester);
       await tapOption(tester, 'Matematický text', 'Math text');
       expect(state.resultDisplayModeForTest, ResultDisplayMode.text);
-      await closeDialogByLabel(tester, tr(tester, 'ZAVŘÍT', 'CLOSE'));
-
-      // Cesta B: Nastaveni pristupnosti ukazuje stejnou hodnotu.
-      state.showAccessibilityDialogForTest();
-      await tester.pumpAndSettle();
-      await expandResultSection(tester);
       final radios = tester.widgetList<RadioListTile<ResultDisplayMode>>(
         find.byType(RadioListTile<ResultDisplayMode>),
       );
       expect(radios, isNotEmpty);
-      // Produkcni kod pouziva stejne RadioListTile API jako zbytek
-      // projektu, test ho jen cte.
       // ignore: deprecated_member_use
       final selected = radios.where((r) => r.value == r.groupValue);
       expect(selected.length, 1);
       expect(selected.first.value, ResultDisplayMode.text);
       await closeDialogByLabel(tester, 'HOTOVO');
+      state.showAdvancedDialogForTest();
+      await tester.pumpAndSettle();
+      expect(
+        find.text(tr(tester, 'Vzhled výsledkového displeje', 'Result display')),
+        findsNothing,
+      );
+      await closeDialogByLabel(tester, tr(tester, 'ZAVŘÍT', 'CLOSE'));
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('B -> A: zmena z Pristupnosti je videt v Pokrocilych', (
+    testWidgets('Opening Advanced does not offer a duplicate editor', (
       tester,
     ) async {
       final state = await pumpApp(tester);
 
-      // Cesta B: Nastaveni pristupnosti.
       state.showAccessibilityDialogForTest();
       await tester.pumpAndSettle();
       await expandResultSection(tester);
@@ -142,18 +141,13 @@ void main() {
       expect(state.resultDisplayModeForTest, ResultDisplayMode.auto);
       await closeDialogByLabel(tester, 'HOTOVO');
 
-      // Cesta A: Pokrocile funkce ukazuji stejnou hodnotu.
       state.showAdvancedDialogForTest();
       await tester.pumpAndSettle();
-      await expandResultSection(tester);
-      final radios = tester.widgetList<RadioListTile<ResultDisplayMode>>(
-        find.byType(RadioListTile<ResultDisplayMode>),
+      expect(
+        find.text(tr(tester, 'Vzhled výsledkového displeje', 'Result display')),
+        findsNothing,
       );
-      // Produkcni kod pouziva stejne RadioListTile API (viz komentar vyse).
-      // ignore: deprecated_member_use
-      final selected = radios.where((r) => r.value == r.groupValue);
-      expect(selected.length, 1);
-      expect(selected.first.value, ResultDisplayMode.auto);
+      expect(state.resultDisplayModeForTest, ResultDisplayMode.auto);
       await closeDialogByLabel(tester, tr(tester, 'ZAVŘÍT', 'CLOSE'));
       expect(tester.takeException(), isNull);
     });
@@ -172,7 +166,7 @@ void main() {
       // Ulozeni profilu (bez RDM pole) hodnotu neovlivni.
       expect(state.startEditingForTest('standard'), isTrue);
       state.updateEditingForTest(
-        (AccessibilitySettings s) => s.copyWith(speechRate: 0.9),
+        (AccessibilitySettings s) => s.copyWith(dialogFontScale: 1.2),
       );
       await tester.pump();
       expect(await state.saveEditingForTest(), isTrue);

@@ -14,9 +14,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final List<String> ttsLog = [];
+  dynamic currentState;
+  bool? ttsEnabledWhenVoiceOffAnnounced;
 
   setUp(() {
     ttsLog.clear();
+    currentState = null;
+    ttsEnabledWhenVoiceOffAnnounced = null;
     SharedPreferences.setMockInitialValues(<String, Object>{
       'modeQuestionAsked': true,
     });
@@ -26,7 +30,11 @@ void main() {
       MethodCall call,
     ) async {
       if (call.method == 'speak') {
-        ttsLog.add(call.arguments as String? ?? '');
+        final message = call.arguments as String? ?? '';
+        ttsLog.add(message);
+        if (message.contains('Hlas vypnut')) {
+          ttsEnabledWhenVoiceOffAnnounced = currentState?.ttsEnabled as bool?;
+        }
       }
       return 1;
     });
@@ -57,7 +65,8 @@ void main() {
     addTearDown(tester.platformDispatcher.clearAllTestValues);
     await tester.pumpWidget(ScientificCalculatorApp(locale: locale));
     await tester.pumpAndSettle();
-    return tester.state(find.byType(CalculatorScreen)) as dynamic;
+    currentState = tester.state(find.byType(CalculatorScreen)) as dynamic;
+    return currentState;
   }
 
   Future<void> setScreenReader(
@@ -65,8 +74,8 @@ void main() {
     dynamic state,
     bool on,
   ) async {
-    state.updateActiveSettingsForTest(
-      (s) => s.copyWith(
+    await state.updateGlobalSettingsForTest(
+      (GlobalSettings s) => s.copyWith(
         screenReaderMode: on ? ScreenReaderMode.on : ScreenReaderMode.off,
       ),
     );
@@ -407,6 +416,22 @@ void main() {
   });
 
   group('R9 – nastavení a profil', () {
+    testWidgets('top voice toggle announces before disabling TTS', (
+      tester,
+    ) async {
+      final state = await pumpApp(tester);
+
+      await tester.tap(find.byTooltip('Ztlumit hlas'));
+      await tester.pumpAndSettle();
+
+      expect(ttsEnabledWhenVoiceOffAnnounced, isTrue);
+      expect(state.ttsEnabled, isFalse);
+      expect(
+        ttsLog.where((message) => message.contains('Hlas vypnut')),
+        hasLength(1),
+      );
+    });
+
     testWidgets('zoom horního řádku -> právě jedno potvrzení', (tester) async {
       final state = await pumpApp(tester);
       await setScreenReader(tester, state, false);
@@ -447,13 +472,17 @@ void main() {
     testWidgets('TTS OFF -> ticho; TTS ON -> potvrzení', (tester) async {
       final state = await pumpApp(tester);
       await setScreenReader(tester, state, false);
-      state.updateActiveSettingsForTest((s) => s.copyWith(ttsEnabled: false));
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) => s.copyWith(ttsEnabled: false),
+      );
       await tester.pumpAndSettle();
       ttsLog.clear();
       await state.handleButtonPressedForTest('7');
       await tester.pumpAndSettle();
       expect(ttsLog, isEmpty, reason: 'TTS log: $ttsLog');
-      state.updateActiveSettingsForTest((s) => s.copyWith(ttsEnabled: true));
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) => s.copyWith(ttsEnabled: true),
+      );
       await tester.pumpAndSettle();
       ttsLog.clear();
       final added = await countNewTts(
@@ -468,7 +497,9 @@ void main() {
       tester,
     ) async {
       final state = await pumpApp(tester);
-      state.updateActiveSettingsForTest((s) => s.copyWith(ttsEnabled: false));
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings s) => s.copyWith(ttsEnabled: false),
+      );
       await setScreenReader(tester, state, true);
       await calculate(tester, state, '2+2');
       // Potvrzení nesmí záviset na vypnutém TTS (R9).

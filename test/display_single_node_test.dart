@@ -72,8 +72,8 @@ void main() {
 
   Future<dynamic> pumpAppSrOn(WidgetTester tester) async {
     final state = await pumpApp(tester);
-    state.updateActiveSettingsForTest(
-      (s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
+    await state.updateGlobalSettingsForTest(
+      (GlobalSettings s) => s.copyWith(screenReaderMode: ScreenReaderMode.on),
     );
     await tester.pumpAndSettle();
     expect(state.isScreenReaderActiveForTest, isTrue);
@@ -82,8 +82,8 @@ void main() {
 
   Future<dynamic> pumpAppSrOff(WidgetTester tester) async {
     final state = await pumpApp(tester);
-    state.updateActiveSettingsForTest(
-      (s) => s.copyWith(screenReaderMode: ScreenReaderMode.off),
+    await state.updateGlobalSettingsForTest(
+      (GlobalSettings s) => s.copyWith(screenReaderMode: ScreenReaderMode.off),
     );
     await tester.pumpAndSettle();
     expect(state.isScreenReaderActiveForTest, isFalse);

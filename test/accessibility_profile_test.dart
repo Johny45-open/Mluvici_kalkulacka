@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mluvici_kalkulacka/main.dart';
+import 'package:mluvici_kalkulacka/surd.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Aktualizované testy pro per-profile model v2
@@ -55,6 +56,79 @@ void main() {
   }
 
   group('Accessibility profiles v2', () {
+    testWidgets('legacy globals migrate from the active profile only once', (
+      tester,
+    ) async {
+      final profiles = <Map<String, dynamic>>[];
+      for (final (id, name, profileSettings) in [
+        ('standard', 'Standard', AccessibilitySettings.defaultsStandard()),
+        ('blind', 'Blind', AccessibilitySettings.defaultsBlind()),
+        ('lowvision', 'Low vision', AccessibilitySettings.defaultsLowVision()),
+      ]) {
+        final settings = profileSettings.toJson();
+        settings.addAll({
+          'screenReaderMode': ScreenReaderMode.on.index,
+          'ttsEnabled': false,
+          'speechRate': 0.7,
+          'speechVolume': 0.4,
+          'ttsEngine': 'legacy-engine',
+          'ttsVoice': {'name': 'legacy-voice', 'locale': 'cs-CZ'},
+          'ttsVoiceName': 'Legacy voice',
+          'resultDisplayMode': ResultDisplayMode.auto.index,
+          'announceFractionAvailability': false,
+        });
+        profiles.add({
+          'id': id,
+          'name': name,
+          'isBuiltIn': true,
+          'settings': settings,
+        });
+      }
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'accessibility_profiles_v2': jsonEncode(profiles),
+        'activeProfileId': 'blind',
+        'themeMode': ThemeMode.light.index,
+        'modeQuestionAsked': true,
+      });
+      mockChannels();
+      final state = await pumpApp(tester);
+
+      expect(state.globalSettingsForTest.screenReaderMode, ScreenReaderMode.on);
+      expect(state.globalSettingsForTest.ttsEnabled, isFalse);
+      expect(state.globalSettingsForTest.speechRate, 0.7);
+      expect(state.globalSettingsForTest.speechVolume, 0.4);
+      expect(state.globalSettingsForTest.ttsVoice, {
+        'name': 'legacy-voice',
+        'locale': 'cs-CZ',
+      });
+      expect(
+        state.globalSettingsForTest.resultDisplayMode,
+        ResultDisplayMode.auto,
+      );
+      expect(state.globalSettingsForTest.announceFractionAvailability, isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('globalSettingsMigratedV3'), isTrue);
+      final originalProfile =
+          (jsonDecode(prefs.getString('accessibility_profiles_v2')!) as List)
+              .firstWhere((profile) => profile['id'] == 'blind');
+      expect(
+        originalProfile['settings']['fontSizeMultiplier'],
+        AccessibilitySettings.defaultsBlind().fontSizeMultiplier,
+      );
+
+      expect(
+        await state.updateGlobalSettingsForTest(
+          (GlobalSettings current) => current.copyWith(speechVolume: 0.6),
+        ),
+        isTrue,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      final restarted = await pumpApp(tester);
+      expect(restarted.globalSettingsForTest.speechVolume, 0.6);
+      expect(restarted.globalSettingsForTest.ttsEnabled, isFalse);
+    });
+
     testWidgets('A) fresh start offers Quick Setup presets', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'modeQuestionAsked': true,
@@ -82,6 +156,7 @@ void main() {
       });
       mockChannels();
       final state = await pumpApp(tester);
+      final globalBefore = state.globalSettingsForTest as GlobalSettings;
       state.showQuickSetupDialogForTest();
       await tester.pumpAndSettle();
       await tester.tap(find.text('Blind').first);
@@ -100,6 +175,10 @@ void main() {
               as Map;
       expect(active['accessibilityType'], AccessibilityType.blind.index);
       expect(state.ttsEnabled, isTrue);
+      expect(
+        (state.globalSettingsForTest as GlobalSettings).toJson(),
+        globalBefore.toJson(),
+      );
       await tester.pumpAndSettle();
     });
 
@@ -162,6 +241,9 @@ void main() {
       mockChannels();
       dynamic state = await pumpApp(tester);
       await tester.pumpAndSettle();
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings value) => value.copyWith(speechRate: 0.8),
+      );
 
       // A) aktivuj Blind
       state.switchProfileForTest('blind');
@@ -173,7 +255,6 @@ void main() {
           dialogFontScale: 1.0,
           thousandGroupGap: ThousandGroupGap.small,
           announceExpression: true,
-          speechRate: 0.8,
         ),
       );
       await tester.pumpAndSettle();
@@ -190,7 +271,6 @@ void main() {
           dialogFontScale: 2.5,
           thousandGroupGap: ThousandGroupGap.large,
           announceExpression: false,
-          speechRate: 0.3,
         ),
       );
       await tester.pumpAndSettle();
@@ -211,7 +291,7 @@ void main() {
       expect(state.dialogFontScaleForTest, 2.5);
       expect(state.thousandGroupGapForTest, ThousandGroupGap.large);
       expect(state.announceExpressionForTest, false);
-      expect(state.speechRateForTest, 0.3);
+      expect(state.speechRateForTest, 0.8);
 
       // G) několik přepnutí
       for (int i = 0; i < 5; i++) {
@@ -242,14 +322,17 @@ void main() {
       dynamic state = await pumpApp(tester);
       state.switchProfileForTest('blind');
       await tester.pumpAndSettle();
+      await state.updateGlobalSettingsForTest(
+        (GlobalSettings value) => value.copyWith(speechRate: 0.77),
+      );
       state.updateActiveSettingsForTest(
-        (s) => s.copyWith(fontSizeMultiplier: 1.42, speechRate: 0.77),
+        (s) => s.copyWith(fontSizeMultiplier: 1.42),
       );
       await tester.pumpAndSettle();
       state.switchProfileForTest('lowvision');
       await tester.pumpAndSettle();
       state.updateActiveSettingsForTest(
-        (s) => s.copyWith(fontSizeMultiplier: 1.99, speechRate: 0.33),
+        (s) => s.copyWith(fontSizeMultiplier: 1.99),
       );
       await tester.pumpAndSettle();
 
@@ -263,7 +346,7 @@ void main() {
       state.switchProfileForTest('lowvision');
       await tester.pumpAndSettle();
       expect(state.keyboardFontScaleForTest, closeTo(1.99, 0.001));
-      expect(state.speechRateForTest, closeTo(0.33, 0.001));
+      expect(state.speechRateForTest, closeTo(0.77, 0.001));
     });
 
     testWidgets('reset active profile to defaults', (tester) async {

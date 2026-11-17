@@ -1,71 +1,52 @@
 part of 'main.dart';
 
-/// Předvolba rychlého nastavení. Pouze mění draft v paměti.
 enum QuickSetupPreset { standard, blind, lowVision, custom }
 
-/// Jednotný pracovní draft pro „Rychlé nastavení kalkulačky".
-///
-/// Čistý value-object: ŽÁDNÉ SharedPreferences, ŽÁDNÁ persistence,
-/// ŽÁDNÁ UI logika, ŽÁDNÁ přímá závislost na TTS.
-///
-/// `historyExactFormat` záměrně NENÍ součástí UI draftu – aktuální
-/// renderer ho ve všech případech nereflektuje, zůstává pouze
-/// v kontraktu/persistenci jako globální údaj.
 class QuickSetupDraft {
   final AccessibilitySettings settings;
-  final ThemeMode themeMode;
+  final GlobalSettings globalSettings;
   final bool isDegreeMode;
   final CalculatorMode defaultMode;
-  final ResultDisplayMode resultDisplayMode;
   final ResultNotationPreference resultNotationPreference;
-  final bool announceFractionAvailability;
 
   const QuickSetupDraft({
     required this.settings,
-    required this.themeMode,
+    required this.globalSettings,
     required this.isDegreeMode,
     required this.defaultMode,
-    required this.resultDisplayMode,
     required this.resultNotationPreference,
-    required this.announceFractionAvailability,
   });
 
-  /// Sestaví draft z aktuálního runtime stavu (bez zápisu).
+  ThemeMode get themeMode => globalSettings.themeMode;
+  ResultDisplayMode get resultDisplayMode => globalSettings.resultDisplayMode;
+  bool get announceFractionAvailability =>
+      globalSettings.announceFractionAvailability;
+
   factory QuickSetupDraft.fromRuntime({
     required AccessibilitySettings settings,
-    required ThemeMode themeMode,
+    required GlobalSettings globalSettings,
     required bool isDegreeMode,
     required CalculatorMode defaultMode,
-    required ResultDisplayMode resultDisplayMode,
     required ResultNotationPreference resultNotationPreference,
-    required bool announceFractionAvailability,
-  }) {
-    return QuickSetupDraft(
-      settings: settings.copyWith(),
-      themeMode: themeMode,
-      isDegreeMode: isDegreeMode,
-      defaultMode: defaultMode,
-      resultDisplayMode: resultDisplayMode,
-      resultNotationPreference: resultNotationPreference,
-      announceFractionAvailability: announceFractionAvailability,
-    );
-  }
+  }) => QuickSetupDraft(
+    settings: settings.copyWith(),
+    globalSettings: globalSettings.copyWith(),
+    isDegreeMode: isDegreeMode,
+    defaultMode: defaultMode,
+    resultNotationPreference: resultNotationPreference,
+  );
 
-  /// Výchozí draft pro úplně první spuštění (odpovídá standardnímu profilu).
-  factory QuickSetupDraft.defaults() {
-    return QuickSetupDraft(
-      settings: AccessibilitySettings.defaultsStandard(),
-      themeMode: ThemeMode.dark,
-      isDegreeMode: true,
-      defaultMode: CalculatorMode.scientific,
-      resultDisplayMode: ResultDisplayMode.segment,
-      resultNotationPreference: ResultNotationPreference.decimal,
-      announceFractionAvailability: true,
-    );
-  }
+  factory QuickSetupDraft.defaults() => QuickSetupDraft(
+    settings: AccessibilitySettings.defaultsStandard(),
+    globalSettings: GlobalSettings.defaults(),
+    isDegreeMode: true,
+    defaultMode: CalculatorMode.scientific,
+    resultNotationPreference: ResultNotationPreference.decimal,
+  );
 
   QuickSetupDraft copyWith({
     AccessibilitySettings? settings,
+    GlobalSettings? globalSettings,
     ThemeMode? themeMode,
     bool? isDegreeMode,
     CalculatorMode? defaultMode,
@@ -73,18 +54,27 @@ class QuickSetupDraft {
     ResultNotationPreference? resultNotationPreference,
     bool? announceFractionAvailability,
   }) {
+    var nextGlobal = globalSettings ?? this.globalSettings.copyWith();
+    if (themeMode != null)
+      nextGlobal = nextGlobal.copyWith(themeMode: themeMode);
+    if (resultDisplayMode != null) {
+      nextGlobal = nextGlobal.copyWith(resultDisplayMode: resultDisplayMode);
+    }
+    if (announceFractionAvailability != null) {
+      nextGlobal = nextGlobal.copyWith(
+        announceFractionAvailability: announceFractionAvailability,
+      );
+    }
     return QuickSetupDraft(
       settings: settings ?? this.settings.copyWith(),
-      themeMode: themeMode ?? this.themeMode,
+      globalSettings: nextGlobal,
       isDegreeMode: isDegreeMode ?? this.isDegreeMode,
       defaultMode: defaultMode ?? this.defaultMode,
-      resultDisplayMode: resultDisplayMode ?? this.resultDisplayMode,
-      resultNotationPreference: resultNotationPreference ?? this.resultNotationPreference,
-      announceFractionAvailability: announceFractionAvailability ?? this.announceFractionAvailability,
+      resultNotationPreference:
+          resultNotationPreference ?? this.resultNotationPreference,
     );
   }
 
-  /// Předvolba pouze změní draft v paměti. Nic se nezapisuje.
   QuickSetupDraft applyPreset(QuickSetupPreset preset) {
     switch (preset) {
       case QuickSetupPreset.standard:
@@ -98,7 +88,6 @@ class QuickSetupDraft {
     }
   }
 
-  /// Detekce aktuální předvolby pro UI `selected` stav.
   QuickSetupPreset get detectedPreset {
     if (_sameSettings(settings, AccessibilitySettings.defaultsStandard())) {
       return QuickSetupPreset.standard;
@@ -113,28 +102,21 @@ class QuickSetupDraft {
   }
 }
 
-/// Porovnání nastavení pro detekci presetu (bez resultDisplayMode,
-/// announceFractionAvailability, který je globální, a bez display-only ttsVoiceName).
-bool _sameSettings(AccessibilitySettings a, AccessibilitySettings b) {
-  return a.accessibilityType == b.accessibilityType &&
-      a.screenReaderMode == b.screenReaderMode &&
-      a.fontSizeMultiplier == b.fontSizeMultiplier &&
-      a.dialogFontScale == b.dialogFontScale &&
-      a.dotMatrixZoom == b.dotMatrixZoom &&
-      a.resultZoom == b.resultZoom &&
-      a.thousandGroupGap == b.thousandGroupGap &&
-      a.dialogSize == b.dialogSize &&
-      a.useSixteenSegment == b.useSixteenSegment &&
-      a.usePeriodicNotation == b.usePeriodicNotation &&
-      a.announceExpression == b.announceExpression &&
-      a.readStatsMemoryValues == b.readStatsMemoryValues &&
-      a.autoReadStatsSummary == b.autoReadStatsSummary &&
-      a.showStatsNavigationHint == b.showStatsNavigationHint &&
-      a.alignInputLeft == b.alignInputLeft &&
-      a.overlineThickness == b.overlineThickness &&
-      a.overlineHeight == b.overlineHeight &&
-      a.speechRate == b.speechRate &&
-      a.speechVolume == b.speechVolume &&
-      a.ttsEnabled == b.ttsEnabled &&
-      a.inverseFormatPreference == b.inverseFormatPreference;
-}
+bool _sameSettings(AccessibilitySettings a, AccessibilitySettings b) =>
+    a.accessibilityType == b.accessibilityType &&
+    a.fontSizeMultiplier == b.fontSizeMultiplier &&
+    a.dialogFontScale == b.dialogFontScale &&
+    a.dotMatrixZoom == b.dotMatrixZoom &&
+    a.resultZoom == b.resultZoom &&
+    a.thousandGroupGap == b.thousandGroupGap &&
+    a.dialogSize == b.dialogSize &&
+    a.useSixteenSegment == b.useSixteenSegment &&
+    a.usePeriodicNotation == b.usePeriodicNotation &&
+    a.announceExpression == b.announceExpression &&
+    a.readStatsMemoryValues == b.readStatsMemoryValues &&
+    a.autoReadStatsSummary == b.autoReadStatsSummary &&
+    a.showStatsNavigationHint == b.showStatsNavigationHint &&
+    a.alignInputLeft == b.alignInputLeft &&
+    a.overlineThickness == b.overlineThickness &&
+    a.overlineHeight == b.overlineHeight &&
+    a.inverseFormatPreference == b.inverseFormatPreference;

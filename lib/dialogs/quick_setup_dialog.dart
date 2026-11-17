@@ -53,6 +53,16 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
     _update(_draft.copyWith(settings: upd(_draft.settings)), announcement);
   }
 
+  void _updateGlobal(
+    GlobalSettings Function(GlobalSettings settings) update,
+    String announcement,
+  ) {
+    _update(
+      _draft.copyWith(globalSettings: update(_draft.globalSettings)),
+      announcement,
+    );
+  }
+
   // --- Stepper řádek (− / hodnota / +), stejný vzor jako editor profilu.
   Widget _stepperRow({
     required String label,
@@ -93,6 +103,7 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
   @override
   Widget build(BuildContext context) {
     final s = _draft.settings;
+    final g = _draft.globalSettings;
     final advancedChildren = [
       _sectionTitle(_t('Hlasový výstup (TTS)', 'Voice output (TTS)')),
       Semantics(
@@ -102,8 +113,8 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
         ),
         child: SwitchListTile(
           title: Text(_t('Hlas zapnut', 'Voice enabled')),
-          value: s.ttsEnabled,
-          onChanged: (v) => _updateSettings(
+          value: g.ttsEnabled,
+          onChanged: (v) => _updateGlobal(
             (x) => x.copyWith(ttsEnabled: v),
             _t(v ? 'Hlas zapnut' : 'Hlas vypnut', v ? 'Voice on' : 'Voice off'),
           ),
@@ -115,17 +126,33 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
           'Announce fraction availability on or off',
         ),
         child: SwitchListTile(
-          title: Text(_t('Upozorňovat na dostupný zlomek', 'Announce fraction availability')),
-          subtitle: Text(_t('Určuje, zda hlasové oznámení výsledku obsahuje také informaci o dostupném zlomku.', 'Controls whether spoken result announcements include an additional notice about an available fraction.')),
-          value: _draft.announceFractionAvailability,
+          title: Text(
+            _t(
+              'Upozorňovat na dostupný zlomek',
+              'Announce fraction availability',
+            ),
+          ),
+          subtitle: Text(
+            _t(
+              'Určuje, zda hlasové oznámení výsledku obsahuje také informaci o dostupném zlomku.',
+              'Controls whether spoken result announcements include an additional notice about an available fraction.',
+            ),
+          ),
+          value: g.announceFractionAvailability,
           onChanged: (v) {
             setState(() {
-              _draft = _draft.copyWith(announceFractionAvailability: v);
+              _draft = _draft.copyWith(
+                globalSettings: g.copyWith(announceFractionAvailability: v),
+              );
             });
             widget.announce(
               _t(
-                v ? 'Upozorňování na zlomek zapnuto' : 'Upozorňování na zlomek vypnuto',
-                v ? 'Announce fraction availability on' : 'Announce fraction availability off',
+                v
+                    ? 'Upozorňování na zlomek zapnuto'
+                    : 'Upozorňování na zlomek vypnuto',
+                v
+                    ? 'Announce fraction availability on'
+                    : 'Announce fraction availability off',
               ),
             );
           },
@@ -152,9 +179,9 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
           }
           final voices = snap.data!;
           const defaultKey = '__default__';
-          final currentKey = s.ttsVoice == null
+          final currentKey = g.ttsVoice == null
               ? defaultKey
-              : '${s.ttsVoice!['name']}|${s.ttsVoice!['locale']}';
+              : '${g.ttsVoice!['name']}|${g.ttsVoice!['locale']}';
           final keys = <String>{defaultKey};
           for (final v in voices) {
             keys.add('${v['name']}|${v['locale']}');
@@ -180,7 +207,7 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
               ],
               onChanged: (key) {
                 if (key == null || key == defaultKey) {
-                  _updateSettings(
+                  _updateGlobal(
                     (x) => x.copyWith(
                       clearTtsVoice: true,
                       clearTtsVoiceName: true,
@@ -192,7 +219,7 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
                     (e) => '${e['name']}|${e['locale']}' == key,
                     orElse: () => voices.first,
                   );
-                  _updateSettings(
+                  _updateGlobal(
                     (x) => x.copyWith(
                       ttsVoice: {'name': v['name']!, 'locale': v['locale']!},
                       ttsVoiceName: v['name'],
@@ -207,12 +234,12 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
       ),
       _stepperRow(
         label: _t('Rychlost', 'Speech rate'),
-        valueText: '${(s.speechRate * 100).toInt()} %',
+        valueText: '${(g.speechRate * 100).toInt()} %',
         minusSemantics: _t('Snížit rychlost', 'Decrease rate'),
         plusSemantics: _t('Zvýšit rychlost', 'Increase rate'),
         onMinus: () {
-          final nv = (s.speechRate - 0.1).clamp(0.1, 1.0);
-          _updateSettings(
+          final nv = (g.speechRate - 0.1).clamp(0.1, 1.0);
+          _updateGlobal(
             (x) => x.copyWith(speechRate: nv),
             _t(
               'Rychlost ${(nv * 100).toInt()} procent',
@@ -221,8 +248,8 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
           );
         },
         onPlus: () {
-          final nv = (s.speechRate + 0.1).clamp(0.1, 1.0);
-          _updateSettings(
+          final nv = (g.speechRate + 0.1).clamp(0.1, 1.0);
+          _updateGlobal(
             (x) => x.copyWith(speechRate: nv),
             _t(
               'Rychlost ${(nv * 100).toInt()} procent',
@@ -233,12 +260,12 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
       ),
       _stepperRow(
         label: _t('Hlasitost', 'Volume'),
-        valueText: '${(s.speechVolume * 100).toInt()} %',
+        valueText: '${(g.speechVolume * 100).toInt()} %',
         minusSemantics: _t('Snížit hlasitost', 'Decrease volume'),
         plusSemantics: _t('Zvýšit hlasitost', 'Increase volume'),
         onMinus: () {
-          final nv = (s.speechVolume - 0.1).clamp(0.0, 1.0);
-          _updateSettings(
+          final nv = (g.speechVolume - 0.1).clamp(0.0, 1.0);
+          _updateGlobal(
             (x) => x.copyWith(speechVolume: nv),
             _t(
               'Hlasitost ${(nv * 100).toInt()} procent',
@@ -247,8 +274,8 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
           );
         },
         onPlus: () {
-          final nv = (s.speechVolume + 0.1).clamp(0.0, 1.0);
-          _updateSettings(
+          final nv = (g.speechVolume + 0.1).clamp(0.0, 1.0);
+          _updateGlobal(
             (x) => x.copyWith(speechVolume: nv),
             _t(
               'Hlasitost ${(nv * 100).toInt()} procent',
@@ -307,9 +334,9 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
               label: Text(_t('Vypnuto', 'Off')),
             ),
           ],
-          selected: {s.screenReaderMode},
+          selected: {g.screenReaderMode},
           showSelectedIcon: false,
-          onSelectionChanged: (sel) => _updateSettings(
+          onSelectionChanged: (sel) => _updateGlobal(
             (x) => x.copyWith(screenReaderMode: sel.first),
             _t(
               'Režim čtečky: ${_screenReaderModeName(sel.first)}',
