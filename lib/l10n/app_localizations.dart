@@ -260,7 +260,7 @@ abstract class AppLocalizations {
   /// No description provided for @tutorialScientific.
   ///
   /// In en, this message translates to:
-  /// **'Scientific mode – two pages.\n\nNumbers page: C ( ) / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL = DMS. DMS is also available here to enter degrees, minutes and seconds in sequence.\nFunctions page (FUNCTIONS): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nToggle NUMBERS/FUNCTIONS at bottom, Ctrl+PageUp/PageDown. DEG/RAD switches degrees/radians. Memory STO/RCL/CLR + variables A-F,X,Y,M and Advanced functions (Trigonometry, Functions, Memory, Repeating, Display NORM/FIX/SCI/ENG).'**
+  /// **'Scientific mode – two pages.\n\nNumbers page: C ( ) / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL = DMS ;. DMS is also available here to enter degrees, minutes and seconds in sequence. Semicolon (;) serves as an argument separator, e.g. for logarithm with custom base LOG(argument;base), such as LOG(8;2) = 3. Standard LOG(x) computes base-10 logarithm.\nFunctions page (FUNCTIONS): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nToggle NUMBERS/FUNCTIONS at bottom, Ctrl+PageUp/PageDown. DEG/RAD switches degrees/radians. Memory STO/RCL/CLR + variables A-F,X,Y,M and Advanced functions (Trigonometry, Functions, Memory, Repeating, Display NORM/FIX/SCI/ENG).'**
   String get tutorialScientific;
 
   /// No description provided for @tutorialStatistics.
@@ -1390,6 +1390,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Logarithm base must be positive and different from one.'**
   String get logBaseInvalid;
+
+  /// No description provided for @argumentSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **'Argument separator'**
+  String get argumentSeparator;
 
   /// No description provided for @asinArgumentOutOfRange.
   ///

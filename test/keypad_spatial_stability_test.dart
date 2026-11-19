@@ -237,6 +237,7 @@ void main() {
     'DEL',
     '=',
     'DMS',
+    ';',
   ];
   const expectedScientificFunc = [
     'SIN',

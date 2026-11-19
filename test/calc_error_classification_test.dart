@@ -192,6 +192,98 @@ void main() {
       final state = await pumpApp(tester);
       expect(state.evaluateExpressionForTest('0^0'), 1.0);
     });
+
+    testWidgets('logaritmy s jednim i dvema parametry vcetne vnorenych', (tester) async {
+      final state = await pumpApp(tester);
+      expect(state.evaluateExpressionForTest('LOG(100)'), closeTo(2.0, 1e-9));
+      expect(state.evaluateExpressionForTest('LOG(8;2)'), closeTo(3.0, 1e-9));
+      expect(state.evaluateExpressionForTest('LOG(81;3)'), closeTo(4.0, 1e-9));
+      expect(state.evaluateExpressionForTest('LOG(16;4)'), closeTo(2.0, 1e-9));
+      expect(state.evaluateExpressionForTest('LOG(1000;10)'), closeTo(3.0, 1e-9));
+      expect(state.evaluateExpressionForTest('LOG(8;2.5)'), closeTo(2.2694124, 1e-6));
+      expect(state.evaluateExpressionForTest('LOG(8;2,5)'), closeTo(2.2694124, 1e-6));
+      expect(state.evaluateExpressionForTest('LOG(6,25;2,5)'), closeTo(2.0, 1e-9));
+      expect(state.evaluateExpressionForTest('LOG(LOG(64;2);6)'), closeTo(1.0, 1e-9));
+    });
+  });
+
+  group('logarithm errors (domain, syntax, divisionByZero)', () {
+    testWidgets('neplatny zaklad logaritmu: 0, 1, zaporny', (tester) async {
+      final state = await pumpApp(tester);
+      for (final expr in ['LOG(8;0)', 'LOG(8;1)', 'LOG(8;-2)']) {
+        final err = catchCalcError(state, expr);
+        expect(err.kind, CalcErrorKind.domain, reason: 'výraz $expr');
+        expect(err.reason, CalcErrorReason.logBadBase, reason: 'výraz $expr');
+      }
+    });
+
+    testWidgets('neplatny argument logaritmu: 0, zaporny', (tester) async {
+      final state = await pumpApp(tester);
+      for (final expr in ['LOG(0;2)', 'LOG(-8;2)']) {
+        final err = catchCalcError(state, expr);
+        expect(err.kind, CalcErrorKind.domain, reason: 'výraz $expr');
+        expect(err.reason, CalcErrorReason.logNonPositiveArg, reason: 'výraz $expr');
+      }
+    });
+
+    testWidgets('chybejici nebo nadbytecne parametry logaritmu a stredniky', (tester) async {
+      final state = await pumpApp(tester);
+      for (final expr in ['LOG(8;)', 'LOG(;2)', 'LOG(8;2;3)', 'LOG()', '3;4']) {
+        final err = catchCalcError(state, expr);
+        expect(err.kind, CalcErrorKind.syntax, reason: 'výraz $expr');
+        expect(err.reason, CalcErrorReason.syntaxGeneral, reason: 'výraz $expr');
+      }
+      final parenErr = catchCalcError(state, 'LOG(8;2');
+      expect(parenErr.kind, CalcErrorKind.syntax);
+      expect(parenErr.reason, CalcErrorReason.syntaxParens);
+    });
+
+    testWidgets('deleni nulou uvnitr argumentu logaritmu ma prednost pred domenou', (tester) async {
+      final state = await pumpApp(tester);
+      final err = catchCalcError(state, 'LOG(1/0;2)');
+      expect(err.kind, CalcErrorKind.divisionByZero);
+      expect(err.reason, CalcErrorReason.zeroDenominator);
+    });
+
+    testWidgets('klavesnice ve vedeckem rezimu ma tlacitko stredniku a spocita LOG(8;2)', (tester) async {
+      final state = await pumpApp(tester);
+      state.switchModeForTest(CalculatorMode.scientific);
+      await tester.pumpAndSettle();
+
+      final semiBtn = find.descendant(
+        of: find.byKey(const ValueKey('keypad_grid')),
+        matching: find.text(';'),
+      );
+      expect(semiBtn, findsOneWidget);
+
+      state.setDisplayForTest('LOG(8', 5);
+      await tester.pump();
+      await tester.tap(semiBtn);
+      await tester.pumpAndSettle();
+      expect(state.displayForTest, 'LOG(8;');
+
+      final twoBtn = find.descendant(
+        of: find.byKey(const ValueKey('keypad_grid')),
+        matching: find.text('2'),
+      );
+      await tester.tap(twoBtn);
+      await tester.pumpAndSettle();
+      final closeParenBtn = find.descendant(
+        of: find.byKey(const ValueKey('keypad_grid')),
+        matching: find.text(')'),
+      );
+      await tester.tap(closeParenBtn);
+      await tester.pumpAndSettle();
+      expect(state.displayForTest, 'LOG(8;2)');
+
+      final equalsBtn = find.descendant(
+        of: find.byKey(const ValueKey('keypad_grid')),
+        matching: find.text('='),
+      );
+      await tester.tap(equalsBtn);
+      await tester.pumpAndSettle();
+      expect(state.lastResultForTest, '3');
+    });
   });
 
   group('Info o cisle z horniho displeje', () {

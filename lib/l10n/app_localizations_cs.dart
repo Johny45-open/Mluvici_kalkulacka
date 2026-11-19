@@ -90,7 +90,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get tutorialBasic => 'Režim Základní – běžné výpočty.\n\nTlačítka: C (vymazat), ( ) závorky, / * - + operátory, 0-9 . desetinná tečka, … perioda (krátký stisk přepne periodu, dlouhý otevře editor), % procenta, DEL, =.\n\nTip: Pro opakující se desetinná čísla zadejte např. 0,1(6) a pokračujte ve výpočtu. Krátký stisk … posune periodu vlevo, dlouhý otevře ruční editor.';
 
   @override
-  String get tutorialScientific => 'Režim Vědecká – dvě stránky.\n\nČíselná stránka: C ( ), / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL = DMS. DMS lze použít také zde: postupně vloží stupně, minuty a sekundy.\nFunkční stránka (FUNKCE): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nPřepínač ČÍSLA/FUNKCE dole, klávesově Ctrl+PageUp/PageDown. Tl. DEG/RAD přepíná stupně/radiány (oznamuje se). Paměť STO/RCL/CLR + proměnné A-F,X,Y,M a Pokročilé funkce (Goniometrie, Funkce, Paměť, Perioda, Zobrazení NORM/FIX/SCI/ENG).';
+  String get tutorialScientific => 'Režim Vědecká – dvě stránky.\n\nČíselná stránka: C ( ), / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL = DMS ;. DMS lze použít také zde: postupně vloží stupně, minuty a sekundy. Středník (;) slouží jako oddělovač argumentů, např. pro logaritmus o libovolném základu ve tvaru LOG(argument;základ), například LOG(8;2) = 3. Zápis LOG(x) počítá dekadický logaritmus.\nFunkční stránka (FUNKCE): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nPřepínač ČÍSLA/FUNKCE dole, klávesově Ctrl+PageUp/PageDown. Tl. DEG/RAD přepíná stupně/radiány (oznamuje se). Paměť STO/RCL/CLR + proměnné A-F,X,Y,M a Pokročilé funkce (Goniometrie, Funkce, Paměť, Perioda, Zobrazení NORM/FIX/SCI/ENG).';
 
   @override
   String get tutorialStatistics => 'Režim Statistika – práce se sadami.\n\nTlačítka: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: správa sad a složek – viz záložka Sady & čtení.\nM+ krátce: uloží čísla z displeje (oddělovač ;) do aktivní sady. Vždy se zobrazí Kontrola dat před uložením s možností hodnoty zkontrolovat, upravit a uložit tlačítkem Uložit. M+ dlouze / Ctrl+M: zadá počet opakování pro hromadné vložení.\nMC: vymaže sadu. MR: přehled/editace dat (seskupené hodnoty s počtem výskytů, mazání záznamů).\nSTATS: souhrn pro vybrané pole – nahoře přepínač pole (je-li více polí), zaškrtávátko Číst hodnoty v paměti (skryje/přidá sekci Všechny hodnoty v paměti a ovlivní hlasové čtení), tabulka vypočtených statistik (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN, WVAR, WSD, WCV) a tlačítko Pořadí čtení pro přizpůsobení čtení.\nPokročilé funkce: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/WVAR/WSD/WCV/MIN/MAX + čtení poslední dávky. Více polí: hodnoty zadávej jako např. 80;2 pro WMEAN (hodnota;váha). Jednotky polí lze nastavit při vytváření/editaci sady a zobrazují se v souhrnu.';
@@ -689,6 +689,9 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get logBaseInvalid => 'Základ logaritmu musí být kladný a různý od jedné.';
+
+  @override
+  String get argumentSeparator => 'Oddělovač argumentů';
 
   @override
   String get asinArgumentOutOfRange => 'Argument funkce asin musí být v rozsahu od minus jedna do jedna.';

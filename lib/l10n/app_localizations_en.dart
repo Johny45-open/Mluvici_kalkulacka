@@ -90,7 +90,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tutorialBasic => 'Basic mode – everyday calculations.\n\nButtons: C (clear), ( ) parentheses, / * - + operators, 0-9 . decimal point, … repeating decimal (tap toggles period, long press opens editor), % percent, DEL, =.\n\nTip: Enter repeating decimals as e.g. 0.1(6) and continue. Short press … moves period left, long press opens manual editor.';
 
   @override
-  String get tutorialScientific => 'Scientific mode – two pages.\n\nNumbers page: C ( ) / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL = DMS. DMS is also available here to enter degrees, minutes and seconds in sequence.\nFunctions page (FUNCTIONS): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nToggle NUMBERS/FUNCTIONS at bottom, Ctrl+PageUp/PageDown. DEG/RAD switches degrees/radians. Memory STO/RCL/CLR + variables A-F,X,Y,M and Advanced functions (Trigonometry, Functions, Memory, Repeating, Display NORM/FIX/SCI/ENG).';
+  String get tutorialScientific => 'Scientific mode – two pages.\n\nNumbers page: C ( ) / 7 8 9 * 4 5 6 - 1 2 3 + 0 . … EXP % DEL = DMS ;. DMS is also available here to enter degrees, minutes and seconds in sequence. Semicolon (;) serves as an argument separator, e.g. for logarithm with custom base LOG(argument;base), such as LOG(8;2) = 3. Standard LOG(x) computes base-10 logarithm.\nFunctions page (FUNCTIONS): SIN COS TAN ASIN ACOS ATAN √ ∛ ⁿ√ ! LOG LN x² x³ ^ π DMS °→\' \'→° ABS ANS C DEL =.\nToggle NUMBERS/FUNCTIONS at bottom, Ctrl+PageUp/PageDown. DEG/RAD switches degrees/radians. Memory STO/RCL/CLR + variables A-F,X,Y,M and Advanced functions (Trigonometry, Functions, Memory, Repeating, Display NORM/FIX/SCI/ENG).';
 
   @override
   String get tutorialStatistics => 'Statistics mode – data sets.\n\nButtons: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: manage sets and folders – see Sets & Reading tab.\nM+ short: stores display numbers (separator ;) to the active set. A Review before saving dialog always appears, letting you check, edit and save the values with the Save button. M+ long / Ctrl+M: enter a repeat count for bulk insertion.\nMC: clear set. MR: view/edit data (grouped values with occurrence counts, delete records).\nSTATS: summary for selected field – field switcher at top (if multiple fields), checkbox Read values in memory (hides/shows All values section and affects speech), table of computed statistics (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN, WVAR, WSD, WCV) and Reading order button for customization.\nAdvanced: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/WVAR/WSD/WCV/MIN/MAX + read last batch. Multiple fields: enter as e.g. 80;2 for WMEAN (value;weight). Field units can be set when creating/editing a set and appear in the summary.';
@@ -689,6 +689,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get logBaseInvalid => 'Logarithm base must be positive and different from one.';
+
+  @override
+  String get argumentSeparator => 'Argument separator';
 
   @override
   String get asinArgumentOutOfRange => 'Argument of asin must be between minus one and one.';

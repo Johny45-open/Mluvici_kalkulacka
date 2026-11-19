@@ -2313,7 +2313,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   String _expressionToSpeech(String expr) {
     String result = expr.replaceAllMapped(
       RegExp(
-        r'''x²|x³|ⁿ√|\(-\)|°→'|'→°|√|∛|π|ANS|ASIN|ACOS|ATAN|SIN|COS|TAN|ABS|LOG|LN|\d+(?:[.,]\d*)?\(\d+\)|\d+[.,]\d+|\d+|[+\-*/^%!()°'"]|[A-Za-z]''',
+        r'''x²|x³|ⁿ√|\(-\)|°→'|'→°|√|∛|π|ANS|ASIN|ACOS|ATAN|SIN|COS|TAN|ABS|LOG|LN|\d+(?:[.,]\d*)?\(\d+\)|\d+[.,]\d+|\d+|[+\-*/^%!()°'";]|[A-Za-z]''',
         caseSensitive: false,
       ),
       (m) {
@@ -2445,6 +2445,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   String _getButtonName(String label) {
+    if (label == ';' && _currentMode == CalculatorMode.scientific) {
+      return _isEnglish() ? 'Argument separator' : 'Oddělovač argumentů';
+    }
     final pair = _buttonNames[label];
     if (pair != null) {
       return _isEnglish() ? pair[1] : pair[0];
@@ -4357,8 +4360,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         // effectiveChar už nese interní tečku (čárka byla normalizována
         // na začátku handleru), takže čárka projde stejně jako tečka.
         final String singleChar = effectiveChar.toUpperCase();
-        // Povolit číslice, desetinnou tečku a operátory + - * / ^ %
-        if (RegExp(r'^[0-9.+\-*/^%]$').hasMatch(singleChar)) {
+        // Povolit číslice, desetinnou tečku, středník a operátory + - * / ^ %
+        if (RegExp(r'^[0-9.+\-*/^%;]$').hasMatch(singleChar)) {
           _handleButtonPressed(singleChar, silent: true);
           return KeyEventResult.ignored;
         }
@@ -6368,6 +6371,98 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return out.toString();
   }
 
+  /// Strukturální expanze markeru [_LOG_].
+  /// Podporuje 1 parametr: `LOG(argument)` -> `log(10, argument)`
+  /// i 2 parametry: `LOG(argument;základ)` -> `log(základ, argument)`.
+  /// Zvládá vnořené logaritmy, desetinné základy i argumenty.
+  /// Vyhazuje [CalcError] s důvodem [CalcErrorReason.syntaxGeneral] při
+  /// chybějících parametrech `LOG(8;)` / `LOG(;2)` nebo nadbytečných střednících.
+  String _expandLogMarkers(String input) {
+    const marker = '_LOG_';
+    final out = StringBuffer();
+    int i = 0;
+    while (true) {
+      final idx = input.indexOf(marker, i);
+      if (idx < 0) {
+        out.write(input.substring(i));
+        break;
+      }
+      out.write(input.substring(i, idx));
+      final j = idx + marker.length;
+      if (j >= input.length || input[j] != '(') {
+        // Holý marker bez závorky — ponecháme, zachytí kontrola zbytkových markerů.
+        out.write(marker);
+        i = j;
+        continue;
+      }
+      int depth = 0;
+      int k = j;
+      for (; k < input.length; k++) {
+        if (input[k] == '(') {
+          depth++;
+        } else if (input[k] == ')') {
+          depth--;
+          if (depth == 0) break;
+        }
+      }
+      if (depth != 0) {
+        // Neuzavřená závorka — ponecháme nedotčené, zachytí kontrola závorek.
+        out.write(input.substring(idx));
+        break;
+      }
+      final rawArg = input.substring(j + 1, k);
+      if (rawArg.isEmpty) {
+        // Prázdný argument LOG() — ponecháme jako marker+(), zachytí kontrola zbytkových markerů.
+        out.write(input.substring(idx, k + 1));
+        i = k + 1;
+        continue;
+      }
+
+      // Hledáme středník na nejvyšší úrovni závorek uvnitř argumentu LOG (argDepth == 0)
+      final semicolons = <int>[];
+      int argDepth = 0;
+      for (int m = 0; m < rawArg.length; m++) {
+        final c = rawArg[m];
+        if (c == '(') {
+          argDepth++;
+        } else if (c == ')') {
+          argDepth--;
+        } else if (c == ';' && argDepth == 0) {
+          semicolons.add(m);
+        }
+      }
+
+      if (semicolons.isEmpty) {
+        // 1 parametr: dekadický logaritmus LOG(arg) -> log(10, arg)
+        // Vnořené logaritmy expandujeme rekurzivně zevnitř ven.
+        final expandedArg = _expandLogMarkers(rawArg);
+        out.write('log(10,$expandedArg)');
+      } else if (semicolons.length == 1) {
+        // 2 parametry: LOG(argument;základ) -> log(základ, argument)
+        final argPart = rawArg.substring(0, semicolons.first);
+        final basePart = rawArg.substring(semicolons.first + 1);
+        if (argPart.isEmpty || basePart.isEmpty) {
+          // LOG(8;) nebo LOG(;2) -> syntaktická chyba
+          throw const CalcError(
+            CalcErrorKind.syntax,
+            CalcErrorReason.syntaxGeneral,
+          );
+        }
+        final expandedArg = _expandLogMarkers(argPart);
+        final expandedBase = _expandLogMarkers(basePart);
+        out.write('log($expandedBase,$expandedArg)');
+      } else {
+        // Více než 1 oddělovač na nejvyšší úrovni (např. LOG(8;2;3)) -> syntaktická chyba
+        throw const CalcError(
+          CalcErrorKind.syntax,
+          CalcErrorReason.syntaxGeneral,
+        );
+      }
+      i = k + 1;
+    }
+    return out.toString();
+  }
+
   double _evaluateExpression(String expr) {
     debugPrint("Evaluating expression: '$expr'");
     // ANS se rozvíjí z platného RationalValue strukturovaně ((n/d)),
@@ -6607,7 +6702,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // závorky, např. ∛(ANS) po substituci) se znaménkově správným
     // výpočtem pro záporné základy (viz _expandCbrtMarkers).
     processed = _expandCbrtMarkers(processed);
-    processed = processed.replaceAll('_LOG_(', 'log(10,');
+    processed = _expandLogMarkers(processed);
 
     // KROK B: Nyní zpracujeme goniometrické funkce podle zvoleného režimu úhlů
     if (_isDegreeMode) {
@@ -12501,6 +12596,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             'DEL',
             '=',
             'DMS',
+            ';',
           ];
         }
         break;
