@@ -6243,6 +6243,72 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// záporné (`(-((-(A))^(1/3)))`) formě. Chyby uvnitř argumentu (např.
   /// dělení nulou) se propagují z rekurze beze změny; nefinite sonda
   /// (Infinity/NaN) zachovává původní text kvůli vnější klasifikaci.
+
+  /// Strukturálně expanduje všechny výskyty [marker]+'(' v [input].
+  ///
+  /// Pro každý výskyt najde párovací ')' počítáním hloubky závorek
+  /// (stejný princip jako [_expandCbrtMarkers]) a zavolá [transform]
+  /// s nalezeným argumentem (obsah mezi závorkami). Zvládá:
+  /// - více volání stejného markeru v jednom výrazu (oprava bug: greedy RegExp),
+  /// - vnořené závorky v argumentu (např. SIN(5*(2+3))),
+  /// - vnořené funkce (SIN(COS(x)) — vnitřní marker je již expandován,
+  ///   protože markery se zpracovávají zevnitř ven pořadím volání).
+  ///
+  /// Chybové stavy jsou zachovány:
+  /// - marker bez závorky → ponechán v řetězci, zachytí ho kontrola zbytkových markerů.
+  /// - nevyvážená závorka → zbytek ponechán, zachytí ho kontrola závorek.
+  /// - prázdný argument → ponechán jako `marker()`, zachytí kontrola zbytkových markerů.
+  String _expandFuncMarker(
+    String input,
+    String marker,
+    String Function(String arg) transform,
+  ) {
+    final out = StringBuffer();
+    int i = 0;
+    while (true) {
+      final idx = input.indexOf(marker, i);
+      if (idx < 0) {
+        out.write(input.substring(i));
+        break;
+      }
+      out.write(input.substring(i, idx));
+      final j = idx + marker.length;
+      if (j >= input.length || input[j] != '(') {
+        // Marker bez závorky — ponecháme, zachytí kontrola zbytkových markerů.
+        out.write(marker);
+        i = j;
+        continue;
+      }
+      // Spočítej hloubku závorek a najdi párovací ')'.
+      int depth = 0;
+      int k = j;
+      for (; k < input.length; k++) {
+        if (input[k] == '(') {
+          depth++;
+        } else if (input[k] == ')') {
+          depth--;
+          if (depth == 0) break;
+        }
+      }
+      if (depth != 0) {
+        // Nevyvážená závorka — ponecháme zbytek; druhá kontrola závorek odmítne.
+        out.write(input.substring(idx));
+        break;
+      }
+      final arg = input.substring(j + 1, k);
+      if (arg.isEmpty) {
+        // Prázdný argument (např. SIN()) — ponecháme jako marker+(),
+        // kontrola zbytkových markerů to odmítne jako syntaxGeneral.
+        out.write(input.substring(idx, k + 1));
+        i = k + 1;
+        continue;
+      }
+      out.write(transform(arg));
+      i = k + 1;
+    }
+    return out.toString();
+  }
+
   String _expandCbrtMarkers(String processed) {
     const marker = '_CBRT_';
     final out = StringBuffer();
@@ -6545,19 +6611,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     // KROK B: Nyní zpracujeme goniometrické funkce podle zvoleného režimu úhlů
     if (_isDegreeMode) {
-      // Pro sin, cos, tan: argument ve stupních * (PI/180)
-      processed = processed.replaceAllMapped(
-        RegExp(r'_SIN_\((.+)\)'),
-        (m) => 'sin(${m[1]}*($PI_VAL/180))',
+      // Pro sin, cos, tan: argument ve stupních * (PI/180).
+      // Používáme _expandFuncMarker (strukturální párování závorek) místo greedy
+      // RegExp, aby byly správně zpracovány výrazy s více funkcemi stejného
+      // typu (např. SIN(65)+SIN(40)) i vnořené závorky v argumentu (SIN(5*(2+3))).
+      processed = _expandFuncMarker(
+        processed,
+        '_SIN_',
+        (arg) => 'sin($arg*($PI_VAL/180))',
       );
-      processed = processed.replaceAllMapped(
-        RegExp(r'_COS_\((.+)\)'),
-        (m) => 'cos(${m[1]}*($PI_VAL/180))',
+      processed = _expandFuncMarker(
+        processed,
+        '_COS_',
+        (arg) => 'cos($arg*($PI_VAL/180))',
       );
-      processed = processed.replaceAllMapped(RegExp(r'_TAN_\((.+)\)'), (m) {
-        final arg = m[1]!;
+      processed = _expandFuncMarker(processed, '_TAN_', (arg) {
         // Tangens není definovaný pro 90° + k*180°. Díky chybě plovoucí
         // řádové čárky by jinak vrátil obrovské číslo místo chyby.
+        // arg je v tomto bodě čistý výraz (SIN/COS v argumentu jsou již
+        // expandovány předchozími voláními _expandFuncMarker výše).
         final argDegrees = _evaluateExpression(arg);
         final normalized = ((argDegrees % 180) + 180) % 180;
         if ((normalized - 90).abs() < 1e-9) {
@@ -6572,21 +6644,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       });
 
       // Pro asin, acos, atan: ZMĚNA na arcsin, arccos, arctan pro knihovnu math_expressions!
-      // Přidány otevírací závorky na začátek pro správnou vyváženost
-      processed = processed.replaceAllMapped(
-        RegExp(r'_ASIN_\((.+)\)'),
-        (m) => '(arcsin(${m[1]})*(180/$PI_VAL))',
+      processed = _expandFuncMarker(
+        processed,
+        '_ASIN_',
+        (arg) => '(arcsin($arg)*(180/$PI_VAL))',
       );
-      processed = processed.replaceAllMapped(
-        RegExp(r'_ACOS_\((.+)\)'),
-        (m) => '(arccos(${m[1]})*(180/$PI_VAL))',
+      processed = _expandFuncMarker(
+        processed,
+        '_ACOS_',
+        (arg) => '(arccos($arg)*(180/$PI_VAL))',
       );
-      processed = processed.replaceAllMapped(
-        RegExp(r'_ATAN_\((.+)\)'),
-        (m) => '(arctan(${m[1]})*(180/$PI_VAL))',
+      processed = _expandFuncMarker(
+        processed,
+        '_ATAN_',
+        (arg) => '(arctan($arg)*(180/$PI_VAL))',
       );
     } else {
-      // RAD mód: knihovna vyžaduje arcsin, arccos, arctan i v radiánech
+      // RAD mód: knihovna vyžaduje arcsin, arccos, arctan i v radiánech.
+      // Prosté přejmenování markerů — závorka zůstává z původního výrazu.
       processed = processed.replaceAll('_SIN_', 'sin');
       processed = processed.replaceAll('_COS_', 'cos');
       processed = processed.replaceAll('_TAN_', 'tan');
