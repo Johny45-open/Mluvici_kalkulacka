@@ -3509,15 +3509,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // Konfigurace (globály + profily) je načtena – uvolni startup draft.
       // Schválně PŘED stats/TTS, aby jejich visící I/O neblokovalo onboarding.
       _markConfigLoaded();
-      // 2. Data potřebná pro startupové oznámení – zejména statistické sady.
-      //    Musí být načtena PŘED sestavením uvítací zprávy, jinak by
-      //    _statsModeAnnouncement() vidělo prázdný seznam a sada/pole by
-      //    v uvítání chyběly. Historie pro uvítání potřeba není.
-      try {
-        await _loadStatsData();
-      } catch (e) {
-        debugPrint('Stats preload Error: $e');
-      }
+      // Statistiky a historie nejsou podmínkou prvního pozdravu. Načítají se
+      // souběžně, aby pomalé I/O nezdržovalo první hlasovou odezvu.
+      unawaited(
+        _loadStatsData().catchError((e) {
+          debugPrint('Stats preload Error: $e');
+        }),
+      );
       unawaited(_loadHistory());
       // 3. Inicializace TTS (engine, jazyk, hlas, rychlost, hlasitost).
       final locale = WidgetsBinding.instance.platformDispatcher.locale;
@@ -3624,11 +3622,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         debugPrint('TTS setQueueMode Error: $e');
       }
       ttsReadySuccess = true;
+      // _announceWelcomeOnce čeká na tento marker; musí být hotový ještě
+      // před jeho zavoláním, jinak by čekal až do timeoutu.
+      if (!_ttsReady.isCompleted) _ttsReady.complete(true);
       // 4. Aktuální stav screen readeru – await, aby volba
       //    announce-vs-speak nevycházela ze zastaralé hodnoty.
       //    (Samotná detekce v _isScreenReaderEnabled se nemění.)
       try {
-        await _refreshAccessibilityState().timeout(const Duration(seconds: 2));
+        await _refreshAccessibilityState().timeout(
+          const Duration(milliseconds: 500),
+        );
       } catch (_) {}
       // 5. Až po všem výše – právě jednou – sestavit a oznámit uvítání.
       if (_sayWelcome && !_welcomeAnnounced) {
