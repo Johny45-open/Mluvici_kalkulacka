@@ -90,7 +90,6 @@
         "speechRate": { "type": "number", "minimum": 0.1, "maximum": 1.0 },
         "speechVolume": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
         "ttsEnabled": { "type": "boolean" },
-        "resultDisplayMode": { "type": "string", "enum": ["segment", "text", "auto"] },
         "ttsEngine": { "type": ["string", "null"] },
         "ttsVoice": {
           "anyOf": [
@@ -116,10 +115,6 @@
         "themeMode": { "type": "string", "enum": ["light", "dark"] },
         "isDegreeMode": { "type": "boolean" },
         "defaultMode": { "type": "string", "enum": ["basic", "scientific", "statistics", "electrician", "unitConversion", "time", "currency"] },
-        "resultDisplayMode": { "type": "string", "enum": ["segment", "text", "auto"] },
-        "resultNotationPreference": { "type": "string", "enum": ["decimal", "fraction"] },
-        "historyExactFormat": { "type": "string", "enum": ["numeric", "exact"] },
-        "announceFractionAvailability": { "type": "boolean" },
         "statsSummaryOrder": {
           "type": "array",
           "minItems": 3,
@@ -129,9 +124,8 @@
         "statsComputedOrder": {
           "type": "array",
           "minItems": 10,
-          "maxItems": 13,
-          "uniqueItems": true,
-          "items": { "type": "string", "enum": ["mean", "sum", "variance", "sd", "median", "min", "max", "mode", "cv", "wmean", "wvar", "wsd", "wcv"] }
+          "maxItems": 10,
+          "items": { "type": "string", "enum": ["mean", "sum", "variance", "sd", "median", "min", "max", "mode", "cv", "wmean"] }
         },
         "currency": {
           "type": "object",

@@ -406,6 +406,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   StatsDisplayConfig _statsDisplayConfig = StatsDisplayConfig.defaults();
   final bool _sayWelcome = true;
   bool _welcomeAnnounced = false;
+  final Completer<void> _welcomeFinished = Completer<void>();
   final Completer<bool> _ttsReady = Completer<bool>();
   // Dokončeno po načtení globálů + profilů (před stats/TTS). Startup draft
   // smí číst runtime stav teprve po tomto markeru, nikdy dřív.
@@ -3152,10 +3153,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // Verze se nepodařila načíst — kalkulačka pokračuje bez verze.
     }
     if (mounted) {
-      _checkForUpdates();
-      _checkForNews();
-      _maybeRunDevAutodiagnostics();
+      unawaited(_runStartupNetworkChecks());
     }
+  }
+
+  Future<void> _runStartupNetworkChecks() async {
+    await _welcomeFinished.future;
+    await _quickSetupFinished.future;
+    if (!mounted) return;
+    _checkForUpdates();
+    _checkForNews();
+    _maybeRunDevAutodiagnostics();
   }
 
   void _maybeRunDevAutodiagnostics() {
@@ -3628,8 +3636,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           // aby startup a přepnutí hlásily konzistentní informace.
           welcome += _statsModeAnnouncement();
         }
-        unawaited(_announceWelcomeOnce(welcome));
+        await _announceWelcomeOnce(welcome);
       }
+      await _checkAutoImportAtStartup();
       // Auto-aktualizace kurzů ČNB (silent, max 1× za 24h)
       try {
         final needsUpdate =
@@ -3647,6 +3656,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (!_ttsReady.isCompleted) {
         _ttsReady.complete(ttsReadySuccess);
       }
+      if (!_welcomeFinished.isCompleted) _welcomeFinished.complete();
       // Pojistka: startup draft nesmí čekat věčně, ani kdyby selhalo
       // samotné načtení konfigurace.
       _markConfigLoaded();
@@ -3658,15 +3668,22 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// _showInitialModeDialog). Nezobrazí se nikdy dvakrát po sobě a pro
   /// staré validní instalace se neptá vůbec (migrace markeru).
   bool _quickSetupShown = false;
+  bool _quickSetupInProgress = false;
+  final Completer<void> _quickSetupFinished = Completer<void>();
   Timer? _quickSetupTimer;
 
   Future<void> _maybeShowQuickSetup() async {
-    if (_quickSetupShown || !mounted) return;
+    if (_quickSetupShown || _quickSetupInProgress || !mounted) return;
+    _quickSetupInProgress = true;
     // Draft se smí stavět teprve z načtené konfigurace (globály + profily),
     // jinak by Apply přepsal skutečnou konfiguraci výchozími hodnotami.
     try {
       await _configLoaded.future.timeout(const Duration(seconds: 10));
     } catch (_) {
+      _quickSetupInProgress = false;
+      _quickSetupTimer = Timer(const Duration(milliseconds: 100), () {
+        if (mounted) unawaited(_maybeShowQuickSetup());
+      });
       return;
     }
     if (!mounted) return;
@@ -3675,9 +3692,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       final prefs = await SharedPreferences.getInstance();
       firstRun = await isQuickSetupFirstRun(prefs);
     } catch (_) {
+      _quickSetupInProgress = false;
       return;
     }
-    if (!firstRun || !mounted) return;
+    if (!firstRun || !mounted) {
+      _quickSetupInProgress = false;
+      if (!_quickSetupFinished.isCompleted) _quickSetupFinished.complete();
+      return;
+    }
     _quickSetupShown = true;
     final draft = QuickSetupDraft.fromRuntime(
       settings: _getActiveAccessibilityProfile().settings,
@@ -3700,6 +3722,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         onApply: (next) => _applyQuickSetup(next, dialogContext),
       ),
     );
+    _quickSetupInProgress = false;
+    if (!_quickSetupFinished.isCompleted) _quickSetupFinished.complete();
   }
 
   /// Ruční otevření rychlého nastavení z menu (nepovinné, zavíratelné).
@@ -9799,10 +9823,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
       }
 
-      _loadGlobalSettings();
-      _loadProfilesV2();
-      _loadHistory();
-      _loadStatsData();
+      await _loadGlobalSettings();
+      await _loadProfilesV2();
+      await _loadHistory();
+      await _loadStatsData();
       setState(() {});
       // R4: jednotný kanál (dříve force-bypass přes SR).
       unawaited(
@@ -17559,6 +17583,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   },
                 ),
                 _buildMoreOptionTile(
+                  icon: Icons.account_tree_outlined,
+                  label: _s('Mezivýpočty', 'Intermediate steps'),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) _showIntermediateSteps();
+                    });
+                  },
+                ),
+                _buildMoreOptionTile(
                   icon: Icons.campaign,
                   label: l10n.news,
                   onTap: () {
@@ -17614,6 +17648,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   },
                 ),
                 _buildMoreOptionTile(
+                  icon: Icons.folder_open,
+                  label: _s(
+                    'Nastavit automatický import ze složky',
+                    'Set automatic folder import',
+                  ),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) _chooseAutoImportFolder();
+                    });
+                  },
+                ),
+                _buildMoreOptionTile(
                   icon: Icons.file_upload,
                   label: _s(
                     'Exportovat konfiguraci (kontrakt)',
@@ -17641,6 +17688,131 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _showIntermediateSteps() async {
+    final expression = _displayedResultString.trim();
+    final result = IntermediateEvaluator.computeIntermediateSteps(
+      expression: expression,
+      evaluator: _evaluateExpression,
+      formatter: _formatNumber,
+      spokenFormatter: _formatSpokenNumber,
+    );
+    if (!mounted) return;
+    await showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(
+        name: _s('Mezivýpočty', 'Intermediate steps'),
+      ),
+      builder: (_) => IntermediateStepsDialog(
+        result: result,
+        title: _s('Mezivýpočty', 'Intermediate steps'),
+        closeButtonLabel: _s('ZAVŘÍT', 'CLOSE'),
+        noStepsMessage: _s(
+          'Výraz neobsahuje mezivýpočty.',
+          'The expression has no intermediate steps.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _chooseAutoImportFolder() async {
+    try {
+      final directory = await FilePicker.getDirectoryPath();
+      if (directory == null || directory.isEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('autoImportUri', directory);
+      await prefs.setBool('autoImportEnabled', true);
+      _showAccessibleSnackBar(
+        _s(
+          'Složka automatického importu byla nastavena.',
+          'Automatic import folder set.',
+        ),
+      );
+      await _checkAutoImportAtStartup(force: true);
+    } catch (e) {
+      debugPrint('Auto-import folder error: $e');
+      if (mounted) {
+        _showAccessibleSnackBar(
+          _s(
+            'Složku automatického importu se nepodařilo nastavit.',
+            'Could not set automatic import folder.',
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _checkAutoImportAtStartup({bool force = false}) async {
+    if (!mounted) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!force && prefs.getBool('autoImportEnabled') != true) return;
+      final directory = prefs.getString('autoImportUri');
+      if (directory == null || directory.isEmpty) return;
+      final candidate = await readAutoImportFile(directory);
+      if (!force && candidate.hash == prefs.getString('autoImportLastHash'))
+        return;
+      final validation = validateAutoImportFile(candidate);
+      if (!validation.ok) {
+        await announceEvent(
+          _s(
+            'Automatický import selhal: neplatná konfigurace.',
+            'Automatic import failed: invalid configuration.',
+          ),
+          category: SpeechCategory.error,
+          interruptCurrentSpeech: true,
+        );
+        return;
+      }
+      final hasExisting = prefs.getString('config_contract_v3') != null;
+      if (hasExisting && mounted) {
+        final proceed = await showAppDialog<bool>(
+          context: context,
+          routeSettings: const RouteSettings(name: 'Automatický import'),
+          builder: (ctx) => AlertDialog(
+            title: Text(_s('Nová konfigurace', 'New configuration')),
+            content: Text(
+              _s(
+                'Je dostupná nová konfigurace. Importovat ji?',
+                'A new configuration is available. Import it?',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(_l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(_s('Importovat', 'Import')),
+              ),
+            ],
+          ),
+        );
+        if (proceed != true) return;
+      }
+      final parsed = parseContract(candidate.contract);
+      await _applyContract(parsed, candidate.contract);
+      await prefs.setString('autoImportLastHash', candidate.hash);
+      if (mounted) {
+        _showAccessibleSnackBar(
+          _s(
+            'Konfigurace byla automaticky importována.',
+            'Configuration was imported automatically.',
+          ),
+        );
+      }
+    } on FileSystemException catch (e) {
+      debugPrint('Auto-import file unavailable: $e');
+    } catch (e) {
+      debugPrint('Auto-import error: $e');
+      if (mounted) {
+        _showAccessibleSnackBar(
+          _s('Automatický import se nepodařil.', 'Automatic import failed.'),
+        );
+      }
+    }
   }
 
   Widget _buildMoreOptionTile({

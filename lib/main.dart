@@ -26,6 +26,9 @@ import 'rational.dart';
 import 'fraction.dart';
 import 'voice_round_tracker.dart';
 import 'statistics_math.dart';
+import 'intermediate_evaluation.dart';
+import 'dialogs/intermediate_steps_dialog.dart';
+import 'auto_import.dart';
 
 part 'models.dart';
 part 'calculator_screen.dart';
