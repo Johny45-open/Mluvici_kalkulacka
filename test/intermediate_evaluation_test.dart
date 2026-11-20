@@ -28,23 +28,26 @@ void main() {
 
     String mockSpoken(double v) => mockFormatter(v);
 
-    test('T1: Jednoduché závorky 6*(2+2) vyhodnotí (2+2) = 4 a následně 6*4 = 24', () {
-      final res = IntermediateEvaluator.computeIntermediateSteps(
-        expression: '6*(2+2)',
-        evaluator: mockEvaluator,
-        formatter: mockFormatter,
-        spokenFormatter: mockSpoken,
-      );
+    test(
+      'T1: Jednoduché závorky 6*(2+2) vyhodnotí (2+2) = 4 a následně 6*4 = 24',
+      () {
+        final res = IntermediateEvaluator.computeIntermediateSteps(
+          expression: '6*(2+2)',
+          evaluator: mockEvaluator,
+          formatter: mockFormatter,
+          spokenFormatter: mockSpoken,
+        );
 
-      expect(res.hasError, isFalse);
-      expect(res.steps.length, greaterThanOrEqualTo(1));
-      expect(res.steps[0].subExpression, '(2+2)');
-      expect(res.steps[0].value, 4.0);
-      expect(res.steps[0].formattedValue, '4');
-      if (res.steps.length > 1) {
-        expect(res.steps[1].value, 24.0);
-      }
-    });
+        expect(res.hasError, isFalse);
+        expect(res.steps.length, greaterThanOrEqualTo(1));
+        expect(res.steps[0].subExpression, '(2+2)');
+        expect(res.steps[0].value, 4.0);
+        expect(res.steps[0].formattedValue, '4');
+        if (res.steps.length > 1) {
+          expect(res.steps[1].value, 24.0);
+        }
+      },
+    );
 
     test('T2: Vícenásobné nezávislé závorky (3+1)*(5-2)', () {
       final res = IntermediateEvaluator.computeIntermediateSteps(
@@ -121,6 +124,18 @@ void main() {
 
       expect(res.hasError, isFalse);
       expect(res.steps, isEmpty);
+    });
+
+    test('Úplné mezivýpočty respektují prioritu operací', () {
+      final res = IntermediateEvaluator.computeIntermediateSteps(
+        expression: '2+3*4',
+        evaluator: mockEvaluator,
+        formatter: mockFormatter,
+        spokenFormatter: mockSpoken,
+      );
+
+      expect(res.steps.map((s) => s.subExpression), ['3*4', '2+12']);
+      expect(res.finalValue, 14.0);
     });
   });
 }

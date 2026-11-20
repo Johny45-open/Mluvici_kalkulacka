@@ -17719,6 +17719,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       evaluator: _evaluateExpression,
       formatter: _formatNumber,
       spokenFormatter: _formatSpokenNumber,
+      sentenceSpoken: (text) {
+        final separator = text.indexOf(' = ');
+        if (separator < 0) return _expressionToSpeech(text);
+        final left = text.substring(0, separator);
+        final right = text.substring(separator + 3);
+        return '${_expressionToSpeech(left)} ${_s('rovná se', 'equals')} $right';
+      },
     );
     if (!mounted) return;
     final announcement = result.steps.isEmpty

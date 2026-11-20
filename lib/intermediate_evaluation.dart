@@ -108,6 +108,12 @@ class _ParenSpan {
   int get fullStart => openIdx - prefix.length;
 }
 
+class _FlatToken {
+  String text;
+  final bool operator;
+  _FlatToken(this.text, this.operator);
+}
+
 /// Čistá logika pro extrakci podvýrazů a postupné vyhodnocování zevnitř ven.
 ///
 /// Nepoužívá vlastní matematický parser; spoléhá na předanou funkci [evaluator],
@@ -143,6 +149,21 @@ class IntermediateEvaluator {
         originalExpression: expression,
         steps: const [],
       );
+    }
+
+    // Výraz bez závorek stále může mít několik operací. Zpracujeme jej podle
+    // stejné priority jako kalkulačka a každou dílčí hodnotu ověříme přes
+    // předaný evaluator (nevzniká druhý matematický vyhodnocovač).
+    if (!cleanExpr.contains('(') && !cleanExpr.contains(')')) {
+      final flat = _computeFlatSteps(
+        expression: expression,
+        cleanExpression: cleanExpr,
+        evaluator: evaluator,
+        formatter: formatter,
+        spokenFormatter: spokenFormatter,
+        sentenceSpoken: sentenceSpoken,
+      );
+      if (flat != null) return flat;
     }
 
     final steps = <IntermediateStep>[];
@@ -275,6 +296,109 @@ class IntermediateEvaluator {
       return value.toInt().toString();
     }
     return value.toString();
+  }
+
+  static IntermediateEvaluationResult? _computeFlatSteps({
+    required String expression,
+    required String cleanExpression,
+    required double Function(String expr) evaluator,
+    required String Function(double val) formatter,
+    required String Function(double val) spokenFormatter,
+    String Function(String mathExpr)? sentenceSpoken,
+  }) {
+    final matches = RegExp(
+      r'(?:\d+(?:[\.,]\d+)?|[A-Za-z_][A-Za-z_0-9]*|π|[+\-*/^])',
+    ).allMatches(cleanExpression);
+    final tokens = matches
+        .map(
+          (m) => _FlatToken(
+            m.group(0)!,
+            RegExp(r'^[+\-*/^]$').hasMatch(m.group(0)!),
+          ),
+        )
+        .toList();
+    if (tokens.length < 3 || tokens.any((t) => t.text.isEmpty)) return null;
+    final compact = tokens.map((t) => t.text).join();
+    if (compact != cleanExpression.replaceAll(RegExp(r'\s+'), '')) return null;
+
+    // Začáteční znaménko a znaménko po operátoru patří k operandům.
+    for (var i = 0; i < tokens.length; i++) {
+      if (!tokens[i].operator) continue;
+      if ((tokens[i].text == '+' || tokens[i].text == '-') &&
+          (i == 0 || tokens[i - 1].operator)) {
+        if (i + 1 >= tokens.length || tokens[i + 1].operator) return null;
+        tokens[i + 1].text = tokens[i].text + tokens[i + 1].text;
+        tokens.removeAt(i);
+        i--;
+      }
+    }
+    // Jediná plochá operace není „mezivýpočet“ navíc; zachováme prázdný stav
+    // pro běžné výrazy typu 123+456. Úplný rozpis začíná tam, kde jsou
+    // alespoň dvě operace s rozdílnými kroky.
+    if (tokens.where((t) => t.operator).length < 2) return null;
+
+    final steps = <IntermediateStep>[];
+    var stepIndex = 1;
+    try {
+      while (tokens.any((t) => t.operator)) {
+        var selected = -1;
+        var selectedPriority = -1;
+        for (var i = 0; i < tokens.length; i++) {
+          if (!tokens[i].operator) continue;
+          final priority = tokens[i].text == '^'
+              ? 3
+              : (tokens[i].text == '*' || tokens[i].text == '/')
+              ? 2
+              : 1;
+          if (priority > selectedPriority) {
+            selected = i;
+            selectedPriority = priority;
+          }
+        }
+        if (selected <= 0 || selected >= tokens.length - 1) return null;
+        final left = tokens[selected - 1].text;
+        final op = tokens[selected].text;
+        final right = tokens[selected + 1].text;
+        final subExpression = '$left$op$right';
+        final value = evaluator(subExpression);
+        final formatted = formatter(value);
+        final spokenValue = spokenFormatter(value);
+        final spoken = sentenceSpoken != null
+            ? sentenceSpoken('$subExpression = $spokenValue')
+            : '$subExpression rovná se $spokenValue';
+        steps.add(
+          IntermediateStep(
+            stepIndex: stepIndex++,
+            subExpression: subExpression,
+            value: value,
+            formattedValue: formatted,
+            stepDescription: '$subExpression = $formatted',
+            spokenText: spoken,
+          ),
+        );
+        final replacement = _canonicalNumber(value);
+        tokens
+          ..removeAt(selected - 1)
+          ..removeAt(selected - 1)
+          ..removeAt(selected - 1)
+          ..insert(selected - 1, _FlatToken(replacement, false));
+      }
+      final finalValue = steps.last.value;
+      final finalFormatted = steps.last.formattedValue;
+      return IntermediateEvaluationResult(
+        originalExpression: expression,
+        steps: steps,
+        finalValue: finalValue,
+        finalFormattedValue: finalFormatted,
+      );
+    } catch (e) {
+      return IntermediateEvaluationResult(
+        originalExpression: expression,
+        steps: steps,
+        error: e,
+        errorMessage: e.toString(),
+      );
+    }
   }
 
   /// Najde nejvnitřnější rozsah závorek s největší hloubkou (zleva doprava).
