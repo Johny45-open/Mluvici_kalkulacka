@@ -137,5 +137,40 @@ void main() {
       expect(res.steps.map((s) => s.subExpression), ['3*4', '2+12']);
       expect(res.finalValue, 14.0);
     });
+
+    test('Úplné mezivýpočty se rekurzivně rozepíšou uvnitř závorek', () {
+      double evaluator(String expr) {
+        switch (expr) {
+          case '3*6':
+            return 18;
+          case '2+18':
+            return 20;
+          case '6*5':
+            return 30;
+          case '2+30':
+            return 32;
+          case '20+32':
+            return 52;
+          default:
+            throw StateError('Unexpected expression: $expr');
+        }
+      }
+
+      final res = IntermediateEvaluator.computeIntermediateSteps(
+        expression: '(2+3*6)+(2+6*5)',
+        evaluator: evaluator,
+        formatter: mockFormatter,
+        spokenFormatter: mockSpoken,
+      );
+
+      expect(res.steps.map((s) => s.subExpression), [
+        '3*6',
+        '2+18',
+        '6*5',
+        '2+30',
+        '20+32',
+      ]);
+      expect(res.finalValue, 52.0);
+    });
   });
 }

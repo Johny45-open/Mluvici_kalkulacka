@@ -203,6 +203,47 @@ class IntermediateEvaluator {
           continue;
         }
 
+        // Nejprve rozepiš operace uvnitř závorky. Teprve když vnitřní výraz
+        // nemá vlastní úplný rozpis (např. SIN(15+15)), vyhodnotí se závorka
+        // jako jeden krok původní cestou níže.
+        final innerSteps = _computeFlatSteps(
+          expression: innerContent,
+          cleanExpression: innerContent,
+          evaluator: evaluator,
+          formatter: formatter,
+          spokenFormatter: spokenFormatter,
+          sentenceSpoken: sentenceSpoken,
+        );
+        if (innerSteps != null &&
+            innerSteps.hasSteps &&
+            innerSteps.finalValue != null) {
+          for (final innerStep in innerSteps.steps) {
+            steps.add(
+              IntermediateStep(
+                stepIndex: stepNumber++,
+                subExpression: innerStep.subExpression,
+                value: innerStep.value,
+                formattedValue: innerStep.formattedValue,
+                stepDescription: innerStep.stepDescription,
+                spokenText: innerStep.spokenText,
+              ),
+            );
+          }
+          final replacement = _canonicalNumber(innerSteps.finalValue!);
+          if (span.prefix.isEmpty) {
+            currentWorkingExpr =
+                currentWorkingExpr.substring(0, span.openIdx) +
+                replacement +
+                currentWorkingExpr.substring(span.closeIdx + 1);
+          } else {
+            currentWorkingExpr =
+                currentWorkingExpr.substring(0, span.openIdx + 1) +
+                replacement +
+                currentWorkingExpr.substring(span.closeIdx);
+          }
+          continue;
+        }
+
         // Vyhodnotíme podvýraz
         final val = evaluator(fullSubExpr);
         final formattedVal = formatter(val);
