@@ -153,8 +153,8 @@ Map<String, dynamic> buildContractJson({
   return {
     'schemaVersion': 3,
     'createdAt': now,
-    'generator': 'Mluvici_kalkulacka/20.7.0',
-    'calculatorCompatibility': {'minVersion': '20.7.0', 'maxVersion': null},
+    'generator': 'Mluvici_kalkulacka/20.8.0',
+    'calculatorCompatibility': {'minVersion': '20.8.0', 'maxVersion': null},
     'activeProfileId': activeProfileId,
     'profiles': profiles
         .map(

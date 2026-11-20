@@ -17720,6 +17720,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     try {
       final directory = await FilePicker.getDirectoryPath();
       if (directory == null || directory.isEmpty) return;
+      if (directory.startsWith('content://')) {
+        await const MethodChannel(
+          'com.example.mluvici_kalkulacka/auto_import',
+        ).invokeMethod<bool>('takePersistablePermission', {
+          'treeUri': directory,
+        });
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('autoImportUri', directory);
       await prefs.setBool('autoImportEnabled', true);
