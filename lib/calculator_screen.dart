@@ -7987,6 +7987,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           Flexible(child: _buildFractionToggle(s)),
           SizedBox(width: 8 * s),
           _buildFractionInsertButton(s),
+          SizedBox(width: 8 * s),
+          Flexible(
+            child: buildButton(
+              _s('Mezikroky', 'Steps'),
+              icon: Icons.account_tree_outlined,
+              semanticLabel: _s(
+                'Zobrazit mezivýpočty',
+                'Show intermediate steps',
+              ),
+              onPressed: _showIntermediateSteps,
+              expanded: false,
+            ),
+          ),
         ],
       ),
     );
