@@ -288,6 +288,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   String display = '';
+  // Poslední výraz, který byl úspěšně vyhodnocen. Po stisku „=“ je display
+  // prázdný a obsahuje pouze výsledek, ale mezivýpočty stále potřebují zdrojový
+  // výraz se závorkami.
+  String _lastCalculatedExpression = '';
   int _cursorPosition = 0;
   String _lastResult = '0.';
   // Exaktní částečně odmocněný výsledek (např. √72 -> 6√2) jako vedlejší
@@ -4554,6 +4558,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void clear() {
     setState(() {
       display = '';
+      _lastCalculatedExpression = '';
       _cursorPosition = 0;
       _lastResult = '0.';
       _isStoreMode = false;
@@ -5949,6 +5954,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
         _fractionOverride = null;
       });
+      _lastCalculatedExpression = currentExpression;
 
       // Automatické oznámení dostupnosti zlomku: pouze součást existující
       // výsledkové hlášky, žádné druhé speak()/say(). Stav je v tomto bodě
@@ -8209,6 +8215,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     setState(() {
       _currentMode = mode;
       display = '';
+      _lastCalculatedExpression = '';
       _cursorPosition = 0;
       _scientificFunctionsPage = false;
       _scientificAnnouncementController.clear();
@@ -17691,7 +17698,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   Future<void> _showIntermediateSteps() async {
-    final expression = _displayedResultString.trim();
+    final expression = display.trim().isNotEmpty
+        ? display.trim()
+        : _lastCalculatedExpression.trim();
     final result = IntermediateEvaluator.computeIntermediateSteps(
       expression: expression,
       evaluator: _evaluateExpression,
