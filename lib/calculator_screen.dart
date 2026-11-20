@@ -18654,8 +18654,8 @@ class _TutorialDialogState extends State<_TutorialDialog>
       unawaited(
         widget.parent.announceEvent(
           widget.parent._s(
-            'Karta ${_tabController.index + 1} z ${widget.tabs.length}: $label',
-            'Tab ${_tabController.index + 1} of ${widget.tabs.length}: $label',
+            'Karta ${_tabController.index + 1} z ${widget.tabs.length}: $label. ${widget.tabs[_tabController.index].text}',
+            'Tab ${_tabController.index + 1} of ${widget.tabs.length}: $label. ${widget.tabs[_tabController.index].text}',
           ),
           category: SpeechCategory.navigation,
         ),
