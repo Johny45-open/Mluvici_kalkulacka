@@ -17721,7 +17721,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       spokenFormatter: _formatSpokenNumber,
     );
     if (!mounted) return;
-    await showAppDialog<void>(
+    final announcement = result.steps.isEmpty
+        ? _s(
+            'Výraz neobsahuje mezivýpočty.',
+            'The expression has no intermediate steps.',
+          )
+        : _s('Mezivýpočty: ', 'Intermediate steps: ') +
+              result.steps.map((step) => step.spokenText).join('. ');
+    final dialogFuture = showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(
         name: _s('Mezivýpočty', 'Intermediate steps'),
@@ -17736,6 +17743,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
       ),
     );
+    // Jediný kanál podle nastavení čtečky: TTS, nebo sémantické oznámení.
+    // Oznámení vzniká pouze po explicitním stisku tlačítka.
+    unawaited(
+      announceEvent(
+        announcement,
+        category: SpeechCategory.actionConfirm,
+        interruptCurrentSpeech: true,
+      ),
+    );
+    await dialogFuture;
   }
 
   Future<void> _chooseAutoImportFolder() async {
