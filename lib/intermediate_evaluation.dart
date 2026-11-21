@@ -196,9 +196,21 @@ class IntermediateEvaluator {
         if (isSimpleNumber && span.prefix.isEmpty) {
           // Nahradíme závorky čistou hodnotou bez závorek pro zjednodušení dalšího zpracování,
           // ale nepřidáváme zbytečný krok "4 = 4".
+          // Záporné číslo musí zůstat v závorce, jinak by se například
+          // (-2)^2 změnilo na -2^2.
+          final replacement = innerContent.startsWith('-')
+              ? '($innerContent)'
+              : innerContent;
+          // U záporného čísla je náhrada textově stejná jako původní
+          // podvýraz. Závorku proto necháme pro plochý tokenizer a ukončíme
+          // hledání závorek, jinak by se stejná závorka zpracovávala znovu.
+          if (replacement ==
+              currentWorkingExpr.substring(span.fullStart, span.closeIdx + 1)) {
+            break;
+          }
           currentWorkingExpr =
               currentWorkingExpr.substring(0, span.openIdx) +
-              innerContent +
+              replacement +
               currentWorkingExpr.substring(span.closeIdx + 1);
           continue;
         }
@@ -281,7 +293,7 @@ class IntermediateEvaluator {
       // Pokud proběhly nějaké mezikroky a zbyl finální výraz, který ještě nebyl jedním celým krokem:
       double? finalVal;
       String? finalFormatted;
-      if (steps.isNotEmpty) {
+      if (steps.isNotEmpty || cleanExpr.contains('(')) {
         // Po zjednodušení závorek může zůstat několik operací mimo závorky.
         // Rozepišme je stejným algoritmem podle priority (např. 3*8/2
         // musí dát 3*8 = 24 a potom 24/2 = 12), místo jediného kroku pro
@@ -379,7 +391,7 @@ class IntermediateEvaluator {
     bool allowSingleOperation = false,
   }) {
     final matches = RegExp(
-      r'(?:\d+(?:[\.,]\d+)?|[A-Za-z_][A-Za-z_0-9]*|π|[+\-*/^])',
+      r'(?:\(-?\d+(?:[\.,]\d+)?\)|\d+(?:[\.,]\d+)?|[A-Za-z_][A-Za-z_0-9]*|π|[+\-*/^])',
     ).allMatches(cleanExpression);
     final tokens = matches
         .map(

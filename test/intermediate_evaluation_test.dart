@@ -202,5 +202,69 @@ void main() {
       ]);
       expect(res.finalValue, 12.0);
     });
+
+    test('Záporné číslo v závorkách zachová význam mocniny', () {
+      double evaluator(String expr) {
+        switch (expr) {
+          case '(-2)^2':
+            return 4;
+          case '4*(-2)':
+            return -8;
+          case '4+-8':
+            return -4;
+          case '-4-6':
+            return -10;
+          default:
+            throw StateError('Unexpected expression: $expr');
+        }
+      }
+
+      final res = IntermediateEvaluator.computeIntermediateSteps(
+        expression: '(-2)^2+4*(-2)-6',
+        evaluator: evaluator,
+        formatter: mockFormatter,
+        spokenFormatter: mockSpoken,
+      );
+
+      expect(res.steps.map((s) => s.stepDescription), [
+        '(-2)^2 = 4',
+        '4*(-2) = -8',
+        '4+-8 = -4',
+        '-4-6 = -10',
+      ]);
+      expect(res.finalValue, -10.0);
+    });
+
+    test('Stejný postup funguje i pro jiné záporné hodnoty', () {
+      double evaluator(String expr) {
+        switch (expr) {
+          case '(-3)^2':
+            return 9;
+          case '5*(-3)':
+            return -15;
+          case '9+-15':
+            return -6;
+          case '-6-7':
+            return -13;
+          default:
+            throw StateError('Unexpected expression: $expr');
+        }
+      }
+
+      final res = IntermediateEvaluator.computeIntermediateSteps(
+        expression: '(-3)^2+5*(-3)-7',
+        evaluator: evaluator,
+        formatter: mockFormatter,
+        spokenFormatter: mockSpoken,
+      );
+
+      expect(res.steps.map((s) => s.stepDescription), [
+        '(-3)^2 = 9',
+        '5*(-3) = -15',
+        '9+-15 = -6',
+        '-6-7 = -13',
+      ]);
+      expect(res.finalValue, -13.0);
+    });
   });
 }
