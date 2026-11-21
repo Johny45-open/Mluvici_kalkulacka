@@ -282,37 +282,67 @@ class IntermediateEvaluator {
       double? finalVal;
       String? finalFormatted;
       if (steps.isNotEmpty) {
-        // Zkusíme vyhodnotit výsledný redukovaný výraz
-        try {
-          finalVal = evaluator(currentWorkingExpr);
-          finalFormatted = formatter(finalVal);
-
-          // Pokud redukovaný výraz nebyl jen prosté číslo a liší se od posledního mezikroku
-          final isJustNumber = RegExp(
-            r'^\(?\s*-?\d+(?:[\.,]\d+)?\s*\)?$',
-          ).hasMatch(currentWorkingExpr.trim());
-          if (!isJustNumber &&
-              steps.last.stepDescription !=
-                  '$currentWorkingExpr = $finalFormatted') {
-            final spokenVal = spokenFormatter(finalVal);
-            final desc = '$currentWorkingExpr = $finalFormatted';
-            final spoken = sentenceSpoken != null
-                ? sentenceSpoken('$currentWorkingExpr = $spokenVal')
-                : '$currentWorkingExpr rovná se $spokenVal';
-
+        // Po zjednodušení závorek může zůstat několik operací mimo závorky.
+        // Rozepišme je stejným algoritmem podle priority (např. 3*8/2
+        // musí dát 3*8 = 24 a potom 24/2 = 12), místo jediného kroku pro
+        // celý redukovaný výraz.
+        final flat = _computeFlatSteps(
+          expression: currentWorkingExpr,
+          cleanExpression: currentWorkingExpr.trim(),
+          evaluator: evaluator,
+          formatter: formatter,
+          spokenFormatter: spokenFormatter,
+          sentenceSpoken: sentenceSpoken,
+          allowSingleOperation: true,
+        );
+        if (flat != null && flat.hasSteps) {
+          for (final flatStep in flat.steps) {
             steps.add(
               IntermediateStep(
                 stepIndex: stepNumber++,
-                subExpression: currentWorkingExpr,
-                value: finalVal,
-                formattedValue: finalFormatted,
-                stepDescription: desc,
-                spokenText: spoken,
+                subExpression: flatStep.subExpression,
+                value: flatStep.value,
+                formattedValue: flatStep.formattedValue,
+                stepDescription: flatStep.stepDescription,
+                spokenText: flatStep.spokenText,
               ),
             );
           }
-        } catch (_) {
-          // Pokud finální redukovaný tvar selže, nevadí, kroky již máme
+          finalVal = flat.finalValue;
+          finalFormatted = flat.finalFormattedValue;
+        } else {
+          // Zkusíme vyhodnotit výsledný redukovaný výraz
+          try {
+            finalVal = evaluator(currentWorkingExpr);
+            finalFormatted = formatter(finalVal);
+
+            // Pokud redukovaný výraz nebyl jen prosté číslo a liší se od posledního mezikroku
+            final isJustNumber = RegExp(
+              r'^\(?\s*-?\d+(?:[\.,]\d+)?\s*\)?$',
+            ).hasMatch(currentWorkingExpr.trim());
+            if (!isJustNumber &&
+                steps.last.stepDescription !=
+                    '$currentWorkingExpr = $finalFormatted') {
+              final spokenVal = spokenFormatter(finalVal);
+              final desc = '$currentWorkingExpr = $finalFormatted';
+              final spoken = sentenceSpoken != null
+                  ? sentenceSpoken('$currentWorkingExpr = $spokenVal')
+                  : '$currentWorkingExpr rovná se $spokenVal';
+
+              steps.add(
+                IntermediateStep(
+                  stepIndex: stepNumber++,
+                  subExpression: currentWorkingExpr,
+                  value: finalVal,
+                  formattedValue: finalFormatted,
+                  stepDescription: desc,
+                  spokenText: spoken,
+                ),
+              );
+            }
+          } catch (_) {
+            // Pokud finální redukovaný tvar selže, nevadí, kroky již máme
+          }
         }
       }
 
@@ -346,6 +376,7 @@ class IntermediateEvaluator {
     required String Function(double val) formatter,
     required String Function(double val) spokenFormatter,
     String Function(String mathExpr)? sentenceSpoken,
+    bool allowSingleOperation = false,
   }) {
     final matches = RegExp(
       r'(?:\d+(?:[\.,]\d+)?|[A-Za-z_][A-Za-z_0-9]*|π|[+\-*/^])',
@@ -376,7 +407,9 @@ class IntermediateEvaluator {
     // Jediná plochá operace není „mezivýpočet“ navíc; zachováme prázdný stav
     // pro běžné výrazy typu 123+456. Úplný rozpis začíná tam, kde jsou
     // alespoň dvě operace s rozdílnými kroky.
-    if (tokens.where((t) => t.operator).length < 2) return null;
+    if (!allowSingleOperation && tokens.where((t) => t.operator).length < 2) {
+      return null;
+    }
 
     final steps = <IntermediateStep>[];
     var stepIndex = 1;

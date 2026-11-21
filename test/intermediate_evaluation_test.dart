@@ -172,5 +172,35 @@ void main() {
       ]);
       expect(res.finalValue, 52.0);
     });
+
+    test('Po závorkách pokračuje rozpis operacemi podle priority', () {
+      double evaluator(String expr) {
+        switch (expr) {
+          case '(6+2)':
+          case '6+2':
+            return 8;
+          case '3*8':
+            return 24;
+          case '24/2':
+            return 12;
+          default:
+            throw StateError('Unexpected expression: $expr');
+        }
+      }
+
+      final res = IntermediateEvaluator.computeIntermediateSteps(
+        expression: '3*(6+2)/2',
+        evaluator: evaluator,
+        formatter: mockFormatter,
+        spokenFormatter: mockSpoken,
+      );
+
+      expect(res.steps.map((s) => s.stepDescription), [
+        '(6+2) = 8',
+        '3*8 = 24',
+        '24/2 = 12',
+      ]);
+      expect(res.finalValue, 12.0);
+    });
   });
 }
