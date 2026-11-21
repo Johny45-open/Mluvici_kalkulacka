@@ -17727,7 +17727,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     bool skipIfEmpty = false,
     bool announce = true,
   }) async {
-    final expression = display.trim().isNotEmpty
+    // Po výpočtu může některá cesta ponechat ve `display` text výsledku
+    // (např. "-10"). Pro mezivýpočty je ale rozhodující původní výraz,
+    // který byl uložen před vymazáním displeje. Nově zadávaný výraz má
+    // `_hasResult == false`, proto se v tomto případě použije `display`.
+    final expression = _hasResult && _lastCalculatedExpression.trim().isNotEmpty
+        ? _lastCalculatedExpression.trim()
+        : display.trim().isNotEmpty
         ? display.trim()
         : _lastCalculatedExpression.trim();
     final result = IntermediateEvaluator.computeIntermediateSteps(
