@@ -69,6 +69,7 @@ const Set<String> _knownGlobalKeys = {
   'historyExactFormat',
   'resultNotationPreference',
   'announceFractionAvailability',
+  'showIntermediateStepsAutomatically',
   'statsSummaryOrder',
   'statsComputedOrder',
   'statsDisplayConfig',
@@ -704,6 +705,7 @@ void _validateSettings(
       'ttsVoiceName',
       'resultDisplayMode',
       'announceFractionAvailability',
+      'showIntermediateStepsAutomatically',
     ]) {
       if (s.containsKey(key)) {
         res.errors.add(
@@ -899,7 +901,11 @@ void _validateGlobalSettings(
         ),
       );
     }
-    for (final key in ['ttsEnabled', 'announceFractionAvailability']) {
+    for (final key in [
+      'ttsEnabled',
+      'announceFractionAvailability',
+      'showIntermediateStepsAutomatically',
+    ]) {
       if (gs[key] is! bool) {
         res.errors.add(
           ValidationIssue(

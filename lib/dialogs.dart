@@ -314,6 +314,25 @@ class _GlobalSettingsControls extends StatelessWidget {
           ),
         ),
         Semantics(
+          label: parent._l10n.automaticIntermediateSteps(
+            settings.showIntermediateStepsAutomatically
+                ? parent._s('Zapnuto', 'On')
+                : parent._s('Vypnuto', 'Off'),
+          ),
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(parent._l10n.automaticIntermediateStepsTitle),
+            subtitle: Text(parent._l10n.automaticIntermediateStepsDescription),
+            value: settings.showIntermediateStepsAutomatically,
+            onChanged: (enabled) => _update(
+              settings.copyWith(showIntermediateStepsAutomatically: enabled),
+              parent._l10n.automaticIntermediateSteps(
+                enabled ? 'Zapnuto' : 'Vypnuto',
+              ),
+            ),
+          ),
+        ),
+        Semantics(
           button: true,
           label: parent._l10n.selectTtsEngine,
           child: OutlinedButton(

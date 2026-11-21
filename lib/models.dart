@@ -32,6 +32,7 @@ class GlobalSettings {
   final ThemeMode themeMode;
   final ResultDisplayMode resultDisplayMode;
   final bool announceFractionAvailability;
+  final bool showIntermediateStepsAutomatically;
 
   const GlobalSettings({
     required this.screenReaderMode,
@@ -44,6 +45,7 @@ class GlobalSettings {
     required this.themeMode,
     required this.resultDisplayMode,
     required this.announceFractionAvailability,
+    required this.showIntermediateStepsAutomatically,
   });
 
   factory GlobalSettings.defaults({ThemeMode themeMode = ThemeMode.dark}) =>
@@ -58,6 +60,7 @@ class GlobalSettings {
         themeMode: themeMode,
         resultDisplayMode: ResultDisplayMode.segment,
         announceFractionAvailability: true,
+        showIntermediateStepsAutomatically: false,
       );
 
   GlobalSettings copyWith({
@@ -74,6 +77,7 @@ class GlobalSettings {
     ThemeMode? themeMode,
     ResultDisplayMode? resultDisplayMode,
     bool? announceFractionAvailability,
+    bool? showIntermediateStepsAutomatically,
   }) => GlobalSettings(
     screenReaderMode: screenReaderMode ?? this.screenReaderMode,
     ttsEnabled: ttsEnabled ?? this.ttsEnabled,
@@ -94,6 +98,9 @@ class GlobalSettings {
     resultDisplayMode: resultDisplayMode ?? this.resultDisplayMode,
     announceFractionAvailability:
         announceFractionAvailability ?? this.announceFractionAvailability,
+    showIntermediateStepsAutomatically:
+        showIntermediateStepsAutomatically ??
+        this.showIntermediateStepsAutomatically,
   );
 
   Map<String, dynamic> toJson() => {
@@ -107,6 +114,7 @@ class GlobalSettings {
     'themeMode': themeMode == ThemeMode.light ? 'light' : 'dark',
     'resultDisplayMode': resultDisplayMode.name,
     'announceFractionAvailability': announceFractionAvailability,
+    'showIntermediateStepsAutomatically': showIntermediateStepsAutomatically,
   };
 
   factory GlobalSettings.fromJson(
@@ -143,6 +151,8 @@ class GlobalSettings {
       resultDisplayMode: resultMode.firstOrNull ?? ResultDisplayMode.segment,
       announceFractionAvailability:
           json['announceFractionAvailability'] as bool? ?? true,
+      showIntermediateStepsAutomatically:
+          json['showIntermediateStepsAutomatically'] as bool? ?? false,
     );
   }
 }

@@ -59,7 +59,7 @@
       "required": [
         "screenReaderMode", "ttsEnabled", "speechRate", "speechVolume",
         "ttsEngine", "ttsVoice", "ttsVoiceName", "themeMode",
-        "resultDisplayMode", "announceFractionAvailability", "isDegreeMode",
+        "resultDisplayMode", "announceFractionAvailability", "showIntermediateStepsAutomatically", "isDegreeMode",
         "defaultMode", "resultNotationPreference", "historyExactFormat",
         "statsSummaryOrder", "statsComputedOrder", "statsDisplayConfig",
         "currency", "devMode"
@@ -87,6 +87,7 @@
         "themeMode": { "type": "string", "enum": ["light", "dark"] },
         "resultDisplayMode": { "type": "string", "enum": ["segment", "text", "auto"] },
         "announceFractionAvailability": { "type": "boolean" },
+        "showIntermediateStepsAutomatically": { "type": "boolean" },
         "isDegreeMode": { "type": "boolean" },
         "defaultMode": { "type": "string" },
         "resultNotationPreference": { "type": "string", "enum": ["decimal", "fraction"] },

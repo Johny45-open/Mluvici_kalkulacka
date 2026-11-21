@@ -887,6 +887,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   bool get _announceExpression =>
       activeAccessibilitySettings.announceExpression;
+  bool get _showIntermediateStepsAutomatically =>
+      _globalSettings.showIntermediateStepsAutomatically;
   bool get _readStatsMemoryValues =>
       activeAccessibilitySettings.readStatsMemoryValues;
   bool get _autoReadStatsSummary =>
@@ -5995,6 +5997,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         rational: historyRational,
         numericValue: _lastNumericValue,
       );
+      if (_showIntermediateStepsAutomatically &&
+          (_currentMode == CalculatorMode.basic ||
+              _currentMode == CalculatorMode.scientific)) {
+        // Výsledek už byl oznámen standardní výsledkovou hláškou. Automaticky
+        // otevřený dialog proto nesmí okamžitě spustit druhou, přerušující
+        // hlasovou hlášku; jeho obsah zůstává dostupný vizuálně i čtečce.
+        unawaited(_showIntermediateSteps(skipIfEmpty: true, announce: false));
+      }
     } catch (e) {
       // Známý CalcError -> přesná hláška dle kind + reason.
       // TAN doménová výjimka si drží vlastní přesnou větu (beze změny).
@@ -17713,7 +17723,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  Future<void> _showIntermediateSteps() async {
+  Future<void> _showIntermediateSteps({
+    bool skipIfEmpty = false,
+    bool announce = true,
+  }) async {
     final expression = display.trim().isNotEmpty
         ? display.trim()
         : _lastCalculatedExpression.trim();
@@ -17731,13 +17744,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       },
     );
     if (!mounted) return;
-    final announcement = result.steps.isEmpty
-        ? _s(
-            'Výraz neobsahuje mezivýpočty.',
-            'The expression has no intermediate steps.',
-          )
-        : _s('Mezivýpočty: ', 'Intermediate steps: ') +
-              result.steps.map((step) => step.spokenText).join('. ');
+    if (skipIfEmpty && result.steps.isEmpty) return;
     final dialogFuture = showAppDialog<void>(
       context: context,
       routeSettings: RouteSettings(
@@ -17753,15 +17760,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
       ),
     );
-    // Jediný kanál podle nastavení čtečky: TTS, nebo sémantické oznámení.
-    // Oznámení vzniká pouze po explicitním stisku tlačítka.
-    unawaited(
-      announceEvent(
-        announcement,
-        category: SpeechCategory.actionConfirm,
-        interruptCurrentSpeech: true,
-      ),
-    );
+    if (announce) {
+      final announcement = result.steps.isEmpty
+          ? _s(
+              'Výraz neobsahuje mezivýpočty.',
+              'The expression has no intermediate steps.',
+            )
+          : _s('Mezivýpočty: ', 'Intermediate steps: ') +
+                result.steps.map((step) => step.spokenText).join('. ');
+      // Jediný kanál podle nastavení čtečky: TTS, nebo sémantické oznámení.
+      // Oznámení vzniká pouze po explicitním stisku tlačítka, případně pokud
+      // si ho vyžádá volající.
+      unawaited(
+        announceEvent(
+          announcement,
+          category: SpeechCategory.actionConfirm,
+          interruptCurrentSpeech: true,
+        ),
+      );
+    }
     await dialogFuture;
   }
 
