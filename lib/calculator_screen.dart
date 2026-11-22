@@ -1023,6 +1023,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   bool? _fractionOverride;
   String _fractionViewKey = '';
   int _fractionViewGeneration = -1;
+  bool _mixedFractionView = false;
+  String _mixedFractionViewKey = '';
+  int _mixedFractionViewGeneration = -1;
   // Stavový příznak způsobilosti: true pouze pro běžný numerický výsledek
   // (basic/scientific, standardní formát, bez DMS/jednotek/měny/času).
   // Nikdy se neodvozuje parsováním textu _lastResult.
@@ -6994,6 +6997,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return baseFrac;
   }
 
+  String? get _mixedFractionString {
+    final r = _validRationalNonTrivial;
+    if (r != null) return r.toMixedDisplayString();
+    final value = _lastNumericValue;
+    final f = value == null ? null : decimalToNonTrivialFraction(value);
+    if (f == null) return null;
+    return Rational(
+      BigInt.from(f.numerator),
+      BigInt.from(f.denominator),
+    ).toMixedDisplayString();
+  }
+
+  String? get _displayFractionString =>
+      _mixedFractionView &&
+          _mixedFractionViewKey == _lastResult &&
+          _mixedFractionViewGeneration == _resultGeneration
+      ? _mixedFractionString
+      : _fractionString;
+
   // Shoda uloženého override s aktuálním výsledkem (klíč + generace).
   // Samotné true/false bez platného klíče nikdy nic nevynucuje.
   bool get _isFractionOverrideKeyValid =>
@@ -7118,7 +7140,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (_isSurdValid) return null;
     // Již zobrazený zlomek se znovu neavizuje (žádná duplicita).
     if (_isShowingFraction()) return null;
-    final fracStr = _fractionString;
+    final fracStr = _displayFractionString;
     if (fracStr != null) {
       final spokenFraction = fracStr.replaceAll('/', _s(' lomeno ', ' over '));
       return _l10n.fractionAvailableAnnouncement(spokenFraction);
@@ -7143,6 +7165,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     if (_isShowingFraction()) {
       final r = _validRationalNonTrivial;
       if (r != null) {
+        if (_mixedFractionView &&
+            _mixedFractionViewKey == _lastResult &&
+            _mixedFractionViewGeneration == _resultGeneration) {
+          final mixed = r.toMixedDisplayString();
+          return _isEnglish()
+              ? mixed.replaceAll('/', ' over ')
+              : mixed.replaceAll('/', ' lomeno ');
+        }
         if (_isEnglish()) {
           return '${r.numerator} over ${r.denominator}';
         }
@@ -7159,7 +7189,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
         return _spokenFraction(f);
       }
-      final s = _fractionString;
+      final s = _displayFractionString;
       if (s != null) return s.replaceAll('/', _s(' lomeno ', ' over '));
     }
     if (_isForceDecimalActive) {
@@ -7244,6 +7274,44 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         );
       }
     }
+  }
+
+  void toggleMixedFractionResultView() {
+    final fraction = _fractionString;
+    if (fraction == null || _validRationalNonTrivial == null) {
+      say(
+        _s(
+          'Smíšený zlomek není pro tento výsledek dostupný.',
+          'A mixed fraction is not available for this result.',
+        ),
+      );
+      return;
+    }
+    final enable =
+        !(_mixedFractionView &&
+            _mixedFractionViewKey == _lastResult &&
+            _mixedFractionViewGeneration == _resultGeneration);
+    setState(() {
+      _mixedFractionView = enable;
+      _mixedFractionViewKey = _lastResult;
+      _mixedFractionViewGeneration = _resultGeneration;
+      if (enable) {
+        _fractionOverride = true;
+        _fractionViewKey = _lastResult;
+        _fractionViewGeneration = _resultGeneration;
+      }
+    });
+    final mixed = _validRationalNonTrivial!.toMixedDisplayString();
+    say(
+      enable
+          ? (_isEnglish()
+                ? mixed.replaceAll('/', ' over ')
+                : mixed.replaceAll('/', ' lomeno '))
+          : _l10n.fractionAnnounced(
+              _validRationalNonTrivial!.numerator,
+              _validRationalNonTrivial!.denominator,
+            ),
+    );
   }
 
   List<int> _primeFactors(int n) {
@@ -8000,7 +8068,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           Flexible(child: _buildFractionToggle(s)),
           SizedBox(width: 8 * s),
           _buildFractionInsertButton(s),
-          SizedBox(width: 8 * s),
           Flexible(
             child: buildButton(
               _s('Mezikroky', 'Steps'),
@@ -8028,6 +8095,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     ).scale(1.0).clamp(1.0, 1.6);
     final insertFontSize = (13.0 * s * sysFactor).clamp(12.0, 16.0);
     final String label = _s('Vložit zlomek', 'Insert fraction');
+    final String semanticLabel = _s(
+      'Vložit zlomek. Otevře zadání čitatele a jmenovatele. Volba Smíšený umožní zadat celé číslo, čitatele a jmenovatele.',
+      'Insert fraction. Opens numerator and denominator fields. The Mixed option allows entering a whole part, numerator, and denominator.',
+    );
     // Bez excludeSemantics: TextButton si musí uchovat vlastní Semantics
     // akci tap, jinak uzel nemá aktivaci pro odečítač (viz níže). Přístupný
     // název leží na Text.semanticsLabel UVNITŘ TextButtonu (ten je vlastní
@@ -8050,7 +8121,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
         child: Text(
           label,
-          semanticsLabel: label,
+          semanticsLabel: semanticLabel,
           maxLines: 1,
           softWrap: false,
           overflow: TextOverflow.ellipsis,
@@ -8098,6 +8169,53 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       numCtrl.dispose();
       denCtrl.dispose();
     }
+  }
+
+  Future<void> _showMixedFractionInputDialog() async {
+    final int insertPos = _cursorPosition;
+    final bool startFresh = _hasResult;
+    final wholeCtrl = TextEditingController();
+    final numCtrl = TextEditingController();
+    final denCtrl = TextEditingController();
+    await showAppDialog<void>(
+      context: context,
+      routeSettings: RouteSettings(
+        name: _s('Vložit smíšený zlomek', 'Insert mixed fraction'),
+      ),
+      builder: (_) => _MixedFractionInputDialog(
+        wholeCtrl: wholeCtrl,
+        numCtrl: numCtrl,
+        denCtrl: denCtrl,
+        screenState: this,
+        onConfirm: (whole, numerator, denominator) {
+          setState(() {
+            if (startFresh) {
+              display = '';
+              _cursorPosition = 0;
+              _hasResult = false;
+              _pendingNegOpens.clear();
+              _fractionOverride = null;
+            } else {
+              _cursorPosition = insertPos.clamp(0, display.length);
+            }
+          });
+          final absoluteWhole = whole.abs();
+          final signedNumerator = whole.isNegative
+              ? -(absoluteWhole * denominator + numerator)
+              : absoluteWhole * denominator + numerator;
+          _insertAtCursor('($signedNumerator/$denominator)');
+          speak(
+            _s(
+              'Vloženo $whole $numerator lomeno $denominator',
+              'Inserted $whole $numerator over $denominator',
+            ),
+          );
+        },
+      ),
+    );
+    wholeCtrl.dispose();
+    numCtrl.dispose();
+    denCtrl.dispose();
   }
 
   // Prezentační přepínač DEC <-> a/b jako běžné tlačítko hlavního layoutu
@@ -8165,6 +8283,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return TextButton(
       key: const ValueKey('fraction_toggle'),
       onPressed: toggleFractionResultView,
+      onLongPress: toggleMixedFractionResultView,
       style: TextButton.styleFrom(
         minimumSize: const Size(48, 28),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -8177,6 +8296,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           key: const ValueKey('fraction_toggle_semantics'),
           toggled: showing,
           enabled: true,
+          hint: _s(
+            'Krátkým stiskem přepnete desetinné a zlomkové zobrazení. Dlouhým stiskem přepnete na smíšený zlomek.',
+            'Short press switches decimal and fraction display. Long press switches to a mixed fraction.',
+          ),
           child: Text(
             visualText,
             semanticsLabel: semanticLabel,
@@ -18907,6 +19030,191 @@ class _TutorialDialogState extends State<_TutorialDialog>
   }
 }
 
+class _MixedFractionInputDialog extends StatefulWidget {
+  const _MixedFractionInputDialog({
+    required this.wholeCtrl,
+    required this.numCtrl,
+    required this.denCtrl,
+    required this.screenState,
+    required this.onConfirm,
+  });
+
+  final TextEditingController wholeCtrl;
+  final TextEditingController numCtrl;
+  final TextEditingController denCtrl;
+  final _CalculatorScreenState screenState;
+  final void Function(BigInt whole, BigInt numerator, BigInt denominator)
+  onConfirm;
+
+  @override
+  State<_MixedFractionInputDialog> createState() =>
+      _MixedFractionInputDialogState();
+}
+
+class _MixedFractionInputDialogState extends State<_MixedFractionInputDialog> {
+  String? wholeError;
+  String? numeratorError;
+  String? denominatorError;
+  final _wholeFocus = FocusNode();
+  final _numeratorFocus = FocusNode();
+  final _denominatorFocus = FocusNode();
+
+  @override
+  void dispose() {
+    _wholeFocus.dispose();
+    _numeratorFocus.dispose();
+    _denominatorFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.screenState;
+    return AlertDialog(
+      scrollable: true,
+      insetPadding: s._dialogInsetPadding(),
+      title: Semantics(
+        header: true,
+        child: Text(s._s('Vložit smíšený zlomek', 'Insert mixed fraction')),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: widget.wholeCtrl,
+            focusNode: _wholeFocus,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(signed: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[-\d]')),
+              LengthLimitingTextInputFormatter(13),
+            ],
+            decoration: InputDecoration(
+              labelText: s._s(
+                'Celá část smíšeného zlomku',
+                'Whole part of mixed fraction',
+              ),
+              helperText: s._s(
+                'Celé číslo; znaménko minus může být na začátku.',
+                'Whole number; a minus sign may be at the beginning.',
+              ),
+              errorText: wholeError,
+            ),
+          ),
+          TextField(
+            controller: widget.numCtrl,
+            focusNode: _numeratorFocus,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(12),
+            ],
+            decoration: InputDecoration(
+              labelText: s._s(
+                'Čitatel smíšeného zlomku',
+                'Numerator of mixed fraction',
+              ),
+              helperText: s._s(
+                'Číslo od nuly do jmenovatele bez něj.',
+                'A number from zero up to, but not including, the denominator.',
+              ),
+              errorText: numeratorError,
+            ),
+          ),
+          TextField(
+            controller: widget.denCtrl,
+            focusNode: _denominatorFocus,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(12),
+            ],
+            decoration: InputDecoration(
+              labelText: s._s(
+                'Jmenovatel smíšeného zlomku',
+                'Denominator of mixed fraction',
+              ),
+              helperText: s._s(
+                'Kladné číslo větší než čitatel.',
+                'A positive number greater than the numerator.',
+              ),
+              errorText: denominatorError,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(s._l10n.cancel.toUpperCase()),
+        ),
+        TextButton(
+          onPressed: () {
+            final w = widget.wholeCtrl.text.trim();
+            final n = widget.numCtrl.text.trim();
+            final d = widget.denCtrl.text.trim();
+            if (!RegExp(r'^-?\d{1,12}$').hasMatch(w) ||
+                !RegExp(r'^\d{1,12}$').hasMatch(n) ||
+                !RegExp(r'^\d{1,12}$').hasMatch(d)) {
+              setState(() {
+                wholeError = !RegExp(r'^-?\d{1,12}$').hasMatch(w)
+                    ? s._s('Vyplňte celou část.', 'Enter the whole part.')
+                    : null;
+                numeratorError = !RegExp(r'^\d{1,12}$').hasMatch(n)
+                    ? s._s('Vyplňte čitatele.', 'Enter the numerator.')
+                    : null;
+                denominatorError = !RegExp(r'^\d{1,12}$').hasMatch(d)
+                    ? s._s(
+                        'Vyplňte kladného jmenovatele.',
+                        'Enter a positive denominator.',
+                      )
+                    : null;
+              });
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                if (!RegExp(r'^-?\d{1,12}$').hasMatch(w)) {
+                  _wholeFocus.requestFocus();
+                } else if (!RegExp(r'^\d{1,12}$').hasMatch(n)) {
+                  _numeratorFocus.requestFocus();
+                } else {
+                  _denominatorFocus.requestFocus();
+                }
+              });
+              return;
+            }
+            final whole = BigInt.parse(w);
+            final numerator = BigInt.parse(n);
+            final denominator = BigInt.parse(d);
+            if (denominator == BigInt.zero || numerator >= denominator) {
+              setState(() {
+                denominatorError = denominator == BigInt.zero
+                    ? s._s(
+                        'Jmenovatel nesmí být nula.',
+                        'The denominator must not be zero.',
+                      )
+                    : null;
+                numeratorError = numerator >= denominator
+                    ? s._s(
+                        'Čitatel musí být menší než jmenovatel.',
+                        'The numerator must be smaller than the denominator.',
+                      )
+                    : null;
+              });
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _numeratorFocus.requestFocus();
+              });
+              return;
+            }
+            widget.onConfirm(whole, numerator, denominator);
+            Navigator.pop(context);
+          },
+          child: Text(s._l10n.confirmAction.toUpperCase()),
+        ),
+      ],
+    );
+  }
+}
+
 class _FractionInputDialog extends StatefulWidget {
   final TextEditingController numCtrl;
   final TextEditingController denCtrl;
@@ -18931,9 +19239,13 @@ class _FractionInputDialog extends StatefulWidget {
 class _FractionInputDialogState extends State<_FractionInputDialog> {
   String? numError;
   String? denError;
+  final _numeratorFocus = FocusNode();
+  final _denominatorFocus = FocusNode();
 
   @override
   void dispose() {
+    _numeratorFocus.dispose();
+    _denominatorFocus.dispose();
     widget.onDispose();
     super.dispose();
   }
@@ -18964,6 +19276,7 @@ class _FractionInputDialogState extends State<_FractionInputDialog> {
               hint: numError != null ? null : numHint,
               child: TextField(
                 controller: widget.numCtrl,
+                focusNode: _numeratorFocus,
                 keyboardType: const TextInputType.numberWithOptions(
                   signed: true,
                 ),
@@ -18973,7 +19286,10 @@ class _FractionInputDialogState extends State<_FractionInputDialog> {
                   LengthLimitingTextInputFormatter(13),
                 ],
                 decoration: InputDecoration(
-                  labelText: widget.screenState._s('Čitatel', 'Numerator'),
+                  labelText: widget.screenState._s(
+                    'Čitatel zlomku',
+                    'Numerator of fraction',
+                  ),
                   errorText: numError,
                   helperText: numHint,
                   helperMaxLines: 3,
@@ -18985,13 +19301,17 @@ class _FractionInputDialogState extends State<_FractionInputDialog> {
               hint: denError != null ? null : denHint,
               child: TextField(
                 controller: widget.denCtrl,
+                focusNode: _denominatorFocus,
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(12),
                 ],
                 decoration: InputDecoration(
-                  labelText: widget.screenState._s('Jmenovatel', 'Denominator'),
+                  labelText: widget.screenState._s(
+                    'Jmenovatel zlomku',
+                    'Denominator of fraction',
+                  ),
                   errorText: denError,
                   helperText: denHint,
                   helperMaxLines: 3,
@@ -19002,6 +19322,23 @@ class _FractionInputDialogState extends State<_FractionInputDialog> {
         ),
       ),
       actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (widget.screenState.mounted) {
+                widget.screenState._showMixedFractionInputDialog();
+              }
+            });
+          },
+          child: Text(
+            widget.screenState._s('Smíšený zlomek', 'Mixed fraction'),
+            semanticsLabel: widget.screenState._s(
+              'Smíšený zlomek, otevře zadání celé části, čitatele a jmenovatele',
+              'Mixed fraction, opens fields for the whole part, numerator, and denominator',
+            ),
+          ),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(widget.screenState._l10n.cancel.toUpperCase()),
@@ -19038,6 +19375,14 @@ class _FractionInputDialogState extends State<_FractionInputDialog> {
               setState(() {
                 numError = nErr;
                 denError = dErr;
+              });
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                if (nErr != null) {
+                  _numeratorFocus.requestFocus();
+                } else {
+                  _denominatorFocus.requestFocus();
+                }
               });
               return;
             }

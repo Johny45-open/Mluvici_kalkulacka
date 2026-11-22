@@ -64,6 +64,25 @@ void main() {
       );
     });
 
+    test('toMixedDisplayString formats positive and negative values', () {
+      expect(
+        Rational(BigInt.from(7), BigInt.from(3)).toMixedDisplayString(),
+        '2 1/3',
+      );
+      expect(
+        Rational(BigInt.from(-7), BigInt.from(3)).toMixedDisplayString(),
+        '-2 1/3',
+      );
+      expect(
+        Rational(BigInt.from(2), BigInt.from(3)).toMixedDisplayString(),
+        '2/3',
+      );
+      expect(
+        Rational(BigInt.from(6), BigInt.from(3)).toMixedDisplayString(),
+        '2',
+      );
+    });
+
     test('storage roundtrip', () {
       const original = '123/456';
       final parsed = Rational.tryParseStorage('123', '456');

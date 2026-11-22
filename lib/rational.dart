@@ -72,6 +72,20 @@ class Rational {
     return '${numerator.toString()}/${denominator.toString()}';
   }
 
+  /// Uživatelsky čitelný smíšený tvar, např. `7/3` -> `2 1/3`.
+  /// Celá čísla zůstávají beze změny; znaménko patří k celému výsledku.
+  String toMixedDisplayString() {
+    if (denominator == BigInt.one) return numerator.toString();
+    final negative = numerator.isNegative;
+    final absNumerator = numerator.abs();
+    final whole = absNumerator ~/ denominator;
+    final remainder = absNumerator % denominator;
+    final sign = negative ? '-' : '';
+    if (remainder == BigInt.zero) return '$sign$whole';
+    if (whole == BigInt.zero) return '$sign$remainder/$denominator';
+    return '$sign$whole $remainder/$denominator';
+  }
+
   /// Serializace pro historii: desetinné řetězce `BigInt` (JSON-safe).
   String toStorageString() =>
       '${numerator.toString()}/${denominator.toString()}';
