@@ -73,6 +73,61 @@ void main() {
   }
 
   group('Confirm dialogs accessibility structure', () {
+    testWidgets('number info has its route and dialog semantic name', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'modeQuestionAsked': true,
+        });
+        mockChannels();
+        final state = await pumpApp(tester);
+        state.setDisplayForTest('12', 2);
+        await tester.pumpAndSettle();
+
+        final moreOptions = find.text('Další možnosti').evaluate().isNotEmpty
+            ? find.text('Další možnosti')
+            : find.text('More options');
+        await tester.tap(find.byIcon(Icons.more_vert).last);
+        await tester.pumpAndSettle();
+        expect(moreOptions, findsOneWidget);
+
+        final numberInfo = find.text('Info o čísle').evaluate().isNotEmpty
+            ? find.text('Info o čísle')
+            : find.text('Number Info');
+        await tester.tap(numberInfo);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget);
+        final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
+        expect(dialog.semanticLabel, anyOf('Info o čísle', 'Number Info'));
+        expect(numberInfo, findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is Semantics &&
+                w.properties.scopesRoute == true &&
+                w.properties.namesRoute == true &&
+                (w.properties.label == 'Info o čísle' ||
+                    w.properties.label == 'Number Info'),
+          ),
+          findsWidgets,
+        );
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is AlertDialog && w.semanticLabel == 'Upozornění',
+          ),
+          findsNothing,
+        );
+        expect(moreOptions, findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pump(const Duration(seconds: 2));
+      } finally {
+        semantics.dispose();
+      }
+    });
+
     testWidgets('delete set: title header, question, two buttons, no group', (
       tester,
     ) async {

@@ -9736,6 +9736,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         return Semantics(
           scopesRoute: true,
           namesRoute: true,
+          explicitChildNodes: true,
           label: routeName,
           child: dialog,
         );
@@ -16776,6 +16777,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             bool isInfoFullscreen = currentSize == DialogSize.fullscreen;
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
+              semanticLabel: l10n.numberInfo,
               title: Semantics(
                 header: true,
                 child: Row(
@@ -17785,7 +17787,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   label: l10n.numberInfo,
                   onTap: () {
                     Navigator.pop(dialogContext);
-                    _showNumberInfoDialog();
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) _showNumberInfoDialog();
+                    });
                   },
                 ),
                 _buildMoreOptionTile(
