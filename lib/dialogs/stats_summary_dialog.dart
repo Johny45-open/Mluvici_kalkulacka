@@ -346,6 +346,7 @@ class _StatsSummaryDialogState extends State<_StatsSummaryDialog> {
 
         return AlertDialog(
           insetPadding: p._dialogInsetPadding(),
+          semanticLabel: l10n.statsSummaryTitle,
           title: Semantics(header: true, child: Text(l10n.statsSummaryTitle)),
           content: FocusTraversalGroup(
             policy: ReadingOrderTraversalPolicy(),
@@ -771,6 +772,7 @@ class _StatsVisibilityDialogState extends State<_StatsVisibilityDialog> {
 
     return AlertDialog(
       insetPadding: p._dialogInsetPadding(),
+      semanticLabel: p._s('Nastavení statistik', 'Statistics settings'),
       title: Semantics(
         header: true,
         child: Text(p._s('Nastavení statistik', 'Statistics settings')),
@@ -913,6 +915,10 @@ class _StatsVisibilityDialogState extends State<_StatsVisibilityDialog> {
       context: context,
       routeSettings: const RouteSettings(name: 'Upravit vlastní percentil'),
       builder: (dialogContext) => AlertDialog(
+        semanticLabel: p._s(
+          'Vlastní percentil P${p._formatNumberSmart(percentile.p)}',
+          'Custom percentile P${p._formatNumberSmart(percentile.p)}',
+        ),
         title: Text(
           p._s(
             'Vlastní percentil P${p._formatNumberSmart(percentile.p)}',

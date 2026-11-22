@@ -9696,6 +9696,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _expressionControlActive = false;
     _expressionControlOffReason = _ExpressionControlOffReason.dialog;
     _dialogDepth++;
+    final routeName = routeSettings?.name;
+    // Windows/NVDA někdy při vstupu do AlertDialog přečte pouze jeho roli
+    // („Upozornění“) a ignoruje namesRoute/semanticLabel. Po otevření proto
+    // pošleme název trasy ještě explicitním kanálem. Je to pouze fallback
+    // pro aktivní čtečku na Windows, aby na Androidu/iOS nevzniklo dvojí
+    // oznámení vedle běžné sémantiky dialogu.
+    if (routeName != null &&
+        routeName.isNotEmpty &&
+        defaultTargetPlatform == TargetPlatform.windows) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isScreenReaderActive == true) {
+          unawaited(
+            announceEvent(routeName, category: SpeechCategory.actionConfirm),
+          );
+        }
+      });
+    }
     return showDialog<T>(
       context: context,
       barrierDismissible: barrierDismissible,
@@ -9706,8 +9723,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       // znovu neodečítá, aby nedošlo k dvojímu zmenšení dialogu
       // a jeho „vystřelení" k hornímu okraji.
       routeSettings: routeSettings,
-      builder: (dialogContext) =>
-          _wrapWithDialogFontScale(dialogContext, builder(dialogContext)),
+      builder: (dialogContext) {
+        final dialog = _wrapWithDialogFontScale(
+          dialogContext,
+          builder(dialogContext),
+        );
+        if (routeName == null || routeName.isEmpty) return dialog;
+        // AlertDialog má vlastní sémantickou roli, kterou některé čtečky
+        // (zejména Windows/NVDA) přečtou pouze jako „Upozornění“. Název
+        // celé dialogové trasy musí být proto uveden samostatně přes
+        // namesRoute, jinak se title nemusí při otevření oznámit.
+        return Semantics(
+          scopesRoute: true,
+          namesRoute: true,
+          label: routeName,
+          child: dialog,
+        );
+      },
     ).whenComplete(() {
       // Dialog (i vnořený) je pryč: reaktivace je opět dovolena, jakmile se
       // primární fokus skutečně vrátí do kalkulačky. Samotné zavření režim
@@ -10056,6 +10088,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         if (mounted) {
           await showAppDialog<void>(
             context: context,
+            routeSettings: RouteSettings(
+              name: _s('Neplatná konfigurace', 'Invalid configuration'),
+            ),
             builder: (ctx) => AlertDialog(
               insetPadding: _dialogInsetPadding(),
               title: Semantics(
@@ -10093,6 +10128,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             .join('\n');
         final proceed = await showAppDialog<bool>(
           context: context,
+          routeSettings: RouteSettings(
+            name: _s('Varování při importu', 'Import warning'),
+          ),
           builder: (ctx) => AlertDialog(
             insetPadding: _dialogInsetPadding(),
             title: Semantics(
@@ -13398,6 +13436,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
             return AlertDialog(
               insetPadding: _dialogInsetPadding(),
+              semanticLabel: l10n.numberInfo,
               title: Semantics(
                 header: true,
                 child: Text(l10n.statsMemoryTitle),
@@ -15620,6 +15659,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 String di = f.iconName;
                                 showAppDialog<void>(
                                   context: ctx,
+                                  routeSettings: RouteSettings(
+                                    name: _s('Barva a ikona', 'Color and icon'),
+                                  ),
                                   builder: (c2) => StatefulBuilder(
                                     builder: (c2, s2) => AlertDialog(
                                       title: Semantics(
@@ -15689,6 +15731,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                               if (v == 'delete') {
                                 showAppDialog<void>(
                                   context: ctx,
+                                  routeSettings: RouteSettings(
+                                    name: _s('Smazat složku?', 'Delete folder?'),
+                                  ),
                                   builder: (c2) => AlertDialog(
                                     title: Semantics(
                                       header: true,
@@ -16819,12 +16864,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               actions: [
                 Semantics(
                   label: _s(
-                    'Přečíst všechny informace hlasem',
-                    'Read all information aloud',
+                    'Přečíst všechny informace',
+                    'Read all information',
+                  ),
+                  hint: _s(
+                    'Při zapnuté čtečce se informace odešlou čtečce obrazovky. Jinak je přečte hlas kalkulačky.',
+                    'With a screen reader enabled, the information is sent to the screen reader. Otherwise the calculator voice reads it.',
                   ),
                   button: true,
                   child: TextButton(
-                    onPressed: () => speak(spokenText),
+                    onPressed: () => say(spokenText),
                     child: Text(l10n.infoRead),
                   ),
                 ),
@@ -17714,6 +17763,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       routeSettings: RouteSettings(name: l10n.moreOptions),
       builder: (dialogContext) => AlertDialog(
         insetPadding: _dialogInsetPadding(),
+        semanticLabel: l10n.moreOptions,
         title: Semantics(header: true, child: Text(l10n.moreOptions)),
         content: _applyDialogSize(
           SingleChildScrollView(
@@ -18889,6 +18939,7 @@ class _TutorialDialogState extends State<_TutorialDialog>
       policy: ReadingOrderTraversalPolicy(),
       child: AlertDialog(
         insetPadding: widget.parent._dialogInsetPadding(),
+        semanticLabel: widget.l10n.helpTitle,
         title: Semantics(header: true, child: Text(widget.l10n.helpTitle)),
         content: ConstrainedBox(
           constraints: BoxConstraints(
@@ -19073,6 +19124,10 @@ class _MixedFractionInputDialogState extends State<_MixedFractionInputDialog> {
     return AlertDialog(
       scrollable: true,
       insetPadding: s._dialogInsetPadding(),
+      semanticLabel: s._s(
+        'Vložit smíšený zlomek',
+        'Insert mixed fraction',
+      ),
       title: Semantics(
         header: true,
         child: Text(s._s('Vložit smíšený zlomek', 'Insert mixed fraction')),
@@ -19283,6 +19338,10 @@ class _FractionInputDialogState extends State<_FractionInputDialog> {
     return AlertDialog(
       scrollable: false,
       insetPadding: widget.screenState._dialogInsetPadding(),
+      semanticLabel: widget.screenState._s(
+        'Vložit zlomek',
+        'Insert fraction',
+      ),
       title: Semantics(
         header: true,
         child: Text(widget.screenState._s('Vložit zlomek', 'Insert fraction')),

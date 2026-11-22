@@ -507,6 +507,10 @@ extension on _CalculatorScreenState {
             return AlertDialog(
               scrollable: false,
               insetPadding: _dialogInsetPadding(),
+              semanticLabel: _s(
+                'Průvodce vytvořením sady',
+                'Set creation wizard',
+              ),
               title: Semantics(
                 header: true,
                 child: Text(

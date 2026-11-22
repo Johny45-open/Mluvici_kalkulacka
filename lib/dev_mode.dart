@@ -27,6 +27,7 @@ class _DevModeDialogState extends State<_DevModeDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._s('Vývojářský režim', 'Developer mode'),
       title: Semantics(
         header: true,
         child: Row(
@@ -455,6 +456,10 @@ class _DisplayDiagnosticsDialogState extends State<_DisplayDiagnosticsDialog> {
 
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._s(
+        'Autodiagnostika displejů',
+        'Display diagnostics',
+      ),
       title: Semantics(
         header: true,
         child: Text(
@@ -605,6 +610,7 @@ class _VoiceTestDialogState extends State<_VoiceTestDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._s('Test hlasu', 'Voice test'),
       title: Semantics(
         header: true,
         child: Text(parent._s('Test hlasu', 'Voice test')),
@@ -867,6 +873,7 @@ class _PrefsDumpDialogState extends State<_PrefsDumpDialog> {
 
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._s('Uložená data', 'Stored data'),
       title: Semantics(
         header: true,
         child: Row(
@@ -1027,6 +1034,7 @@ class _DevPinDialogState extends State<_DevPinDialog> {
     return AlertDialog(
       scrollable: false,
       insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: title,
       title: Semantics(header: true, child: Text(title)),
       content: SingleChildScrollView(
         child: Column(

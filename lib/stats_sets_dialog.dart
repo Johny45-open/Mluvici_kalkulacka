@@ -240,6 +240,9 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
     final parent = widget.parent;
     parent.showAppDialog<void>(
       context: context,
+      routeSettings: RouteSettings(
+        name: parent._s('Vytvořit sadu', 'Create set'),
+      ),
       builder: (ctx) => SimpleDialog(
         title: Semantics(
           header: true,
@@ -790,6 +793,7 @@ class _StatsSetsDialogState extends State<_StatsSetsDialog> {
 
     return AlertDialog(
       insetPadding: _setsInsetPadding(context),
+      semanticLabel: l10n.statsSetsTitle,
       title: Semantics(header: true, child: Text(l10n.statsSetsTitle)),
       content: FocusTraversalGroup(
         policy: ReadingOrderTraversalPolicy(),

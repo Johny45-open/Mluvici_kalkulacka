@@ -19,6 +19,7 @@ class IntermediateStepsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      semanticLabel: title,
       title: Semantics(header: true, child: Text(title)),
       content: SizedBox(
         width: double.maxFinite,

@@ -354,6 +354,7 @@ class _AccessibilityProfileEditorDialogState
     if (!hasValidDraft) {
       return AlertDialog(
         insetPadding: parent._dialogInsetPadding(),
+        semanticLabel: parent._s('Chyba', 'Error'),
         title: Semantics(
           header: true,
           child: Text(parent._s('Chyba', 'Error')),
@@ -387,6 +388,10 @@ class _AccessibilityProfileEditorDialogState
       },
       child: AlertDialog(
         insetPadding: parent._dialogInsetPadding(),
+        semanticLabel: parent._s(
+          'Upravit profil: $editingName',
+          'Edit profile: $editingName',
+        ),
         title: Semantics(
           header: true,
           child: Text(

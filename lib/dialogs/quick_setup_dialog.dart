@@ -613,6 +613,10 @@ class _QuickSetupDialogState extends State<QuickSetupDialog> {
     ];
 
     return AlertDialog(
+      semanticLabel: _t(
+        'Rychlé nastavení kalkulačky',
+        'Quick calculator setup',
+      ),
       title: Semantics(
         header: true,
         child: Text(

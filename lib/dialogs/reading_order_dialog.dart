@@ -280,6 +280,10 @@ class _StatsSummaryReadingOrderDialogState
 
     return AlertDialog(
       insetPadding: p._dialogInsetPadding(),
+      semanticLabel: p._s(
+        'Pořadí čtení statistického souhrnu',
+        'Statistics summary reading order',
+      ),
       title: Semantics(
         header: true,
         child: Text(

@@ -1455,6 +1455,7 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._s('Pokročilé funkce', 'Advanced functions'),
       title: Semantics(
         header: true,
         child: Text(parent._s('Pokročilé funkce', 'Advanced functions')),
@@ -1663,6 +1664,7 @@ class _QuickMemoryDialogState extends State<_QuickMemoryDialog> {
     }
     return AlertDialog(
       insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._l10n.sectionMemory,
       title: Semantics(header: true, child: Text(parent._l10n.sectionMemory)),
       content: SizedBox(
         width: double.maxFinite,
@@ -1823,6 +1825,7 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
     return AlertDialog(
       scrollable: false,
       insetPadding: parent._dialogInsetPadding(),
+      semanticLabel: parent._l10n.currencyManageTitle,
       title: Semantics(
         header: true,
         child: Text(parent._l10n.currencyManageTitle),
@@ -1927,11 +1930,15 @@ class _CurrencyManagerDialogState extends State<_CurrencyManagerDialog> {
                   onPressed: () async {
                     final code = await parent.showAppDialog<String>(
                       context: context,
+                      routeSettings: RouteSettings(
+                        name: parent._l10n.currencyAddTitle,
+                      ),
                       builder: (dCtx) {
                         final ctrl = TextEditingController();
                         return AlertDialog(
                           scrollable: false,
                           insetPadding: parent._dialogInsetPadding(),
+                          semanticLabel: parent._l10n.currencyAddTitle,
                           title: Semantics(
                             header: true,
                             child: Text(parent._l10n.currencyAddTitle),
@@ -2383,6 +2390,7 @@ class _NewsDialogState extends State<_NewsDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: widget.parent._dialogInsetPadding(),
+      semanticLabel: widget.parent._s('Novinky', 'What is new'),
       title: Semantics(
         header: true,
         child: Text(widget.parent._s('Novinky', 'What is new')),
@@ -2712,6 +2720,7 @@ class _AccessibilityDialogState extends State<_AccessibilityDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: widget.parent._dialogInsetPadding(),
+      semanticLabel: widget.parent._l10n.accessibilitySettings,
       title: Semantics(
         header: true,
         child: Text(widget.parent._l10n.accessibilitySettings),
