@@ -19170,6 +19170,15 @@ class _MixedFractionInputDialogState extends State<_MixedFractionInputDialog> {
                       )
                     : null;
               });
+              final message = !RegExp(r'^-?\d{1,12}$').hasMatch(w)
+                  ? s._s('Vyplňte celou část.', 'Enter the whole part.')
+                  : !RegExp(r'^\d{1,12}$').hasMatch(n)
+                  ? s._s('Vyplňte čitatele.', 'Enter the numerator.')
+                  : s._s(
+                      'Vyplňte kladného jmenovatele.',
+                      'Enter a positive denominator.',
+                    );
+              s.say(message);
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
                 if (!RegExp(r'^-?\d{1,12}$').hasMatch(w)) {
@@ -19200,6 +19209,17 @@ class _MixedFractionInputDialogState extends State<_MixedFractionInputDialog> {
                       )
                     : null;
               });
+              s.say(
+                denominator == BigInt.zero
+                    ? s._s(
+                        'Jmenovatel nesmí být nula.',
+                        'The denominator must not be zero.',
+                      )
+                    : s._s(
+                        'Čitatel musí být menší než jmenovatel.',
+                        'The numerator must be smaller than the denominator.',
+                      ),
+              );
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) _numeratorFocus.requestFocus();
               });
@@ -19376,6 +19396,7 @@ class _FractionInputDialogState extends State<_FractionInputDialog> {
                 numError = nErr;
                 denError = dErr;
               });
+              widget.screenState.say(nErr ?? dErr ?? '');
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
                 if (nErr != null) {
