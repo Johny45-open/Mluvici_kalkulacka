@@ -1085,6 +1085,108 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
     if (parent._currentMode == CalculatorMode.scientific) {
       sections.add(
         _CollapsibleSection(
+          title: parent._s('Rychlý přístup', 'Quick access'),
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Semantics(
+                container: true,
+                label: parent._s(
+                  'Vyberte funkce, které se zobrazí v rychlém přístupu na stránce Funkce.',
+                  'Choose functions shown in the quick access bar on the Functions page.',
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      parent._s(
+                        'Jak na to: 1. klepněte na Začít od nuly, 2. vyberte oblíbené funkce, 3. výběr se automaticky uloží. Potom je najdete nahoře na stránce Funkce.',
+                        'How to: 1. tap Start from scratch, 2. choose your favourite functions, 3. the selection is saved automatically. You will find them at the top of the Functions page.',
+                      ),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.restart_alt, size: 18),
+                      label: Text(
+                        parent._s('Začít od nuly', 'Start from scratch'),
+                      ),
+                      onPressed: parent._quickAccessFunctions.isEmpty
+                          ? null
+                          : () async {
+                              parent.setState(
+                                () => parent._quickAccessFunctions.clear(),
+                              );
+                              await parent._saveQuickAccessFunctions();
+                              setState(() {});
+                              await parent.announceEvent(
+                                parent._s(
+                                  'Rychlý přístup vymazán. Nyní vyberte funkce, které chcete přidat.',
+                                  'Quick access cleared. Now choose the functions you want to add.',
+                                ),
+                                category: SpeechCategory.actionConfirm,
+                                interruptCurrentSpeech: true,
+                              );
+                            },
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: _CalculatorScreenState._quickAccessCandidates
+                          .map((label) {
+                            final selected = parent._quickAccessFunctions
+                                .contains(label);
+                            return FilterChip(
+                              label: Text(label),
+                              selected: selected,
+                              onSelected: (value) async {
+                                parent.setState(() {
+                                  if (value) {
+                                    parent._quickAccessFunctions.add(label);
+                                  } else {
+                                    parent._quickAccessFunctions.remove(label);
+                                  }
+                                });
+                                await parent._saveQuickAccessFunctions();
+                                setState(() {});
+                                await parent.announceEvent(
+                                  parent._s(
+                                    value
+                                        ? '$label přidáno do rychlého přístupu'
+                                        : '$label odebráno z rychlého přístupu',
+                                    value
+                                        ? '$label added to quick access'
+                                        : '$label removed from quick access',
+                                  ),
+                                  category: SpeechCategory.actionConfirm,
+                                  interruptCurrentSpeech: true,
+                                );
+                              },
+                            );
+                          })
+                          .toList(),
+                    ),
+                    if (parent._quickAccessFunctions.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          parent._s(
+                            'Rychlý přístup je prázdný. Vyberte alespoň jednu funkci.',
+                            'Quick access is empty. Choose at least one function.',
+                          ),
+                          style: const TextStyle(fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      sections.add(
+        _CollapsibleSection(
           title: parent._l10n.sectionTrigonometry,
           children: [
             Padding(
@@ -1140,6 +1242,7 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                     'x³',
                     '^',
                     '\u03C0',
+                    'e',
                     'DMS',
                     '°→\'',
                     '\'→°',

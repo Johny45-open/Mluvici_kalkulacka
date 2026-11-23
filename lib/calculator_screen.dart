@@ -928,6 +928,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   void Function(String)? _historyAnnouncementPublisher;
 
   bool _scientificFunctionsPage = false;
+  List<String> _quickAccessFunctions = ['SIN', 'x²', '√', 'π', 'e'];
+  static const List<String> _quickAccessCandidates = [
+    'SIN',
+    'COS',
+    'TAN',
+    '√',
+    '∛',
+    'ⁿ√',
+    'x²',
+    'x³',
+    '^',
+    'LOG',
+    'LN',
+    'π',
+    'e',
+    'ABS',
+    'ANS',
+  ];
   final _TransientAnnouncementController _scientificAnnouncementController =
       _TransientAnnouncementController();
 
@@ -1772,6 +1790,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     '1/x': ['Převrácená hodnota', 'Reciprocal'],
     'LOG': ['Logaritmus', 'Logarithm'],
     'LN': ['Přirozený logaritmus', 'Natural logarithm'],
+    'e': ['Eulerovo číslo', 'Euler number'],
     'X': ['Proměnná X', 'Variable X'],
     'Y': ['Proměnná Y', 'Variable Y'],
     'A': ['Proměnná A', 'Variable A'],
@@ -5928,6 +5947,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
       }
 
+      // Ulož zdrojový výraz před zveřejněním výsledku. Automatické otevření
+      // mezivýpočtů se spouští bezprostředně po tomto setState a nesmí číst
+      // jen displej, který už byl vymazán na výsledek.
+      _lastCalculatedExpression = currentExpression;
       setState(() {
         _lastResult = resStr;
         _hasResult = true;
@@ -5962,8 +5985,6 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         }
         _fractionOverride = null;
       });
-      _lastCalculatedExpression = currentExpression;
-
       // Automatické oznámení dostupnosti zlomku: pouze součást existující
       // výsledkové hlášky, žádné druhé speak()/say(). Stav je v tomto bodě
       // již komitnutý (_lastResult, _lastNumericValue,
@@ -6521,6 +6542,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // 1. PŘÍPRAVA SYMBOLŮ
     processed = processed.replaceAll('x²', '^2').replaceAll('x³', '^3');
     processed = processed.replaceAll('\u03C0', '(3.14159265358979323846)');
+    // Malé e je Eulerova konstanta; velké E zůstává vědecká notace/proměnná.
+    processed = processed.replaceAll(
+      RegExp(r'(?<![A-Za-z0-9.])e(?![A-Za-z0-9.])'),
+      '(2.71828182845904523536)',
+    );
     processed = processed.replaceAll('(-)', '-');
     processed = processed.replaceAll(',', '.');
     processed = processed.replaceAll('°→\'', '').replaceAll('\'→°', '');
@@ -8699,6 +8725,13 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       _historyExactFormat = _historyExactFormatFromString(
         prefs.getString('historyExactFormat'),
       );
+      final savedQuickAccess = prefs.getStringList('quickAccessFunctions');
+      if (savedQuickAccess != null) {
+        _quickAccessFunctions = savedQuickAccess
+            .where(_quickAccessCandidates.contains)
+            .toSet()
+            .toList();
+      }
       _currencyFrom = prefs.getString('currencyFrom') ?? 'CZK';
       _currencyTo = prefs.getString('currencyTo') ?? 'EUR';
       if (!_currencyRates.containsKey(_currencyFrom)) _currencyFrom = 'CZK';
@@ -12626,6 +12659,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             'LN',
             'ⁿ√',
             'π',
+            'e',
             'ANS',
           ].contains(label)) {
         _autoClosePendingNegIfNeeded();
@@ -12776,6 +12810,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             'x³',
             '^',
             '\u03C0',
+            'e',
             'DMS',
             '°→\'',
             '\'→°',
@@ -12811,6 +12846,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             '±',
             '…',
             'EXP',
+            'e',
             '%',
             'DEL',
             '=',
@@ -13084,6 +13120,48 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
       ),
     );
+  }
+
+  Widget _buildQuickAccessBar() {
+    if (!_scientificFunctionsPage || _quickAccessFunctions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Semantics(
+      container: true,
+      label: _s(
+        'Rychlý přístup k oblíbeným funkcím',
+        'Quick access to favourite functions',
+      ),
+      child: SizedBox(
+        height: 54,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          itemCount: _quickAccessFunctions.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 4),
+          itemBuilder: (ctx, index) {
+            final label = _quickAccessFunctions[index];
+            return SizedBox(
+              width: 72,
+              child: buildButton(
+                label,
+                semanticLabel: _s(
+                  'Rychlý přístup: ${_getButtonName(label)}',
+                  'Quick access: ${_getButtonName(label)}',
+                ),
+                expanded: false,
+                onPressed: () => _handleButtonPressed(label),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveQuickAccessFunctions() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('quickAccessFunctions', _quickAccessFunctions);
   }
 
   void _toggleScientificFunctionsPage() {
@@ -15733,7 +15811,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                 showAppDialog<void>(
                                   context: ctx,
                                   routeSettings: RouteSettings(
-                                    name: _s('Smazat složku?', 'Delete folder?'),
+                                    name: _s(
+                                      'Smazat složku?',
+                                      'Delete folder?',
+                                    ),
                                   ),
                                   builder: (c2) => AlertDialog(
                                     title: Semantics(
@@ -18546,6 +18627,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                       _buildCurrencyPanel(),
                     if (_currentMode == CalculatorMode.scientific) ...[
                       _buildScientificPageToggle(),
+                      _buildQuickAccessBar(),
                       _buildTransientAnnouncementRegion(
                         _scientificAnnouncementController,
                         semanticsKey: const ValueKey<String>(
@@ -19128,10 +19210,7 @@ class _MixedFractionInputDialogState extends State<_MixedFractionInputDialog> {
     return AlertDialog(
       scrollable: true,
       insetPadding: s._dialogInsetPadding(),
-      semanticLabel: s._s(
-        'Vložit smíšený zlomek',
-        'Insert mixed fraction',
-      ),
+      semanticLabel: s._s('Vložit smíšený zlomek', 'Insert mixed fraction'),
       title: Semantics(
         header: true,
         child: Text(s._s('Vložit smíšený zlomek', 'Insert mixed fraction')),
@@ -19342,10 +19421,7 @@ class _FractionInputDialogState extends State<_FractionInputDialog> {
     return AlertDialog(
       scrollable: false,
       insetPadding: widget.screenState._dialogInsetPadding(),
-      semanticLabel: widget.screenState._s(
-        'Vložit zlomek',
-        'Insert fraction',
-      ),
+      semanticLabel: widget.screenState._s('Vložit zlomek', 'Insert fraction'),
       title: Semantics(
         header: true,
         child: Text(widget.screenState._s('Vložit zlomek', 'Insert fraction')),
