@@ -1167,6 +1167,111 @@ class _AdvancedFunctionsDialogState extends State<_AdvancedFunctionsDialog> {
                           })
                           .toList(),
                     ),
+                    if (parent._quickAccessFunctions.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        parent._s(
+                          'Vybrané funkce a jejich pořadí',
+                          'Selected functions and their order',
+                        ),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      ...parent._quickAccessFunctions.asMap().entries.map((
+                        entry,
+                      ) {
+                        final index = entry.key;
+                        final label = entry.value;
+                        final first = index == 0;
+                        final last =
+                            index == parent._quickAccessFunctions.length - 1;
+                        final position = parent._s(
+                          '${index + 1} z ${parent._quickAccessFunctions.length}',
+                          '${index + 1} of ${parent._quickAccessFunctions.length}',
+                        );
+
+                        Future<void> announceAndSave(String message) async {
+                          await parent._saveQuickAccessFunctions();
+                          if (mounted) setState(() {});
+                          await parent.announceEvent(
+                            message,
+                            category: SpeechCategory.actionConfirm,
+                            interruptCurrentSpeech: true,
+                          );
+                        }
+
+                        Future<void> move(int offset) async {
+                          final newIndex = index + offset;
+                          if (newIndex < 0 ||
+                              newIndex >= parent._quickAccessFunctions.length) {
+                            return;
+                          }
+                          parent.setState(() {
+                            final item = parent._quickAccessFunctions.removeAt(
+                              index,
+                            );
+                            parent._quickAccessFunctions.insert(newIndex, item);
+                          });
+                          await announceAndSave(
+                            parent._s(
+                              '$label přesunuto na pozici ${newIndex + 1} z ${parent._quickAccessFunctions.length}',
+                              '$label moved to position ${newIndex + 1} of ${parent._quickAccessFunctions.length}',
+                            ),
+                          );
+                        }
+
+                        return KeyedSubtree(
+                          key: ValueKey('quick_access_$label'),
+                          child: Semantics(
+                            container: true,
+                            explicitChildNodes: true,
+                            label: parent._s(
+                              '$label, pozice $position',
+                              '$label, position $position',
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(parent._getButtonName(label)),
+                                ),
+                                IconButton(
+                                  tooltip: parent._s(
+                                    'Posunout výše',
+                                    'Move up',
+                                  ),
+                                  onPressed: first ? null : () => move(-1),
+                                  icon: const Icon(Icons.arrow_upward),
+                                ),
+                                IconButton(
+                                  tooltip: parent._s(
+                                    'Posunout níže',
+                                    'Move down',
+                                  ),
+                                  onPressed: last ? null : () => move(1),
+                                  icon: const Icon(Icons.arrow_downward),
+                                ),
+                                IconButton(
+                                  tooltip: parent._s('Odebrat', 'Remove'),
+                                  onPressed: () async {
+                                    parent.setState(
+                                      () => parent._quickAccessFunctions
+                                          .removeAt(index),
+                                    );
+                                    await announceAndSave(
+                                      parent._s(
+                                        '$label odebráno z rychlého přístupu',
+                                        '$label removed from quick access',
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.remove_circle_outline),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
                     if (parent._quickAccessFunctions.isEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),

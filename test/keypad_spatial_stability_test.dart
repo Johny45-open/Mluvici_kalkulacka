@@ -238,6 +238,7 @@ void main() {
     '=',
     'DMS',
     ';',
+    'e',
   ];
   const expectedScientificFunc = [
     'SIN',
@@ -256,6 +257,7 @@ void main() {
     'x³',
     '^',
     'π',
+    'e',
     'DMS',
     "°→'",
     "'→°",
@@ -297,10 +299,7 @@ void main() {
     final cellWidth = (rowRect.width - 3 * gap) / 4;
     expect(
       center.dx,
-      closeTo(
-        rowRect.left + column * (cellWidth + gap) + cellWidth / 2,
-        1.0,
-      ),
+      closeTo(rowRect.left + column * (cellWidth + gap) + cellWidth / 2, 1.0),
       reason: '$label is not in column $column',
     );
     expect(
@@ -433,88 +432,89 @@ void main() {
       },
     );
 
-    testWidgets('T3 - stabilita poradi uvnitr rezimu: btns snapshot + index->row/col', (
-      tester,
-    ) async {
-      SharedPreferences.setMockInitialValues({'modeQuestionAsked': true});
-      mockChannels();
-      final state = await pumpApp(tester, size: const Size(412, 860));
-      // Regression guard: actual btns must equal expected snapshot
-      // We verify via UI presence and order: each btn appears and its index maps to row/col
-      // Helper to get btns from expected
-      for (final mode in CalculatorMode.values) {
-        await switchMode(tester, state, mode);
-        if (mode == CalculatorMode.scientific) {
-          // check numeric
-          for (int i = 0; i < expectedScientificNum.length; i++) {
-            final label = expectedScientificNum[i];
-            expectScientificButtonPosition(tester, label, i);
-          }
-          // switch to func via test hook (avoid locale)
-          bool toggled = false;
-          try {
-            state.toggleScientificPageForTest();
-            await tester.pumpAndSettle();
-            toggled = true;
-          } catch (_) {
-            final toggle = find.text('FUNKCE').evaluate().isNotEmpty
-                ? find.text('FUNKCE')
-                : find.text('FUNCTIONS');
-            if (toggle.evaluate().isNotEmpty) {
-              await tester.tap(toggle.first);
-              await tester.pumpAndSettle();
-              toggled = true;
-            }
-          }
-          if (toggled) {
-            for (int i = 0; i < expectedScientificFunc.length; i++) {
-              final label = expectedScientificFunc[i];
+    testWidgets(
+      'T3 - stabilita poradi uvnitr rezimu: btns snapshot + index->row/col',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({'modeQuestionAsked': true});
+        mockChannels();
+        final state = await pumpApp(tester, size: const Size(412, 860));
+        // Regression guard: actual btns must equal expected snapshot
+        // We verify via UI presence and order: each btn appears and its index maps to row/col
+        // Helper to get btns from expected
+        for (final mode in CalculatorMode.values) {
+          await switchMode(tester, state, mode);
+          if (mode == CalculatorMode.scientific) {
+            // check numeric
+            for (int i = 0; i < expectedScientificNum.length; i++) {
+              final label = expectedScientificNum[i];
               expectScientificButtonPosition(tester, label, i);
             }
+            // switch to func via test hook (avoid locale)
+            bool toggled = false;
             try {
               state.toggleScientificPageForTest();
               await tester.pumpAndSettle();
+              toggled = true;
             } catch (_) {
-              final back = find.text('ČÍSLA').evaluate().isNotEmpty
-                  ? find.text('ČÍSLA')
-                  : find.text('NUMBERS');
-              if (back.evaluate().isNotEmpty) {
-                await tester.tap(back.first);
+              final toggle = find.text('FUNKCE').evaluate().isNotEmpty
+                  ? find.text('FUNKCE')
+                  : find.text('FUNCTIONS');
+              if (toggle.evaluate().isNotEmpty) {
+                await tester.tap(toggle.first);
                 await tester.pumpAndSettle();
+                toggled = true;
               }
             }
-          }
-        } else {
-          final btns = expectedBtns[mode]!;
-          for (int i = 0; i < btns.length; i++) {
-            final label = btns[i];
-            // Some labels like OHM_V have semantic but text is OHM_V – find by text
-            expect(
-              find.text(label).evaluate().isNotEmpty,
-              isTrue,
-              reason: '$mode $label missing at index $i',
-            );
-            final expRow = i ~/ 4, expCol = i % 4;
-            expect(expRow, lessThan(7), reason: '$mode $label row');
-            expect(expCol, lessThan(4), reason: '$mode $label col');
-            // Ensure btn did not change index vs expected snapshot
-          }
-          // Specific regression: check that last incomplete row keeps button at col0 not centered
-          // e.g. statistics "=" at index 24 -> row6 col0
-          if (mode == CalculatorMode.statistics) {
-            expect(24 ~/ 4, 6);
-            expect(24 % 4, 0);
-            // Verify that "=" is found and that row6 has "=" at first cell
-            // Row6 children: Expanded at col0 should contain "="
-            final row6 = tester.widget<Row>(keypadRow(6));
-            // Row children include spacing, so Expanded at 0,2,4,6
-            // We verify at least that "=" exists
-            expect(find.text('='), findsWidgets);
+            if (toggled) {
+              for (int i = 0; i < expectedScientificFunc.length; i++) {
+                final label = expectedScientificFunc[i];
+                expectScientificButtonPosition(tester, label, i);
+              }
+              try {
+                state.toggleScientificPageForTest();
+                await tester.pumpAndSettle();
+              } catch (_) {
+                final back = find.text('ČÍSLA').evaluate().isNotEmpty
+                    ? find.text('ČÍSLA')
+                    : find.text('NUMBERS');
+                if (back.evaluate().isNotEmpty) {
+                  await tester.tap(back.first);
+                  await tester.pumpAndSettle();
+                }
+              }
+            }
+          } else {
+            final btns = expectedBtns[mode]!;
+            for (int i = 0; i < btns.length; i++) {
+              final label = btns[i];
+              // Some labels like OHM_V have semantic but text is OHM_V – find by text
+              expect(
+                find.text(label).evaluate().isNotEmpty,
+                isTrue,
+                reason: '$mode $label missing at index $i',
+              );
+              final expRow = i ~/ 4, expCol = i % 4;
+              expect(expRow, lessThan(7), reason: '$mode $label row');
+              expect(expCol, lessThan(4), reason: '$mode $label col');
+              // Ensure btn did not change index vs expected snapshot
+            }
+            // Specific regression: check that last incomplete row keeps button at col0 not centered
+            // e.g. statistics "=" at index 24 -> row6 col0
+            if (mode == CalculatorMode.statistics) {
+              expect(24 ~/ 4, 6);
+              expect(24 % 4, 0);
+              // Verify that "=" is found and that row6 has "=" at first cell
+              // Row6 children: Expanded at col0 should contain "="
+              final row6 = tester.widget<Row>(keypadRow(6));
+              // Row children include spacing, so Expanded at 0,2,4,6
+              // We verify at least that "=" exists
+              expect(find.text('='), findsWidgets);
+            }
           }
         }
-      }
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets('DMS postupne vklada stupne, minuty a sekundy na cislech', (
       tester,

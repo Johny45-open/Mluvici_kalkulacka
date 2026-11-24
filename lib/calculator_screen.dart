@@ -7942,6 +7942,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       isSixteenSegment: _useSixteenSegment,
       overlineThickness: _overlineThickness,
       overlineHeight: _overlineHeight,
+      enableThousandGrouping: true,
+      thousandGroupGap: _thousandGroupGapBase() * scale * fitScale,
     );
   }
 
@@ -7953,24 +7955,46 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // vnější Semantics value, nevzniká duplicitní čtení.
   Widget _buildMathTextDisplay(String text, {double fitScale = 1.0}) {
     final scale = _responsiveScale(context);
+    final gaps = computeThousandGapIndicesForDisplay(text);
+    final mathStyle = TextStyle(
+      fontFamily: 'MathText',
+      fontFamilyFallback: const ['sans-serif'],
+      fontSize: 30 * _resultZoom * scale * fitScale,
+      fontWeight: FontWeight.w600,
+      color: Colors.redAccent,
+    );
+    final spans = <InlineSpan>[];
+    for (var i = 0; i < text.length; i++) {
+      spans.add(TextSpan(text: text[i]));
+      if (gaps.contains(i)) {
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: SizedBox(width: _thousandGroupGapBase() * scale * fitScale),
+          ),
+        );
+      }
+    }
+    final visualText = gaps.isEmpty
+        ? Text(
+            text,
+            maxLines: 1,
+            softWrap: false,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.visible,
+            style: mathStyle,
+          )
+        : RichText(
+            text: TextSpan(style: mathStyle, children: spans),
+            maxLines: 1,
+            softWrap: false,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.visible,
+          );
     return Align(
       alignment: Alignment.centerRight,
-      child: ExcludeSemantics(
-        child: Text(
-          text,
-          maxLines: 1,
-          softWrap: false,
-          textAlign: TextAlign.end,
-          overflow: TextOverflow.visible,
-          style: TextStyle(
-            fontFamily: 'MathText',
-            fontFamilyFallback: const ['sans-serif'],
-            fontSize: 30 * _resultZoom * scale * fitScale,
-            fontWeight: FontWeight.w600,
-            color: Colors.redAccent,
-          ),
-        ),
-      ),
+      child: ExcludeSemantics(child: visualText),
     );
   }
 
@@ -12846,12 +12870,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             '±',
             '…',
             'EXP',
-            'e',
             '%',
             'DEL',
             '=',
             'DMS',
             ';',
+            'e',
           ];
         }
         break;

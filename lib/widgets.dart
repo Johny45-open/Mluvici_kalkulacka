@@ -148,6 +148,8 @@ class CustomSegmentDisplay extends StatelessWidget {
   final Color disabledColor;
   final double overlineThickness;
   final double overlineHeight;
+  final bool enableThousandGrouping;
+  final double thousandGroupGap;
 
   const CustomSegmentDisplay({
     super.key,
@@ -160,6 +162,8 @@ class CustomSegmentDisplay extends StatelessWidget {
     this.disabledColor = const Color(0x30FF5252),
     this.overlineThickness = 1.0,
     this.overlineHeight = 1.0,
+    this.enableThousandGrouping = false,
+    this.thousandGroupGap = 0.0,
   });
 
   @override
@@ -188,6 +192,10 @@ class CustomSegmentDisplay extends StatelessWidget {
       chars.add(_SegmentCharData(' ', false, false));
     }
 
+    final gapAfterIndices = enableThousandGrouping && thousandGroupGap > 0
+        ? _computeThousandGaps(chars)
+        : const <int>{};
+
     // Rezerva nad periodickými číslicemi: paintery kreslí periodickou čáru
     // nad horní hranu buňky (záporné y) a vykreslování mimo hranice
     // CustomPaint je nespolehlivé (může se tiše oříznout) – proto čára
@@ -206,7 +214,10 @@ class CustomSegmentDisplay extends StatelessWidget {
         final topPad = hasOverline ? overlineReserve : 0.0;
         return Padding(
           padding: EdgeInsets.only(
-            right: index == characterCount - 1 ? 0 : characterSpacing,
+            right: index == characterCount - 1
+                ? 0
+                : characterSpacing +
+                      (gapAfterIndices.contains(index) ? thousandGroupGap : 0),
           ),
           child: SizedBox(
             width: size * 1.5,
@@ -239,6 +250,43 @@ class CustomSegmentDisplay extends StatelessWidget {
         );
       }),
     );
+  }
+
+  Set<int> _computeThousandGaps(List<_SegmentCharData> chars) {
+    final gaps = <int>{};
+    int i = 0;
+    while (i < chars.length) {
+      final startsNumber =
+          RegExp(r'\d').hasMatch(chars[i].char) ||
+          (chars[i].char == '-' &&
+              i + 1 < chars.length &&
+              RegExp(r'\d').hasMatch(chars[i + 1].char));
+      if (!startsNumber) {
+        i++;
+        continue;
+      }
+      if (chars[i].char == '-') i++;
+      final digits = <int>[];
+      while (i < chars.length && RegExp(r'\d').hasMatch(chars[i].char)) {
+        digits.add(i++);
+      }
+      if (digits.length > 3) {
+        for (int p = 0; p < digits.length - 1; p++) {
+          if ((digits.length - p - 1) % 3 == 0) gaps.add(digits[p]);
+        }
+      }
+      // A decimal point is attached to the preceding segment character.
+      if (i > 0 && chars[i - 1].hasDot) {
+        while (i < chars.length && RegExp(r'\d').hasMatch(chars[i].char)) i++;
+      }
+      if (i < chars.length && (chars[i].char == 'E' || chars[i].char == 'e')) {
+        i++;
+        if (i < chars.length && (chars[i].char == '+' || chars[i].char == '-'))
+          i++;
+        while (i < chars.length && RegExp(r'\d').hasMatch(chars[i].char)) i++;
+      }
+    }
+    return gaps;
   }
 }
 
