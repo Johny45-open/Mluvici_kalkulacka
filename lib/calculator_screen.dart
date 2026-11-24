@@ -7943,7 +7943,14 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       overlineThickness: _overlineThickness,
       overlineHeight: _overlineHeight,
       enableThousandGrouping: true,
-      thousandGroupGap: _thousandGroupGapBase() * scale * fitScale,
+      // Gap preference is calibrated in input LED units (3 logical px).
+      // Scale it to the result's 16 px segment cells so it remains visible.
+      thousandGroupGap:
+          _thousandGroupGapBase() *
+          (16.0 / 3.0) *
+          _resultZoom *
+          scale *
+          fitScale,
     );
   }
 

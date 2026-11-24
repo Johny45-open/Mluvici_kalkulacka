@@ -212,39 +212,69 @@ class CustomSegmentDisplay extends StatelessWidget {
       children: List.generate(characterCount, (index) {
         final hasOverline = chars[index].overline;
         final topPad = hasOverline ? overlineReserve : 0.0;
+        final hasGroupGap = gapAfterIndices.contains(index);
+        final groupGap = hasGroupGap ? thousandGroupGap : 0.0;
+        final cellWidth = size * 1.5;
+        final separatorDotSize = (size * 0.14).clamp(2.0, 4.0);
         return Padding(
           padding: EdgeInsets.only(
             right: index == characterCount - 1
                 ? 0
-                : characterSpacing +
-                      (gapAfterIndices.contains(index) ? thousandGroupGap : 0),
+                : characterSpacing + groupGap,
           ),
           child: SizedBox(
-            width: size * 1.5,
+            width: cellWidth + (hasGroupGap ? characterSpacing + groupGap : 0),
             height: size * 1.8 + topPad,
-            child: Padding(
-              padding: EdgeInsets.only(top: topPad),
-              child: CustomPaint(
-                painter: isSixteenSegment
-                    ? _CustomSixteenSegmentPainter(
-                        chars[index].char,
-                        chars[index].hasDot,
-                        chars[index].overline,
-                        enabledColor,
-                        disabledColor,
-                        overlineThickness,
-                        overlineHeight,
-                      )
-                    : _CustomSevenSegmentPainter(
-                        chars[index].char,
-                        chars[index].hasDot,
-                        chars[index].overline,
-                        enabledColor,
-                        disabledColor,
-                        overlineThickness,
-                        overlineHeight,
+            child: Stack(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(top: topPad),
+                  child: SizedBox(
+                    width: cellWidth,
+                    height: size * 1.8,
+                    child: CustomPaint(
+                      painter: isSixteenSegment
+                          ? _CustomSixteenSegmentPainter(
+                              chars[index].char,
+                              chars[index].hasDot,
+                              chars[index].overline,
+                              enabledColor,
+                              disabledColor,
+                              overlineThickness,
+                              overlineHeight,
+                            )
+                          : _CustomSevenSegmentPainter(
+                              chars[index].char,
+                              chars[index].hasDot,
+                              chars[index].overline,
+                              enabledColor,
+                              disabledColor,
+                              overlineThickness,
+                              overlineHeight,
+                            ),
+                    ),
+                  ),
+                ),
+                if (hasGroupGap)
+                  Positioned(
+                    left:
+                        cellWidth +
+                        characterSpacing / 2 +
+                        groupGap / 2 -
+                        separatorDotSize / 2,
+                    top: topPad + size * 0.06,
+                    child: ExcludeSemantics(
+                      child: Container(
+                        width: separatorDotSize,
+                        height: separatorDotSize,
+                        decoration: BoxDecoration(
+                          color: enabledColor,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-              ),
+                    ),
+                  ),
+              ],
             ),
           ),
         );
