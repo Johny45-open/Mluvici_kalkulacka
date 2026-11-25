@@ -138,6 +138,25 @@ class _OverlinePeriod extends StatelessWidget {
   }
 }
 
+/// Spočítá přesnou svislou rezervu nad segmentovou buňkou pro periodickou čáru
+/// podle stejného vzorce pro svislou pozici `y`, jaký používají paintery.
+double computeSegmentOverlineReserve(
+  double segSize,
+  double overlineThickness,
+  double overlineHeight,
+) {
+  final thickness = segSize * 0.15;
+  final overlineExtra = (overlineThickness - 1.0).clamp(0.0, 3.0);
+  final barStroke = thickness * 0.75 * overlineThickness;
+  final rawY =
+      -thickness * 0.20 * overlineExtra -
+      thickness * 1.0 * (overlineHeight - 1.0);
+  final minY = -(barStroke / 2 + 1.0);
+  final maxY = -(thickness * 2.0 + 6.0);
+  final y = rawY.clamp(maxY, minY);
+  return (-y) + barStroke / 2 + 1.0;
+}
+
 class CustomSegmentDisplay extends StatelessWidget {
   final String value;
   final double size;
@@ -202,9 +221,11 @@ class CustomSegmentDisplay extends StatelessWidget {
     // nebyla na výsledkovém displeji vidět. Buňky s periodou dostanou horní
     // padding, takže čára leží uvnitř vlastního boxu. Velikost samotných
     // číslic se nemění, zarovnání drží spodní hrana (end).
-    final thicknessEst = size * 0.15;
-    final barStrokeEst = thicknessEst * 0.75 * overlineThickness;
-    final overlineReserve = thicknessEst * 2.0 + 6.0 + barStrokeEst / 2 + 2.0;
+    final overlineReserve = computeSegmentOverlineReserve(
+      size,
+      overlineThickness,
+      overlineHeight,
+    );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -298,7 +319,14 @@ class CustomSegmentDisplay extends StatelessWidget {
       if (chars[i].char == '-') i++;
       final digits = <int>[];
       while (i < chars.length && RegExp(r'\d').hasMatch(chars[i].char)) {
-        digits.add(i++);
+        digits.add(i);
+        final hasDot = chars[i].hasDot;
+        i++;
+        // Desetinná tečka je připojena k poslední číslici celé části (hasDot),
+        // proto zde sběr celé části ukončíme a desetinné číslice přeskočíme níže.
+        if (hasDot) {
+          break;
+        }
       }
       if (digits.length > 3) {
         for (int p = 0; p < digits.length - 1; p++) {

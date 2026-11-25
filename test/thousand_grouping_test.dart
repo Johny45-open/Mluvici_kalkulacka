@@ -281,4 +281,104 @@ void main() {
       expect(gaps, contains(0));
     });
   });
+
+  group('CustomSegmentDisplay thousand grouping', () {
+    Future<Set<int>> renderedGapIndices(
+      WidgetTester tester,
+      String value, {
+      int characterCount = 18,
+    }) async {
+      const double baseSpacing = 8.0;
+      const double groupGap = 10.0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: CustomSegmentDisplay(
+                value: value,
+                size: 16,
+                characterCount: characterCount,
+                characterSpacing: baseSpacing,
+                enableThousandGrouping: true,
+                thousandGroupGap: groupGap,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final row = tester.widget<Row>(
+        find.descendant(
+          of: find.byType(CustomSegmentDisplay),
+          matching: find.byType(Row),
+        ),
+      );
+
+      final actualGaps = <int>{};
+      for (int i = 0; i < row.children.length; i++) {
+        final paddingWidget = row.children[i] as Padding;
+        final insets = paddingWidget.padding as EdgeInsets;
+        if (insets.right > baseSpacing + 0.1) {
+          expect(insets.right, closeTo(baseSpacing + groupGap, 0.01));
+          actualGaps.add(i);
+        }
+      }
+      return actualGaps;
+    }
+
+    testWidgets('1234567.89 -> mezery pouze v celé části', (tester) async {
+      final gaps = await renderedGapIndices(tester, '1234567.89');
+      expect(gaps, equals({0, 3}));
+    });
+
+    testWidgets('1234567.891234 -> desetinná část bez mezer', (tester) async {
+      final gaps = await renderedGapIndices(tester, '1234567.891234');
+      expect(gaps, equals({0, 3}));
+    });
+
+    testWidgets('1234.567890 -> desetinná část bez mezer', (tester) async {
+      final gaps = await renderedGapIndices(tester, '1234.567890');
+      expect(gaps, equals({0}));
+    });
+
+    testWidgets('0.123456789 -> žádné mezery', (tester) async {
+      final gaps = await renderedGapIndices(tester, '0.123456789');
+      expect(gaps, isEmpty);
+    });
+
+    testWidgets('-1234567.891234 -> záporné číslo s desetinnou částí', (
+      tester,
+    ) async {
+      final gaps = await renderedGapIndices(tester, '-1234567.891234');
+      expect(gaps, equals({1, 4}));
+    });
+
+    testWidgets('1234567 -> celé číslo zachováno', (tester) async {
+      final gaps = await renderedGapIndices(tester, '1234567');
+      expect(gaps, equals({0, 3}));
+    });
+
+    testWidgets('periodická notace s pruhem -> pouze celá část', (
+      tester,
+    ) async {
+      final gaps = await renderedGapIndices(
+        tester,
+        '1234567.8\u03059\u03051\u03052\u0305',
+      );
+      expect(gaps, equals({0, 3}));
+    });
+
+    testWidgets('exponent -> pouze celá část mantisy', (tester) async {
+      expect(
+        await renderedGapIndices(tester, '1234.5678E+12'),
+        equals({0}),
+      );
+      expect(
+        await renderedGapIndices(tester, '1234567E-10'),
+        equals({0, 3}),
+      );
+    });
+  });
 }

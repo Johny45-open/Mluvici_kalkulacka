@@ -410,5 +410,37 @@ void main() {
     testWidgets('číslo bez periodické části', (tester) async {
       await pumpDisplays(tester, value: '123.45', thickness: 4.0, height: 2.0);
     });
+
+    test('computeSegmentOverlineReserve vrací přesnou rezervu bez nadměrného nafukování', () {
+      final defaultReserve = computeSegmentOverlineReserve(16.0, 1.0, 1.0);
+      expect(defaultReserve, closeTo(3.8, 0.01));
+      expect(defaultReserve, lessThan(5.0));
+
+      final tallReserve = computeSegmentOverlineReserve(16.0, 4.0, 2.0);
+      expect(tallReserve, greaterThan(defaultReserve));
+      expect(tallReserve, closeTo(9.2, 0.01));
+    });
+
+    testWidgets('CustomSegmentDisplay s periodou při výchozím nastavení má kompaktní výšku', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CustomSegmentDisplay(
+              value: '0.3\u0305',
+              size: 16,
+              characterCount: 4,
+              overlineThickness: 1.0,
+              overlineHeight: 1.0,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final displaySize = tester.getSize(find.byType(CustomSegmentDisplay));
+      // 16 * 1.8 = 28.8 + přesná rezerva 3.8 = 32.6 (dříve bylo 28.8 + 13.7 = 42.5)
+      expect(displaySize.height, closeTo(28.8 + 3.8, 0.05));
+    });
   });
 }

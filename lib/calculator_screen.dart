@@ -18484,15 +18484,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                             ? '0.'
                                             : _lastResult,
                                       ).contains('\u0305')) {
-                                        final segThick = segSize * 0.15;
-                                        segH +=
-                                            segThick * 2.0 +
-                                            6.0 +
-                                            segThick *
-                                                0.75 *
-                                                _overlineThickness /
-                                                2 +
-                                            2.0;
+                                        segH += computeSegmentOverlineReserve(
+                                          segSize,
+                                          _overlineThickness,
+                                          _overlineHeight,
+                                        );
                                       }
                                       final gapH = 12 * s;
                                       final neededH = dotH + segH + gapH;
