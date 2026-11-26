@@ -391,6 +391,10 @@ void main() {
       await setScreenReader(tester, state, true);
       ttsLog.clear();
       state.switchModeForTest(CalculatorMode.scientific);
+      // Při aktivní čtečce se oznámení režimu publikuje až po krátkém
+      // ustálení (150 ms), aby je čtečka nezahodila kvůli události „Vybráno“.
+      // pumpAndSettle čas neodpovídá, proto čas posuneme explicitně.
+      await tester.pump(const Duration(milliseconds: 200));
       await tester.pumpAndSettle();
       expect(ttsLog, isEmpty, reason: 'TTS log: $ttsLog');
       expect(state.lastAnnouncementForTest as String, contains('Přepnuto na'));
@@ -593,6 +597,11 @@ void main() {
         ttsLog.any((t) => t == 'Přidat do statistické paměti'),
         isFalse,
         reason: 'TTS log: $ttsLog',
+      );
+      expect(
+        ttsLog.any((t) => t.startsWith('Hodnota 1:')),
+        isFalse,
+        reason: 'Počáteční fokus nesmí přerušit úvodní souhrn: $ttsLog',
       );
       expect(
         find.text('Kontrola dat před uložením').evaluate().isNotEmpty ||

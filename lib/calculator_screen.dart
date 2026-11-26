@@ -94,6 +94,7 @@ Widget _buildTransientAnnouncementRegion(
   required Key semanticsKey,
 }) {
   return ListenableBuilder(
+    key: ValueKey<Object>(semanticsKey),
     listenable: controller,
     builder: (context, _) {
       final message = controller.message;
@@ -913,6 +914,24 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// na Androidu; fallback na Windows).
   final _TransientAnnouncementController _globalAnnouncementController =
       _TransientAnnouncementController();
+  Timer? _modeAnnouncementTimer;
+
+  /// Fokusové uzly čipů přepínače režimů. Sémantika chipu má
+  /// `excludeSemantics`, takže framework příznak `focused` od potomků
+  /// nepřebírá – musíme ho svázat s uzlem ručně. Bez toho čtečka vidí
+  /// „není zaměřený“, i když na chipu skutečně fokus je. Stejný vzor jako
+  /// u [_displayA11yFocusNode]: listener pouze překreslí, hodnotu fokusu
+  /// framework čte z uzlu – nic se nepředstírá.
+  final Map<CalculatorMode, FocusNode> _modeChipFocusNodes = {
+    for (final mode in CalculatorMode.values)
+      mode: FocusNode(debugLabel: 'modeChip-${mode.name}'),
+  };
+
+  /// Odložená tichá aktualizace kurzů ČNB (2 s po startu). Držíme referenci,
+  /// aby šla při zániku widgetu zrušit – jinak po dispose zůstane viset
+  /// nedokončený časovač (ve widget testech kvůli tomu padají invarianty,
+  /// v produkci by si pamatoval neživý widget).
+  Timer? _currencyUpdateTimer;
 
   /// Poslední publikované oznámení bez ohledu na kanál (i pro testy).
   String _lastPublishedAnnouncement = '';
@@ -3140,6 +3159,15 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     // žádný fokusový stav se nepředstírá. Stejný vzor jako výše u
     // [_readingOrderFocusNode]; uzel je vlastní a dispozuje se v [dispose].
     _displayA11yFocusNode.addListener(_handleA11yProxyFocusChanged);
+    for (final node in _modeChipFocusNodes.values) {
+      node.addListener(_handleModeChipFocusChanged);
+    }
+  }
+
+  /// Přepínač režimů: pouze rebuild, aby sémantika chipu přečetla
+  /// skutečný `focused` ze svého FocusNode (viz [_modeChipFocusNodes]).
+  void _handleModeChipFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   /// Z6: viz poznámka v [initState] — pouze rebuild, aby `RenderEditable`
@@ -3308,6 +3336,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     _quickSetupTimer?.cancel();
     _devTapTimer?.cancel();
+    _modeAnnouncementTimer?.cancel();
+    _currencyUpdateTimer?.cancel();
+    for (final node in _modeChipFocusNodes.values) {
+      node.removeListener(_handleModeChipFocusChanged);
+      node.dispose();
+    }
     _voiceCreationSession?.dispose();
     _mainFocusNode.dispose();
     _displayA11yFocusNode.dispose();
@@ -3675,8 +3709,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         final needsUpdate =
             _currencyLastUpdate == null ||
             DateTime.now().difference(_currencyLastUpdate!).inHours >= 24;
-        if (needsUpdate) {
-          Future.delayed(const Duration(seconds: 2), () {
+        if (needsUpdate && mounted) {
+          _currencyUpdateTimer?.cancel();
+          _currencyUpdateTimer = Timer(const Duration(seconds: 2), () {
             if (mounted) _updateCurrencyRatesOnline(silent: true);
           });
         }
@@ -8439,15 +8474,30 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     _maybeSuggestFavoriteMode();
     String speech = _l10n.switchedToMode(_getModeSpeechName(mode));
     speech += _statsModeAnnouncement();
-    // R7: jedna navigační hláška jednotným kanálem. Při aktivní čtečce
-    // se dříve neoznámilo nic (speak mlčel a liveRegion se nezměnil).
-    unawaited(
-      announceEvent(
-        speech,
-        category: SpeechCategory.navigation,
-        interruptCurrentSpeech: true,
-      ),
-    );
+    _modeAnnouncementTimer?.cancel();
+    // Při aktivní čtečce (TalkBack) publikujeme oznámení až po krátkém
+    // ustálení stromu a dokončení klikací / selected události na čipu,
+    // aby ji čtečka nezahodila nebo nepřerušila stavovou hláškou „Vybráno“.
+    if (_isScreenReaderActive == true) {
+      _modeAnnouncementTimer = Timer(const Duration(milliseconds: 150), () {
+        if (!mounted || _currentMode != mode) return;
+        unawaited(
+          announceEvent(
+            speech,
+            category: SpeechCategory.navigation,
+            interruptCurrentSpeech: true,
+          ),
+        );
+      });
+    } else {
+      unawaited(
+        announceEvent(
+          speech,
+          category: SpeechCategory.navigation,
+          interruptCurrentSpeech: true,
+        ),
+      );
+    }
   }
 
   String _statsModeAnnouncement() {
@@ -13221,6 +13271,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return Semantics(
       label: _s('Přepínač režimů', 'Mode selector'),
       container: true,
+      explicitChildNodes: true,
       child: Container(
         height: 48 * scale,
         margin: EdgeInsets.symmetric(vertical: 4 * scale),
@@ -13231,13 +13282,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             children: CalculatorMode.values.map((mode) {
               String label = _getModeName(mode);
               final isSelected = _currentMode == mode;
+              final focusNode = _modeChipFocusNodes[mode]!;
               return Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4 * scale),
                 child: Semantics(
-                  label:
-                      '$label${isSelected ? _s(', vybráno', ', selected') : ''}',
+                  container: true,
+                  excludeSemantics: true,
+                  button: true,
                   selected: isSelected,
+                  label: label,
+                  focusable: true,
+                  focused: focusNode.hasFocus,
+                  onTap: isSelected
+                      ? () {
+                          // Vybraný chip: ohlásí aktuální stav bez přepnutí.
+                          final speech = _s(
+                            '$label, aktuálně vybraný režim',
+                            '$label, currently selected mode',
+                          );
+                          unawaited(announceEvent(
+                            speech,
+                            category: SpeechCategory.navigation,
+                          ));
+                        }
+                      : () => _changeMode(mode),
                   child: ChoiceChip(
+                    focusNode: focusNode,
                     label: MediaQuery(
                       data: MediaQuery.of(
                         context,
@@ -17410,6 +17480,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         .map((r) => StatisticsRecord(values: List.from(r.values)))
         .toList();
     final summary = l10n.statsReviewSummary(editableRecords.length, setName);
+    bool suppressInitialRowFocusSpeech = true;
 
     void closeDialog(BuildContext dialogContext, {VoidCallback? after}) {
       Navigator.pop(dialogContext);
@@ -17472,7 +17543,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                           return Focus(
                             autofocus: idx == 1,
                             onFocusChange: (hasFocus) {
-                              if (hasFocus && _isScreenReaderActive != true) {
+                              if (!hasFocus) return;
+                              if (suppressInitialRowFocusSpeech && idx == 1) {
+                                suppressInitialRowFocusSpeech = false;
+                                return;
+                              }
+                              if (_isScreenReaderActive != true) {
                                 speak(rowLabel);
                               }
                             },

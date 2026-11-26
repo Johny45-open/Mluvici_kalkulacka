@@ -140,6 +140,12 @@ void main() {
         isFalse,
         reason: 'Nesmi se spustit obecna hlaska tlacitka: $ttsLog',
       );
+      // pocatecni autofocus na 1. radek nesmi prerusit uvodni souhrn
+      expect(
+        ttsLog.any((t) => t.startsWith('Hodnota 1:')),
+        isFalse,
+        reason: 'Pocatecni fokus nesmi prerusit uvodni souhrn: $ttsLog',
+      );
       // hodnota se opravdu dostane do sady az po Ulozit – zatim prazdne
       expect(state.statsMemoryForTest.length, 0);
       // ulozit prave jednou
