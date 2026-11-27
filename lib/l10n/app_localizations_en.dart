@@ -99,7 +99,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tutorialStatistics =>
-      'Statistics mode – data sets.\n\nButtons: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: manage sets and folders – see Sets & Reading tab.\nM+ short: stores display numbers (separator ;) to the active set. A Review before saving dialog always appears, letting you check, edit and save the values with the Save button. M+ long / Ctrl+M: enter a repeat count for bulk insertion.\nMC: clear set. MR: view/edit data (grouped values with occurrence counts, delete records).\nSTATS: summary for selected field – field switcher at top (if multiple fields), checkbox Read values in memory (hides/shows All values section and affects speech), table of computed statistics (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN, WVAR, WSD, WCV) and Reading order button for customization.\nAdvanced: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/WVAR/WSD/WCV/MIN/MAX + read last batch. Multiple fields: enter as e.g. 80;2 for WMEAN (value;weight). Field units can be set when creating/editing a set and appear in the summary.';
+      'Statistics mode – data sets.\n\nButtons: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: manage sets and folders – see Sets & Reading tab.\nM+ short: stores display numbers (separator ;) to the active set. A Review before saving dialog always appears, letting you check, edit and save the values with the Save button. M+ long / Ctrl+M: enter a repeat count for bulk insertion.\nMC: clear set. MR: view/edit data (grouped values with occurrence counts, edit values and occurrence counts, delete records).\nSTATS: summary for selected field – field switcher at top (if multiple fields), checkbox Read values in memory (hides/shows All values section and affects speech), table of computed statistics (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN, WVAR, WSD, WCV) and Reading order button for customization.\nAdvanced: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/WVAR/WSD/WCV/MIN/MAX + read last batch. Multiple fields: enter as e.g. 80;2 for WMEAN (value;weight). Field units can be set when creating/editing a set and appear in the summary.';
 
   @override
   String get tutorialElectrician =>
@@ -358,6 +358,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String statsEditCountInvalidRange(int max) {
+    return 'Occurrence count must be a whole number from 1 to $max.';
+  }
+
+  @override
   String get statsReviewTitle => 'Review data before saving';
 
   @override
@@ -514,7 +519,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statsHelpKeyboardMr =>
-      'MR – Show all stored data in editable list (grouped values with occurrence counts, delete records, Manage sets).';
+      'MR – Show all stored data in editable list (grouped values with occurrence counts, edit values and occurrence counts, delete records, Manage sets).';
 
   @override
   String get statsHelpKeyboardStats =>

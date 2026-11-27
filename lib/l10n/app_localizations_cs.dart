@@ -99,7 +99,7 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get tutorialStatistics =>
-      'Režim Statistika – práce se sadami.\n\nTlačítka: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: správa sad a složek – viz záložka Sady & čtení.\nM+ krátce: uloží čísla z displeje (oddělovač ;) do aktivní sady. Vždy se zobrazí Kontrola dat před uložením s možností hodnoty zkontrolovat, upravit a uložit tlačítkem Uložit. M+ dlouze / Ctrl+M: zadá počet opakování pro hromadné vložení.\nMC: vymaže sadu. MR: přehled/editace dat (seskupené hodnoty s počtem výskytů, mazání záznamů).\nSTATS: souhrn pro vybrané pole – nahoře přepínač pole (je-li více polí), zaškrtávátko Číst hodnoty v paměti (skryje/přidá sekci Všechny hodnoty v paměti a ovlivní hlasové čtení), tabulka vypočtených statistik (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN, WVAR, WSD, WCV) a tlačítko Pořadí čtení pro přizpůsobení čtení.\nPokročilé funkce: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/WVAR/WSD/WCV/MIN/MAX + čtení poslední dávky. Více polí: hodnoty zadávej jako např. 80;2 pro WMEAN (hodnota;váha). Jednotky polí lze nastavit při vytváření/editaci sady a zobrazují se v souhrnu.';
+      'Režim Statistika – práce se sadami.\n\nTlačítka: SETS MC MR M+ STATS C DEL / 7 8 9 * 4 5 6 - 1 2 3 + 0 . ; =.\nSETS: správa sad a složek – viz záložka Sady & čtení.\nM+ krátce: uloží čísla z displeje (oddělovač ;) do aktivní sady. Vždy se zobrazí Kontrola dat před uložením s možností hodnoty zkontrolovat, upravit a uložit tlačítkem Uložit. M+ dlouze / Ctrl+M: zadá počet opakování pro hromadné vložení.\nMC: vymaže sadu. MR: přehled/editace dat (seskupené hodnoty s počtem výskytů, úprava hodnot i počtu výskytů, mazání záznamů).\nSTATS: souhrn pro vybrané pole – nahoře přepínač pole (je-li více polí), zaškrtávátko Číst hodnoty v paměti (skryje/přidá sekci Všechny hodnoty v paměti a ovlivní hlasové čtení), tabulka vypočtených statistik (N, MIN, MAX, SUM, MEAN, VAR, SD, MED, MODE, CV, WMEAN, WVAR, WSD, WCV) a tlačítko Pořadí čtení pro přizpůsobení čtení.\nPokročilé funkce: MEAN/SD/VAR/SUM/MED/MODE/CV/WMEAN/WVAR/WSD/WCV/MIN/MAX + čtení poslední dávky. Více polí: hodnoty zadávej jako např. 80;2 pro WMEAN (hodnota;váha). Jednotky polí lze nastavit při vytváření/editaci sady a zobrazují se v souhrnu.';
 
   @override
   String get tutorialElectrician =>
@@ -358,6 +358,11 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
+  String statsEditCountInvalidRange(int max) {
+    return 'Počet výskytů musí být celé číslo od 1 do $max.';
+  }
+
+  @override
   String get statsReviewTitle => 'Kontrola dat před uložením';
 
   @override
@@ -514,7 +519,7 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get statsHelpKeyboardMr =>
-      'MR – Zobrazí všechna uložená data v editovatelném seznamu (seskupené hodnoty s počtem výskytů, mazání záznamů, Správa sad).';
+      'MR – Zobrazí všechna uložená data v editovatelném seznamu (seskupené hodnoty s počtem výskytů, úprava hodnot i počtu výskytů, mazání záznamů, Správa sad).';
 
   @override
   String get statsHelpKeyboardStats =>

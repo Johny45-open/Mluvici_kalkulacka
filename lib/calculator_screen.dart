@@ -13402,11 +13402,17 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
   }
 
+  /// Úprava jedné skupiny záznamů (shodných hodnot) v statistické paměti.
+  ///
+  /// Kromě hodnot polí lze změnit i počet výskytů skupiny. Tím jde snížit
+  /// nebo zvýšit počet jen u upravované hodnoty, zbytek paměti zůstane
+  /// nedotčený (uživatel nemusí mazat celou paměť a znovu zadávat data).
   void _showEditStatsRecordDialog(
     List<int> recordIndices,
     BuildContext dialogContext,
     StateSetter setStateDialog,
   ) {
+    final l10n = _l10n;
     final recordIndex = recordIndices.first;
     final record = _statsMemory[recordIndex];
     final currentSet = _statsSets[_currentStatsSetIndex];
@@ -13419,8 +13425,16 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           ),
         )
         .toList();
+    final countController = TextEditingController(
+      text: '${recordIndices.length}',
+    );
+    final countFocusNode = FocusNode(debugLabel: 'statsEditCount');
+    String? countError;
+    // Stejná horní hranice jako v dialogu opakování, ale nikdy menší než
+    // současný počet výskytů – jinak by předvyplněná hodnota byla neplatná.
+    final maxCount = math.max(kMaxStatsRepeatCount, recordIndices.length);
 
-    showAppDialog<void>(
+    final dialogFuture = showAppDialog<void>(
       context: dialogContext,
       routeSettings: RouteSettings(
         name: _s(
@@ -13429,98 +13443,180 @@ class _CalculatorScreenState extends State<CalculatorScreen>
         ),
       ),
       builder: (ctx) {
-        return AlertDialog(
-          scrollable: false,
-          insetPadding: _dialogInsetPadding(),
-          title: Semantics(
-            header: true,
-            child: Text(
-              _s(
-                'Upravit záznam ${recordIndex + 1}',
-                'Edit record ${recordIndex + 1}',
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              scrollable: false,
+              insetPadding: _dialogInsetPadding(),
+              title: Semantics(
+                header: true,
+                child: Text(
+                  _s(
+                    'Upravit záznam ${recordIndex + 1}',
+                    'Edit record ${recordIndex + 1}',
+                  ),
+                ),
               ),
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(fieldNames.length, (i) {
-                final unitCode = i < fieldUnits.length ? fieldUnits[i] : null;
-                final label = unitCode != null
-                    ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
-                    : fieldNames[i];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Semantics(
-                    label: '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
-                    child: TextField(
-                      controller: controllers[i],
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...List.generate(fieldNames.length, (i) {
+                      final unitCode = i < fieldUnits.length
+                          ? fieldUnits[i]
+                          : null;
+                      final label = unitCode != null
+                          ? '${fieldNames[i]} (${_getUnitSpeech(unitCode)})'
+                          : fieldNames[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Semantics(
+                          label:
+                              '$label (${_s("Pole ${i + 1}", "Field ${i + 1}")})',
+                          child: TextField(
+                            controller: controllers[i],
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                              signed: true,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: label,
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 4),
+                    // Počet výskytů skupiny: změna se projeví jen u této
+                    // hodnoty, ostatní záznamy zůstávají.
+                    TextField(
+                      controller: countController,
+                      focusNode: countFocusNode,
+                      keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: label,
+                        labelText: l10n.statsOccurrenceCount,
+                        errorText: countError,
                         isDense: true,
                       ),
                     ),
-                  ),
-                );
-              }),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(_l10n.cancel),
-            ),
-            TextButton(
-              onPressed: () {
-                final newValues = <double>[];
-                bool valid = true;
-                for (int i = 0; i < controllers.length; i++) {
-                  final text = controllers[i].text.trim().replaceAll(',', '.');
-                  final val = double.tryParse(text);
-                  if (val != null) {
-                    newValues.add(val);
-                  } else {
-                    valid = false;
-                    break;
-                  }
-                }
-                if (valid) {
-                  setState(() {
-                    for (final idx in recordIndices) {
-                      _statsSets[_currentStatsSetIndex].records[idx] =
-                          StatisticsRecord(values: newValues);
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(_l10n.cancel),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final newValues = <double>[];
+                    bool valid = true;
+                    for (int i = 0; i < controllers.length; i++) {
+                      final text = controllers[i].text.trim().replaceAll(
+                        ',',
+                        '.',
+                      );
+                      final val = double.tryParse(text);
+                      if (val != null) {
+                        newValues.add(val);
+                      } else {
+                        valid = false;
+                        break;
+                      }
                     }
-                  });
-                  _saveStatsData();
-                  setStateDialog(() {});
-                  Navigator.pop(ctx);
-                  final editedMsg = recordIndices.length > 1
-                      ? _s(
-                          'Záznam ${recordIndex + 1} upraven. Změněno ${recordIndices.length} ${_getStatsCountForm(recordIndices.length)}.',
-                          'Record ${recordIndex + 1} edited. Changed ${recordIndices.length} ${_getStatsCountForm(recordIndices.length)}.',
-                        )
-                      : _s(
-                          'Záznam ${recordIndex + 1} upraven',
-                          'Record ${recordIndex + 1} edited',
+                    if (!valid) {
+                      speak(_s('Neplatná hodnota', 'Invalid value'));
+                      return;
+                    }
+                    final newCount = int.tryParse(countController.text.trim());
+                    if (newCount == null ||
+                        newCount < 1 ||
+                        newCount > maxCount) {
+                      // Neplatný počet: nic se neuloží a dialog zůstává
+                      // otevřený. Viditelná chyba v poli + jedno oznámení
+                      // (přesun fokusu na pole chybu přečte i s čtečkou).
+                      final msg = l10n.statsEditCountInvalidRange(maxCount);
+                      setDialogState(() {
+                        countError = msg;
+                      });
+                      countFocusNode.requestFocus();
+                      unawaited(speak(msg));
+                      return;
+                    }
+                    setState(() {
+                      final records = _statsSets[_currentStatsSetIndex].records;
+                      final indices = List<int>.from(recordIndices)..sort();
+                      for (final idx in indices) {
+                        records[idx] = StatisticsRecord(
+                          values: List<double>.of(newValues),
                         );
-                  // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
-                  if (mounted) {
-                    _showAccessibleSnackBar(editedMsg);
-                  }
-                } else {
-                  speak(_s('Neplatná hodnota', 'Invalid value'));
-                }
-              },
-              child: Text(_l10n.confirmAction),
-            ),
-          ],
+                      }
+                      final diff = newCount - indices.length;
+                      if (diff < 0) {
+                        // Snížení počtu: odebereme poslední výskyty, první
+                        // (zobrazený) záznam zůstane na svém místě.
+                        final toRemove = indices.sublist(indices.length + diff)
+                          ..sort((a, b) => b.compareTo(a));
+                        for (final idx in toRemove) {
+                          records.removeAt(idx);
+                        }
+                      } else if (diff > 0) {
+                        // Zvýšení počtu: vložíme kopie za poslední výskyt.
+                        for (int i = 0; i < diff; i++) {
+                          records.insert(
+                            indices.last + 1,
+                            StatisticsRecord(
+                              values: List<double>.of(newValues),
+                            ),
+                          );
+                        }
+                      }
+                    });
+                    _saveStatsData();
+                    setStateDialog(() {});
+                    Navigator.pop(ctx);
+                    final countChanged = newCount != recordIndices.length;
+                    final editedMsg = countChanged
+                        ? _s(
+                            'Záznam ${recordIndex + 1} upraven, počet výskytů: $newCount',
+                            'Record ${recordIndex + 1} edited, occurrences: $newCount',
+                          )
+                        : recordIndices.length > 1
+                        ? _s(
+                            'Záznam ${recordIndex + 1} upraven. Změněno ${recordIndices.length} ${_getStatsCountForm(recordIndices.length)}.',
+                            'Record ${recordIndex + 1} edited. Changed ${recordIndices.length} ${_getStatsCountForm(recordIndices.length)}.',
+                          )
+                        : _s(
+                            'Záznam ${recordIndex + 1} upraven',
+                            'Record ${recordIndex + 1} edited',
+                          );
+                    // Z3: jediné oznámení jednotným kanálem (SnackBar s announce).
+                    if (mounted) {
+                      _showAccessibleSnackBar(editedMsg);
+                    }
+                  },
+                  child: Text(_l10n.confirmAction),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+    // Řídicí prvky se uvolní až po zavření dialogu. `dialogFuture` se
+    // splní ve chvíli, kdy navigator route dokončí, ale její widgety mizí
+    // ze stromu až v nejbližším buildu – proto uvolnění odložíme za další
+    // frame, jinak by se ještě připravovaný rebuild volal po dispose.
+    dialogFuture.then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final controller in controllers) {
+          controller.dispose();
+        }
+        countController.dispose();
+        countFocusNode.dispose();
+      });
+    });
   }
 
   void _showStatisticsMemoryDialog() {
